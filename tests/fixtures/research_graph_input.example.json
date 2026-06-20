@@ -1,0 +1,40 @@
+{
+  "task_id": "RESEARCH_001",
+  "user_approved_context": {
+    "audience_level": "master",
+    "course_name": "Bayesian Statistics",
+    "target_duration_minutes": 90,
+    "teaching_goal": "refresh and improve logical flow"
+  },
+  "approved_domains": [
+    {"domain_id": "D1", "label": "Bayesian statistics"},
+    {"domain_id": "D2", "label": "probabilistic programming"}
+  ],
+  "approved_research_scope": {
+    "verify_claims": {"priority": ["high", "medium"]},
+    "include_recent_developments": true,
+    "include_canonical_sources": true,
+    "include_didactic_examples": true
+  },
+  "claim_cards": [
+    {
+      "claim_id": "CLM_001",
+      "text": "Bayesian methods are computationally expensive for large-scale problems.",
+      "type": "methodological",
+      "verification_need": "high",
+      "artifact_ref": "artifact://states/claim_state.approved.json#/claims/CLM_001"
+    }
+  ],
+  "concept_context_cards": [
+    {"concept_id": "C1", "label": "Posterior distribution", "role": "core_concept"}
+  ],
+  "selected_flow_issue_cards": [
+    {"issue_id": "F_001", "severity": "high", "summary": "Posterior is used before likelihood is explained"}
+  ],
+  "locked_sections": [
+    {"section_id": "S1", "reason": "Author wants to keep opening narrative"}
+  ],
+  "artifact_refs_for_lazy_hydration": {
+    "claim_state_ref": "artifact://states/claim_state.approved.json"
+  }
+}

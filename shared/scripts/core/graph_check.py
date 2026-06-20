@@ -19,9 +19,9 @@ GRAPHS_DIR = ROOT / "shared" / "graphs"
 PLUGIN = ROOT / "plugin.json"
 
 # Node kinds that are NOT separately registered components in plugin.json:
-#   script / gate / human-gate are control steps inside the orchestrator;
+#   script / gate / user-gate are control steps inside the orchestrator;
 #   subgraph delegates to another manifest (checked for existence, not registration).
-_NON_REGISTERED_KINDS = {"script", "gate", "human-gate", "subgraph"}
+_NON_REGISTERED_KINDS = {"script", "gate", "user-gate", "subgraph"}
 
 
 def registered_component_names(plugin_path: Path | None = None) -> set[str]:

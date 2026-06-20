@@ -25,7 +25,7 @@ are graph config the engine consumes).
 ### Multi-graph composition (3 subgraphs + parent)
 
 The build is `intake` → `research` → `solution` subgraphs, sequenced by a thin `system` parent
-graph with human gates between them. The engine supports this without per-graph special-casing:
+graph with user gates between them. The engine supports this without per-graph special-casing:
 
 - each subgraph has its own manifest, state file, contracts and scripts package, and is
   independently runnable/testable;
@@ -43,7 +43,7 @@ Tested in `tests/test_core_runtime.py` (stdlib-only; redirects `EMAGENTS_HOME` t
 - per-artifact **shape checks**,
 - the **required-field set + route_back map** each graph feeds to `validate_state`/`gate`,
 - **complexity_class → model/budget** mapping (a per-graph table),
-- parallel fan-out/fan-in and human-gate orchestration (sequencing lives in the orchestrator
+- parallel fan-out/fan-in and user-gate orchestration (sequencing lives in the orchestrator
   skill; the engine provides the primitives above).
 
 ## Constraint

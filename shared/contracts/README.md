@@ -18,7 +18,7 @@ Input bundles (cards, not full states) and output artifacts per node, e.g.:
 - `research_plan`, `candidate_sources`, `claim_verification_state`,
   `recent_developments_state`, `canonical_sources_state`, `selected_sources`,
   `retrieved_corpus`, `paper_review`, `research_state`, `evidence_map`.
-- `human_research_validation_packet` / `human_approved_research_bundle` — §9.
+- `user_research_validation_packet` / `user_approved_research_bundle` — §9.
 
 Keep these as **contracts of the handoff**, not full domain models — the graph passes cards
 and `artifact://` refs, not entire states (§8.3).
