@@ -15,10 +15,25 @@ are graph config the engine consumes).
 | `validate_state.py` | `validate_field_type` (local), `validate_state(required, route_back, extra_checks)` (global) → `state_validation@1`. The graph supplies its own required-field set. |
 | `gate.py` | GATE + FREEZE — the single bottleneck. Takes a `validator`, verifies upstream verdicts, freezes the clean spec. |
 | `revision.py` | Revision-policy engine: `decide()` → APPROVED / REVISE / ESCALATE, `AttemptCounter` per scope. |
-| `artifacts.py` | `artifact://path#/pointer` resolver + lazy hydration (JSON-pointer slice) against the artifacts dir. |
+| `artifacts.py` | `artifact://path#/pointer` resolver + lazy hydration, **and** the write side (`store()`, `ref_for()`) — the central artifact store. |
+| `handoff.py` | The **subgraph seam**: `emit_handoff` (freeze → validate against contract → store → typed descriptor) / `load_handoff` (hydrate + re-validate). Only this crosses a subgraph boundary. |
+| `graphs.py` | Manifest loader + pipeline helpers (load by id, list graphs, read `subgraph` nodes / entry / exit). |
 | `event_log.py` | Append-only per-run diagnostic trail (`{ts, run_id, node, action, status, detail}`). Never feeds the product. |
-| `graph_check.py` | Asserts each graph manifest ≡ `plugin.json` registration. Tolerant of the no-manifest scaffold stage. |
+| `graph_check.py` | Asserts each manifest ≡ `plugin.json` registration, and that `kind: "subgraph"` nodes reference existing manifests. Tolerant of the no-manifest scaffold stage. |
 | `locators.py` | Address skills/agents by name, not path. |
+
+### Multi-graph composition (3 subgraphs + parent)
+
+The build is `intake` → `research` → `solution` subgraphs, sequenced by a thin `system` parent
+graph with human gates between them. The engine supports this without per-graph special-casing:
+
+- each subgraph has its own manifest, state file, contracts and scripts package, and is
+  independently runnable/testable;
+- a subgraph ends with `gate.pass_gate_and_freeze` → `handoff.emit_handoff` → typed bundle in
+  the store; the next subgraph's input contract is that bundle (re-validated on load);
+- the `system` parent is modelled with the same `state`/`gate` primitives — facts are the three
+  bundle refs, the final freeze is the `FinalLecturePackage`;
+- **never pass full upstream state across a boundary** — only the bundle + `artifact://` refs.
 
 Tested in `tests/test_core_runtime.py` (stdlib-only; redirects `EMAGENTS_HOME` to a tmp dir).
 
