@@ -1,11 +1,11 @@
 {
   "graph_id": "research",
-  "description": "Research Graph (thin/stub stage). Verifies approved claims and finds current literature for a lecture refresh, then freezes a HumanApprovedResearchBundle. SINGLE SOURCE OF TRUTH for the node sequence — research_flow.py and the orchestrator prompt must agree with this manifest. Authoritative design: docs/02_Architektura_agentow_i_skilli.md. Reviewers are runs of ONE physical agent (research-output-reviewer) with a per-node review_profile; the two user gates are orchestrator steps, not agents.",
+  "description": "Research Graph (thin/stub stage). Verifies approved claims and finds current literature for a lecture refresh, then freezes a UserApprovedResearchBundle. SINGLE SOURCE OF TRUTH for the node sequence — research_flow.py and the orchestrator prompt must agree with this manifest. Authoritative design: docs/02_Architektura_agentow_i_skilli.md. Reviewers are runs of ONE physical agent (research-output-reviewer) with a per-node review_profile; the two user gates are orchestrator steps, not agents.",
   "orchestrator": "orchestrate-research",
   "reviewer": "research-output-reviewer",
   "entry_node": "research-planner",
   "input_contract": "research_graph_input@1",
-  "exit_artifact": "human_approved_research_bundle@1",
+  "exit_artifact": "user_approved_research_bundle@1",
   "nodes": [
     {"name": "research-planner", "kind": "agent", "review_profile": "research_plan", "produces": ["ResearchPlan"]},
     {"name": "domain-research", "kind": "agent", "review_profile": "domain_candidates", "produces": ["DomainCandidateSources"]},
@@ -16,7 +16,7 @@
     {"name": "paper-retrieval", "kind": "agent", "review_profile": "retrieved_corpus", "produces": ["RetrievedCorpus"]},
     {"name": "paper-review", "kind": "agent", "review_profile": "paper_evidence", "produces": ["PaperReview", "PaperEvidenceCards"]},
     {"name": "claim-verification", "kind": "agent", "review_profile": "claim_assessment", "produces": ["ClaimAssessmentState"]},
-    {"name": "research-synthesizer", "kind": "agent", "review_profile": "research_synthesis", "produces": ["ResearchState", "EvidenceMap", "HumanResearchValidationPacket", "SolutionInputCandidate"]},
+    {"name": "research-synthesizer", "kind": "agent", "review_profile": "research_synthesis", "produces": ["ResearchState", "EvidenceMap", "UserResearchValidationPacket", "SolutionInputCandidate"]},
     {"name": "user-research-gate", "kind": "user-gate"}
   ],
   "sequence": [

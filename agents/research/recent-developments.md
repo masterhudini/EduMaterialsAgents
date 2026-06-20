@@ -9,6 +9,11 @@ description: >-
 
 # Research: Recent Developments  (stub)
 
+> **STUB — NOT IMPLEMENTED.** This agent does no work yet. Do not attempt the task.
+> Immediately return the no-op envelope below and let the orchestrator proceed to the
+> next node:
+> `{"status": "ok", "produced": [], "summary": "recent-developments: stub, not implemented", "issues": []}`
+
 Placeholder for the `recent-developments` node. Not implemented.
 
 The deterministic no-op lives in `shared/scripts/research/research_flow.py` and returns an

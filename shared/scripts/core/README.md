@@ -25,7 +25,7 @@ are graph config the engine consumes).
 ### Multi-graph composition (3 subgraphs + parent)
 
 The build is `intake` → `research` → `solution` subgraphs, sequenced by a thin `system` parent
-graph with human gates between them. The engine supports this without per-graph special-casing:
+graph with user gates between them. The engine supports this without per-graph special-casing:
 
 - each subgraph has its own manifest, state file, contracts and scripts package, and is
   independently runnable/testable;

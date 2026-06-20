@@ -3,10 +3,10 @@
   "x-version": "1.0",
   "x-major": 1,
   "type": "object",
-  "required": ["task_id", "human_approved_context", "approved_domains", "approved_research_scope", "claim_cards"],
+  "required": ["task_id", "user_approved_context", "approved_domains", "approved_research_scope", "claim_cards"],
   "properties": {
     "task_id": {"type": "string"},
-    "human_approved_context": {
+    "user_approved_context": {
       "type": "object",
       "required": ["audience_level", "course_name"],
       "properties": {

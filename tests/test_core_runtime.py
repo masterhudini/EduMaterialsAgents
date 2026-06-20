@@ -144,6 +144,16 @@ def test_graph_check_ok_with_no_manifests():
     assert res["ok"] and res["checked"] == 0
 
 
+def test_runtime_home_anchors_to_cwd(tmp_path, monkeypatch):
+    """The store lives in the user's project (cwd), not the plugin install dir."""
+    monkeypatch.delenv("EMAGENTS_HOME", raising=False)
+    monkeypatch.chdir(tmp_path)
+    assert paths.runtime_home() == tmp_path / ".emagents"
+    # explicit override still wins (tests/CI)
+    monkeypatch.setenv("EMAGENTS_HOME", str(tmp_path / "custom"))
+    assert paths.runtime_home() == tmp_path / "custom"
+
+
 def test_event_log_appends(tmp_path):
     log = event_log.open_log("demo")
     log.append("planner", "plan", detail={"n": 1})

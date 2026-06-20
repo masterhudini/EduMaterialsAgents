@@ -11,7 +11,7 @@ registration must all agree with it. `core/graph_check.py` enforces no drift.
   "graph_id": "research",
   "orchestrator": "<skill name that hosts the run>",
   "entry_node": "research-planner",
-  "exit_artifact": "human_approved_research_bundle@1",
+  "exit_artifact": "user_approved_research_bundle@1",
   "nodes": [
     { "name": "...", "kind": "agent|skill|reviewer|gate|script",
       "produces": ["..."], "condition": "...", "revision_policy": { } }
@@ -26,7 +26,7 @@ registration must all agree with it. `core/graph_check.py` enforces no drift.
 - `research.graph.json` — the Research Graph from `docs/research graph project.md` §8.4:
   planner + plan reviewer → parallel research (domain / claim-verification / recent /
   canonical) each with its reviewer → source selection → retrieval → paper review →
-  synthesis → **Human Research Gate** → `HumanApprovedResearchBundle`. Encode reviewer loops
+  synthesis → **User Research Gate** → `UserApprovedResearchBundle`. Encode reviewer loops
   via `revision_policy` and APPROVED/REVISE/BLOCKED edges, and the parallel block via
   fan-out/fan-in edges.
 

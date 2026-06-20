@@ -5,13 +5,13 @@ in the agents (`agents/research/`); this package holds only the deterministic sh
 flow wiring that agents call inline and tests exercise without an LLM.
 
 Source of truth for the graph: `shared/graphs/research.graph.json`.
-Design reference: `docs/research graph project.md` (§8 Research Graph, §9 Human Research Gate).
+Design reference: `docs/research graph project.md` (§8 Research Graph, §9 User Research Gate).
 
 ## Likely modules
 
 | Module | Responsibility |
 |---|---|
-| `research_flow.py` | Deterministic orchestration of the node sequence (planner → parallel work → selection → retrieval → review → synthesis → human gate) + event-log calls. Must agree with the manifest. |
+| `research_flow.py` | Deterministic orchestration of the node sequence (planner → parallel work → selection → retrieval → review → synthesis → user gate) + event-log calls. Must agree with the manifest. |
 | `*_shape.py` | Structural validators per produced artifact (e.g. `research_plan_shape`, `candidate_sources_shape`, `claim_verification_shape`, `selected_sources_shape`, `paper_review_shape`). Called by the owning agent before it returns. |
 | `revision.py` (or in core) | Apply `revision_policy` counters and decide REVISE / APPROVED / ESCALATE for a reviewer node. |
 

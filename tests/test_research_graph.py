@@ -35,11 +35,11 @@ def test_graph_runs_end_to_end_and_emits_valid_bundle():
 
     desc = research_flow.run(in_ref)
 
-    assert desc["type"] == "human_approved_research_bundle"
-    assert desc["schema_version"] == "human_approved_research_bundle@1"
+    assert desc["type"] == "user_approved_research_bundle"
+    assert desc["schema_version"] == "user_approved_research_bundle@1"
 
     # the emitted bundle is loadable and satisfies its contract
-    bundle = handoff.load_handoff(desc, contract_ref="human_approved_research_bundle@1")
+    bundle = handoff.load_handoff(desc, contract_ref="user_approved_research_bundle@1")
     assert "approved_update_findings" in bundle
 
 
@@ -62,6 +62,27 @@ def test_nodes_receive_mocked_context():
     assert "research-planner" in names and "research-synthesizer" in names
     # every node received the SAME mocked context (task_id + claim cards visible)
     assert all(task_id == "RESEARCH_001" and n_claims == 1 for _, task_id, n_claims in seen)
+
+
+def test_node_input_map_exposes_per_agent_context():
+    """The harness can show exactly what each agent node receives (for isolated agent testing)."""
+    seed = json.loads(SEED.read_text())
+    manifest = graphs.load("research")
+    inputs = research_flow.node_input_map(seed, manifest)
+    assert len(inputs) == 9                       # 9 agent nodes (gates/reviewer excluded)
+    assert inputs["research-planner"]["task_id"] == "RESEARCH_001"
+    assert inputs["claim-verification"]["claim_cards"][0]["claim_id"] == "CLM_001"
+
+
+def test_load_context_validates(tmp_path):
+    good = tmp_path / "good.json"
+    good.write_text(SEED.read_text())
+    assert research_flow.load_context(good)["task_id"] == "RESEARCH_001"
+
+    bad = tmp_path / "bad.json"
+    bad.write_text('{"task_id": "x"}')
+    with pytest.raises(ValueError):
+        research_flow.load_context(bad)
 
 
 def test_run_rejects_bad_input():

@@ -9,6 +9,11 @@ description: >-
 
 # Research: Paper Retrieval  (stub)
 
+> **STUB — NOT IMPLEMENTED.** This agent does no work yet. Do not attempt the task.
+> Immediately return the no-op envelope below and let the orchestrator proceed to the
+> next node:
+> `{"status": "ok", "produced": [], "summary": "paper-retrieval: stub, not implemented", "issues": []}`
+
 Placeholder for the `paper-retrieval` node. Not implemented.
 
 The deterministic no-op lives in `shared/scripts/research/research_flow.py` and returns an

@@ -9,12 +9,17 @@ description: >-
 
 # Research: Research Synthesizer  (stub)
 
+> **STUB — NOT IMPLEMENTED.** This agent does no work yet. Do not attempt the task.
+> Immediately return the no-op envelope below and let the orchestrator proceed to the
+> next node:
+> `{"status": "ok", "produced": [], "summary": "research-synthesizer: stub, not implemented", "issues": []}`
+
 Placeholder for the `research-synthesizer` node. Not implemented.
 
 The deterministic no-op lives in `shared/scripts/research/research_flow.py` and returns an
 empty `envelope@1`. Replace this prompt **and** that stub with the real agent.
 
-- **Output contract:** ResearchState, EvidenceMap, HumanResearchValidationPacket, SolutionInputCandidate
+- **Output contract:** ResearchState, EvidenceMap, UserResearchValidationPacket, SolutionInputCandidate
 - **Review profile:** research_synthesis
 
 ## Contract

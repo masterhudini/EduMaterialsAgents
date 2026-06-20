@@ -1,6 +1,6 @@
 {
   "task_id": "RESEARCH_001",
-  "human_approved_context": {
+  "user_approved_context": {
     "audience_level": "master",
     "course_name": "Bayesian Statistics",
     "target_duration_minutes": 90,

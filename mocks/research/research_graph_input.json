@@ -1,0 +1,73 @@
+{
+  "task_id": "RESEARCH_MOCK_001",
+  "user_approved_context": {
+    "audience_level": "master",
+    "course_name": "Bayesian Statistics",
+    "target_duration_minutes": 90,
+    "teaching_goal": "refresh the lecture, verify dated claims and improve logical flow"
+  },
+  "approved_domains": [
+    {"domain_id": "D1", "label": "Bayesian statistics"},
+    {"domain_id": "D2", "label": "probabilistic programming"},
+    {"domain_id": "D3", "label": "approximate inference"}
+  ],
+  "approved_research_scope": {
+    "verify_claims": {"priority": ["high", "medium"]},
+    "include_recent_developments": true,
+    "include_canonical_sources": true,
+    "include_didactic_examples": true,
+    "recency_window_years": 5
+  },
+  "claim_cards": [
+    {
+      "claim_id": "CLM_001",
+      "text": "Bayesian methods are computationally expensive for large-scale problems.",
+      "type": "methodological",
+      "verification_need": "high",
+      "artifact_ref": "artifact://states/claim_state.approved.json#/claims/CLM_001"
+    },
+    {
+      "claim_id": "CLM_002",
+      "text": "Variational inference always underestimates posterior variance.",
+      "type": "methodological",
+      "verification_need": "high",
+      "artifact_ref": "artifact://states/claim_state.approved.json#/claims/CLM_002"
+    },
+    {
+      "claim_id": "CLM_003",
+      "text": "MCMC is the only reliable way to sample from a posterior distribution.",
+      "type": "state_of_the_art",
+      "verification_need": "medium",
+      "artifact_ref": "artifact://states/claim_state.approved.json#/claims/CLM_003"
+    }
+  ],
+  "concept_context_cards": [
+    {"concept_id": "C1", "label": "Posterior distribution", "role": "core_concept", "related_claims": ["CLM_001", "CLM_003"]},
+    {"concept_id": "C2", "label": "Likelihood", "role": "prerequisite", "related_claims": []},
+    {"concept_id": "C3", "label": "Variational inference", "role": "core_concept", "related_claims": ["CLM_002"]}
+  ],
+  "selected_flow_issue_cards": [
+    {
+      "issue_id": "F_001",
+      "severity": "high",
+      "summary": "Posterior is used before likelihood is explained",
+      "affected_slides": [6, 7],
+      "fix_hint": "REORDER_OR_ADD_BRIDGE"
+    },
+    {
+      "issue_id": "F_002",
+      "severity": "medium",
+      "summary": "Variational inference introduced without motivating the cost of MCMC",
+      "affected_slides": [14],
+      "fix_hint": "ADD_BRIDGE"
+    }
+  ],
+  "locked_sections": [
+    {"section_id": "S1", "reason": "Author wants to keep the opening narrative"}
+  ],
+  "artifact_refs_for_lazy_hydration": {
+    "claim_state_ref": "artifact://states/claim_state.approved.json",
+    "concept_state_ref": "artifact://states/concept_state.approved.json",
+    "flow_state_ref": "artifact://states/flow_state.approved.json"
+  }
+}
