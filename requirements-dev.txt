@@ -1,0 +1,6 @@
+# Development-only dependencies.
+#
+# The plugin RUNTIME is pure stdlib by design: everything under shared/scripts/** must
+# import only the standard library (json, pathlib, os, re, time, uuid, ...). This file is
+# for running the test suite and linters locally and is NEVER installed with the plugin.
+pytest>=8.0
