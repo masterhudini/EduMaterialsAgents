@@ -33,4 +33,5 @@ Body sections: `# Title` → `## Contract` (input/output, consumes/produces) →
 
 Each agent definition carries: `responsibility`, `non_responsibilities`, `guardrails`,
 `revision_policy` (retry_scope, max_revision_attempts by severity, escalation), `complexity_class`,
-`input_contract`, `output_contract`. Register every agent in `plugin.json`.
+`input_contract`, `output_contract`. Agents are auto-discovered from `agents/` — no
+`plugin.json` array needed; just drop the `.md` file in.

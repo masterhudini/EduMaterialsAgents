@@ -27,5 +27,6 @@ Body: `## Contract` → `## Workflow` (the node sequence; must agree with the gr
   `needs_input` to the user, drives reviewer loops, presents the User Research Gate
   decisions (§9), and freezes the `UserApprovedResearchBundle` via `core/gate.py`.
 
-Register every skill in `plugin.json`. The Codex installer mirrors each `SKILL.md` dir into
-`~/.codex/skills/<dirname>`, so skill dir names must be unique.
+Skills are auto-discovered from `skills/` (each dir with a `SKILL.md`) — no `plugin.json` array
+needed. The Codex installer mirrors each `SKILL.md` dir into `~/.codex/skills/<dirname>`, so
+skill dir names must be unique.

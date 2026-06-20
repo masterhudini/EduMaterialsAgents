@@ -95,10 +95,9 @@ def test_manifest_matches_registration():
     res = graph_check.check_all()
     assert res["ok"], res
 
-    # every agent node in the manifest is a registered agent; gates are not
+    # every agent node in the manifest has a component file on disk; gates do not
     manifest = graphs.load("research")
-    plugin = json.loads((ROOT / "plugin.json").read_text())
-    registered = {Path(a).stem for a in plugin["agents"]}
+    registered = graph_check.registered_component_names()
     for node in graphs.nodes(manifest):
         if node["kind"] == "agent":
             assert node["name"] in registered

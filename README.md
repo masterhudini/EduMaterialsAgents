@@ -7,7 +7,8 @@ the **Research Graph** (see `docs/research graph project.md`).
 ## Layout
 
 ```
-plugin.json              # manifest: skills[], agents[], commands[] (filled as nodes land)
+.claude-plugin/          # plugin.json (manifest) + marketplace.json (local marketplace)
+                         #   components are auto-discovered from agents/ skills/ commands/
 install.sh               # installer for Claude Code + Codex (--all|--claude|--codex, --dry-run)
 commands/                # slash-command entry points (thin → orchestrator skill)
 agents/<graph>/          # isolated subagents, one .md per node; return envelope@1

@@ -14,3 +14,6 @@ __pycache__/
 
 #old code I use as inspiration
 inspiration/
+
+#claude plugins
+.claude-plugin/

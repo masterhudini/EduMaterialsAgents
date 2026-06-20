@@ -19,7 +19,7 @@ are graph config the engine consumes).
 | `handoff.py` | The **subgraph seam**: `emit_handoff` (freeze → validate against contract → store → typed descriptor) / `load_handoff` (hydrate + re-validate). Only this crosses a subgraph boundary. |
 | `graphs.py` | Manifest loader + pipeline helpers (load by id, list graphs, read `subgraph` nodes / entry / exit). |
 | `event_log.py` | Append-only per-run diagnostic trail (`{ts, run_id, node, action, status, detail}`). Never feeds the product. |
-| `graph_check.py` | Asserts each manifest ≡ `plugin.json` registration, and that `kind: "subgraph"` nodes reference existing manifests. Tolerant of the no-manifest scaffold stage. |
+| `graph_check.py` | Asserts each manifest's agent/skill nodes have a component file on disk (filesystem auto-discovery, not `plugin.json` arrays), and that `kind: "subgraph"` nodes reference existing manifests. |
 | `locators.py` | Address skills/agents by name, not path. |
 
 ### Multi-graph composition (3 subgraphs + parent)

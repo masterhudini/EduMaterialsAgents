@@ -1,7 +1,8 @@
 # commands — slash-command entry points
 
 One Markdown file per command: `commands/<name>.md`. A command is a thin front door that
-routes into an orchestrator skill. Register every command in `plugin.json`.
+routes into an orchestrator skill. Commands are auto-discovered from `commands/` — no
+`plugin.json` array needed.
 
 ## File convention (see inspiration/commands/build-stack.md)
 
