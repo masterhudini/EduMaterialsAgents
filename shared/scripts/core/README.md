@@ -43,7 +43,7 @@ Tested in `tests/test_core_runtime.py` (stdlib-only; redirects `EMAGENTS_HOME` t
 - per-artifact **shape checks**,
 - the **required-field set + route_back map** each graph feeds to `validate_state`/`gate`,
 - **complexity_class → model/budget** mapping (a per-graph table),
-- parallel fan-out/fan-in and human-gate orchestration (sequencing lives in the orchestrator
+- parallel fan-out/fan-in and user-gate orchestration (sequencing lives in the orchestrator
   skill; the engine provides the primitives above).
 
 ## Constraint

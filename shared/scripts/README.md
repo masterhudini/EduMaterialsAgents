@@ -3,7 +3,7 @@
 Two layers:
 
 - `core/` — reusable, domain-agnostic engine (contracts, state, gate, event log, graph check,
-  revision/parallel/human-gate/artifact mechanics). Every graph reuses it.
+  revision/parallel/user-gate/artifact mechanics). Every graph reuses it.
 - `<graph>/` — per-graph helpers (flow + shape checks). Currently: `research/`.
 
 Agents call these inline via:

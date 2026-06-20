@@ -1,0 +1,47 @@
+{
+  "title": "Research Graph input — the boundary contract the graph consumes (design §8.2).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": ["task_id", "human_approved_context", "approved_domains", "approved_research_scope", "claim_cards"],
+  "properties": {
+    "task_id": {"type": "string"},
+    "human_approved_context": {
+      "type": "object",
+      "required": ["audience_level", "course_name"],
+      "properties": {
+        "audience_level": {"type": "string"},
+        "course_name": {"type": "string"},
+        "target_duration_minutes": {"type": "integer"},
+        "teaching_goal": {"type": "string"}
+      }
+    },
+    "approved_domains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["domain_id", "label"],
+        "properties": {"domain_id": {"type": "string"}, "label": {"type": "string"}}
+      }
+    },
+    "approved_research_scope": {"type": "object"},
+    "claim_cards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claim_id", "text"],
+        "properties": {
+          "claim_id": {"type": "string"},
+          "text": {"type": "string"},
+          "type": {"type": "string"},
+          "verification_need": {"type": "string"},
+          "artifact_ref": {"type": "string"}
+        }
+      }
+    },
+    "concept_context_cards": {"type": "array"},
+    "selected_flow_issue_cards": {"type": "array"},
+    "locked_sections": {"type": "array"},
+    "artifact_refs_for_lazy_hydration": {"type": "object"}
+  }
+}

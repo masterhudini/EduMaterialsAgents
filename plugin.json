@@ -12,7 +12,22 @@
     "codex"
   ],
   "claude-code-version": ">=0.4.0",
-  "skills": [],
-  "agents": [],
-  "commands": []
+  "skills": [
+    "./skills/research/orchestrate-research"
+  ],
+  "agents": [
+    "./agents/research/research-planner.md",
+    "./agents/research/domain-research.md",
+    "./agents/research/canonical-sources.md",
+    "./agents/research/recent-developments.md",
+    "./agents/research/candidate-source-index.md",
+    "./agents/research/paper-retrieval.md",
+    "./agents/research/paper-review.md",
+    "./agents/research/claim-verification.md",
+    "./agents/research/research-synthesizer.md",
+    "./agents/research/research-output-reviewer.md"
+  ],
+  "commands": [
+    "./commands/research.md"
+  ]
 }

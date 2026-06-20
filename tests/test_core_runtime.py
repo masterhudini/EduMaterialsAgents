@@ -110,12 +110,12 @@ def test_not_confirmed_is_flagged_with_routeback():
 # ---- revision -----------------------------------------------------------
 
 def test_revision_decisions():
-    policy = {"retry_scope": "plan", "escalation_after_exhaustion": "human-gate",
+    policy = {"retry_scope": "plan", "escalation_after_exhaustion": "user-gate",
               "max_revision_attempts": {"low": 0, "medium": 2, "high": 3, "critical": 3}}
     assert revision.decide(policy, "high", approved=True, attempts_used=0)["action"] == "APPROVED"
     assert revision.decide(policy, "high", approved=False, attempts_used=1)["action"] == "REVISE"
     out = revision.decide(policy, "high", approved=False, attempts_used=3)
-    assert out["action"] == "ESCALATE" and out["to"] == "human-gate"
+    assert out["action"] == "ESCALATE" and out["to"] == "user-gate"
     # low budget = 0 -> immediate escalation on first rejection
     assert revision.decide(policy, "low", approved=False, attempts_used=0)["action"] == "ESCALATE"
 
