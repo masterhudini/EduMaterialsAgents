@@ -1,0 +1,16 @@
+# Dev environment — never shipped with the plugin
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Runtime artifacts (drafts, logs, hydrated artifacts) — project-local, per design.
+# Override location with EMAGENTS_HOME.
+.emagents/
+
+# OS / Windows-mount noise
+*:Zone.Identifier
+.DS_Store
+
+#old code I use as inspiration
+inspiration/

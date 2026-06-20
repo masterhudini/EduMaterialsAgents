@@ -1,0 +1,37 @@
+{
+  "title": "Universal subagent return envelope",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": ["status", "produced", "summary", "issues"],
+  "properties": {
+    "status": {"type": "string", "enum": ["ok", "needs_input", "degraded", "failed"]},
+    "produced": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "path", "schema_version"],
+        "properties": {
+          "type": {"type": "string"},
+          "path": {"type": "string"},
+          "schema_version": {"type": "string"}
+        }
+      }
+    },
+    "summary": {"type": "string"},
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "type", "message"],
+        "properties": {
+          "severity": {"type": "string", "enum": ["blocker", "major", "minor"]},
+          "type": {"type": "string"},
+          "message": {"type": "string"}
+        }
+      }
+    },
+    "metrics": {"type": "object"},
+    "resume_token": {"type": ["string", "null"]}
+  }
+}
