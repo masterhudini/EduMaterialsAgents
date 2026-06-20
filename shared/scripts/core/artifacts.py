@@ -63,3 +63,23 @@ def hydrate(ref: str, base: str | Path | None = None):
     path = resolve_path(ref, base)
     doc = json.loads(path.read_text(encoding="utf-8"))
     return _pointer_get(doc, pointer) if pointer else doc
+
+
+# ---- write side (the store) ---------------------------------------------
+
+def ref_for(relpath: str) -> str:
+    """The artifact:// ref that addresses ``relpath`` in the store."""
+    return f"{SCHEME}{relpath}"
+
+
+def store(relpath: str, obj, *, base: str | Path | None = None) -> str:
+    """Write ``obj`` as pretty JSON under ``relpath`` in the artifact store; return its ref.
+
+    Parent dirs are created. ``base`` overrides the store root (default: the runtime artifacts
+    dir), so a subgraph can persist a state/bundle and hand the returned ref downstream.
+    """
+    root = Path(base) if base is not None else paths.artifacts_dir()
+    path = root / relpath
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(obj, indent=2, ensure_ascii=False), encoding="utf-8")
+    return ref_for(relpath)

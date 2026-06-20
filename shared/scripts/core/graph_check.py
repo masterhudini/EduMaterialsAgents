@@ -19,8 +19,9 @@ GRAPHS_DIR = ROOT / "shared" / "graphs"
 PLUGIN = ROOT / "plugin.json"
 
 # Node kinds that are NOT separately registered components in plugin.json:
-#   script / gate / human-gate are control steps inside the orchestrator, not skills/agents.
-_NON_REGISTERED_KINDS = {"script", "gate", "human-gate"}
+#   script / gate / human-gate are control steps inside the orchestrator;
+#   subgraph delegates to another manifest (checked for existence, not registration).
+_NON_REGISTERED_KINDS = {"script", "gate", "human-gate", "subgraph"}
 
 
 def registered_component_names(plugin_path: Path | None = None) -> set[str]:
@@ -33,14 +34,27 @@ def registered_component_names(plugin_path: Path | None = None) -> set[str]:
     return names
 
 
-def check_manifest(manifest_path: Path, plugin_path: Path | None = None) -> dict:
-    """Every agent/skill node in the manifest must be registered in plugin.json."""
-    manifest = json.loads(Path(manifest_path).read_text())
+def check_manifest(manifest_path: Path, plugin_path: Path | None = None,
+                   graphs_dir: Path | None = None) -> dict:
+    """Validate one manifest:
+
+    - every ``agent``/``skill`` node is registered in plugin.json;
+    - every ``subgraph`` node references an existing ``<graph>.graph.json`` manifest.
+    """
+    manifest_path = Path(manifest_path)
+    gdir = graphs_dir or manifest_path.parent or GRAPHS_DIR
+    manifest = json.loads(manifest_path.read_text())
     registered = registered_component_names(plugin_path)
     errors: list[str] = []
     for node in manifest.get("nodes", []):
         kind = node.get("kind")
         name = node.get("name", "<unnamed>")
+        if kind == "subgraph":
+            sub = node.get("graph") or name
+            if not (gdir / f"{sub}.graph.json").exists():
+                errors.append(f"{manifest_path.name}: subgraph node {name!r} references "
+                              f"missing manifest {sub}.graph.json")
+            continue
         if kind in _NON_REGISTERED_KINDS:
             continue
         if kind in ("agent", "skill") and name not in registered:
@@ -52,5 +66,5 @@ def check_all(graphs_dir: Path | None = None, plugin_path: Path | None = None) -
     """Check every manifest. No manifests yet -> ok (scaffold stage)."""
     gdir = graphs_dir or GRAPHS_DIR
     manifests = sorted(gdir.glob("*.graph.json")) if gdir.exists() else []
-    results = [check_manifest(m, plugin_path) for m in manifests]
+    results = [check_manifest(m, plugin_path, graphs_dir=gdir) for m in manifests]
     return {"ok": all(r["ok"] for r in results), "checked": len(results), "results": results}

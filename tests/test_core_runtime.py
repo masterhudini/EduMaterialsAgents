@@ -11,7 +11,8 @@ import pytest
 SCRIPTS = Path(__file__).resolve().parents[1] / "shared" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from core import artifacts, contracts, event_log, gate, graph_check, paths, revision, state, validate_state  # noqa: E402
+from core import (artifacts, contracts, event_log, gate, graph_check, graphs,  # noqa: E402
+                  handoff, paths, revision, state, validate_state)
 
 
 @pytest.fixture(autouse=True)
@@ -149,3 +150,71 @@ def test_event_log_appends(tmp_path):
     log.append("gate", "freeze", status="ok")
     entries = log.entries()
     assert len(entries) == 2 and entries[0]["node"] == "planner"
+
+
+# ---- artifact store + handoff (the subgraph seam) -----------------------
+
+def test_artifact_store_roundtrip(tmp_path):
+    base = tmp_path / "store"
+    ref = artifacts.store("states/concept.json", {"concepts": ["C1"]}, base=base)
+    assert ref == "artifact://states/concept.json"
+    assert artifacts.hydrate(ref, base=base) == {"concepts": ["C1"]}
+
+
+def test_handoff_emit_and_load(tmp_path):
+    base = tmp_path / "store"
+    # use envelope@1 as a stand-in contract for the bundle shape
+    bundle = {"status": "ok", "produced": [], "summary": "intake done", "issues": []}
+    desc = handoff.emit_handoff(bundle, "envelope@1", name="intake_bundle", base=base)
+    assert desc["type"] == "envelope" and desc["schema_version"] == "envelope@1"
+    assert desc["ref"] == "artifact://handoffs/intake_bundle.json"
+    # next subgraph loads it and re-validates on the way in
+    loaded = handoff.load_handoff(desc, contract_ref="envelope@1", base=base)
+    assert loaded["summary"] == "intake done"
+
+
+def test_handoff_rejects_bad_bundle(tmp_path):
+    base = tmp_path / "store"
+    with pytest.raises(ValueError):
+        handoff.emit_handoff({"status": "nope"}, "envelope@1", name="bad", base=base)
+
+
+# ---- graphs loader + subgraph-aware graph_check -------------------------
+
+def _write(p, obj):
+    import json
+    p.write_text(json.dumps(obj))
+
+
+def test_graphs_loader_and_subgraph_nodes(tmp_path):
+    gdir = tmp_path / "graphs"
+    gdir.mkdir()
+    _write(gdir / "intake.graph.json", {"graph_id": "intake", "nodes": []})
+    _write(gdir / "system.graph.json", {
+        "graph_id": "system",
+        "nodes": [{"name": "intake", "kind": "subgraph", "graph": "intake"}],
+    })
+    assert set(graphs.all_graph_ids(gdir)) == {"intake", "system"}
+    sysm = graphs.load("system", gdir)
+    subs = graphs.subgraph_nodes(sysm)
+    assert len(subs) == 1 and graphs.subgraph_id(subs[0]) == "intake"
+
+
+def test_graph_check_subgraph_existence(tmp_path):
+    gdir = tmp_path / "graphs"
+    gdir.mkdir()
+    plugin = tmp_path / "plugin.json"
+    _write(plugin, {"skills": [], "agents": [], "commands": []})
+    _write(gdir / "intake.graph.json", {"graph_id": "intake", "nodes": []})
+    _write(gdir / "system.graph.json", {
+        "graph_id": "system",
+        "nodes": [
+            {"name": "intake", "kind": "subgraph", "graph": "intake"},     # exists -> ok
+            {"name": "research", "kind": "subgraph", "graph": "research"},  # missing -> error
+        ],
+    })
+    res = graph_check.check_all(graphs_dir=gdir, plugin_path=plugin)
+    assert not res["ok"]
+    flat = [e for r in res["results"] for e in r["errors"]]
+    assert any("research.graph.json" in e for e in flat)
+    assert not any("intake" in e for e in flat)
