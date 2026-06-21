@@ -199,30 +199,30 @@ def _write(p, obj):
 def test_graphs_loader_and_subgraph_nodes(tmp_path):
     gdir = tmp_path / "graphs"
     gdir.mkdir()
-    _write(gdir / "intake.graph.json", {"graph_id": "intake", "nodes": []})
+    _write(gdir / "g01.graph.json", {"graph_id": "g01", "nodes": []})
     _write(gdir / "system.graph.json", {
         "graph_id": "system",
-        "nodes": [{"name": "intake", "kind": "subgraph", "graph": "intake"}],
+        "nodes": [{"name": "g01", "kind": "subgraph", "graph": "g01"}],
     })
-    assert set(graphs.all_graph_ids(gdir)) == {"intake", "system"}
+    assert set(graphs.all_graph_ids(gdir)) == {"g01", "system"}
     sysm = graphs.load("system", gdir)
     subs = graphs.subgraph_nodes(sysm)
-    assert len(subs) == 1 and graphs.subgraph_id(subs[0]) == "intake"
+    assert len(subs) == 1 and graphs.subgraph_id(subs[0]) == "g01"
 
 
 def test_graph_check_subgraph_existence(tmp_path):
     gdir = tmp_path / "graphs"
     gdir.mkdir()
-    _write(gdir / "intake.graph.json", {"graph_id": "intake", "nodes": []})
+    _write(gdir / "g01.graph.json", {"graph_id": "g01", "nodes": []})
     _write(gdir / "system.graph.json", {
         "graph_id": "system",
         "nodes": [
-            {"name": "intake", "kind": "subgraph", "graph": "intake"},     # exists -> ok
-            {"name": "research", "kind": "subgraph", "graph": "research"},  # missing -> error
+            {"name": "g01", "kind": "subgraph", "graph": "g01"},     # exists -> ok
+            {"name": "g02", "kind": "subgraph", "graph": "g02"},  # missing -> error
         ],
     })
     res = graph_check.check_all(graphs_dir=gdir, plugin_root=tmp_path)
     assert not res["ok"]
     flat = [e for r in res["results"] for e in r["errors"]]
-    assert any("research.graph.json" in e for e in flat)
-    assert not any("intake" in e for e in flat)
+    assert any("g02.graph.json" in e for e in flat)
+    assert not any("g01" in e for e in flat)

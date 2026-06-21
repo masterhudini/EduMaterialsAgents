@@ -6,10 +6,10 @@ from `install.sh`).
 
 Namespaced per graph:
 
-- `research/research_graph_input.json` — a `research_graph_input@1` context (Bayesian Statistics
+- `g02/research_graph_input.json` — a `research_graph_input@1` context (Bayesian Statistics
   lecture refresh). Feed it to the Research Graph:
-  - deterministic harness: `python3 shared/scripts/research/research_flow.py run mocks/research/research_graph_input.json`
-  - real orchestration: `/research mocks/research/research_graph_input.json` (plugin installed)
+  - deterministic harness: `python3 shared/scripts/g02/g02_flow.py run mocks/g02/research_graph_input.json`
+  - real orchestration: `/research mocks/g02/research_graph_input.json` (plugin installed)
 
-Later: `intake/…` and `solution/…` mocks as those graphs come online. Each mock is validated by
+Later: `g01/…` and `g03/…` mocks as those graphs come online. Each mock is validated by
 the owning graph's front door on load, so a stale mock fails fast against its contract.

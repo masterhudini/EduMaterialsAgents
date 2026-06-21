@@ -14,7 +14,7 @@ SCRIPTS = ROOT / "shared" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from core import artifacts, contracts, graph_check, graphs, handoff  # noqa: E402
-from research import research_flow  # noqa: E402
+from g02 import g02_flow  # noqa: E402
 
 SEED = ROOT / "tests" / "fixtures" / "research_graph_input.example.json"
 
@@ -33,7 +33,7 @@ def test_graph_runs_end_to_end_and_emits_valid_bundle():
     seed = json.loads(SEED.read_text())
     in_ref = artifacts.store("handoffs/research_graph_input.json", seed)
 
-    desc = research_flow.run(in_ref)
+    desc = g02_flow.run(in_ref)
 
     assert desc["type"] == "user_approved_research_bundle"
     assert desc["schema_version"] == "user_approved_research_bundle@1"
@@ -54,12 +54,12 @@ def test_nodes_receive_mocked_context():
         seen.append((node["name"], ctx["input"]["task_id"], len(ctx["input"]["claim_cards"])))
         return {"status": "ok", "produced": [], "summary": "spy", "issues": []}
 
-    research_flow.run(in_ref, node_runner=spy)
+    g02_flow.run(in_ref, node_runner=spy)
 
     names = [n for n, _, _ in seen]
     # all 9 producer agents ran (reviewer + the 2 user gates are not agent nodes)
     assert len(seen) == 9
-    assert "research-planner" in names and "research-synthesizer" in names
+    assert "g02-a01-planner" in names and "g02-a09-synthesizer" in names
     # every node received the SAME mocked context (task_id + claim cards visible)
     assert all(task_id == "RESEARCH_001" and n_claims == 1 for _, task_id, n_claims in seen)
 
@@ -67,28 +67,28 @@ def test_nodes_receive_mocked_context():
 def test_node_input_map_exposes_per_agent_context():
     """The harness can show exactly what each agent node receives (for isolated agent testing)."""
     seed = json.loads(SEED.read_text())
-    manifest = graphs.load("research")
-    inputs = research_flow.node_input_map(seed, manifest)
+    manifest = graphs.load("g02")
+    inputs = g02_flow.node_input_map(seed, manifest)
     assert len(inputs) == 9                       # 9 agent nodes (gates/reviewer excluded)
-    assert inputs["research-planner"]["task_id"] == "RESEARCH_001"
-    assert inputs["research-claim-verification"]["claim_cards"][0]["claim_id"] == "CLM_001"
+    assert inputs["g02-a01-planner"]["task_id"] == "RESEARCH_001"
+    assert inputs["g02-a08-claim-verification"]["claim_cards"][0]["claim_id"] == "CLM_001"
 
 
 def test_load_context_validates(tmp_path):
     good = tmp_path / "good.json"
     good.write_text(SEED.read_text())
-    assert research_flow.load_context(good)["task_id"] == "RESEARCH_001"
+    assert g02_flow.load_context(good)["task_id"] == "RESEARCH_001"
 
     bad = tmp_path / "bad.json"
     bad.write_text('{"task_id": "x"}')
     with pytest.raises(ValueError):
-        research_flow.load_context(bad)
+        g02_flow.load_context(bad)
 
 
 def test_run_rejects_bad_input():
     bad_ref = artifacts.store("handoffs/bad.json", {"task_id": "x"})  # missing required fields
     with pytest.raises(ValueError):
-        research_flow.run(bad_ref)
+        g02_flow.run(bad_ref)
 
 
 def test_manifest_matches_registration():
@@ -96,7 +96,7 @@ def test_manifest_matches_registration():
     assert res["ok"], res
 
     # every agent node in the manifest has a component file on disk; gates do not
-    manifest = graphs.load("research")
+    manifest = graphs.load("g02")
     registered = graph_check.registered_component_names()
     for node in graphs.nodes(manifest):
         if node["kind"] == "agent":

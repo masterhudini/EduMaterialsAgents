@@ -196,8 +196,8 @@ semantic_high_ambiguity	1	2	3	3	Semantic Understanding
 pedagogical_high_ambiguity	0	2	2	3	Difficulty
 logic_high_ambiguity	1	2	3	3	Logical Flow
 claim_high_impact	1	2	3	3	Claim Extraction
-research_planning	0	2	3	3	Research Planner
-evidence_high_impact	1	2	3	3	Claim Verification
+research_planning	0	2	3	3	G02-A01 Planner
+evidence_high_impact	1	2	3	3	G02-A08 Claim Verification
 synthesis_decision	0	1	2	3	Synthesizers
 cross_artifact_reconciliation	0	2	3	3	Cross-Agent Reviewer
 creative_design	0	2	3	3	New Slide Designer
@@ -1148,16 +1148,16 @@ całego ConceptState,
 planu zmian slajdów.
 8.4 Graf Research
 flowchart TD
-    A[ResearchGraphInput] --> RP[Research Planner Agent]
+    A[ResearchGraphInput] --> RP[G02-A01 Planner Agent]
 
     RP --> RPR[Research Plan Reviewer]
     RPR -->|REVISE via ResearchPlanner policy| RP
     RPR -->|APPROVED| P[Parallel Research Work]
 
-    P --> DR1[Domain Research Agents]
-    P --> CV[Claim Verification Agent]
-    P --> RD[Recent Developments Agent]
-    P --> CS[Canonical Sources Agent]
+    P --> DR1[G02-A02 Domain Agents]
+    P --> CV[G02-A08 Claim Verification Agent]
+    P --> RD[G02-A04 Recent Developments Agent]
+    P --> CS[G02-A03 Canonical Sources Agent]
 
     DR1 --> DSR[Domain Search Reviewer]
     DSR -->|REVISE routed| DR1
@@ -1165,10 +1165,10 @@ flowchart TD
     CV --> CER[Claim Evidence Reviewer]
     CER -->|REVISE via ClaimVerification policy| CV
 
-    RD --> RDR[Recent Developments Reviewer]
+    RD --> RDR[G02-A10 Output Reviewer]
     RDR -->|REVISE via RecentDevelopments policy| RD
 
-    CS --> CSR[Canonical Sources Reviewer]
+    CS --> CSR[G02-A10 Output Reviewer]
     CSR -->|REVISE via CanonicalSources policy| CS
 
     DSR -->|APPROVED| SS[Source Selection Agent]
@@ -1178,15 +1178,15 @@ flowchart TD
 
     SS --> SQR[Source Quality Reviewer]
     SQR -->|REVISE via SourceSelection policy| SS
-    SQR -->|APPROVED| PR[Paper Retrieval Agent]
+    SQR -->|APPROVED| PR[G02-A06 Paper Retrieval Agent]
 
     PR --> PIR[Retrieval Integrity Reviewer]
     PIR -->|REVISE via Retrieval policy| PR
-    PIR -->|APPROVED| PRA[Paper Review Agents]
+    PIR -->|APPROVED| PRA[G02-A07 Paper Review Agents]
 
-    PRA --> PRQR[Paper Review Quality Reviewer]
+    PRA --> PRQR[G02-A10 Output Reviewer]
     PRQR -->|REVISE via PaperReview policy| PRA
-    PRQR -->|APPROVED| RS[Research Synthesizer Agent]
+    PRQR -->|APPROVED| RS[G02-A09 Synthesizer Agent]
 
     RS --> RSR[Research Synthesis Reviewer]
     RSR -->|REVISE via Synthesizer policy| RS
@@ -1196,10 +1196,10 @@ flowchart TD
     H2 -->|APPROVED| O[UserApprovedResearchBundle]
     H2 -->|NEEDS_CORRECTION| RS
 8.5 Agenci Research — definicje i wejścia
-Research Planner Agent
+G02-A01 Planner Agent
 AgentDefinition
 agent_definition:
-  agent_id: "ResearchPlannerAgent"
+  agent_id: "G02A01PlannerAgent"
   graph: "ResearchGraph"
   complexity_class: "research_planning"
 
@@ -1266,10 +1266,10 @@ ResearchPlannerInputBundle:
 
   output_contract:
     artifact: "ResearchPlan"
-Domain Research Agents
+G02-A02 Domain Agents
 AgentDefinition
 agent_definition:
-  agent_id: "DomainResearchAgent"
+  agent_id: "G02A02DomainAgent"
   graph: "ResearchGraph"
   complexity_class: "research_search"
 
@@ -1323,10 +1323,10 @@ DomainResearchInputBundle:
 
   output_contract:
     artifact: "CandidateSources"
-Claim Verification Agent
+G02-A08 Claim Verification Agent
 AgentDefinition
 agent_definition:
-  agent_id: "ClaimVerificationAgent"
+  agent_id: "G02A08ClaimVerificationAgent"
   graph: "ResearchGraph"
   complexity_class: "evidence_high_impact"
 
@@ -1374,7 +1374,7 @@ ClaimVerificationInputBundle:
         - "approximate inference"
 
   candidate_source_refs:
-    - "artifact://research/candidates/R1_sources.json"
+    - "artifact://g02/candidates/R1_sources.json"
 
   verification_profile:
     statuses:
@@ -1388,10 +1388,10 @@ ClaimVerificationInputBundle:
 
   output_contract:
     artifact: "ClaimVerificationState"
-Recent Developments Agent
+G02-A04 Recent Developments Agent
 AgentDefinition
 agent_definition:
-  agent_id: "RecentDevelopmentsAgent"
+  agent_id: "G02A04RecentDevelopmentsAgent"
   graph: "ResearchGraph"
   complexity_class: "research_search"
 
@@ -1443,10 +1443,10 @@ RecentDevelopmentsInputBundle:
 
   output_contract:
     artifact: "RecentDevelopmentsState"
-Canonical Sources Agent
+G02-A03 Canonical Sources Agent
 AgentDefinition
 agent_definition:
-  agent_id: "CanonicalSourcesAgent"
+  agent_id: "G02A03CanonicalSourcesAgent"
   graph: "ResearchGraph"
   complexity_class: "research_search"
 
@@ -1538,10 +1538,10 @@ SourceSelectionInputBundle:
   task_id: "TASK_SOURCE_SELECTION_001"
 
   candidate_source_refs:
-    domain_sources_ref: "artifact://research/candidate_sources/domain.json"
-    recent_sources_ref: "artifact://research/candidate_sources/recent.json"
-    canonical_sources_ref: "artifact://research/candidate_sources/canonical.json"
-    claim_evidence_candidates_ref: "artifact://research/candidate_sources/claim_evidence.json"
+    domain_sources_ref: "artifact://g02/candidate_sources/domain.json"
+    recent_sources_ref: "artifact://g02/candidate_sources/recent.json"
+    canonical_sources_ref: "artifact://g02/candidate_sources/canonical.json"
+    claim_evidence_candidates_ref: "artifact://g02/candidate_sources/claim_evidence.json"
 
   selection_profile:
     max_sources_per_topic: 12
@@ -1551,10 +1551,10 @@ SourceSelectionInputBundle:
 
   output_contract:
     artifact: "SelectedSources"
-Paper Retrieval Agent
+G02-A06 Paper Retrieval Agent
 AgentDefinition
 agent_definition:
-  agent_id: "PaperRetrievalAgent"
+  agent_id: "G02A06PaperRetrievalAgent"
   graph: "ResearchGraph"
   complexity_class: "deterministic_technical"
 
@@ -1589,7 +1589,7 @@ InputBundle
 PaperRetrievalInputBundle:
   task_id: "TASK_RETRIEVAL_001"
 
-  selected_sources_ref: "artifact://research/selected_sources.json"
+  selected_sources_ref: "artifact://g02/selected_sources.json"
 
   folder_policy:
     root: "research/"
@@ -1599,10 +1599,10 @@ PaperRetrievalInputBundle:
 
   output_contract:
     artifact: "RetrievedCorpus"
-Paper Review Agents
+G02-A07 Paper Review Agents
 AgentDefinition
 agent_definition:
-  agent_id: "PaperReviewAgent"
+  agent_id: "G02A07PaperReviewAgent"
   graph: "ResearchGraph"
   complexity_class: "evidence_high_impact"
 
@@ -1639,8 +1639,8 @@ PaperReviewInputBundle:
 
   source:
     source_id: P_014
-    metadata_ref: "artifact://research/01_topic/papers/P_014_metadata.json"
-    pdf_ref: "artifact://research/01_topic/papers/P_014.pdf"
+    metadata_ref: "artifact://g02/01_topic/papers/P_014_metadata.json"
+    pdf_ref: "artifact://g02/01_topic/papers/P_014.pdf"
 
   review_context:
     related_claims: [CLM_001]
@@ -1649,10 +1649,10 @@ PaperReviewInputBundle:
 
   output_contract:
     artifact: "PaperReview"
-Research Synthesizer Agent
+G02-A09 Synthesizer Agent
 AgentDefinition
 agent_definition:
-  agent_id: "ResearchSynthesizerAgent"
+  agent_id: "G02A09SynthesizerAgent"
   graph: "ResearchGraph"
   complexity_class: "synthesis_decision"
 
@@ -1693,12 +1693,12 @@ InputBundle
 ResearchSynthesizerInputBundle:
   task_id: "TASK_RESEARCH_SYNTH_001"
 
-  approved_research_plan_ref: "artifact://research/research_plan.approved.json"
-  claim_verification_ref: "artifact://research/claim_verification.approved.json"
-  selected_sources_ref: "artifact://research/selected_sources.approved.json"
-  paper_reviews_index_ref: "artifact://research/paper_reviews/index.json"
-  recent_developments_ref: "artifact://research/recent_developments.approved.json"
-  canonical_sources_ref: "artifact://research/canonical_sources.approved.json"
+  approved_research_plan_ref: "artifact://g02/research_plan.approved.json"
+  claim_verification_ref: "artifact://g02/claim_verification.approved.json"
+  selected_sources_ref: "artifact://g02/selected_sources.approved.json"
+  paper_reviews_index_ref: "artifact://g02/paper_reviews/index.json"
+  recent_developments_ref: "artifact://g02/recent_developments.approved.json"
+  canonical_sources_ref: "artifact://g02/canonical_sources.approved.json"
 
   synthesis_request:
     produce:
@@ -1721,7 +1721,7 @@ Człowiek zatwierdza, które wyniki researchu mają wpływać na nową wersję w
 
 9.2 Input
 UserResearchGateInput:
-  research_summary_ref: "artifact://research/research_summary.md"
+  research_summary_ref: "artifact://g02/research_summary.md"
 
   validation_packet:
     verified_claims:
@@ -1761,7 +1761,7 @@ UserResearchGateInput:
       type: "confirm_unresolved_claim_handling"
 9.3 Output
 UserApprovedResearchBundle:
-  approved_research_summary_ref: "artifact://research/research_summary.approved.md"
+  approved_research_summary_ref: "artifact://g02/research_summary.approved.md"
 
   approved_update_findings:
     - finding_id: RF_001
@@ -1772,7 +1772,7 @@ UserApprovedResearchBundle:
         - evidence_id: EV_001
           source_id: P_014
           summary: "Approximate inference reduces practical computational barriers."
-          source_ref: "artifact://research/01_topic/reviews/P_014_review.json"
+          source_ref: "artifact://g02/01_topic/reviews/P_014_review.json"
 
   approved_optional_findings:
     - finding_id: RF_014
@@ -1845,7 +1845,7 @@ SolutionDesignGraphInput:
         - evidence_id: EV_001
           source_id: P_014
           summary: "Approximate inference reduces practical computational barriers."
-          source_ref: "artifact://research/01_topic/reviews/P_014_review.json"
+          source_ref: "artifact://g02/01_topic/reviews/P_014_review.json"
 
   approved_optional_findings:
     - finding_id: RF_014
@@ -1867,7 +1867,7 @@ SolutionDesignGraphInput:
     slide_semantic_view_ref: "artifact://views/slide_semantic.json"
     structure_state_ref: "artifact://states/structure_state.approved.json"
     concept_state_ref: "artifact://states/concept_state.approved.json"
-    evidence_map_ref: "artifact://research/evidence_map.approved.json"
+    evidence_map_ref: "artifact://g02/evidence_map.approved.json"
 
   output_contract:
     artifact: "FinalLecturePackage"
@@ -2387,7 +2387,7 @@ FinalConsistencyReviewInputBundle:
     speaker_notes_ref: "artifact://solution/speaker_notes.approved.json"
     timing_state_ref: "artifact://solution/timing_state.approved.json"
 
-  evidence_map_ref: "artifact://research/evidence_map.approved.json"
+  evidence_map_ref: "artifact://g02/evidence_map.approved.json"
 
   output_contract:
     artifact: "ConsistencyReviewResult"
@@ -2442,8 +2442,8 @@ FinalPackageBuilderInputBundle:
     timing_state_ref: "artifact://solution/timing_state.approved.json"
 
   approved_research_artifacts:
-    evidence_map_ref: "artifact://research/evidence_map.approved.json"
-    selected_sources_ref: "artifact://research/selected_sources.approved.json"
+    evidence_map_ref: "artifact://g02/evidence_map.approved.json"
+    selected_sources_ref: "artifact://g02/selected_sources.approved.json"
 
   export_targets:
     - "updated_lecture.yaml"

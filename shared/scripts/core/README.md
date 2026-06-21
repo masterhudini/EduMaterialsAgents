@@ -19,12 +19,12 @@ are graph config the engine consumes).
 | `handoff.py` | The **subgraph seam**: `emit_handoff` (freeze → validate against contract → store → typed descriptor) / `load_handoff` (hydrate + re-validate). Only this crosses a subgraph boundary. |
 | `graphs.py` | Manifest loader + pipeline helpers (load by id, list graphs, read `subgraph` nodes / entry / exit). |
 | `event_log.py` | Append-only per-run diagnostic trail (`{ts, run_id, node, action, status, detail}`). Never feeds the product. |
-| `graph_check.py` | Asserts each manifest's agent/skill nodes have a component file on disk (filesystem auto-discovery, not `plugin.json` arrays), and that `kind: "subgraph"` nodes reference existing manifests. |
+| `graph_check.py` | Asserts each manifest's shipped agent/skill nodes have a component file on disk (filesystem auto-discovery, not `plugin.json` arrays), and that `kind: "subgraph"` nodes reference existing manifests. Host policy is detected from plugin metadata: source/Claude require agent files, while Codex skips only agent-file presence because its bundle intentionally excludes Claude agents. |
 | `locators.py` | Address skills/agents by name, not path. |
 
 ### Multi-graph composition (3 subgraphs + parent)
 
-The build is `intake` → `research` → `solution` subgraphs, sequenced by a thin `system` parent
+The build is `g01` (intake) → `g02` (research) → `g03` (solution) subgraphs, sequenced by a thin `system` parent
 graph with user gates between them. The engine supports this without per-graph special-casing:
 
 - each subgraph has its own manifest, state file, contracts and scripts package, and is
