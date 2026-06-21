@@ -641,8 +641,8 @@ dowodów prowadzi do `insufficient_evidence` lub `unresolved`.
 
 ### `[TK-DECISION: CLAIM-ASSESSMENT-MODEL]`
 
-TK powinien zatwierdzić poniższy model podczas przeglądu 1b1 Claim Verification Agent i
-`assess-claim-evidence`.
+TK powinien zatwierdzić poniższy model podczas przeglądu 1b1 G02-A08 Claim Verification Agent i
+`g02-a08-assess-claim-evidence`.
 
 ```yaml
 ClaimAssessment:
@@ -714,7 +714,32 @@ ClaimAssessment:
 Dotychczasowe pojedyncze statusy, takie jak `valid`, `obsolete` lub `too_simplified`, mogą być
 wyliczane jako etykiety kompatybilności. Nie powinny zastępować wymiarów źródłowych.
 
-## 13. ReviewDecision
+## 13. ReviewTask i ReviewDecision
+
+### 13.1. ReviewTask
+
+Każde wywołanie uniwersalnego reviewera otrzymuje jeden `review_task@1`. Kontrakt zawiera:
+
+- identyfikatory review, zadania, logical review node i producenta,
+- numer próby i identyfikator profilu,
+- oryginalne zadanie oraz ograniczony input autoryzowany dla producenta,
+- dokładnie jeden deskryptor artefaktu z `type`, `ref`, `schema_version` i
+  `artifact_version`,
+- expected output contract, obserwowalne acceptance criteria, evidence requirements,
+  prohibited behaviors i severity rules,
+- opcjonalny `previous_decision_ref` i odpowiedź producenta na poprzednie findings.
+
+Kryterium acceptance ma `criterion_id`, opis i flagę `mandatory`. Evidence requirement ma
+analogiczny stabilny identyfikator, opis i flagę `mandatory`. Severity rules jawnie definiują
+znaczenie `minor`, `major` i `blocker` dla danego wywołania.
+
+Reviewer nie przyjmuje tablicy artefaktów. Niezależne artefakty wymagają niezależnych zadań.
+`review_id` pozostaje stabilny w jednym strumieniu review, a `attempt` zwiększa się przy każdej
+kolejnej ocenie poprawionego artefaktu. `previous_decision_ref` wskazuje bezpośrednio poprzednią
+próbę. Finding z poprzedniej decyzji musi zachować ID albo pojawić się w
+`closed_finding_ids`.
+
+### 13.2. ReviewDecision
 
 ```yaml
 ReviewDecision:
@@ -722,7 +747,7 @@ ReviewDecision:
   review_id:
   task_id:
   logical_review_node:
-  reviewer_agent: research-output-reviewer
+  reviewer_agent: g02-a10-output-reviewer
   producer_agent:
   artifact_ref:
   artifact_version:
@@ -741,27 +766,41 @@ ReviewDecision:
 
   closed_finding_ids: []
 
-  revision_scope: null
+  revision_scope:
+    target_agent:
+    finding_ids: []
+    notes:
 
   root_cause: null
-  allowed_root_causes:
-    - producer_error
-    - insufficient_evidence
-    - invalid_or_incomplete_input
-    - upstream_plan_error
-    - review_profile_error
-    - external_dependency_blocked
-
   confidence: high
   attempt:
+  summary:
 ```
 
-Reviewer decision jest artefaktem w `produced[]`. Status envelope pozostaje jednym z `ok`,
-`needs_input`, `degraded` lub `failed`.
+Dozwolone root causes to `producer_error`, `insufficient_evidence`,
+`invalid_or_incomplete_input`, `upstream_plan_error`, `review_profile_error` i
+`external_dependency_blocked`.
+
+Reguły spójności:
+
+- `APPROVED` ma pustą listę findings oraz null w `root_cause` i `revision_scope`,
+- `REVISE` ma findings `minor` lub `major`, root cause `producer_error` albo
+  `insufficient_evidence` oraz revision scope należący do producenta,
+- `BLOCKED` ma co najmniej jeden finding `blocker` oraz root cause
+  `invalid_or_incomplete_input`, `upstream_plan_error`, `review_profile_error` albo
+  `external_dependency_blocked`,
+- findings dotyczące artefaktu wskazują kryterium przekazane w `ReviewTask`,
+- błędy samego review używają wyłącznie zarezerwowanych criterion IDs `REVIEW_BASIS`,
+  `ARTIFACT_ACCESS` i `EXTERNAL_DEPENDENCY`.
+
+Reviewer decision jest artefaktem w `envelope@1.produced[]`. Pole `path` deskryptora zawiera
+URI `artifact://`, a `schema_version` ma wartość `review_decision@1`. Status envelope pozostaje
+jednym z `ok`, `needs_input`, `degraded` lub `failed`. Zakończone wykonanie reviewera zwraca
+envelope `ok` również dla decyzji `REVISE` i `BLOCKED`.
 
 ## 14. Synteza
 
-Research Synthesizer tworzy:
+G02-A09 Synthesizer tworzy:
 
 - `ResearchState`,
 - `EvidenceMap`,

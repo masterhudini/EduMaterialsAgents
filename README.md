@@ -1,14 +1,14 @@
 # edu-materials-agents
 
 Agent-stack plugin for **Claude Code** and **Codex** that improves educational / lecture
-materials through reviewed agent graphs (intake → research → solution). First graph in scope:
+materials through reviewed agent graphs (`g01` intake → `g02` research → `g03` solution). First graph in scope:
 the **Research Graph** (see `docs/research graph project.md`).
 
 ## Layout
 
 ```
 plugin.manifest.json     # source of truth for metadata, components, host packaging
-agents/                  # flat: one .md per agent, auto-discovered (e.g. research-planner.md)
+agents/                  # flat: one .md per agent, auto-discovered (e.g. g02-a01-planner.md)
 skills/<name>/SKILL.md   # neutral skill plus adapters/claude* and adapters/codex.md
 commands/<name>.md       # slash-command entry points (e.g. research.md)
 shared/
@@ -29,7 +29,8 @@ docs/                    # design notes + component conventions
 
 > Component dirs (`agents/`, `commands/`, `skills/`) hold **only** source components. Conventions live in
 > `docs/02_Architektura_agentow_i_skilli.md`. Graphs are organised in `shared/graphs/` and
-> `shared/scripts/<graph>/`; components are flat and namespaced by name (e.g. `research-*`).
+> `shared/scripts/<graph>/`; components are flat and namespaced by stable graph and agent codes
+> (for example `g02-*` and `g02-a01-*`).
 
 ## Packaging model
 
@@ -107,7 +108,7 @@ Then, in Claude Code:
 /plugin                              # shows edu-materials-agents (marketplace: edu-materials)
 ```
 
-Verify the component inventory (expect 10 agents + 18 skills, including orchestrate-research):
+Verify the component inventory (expect 10 agents + 18 skills, including g02-orchestrate-research):
 
 ```bash
 claude plugin details edu-materials-agents
@@ -132,16 +133,16 @@ subagent orchestration is a separate adapter layer from Claude's agent `.md` fil
 ## Run
 
 ```
-/research mocks/research/research_graph_input.json
+/research mocks/g02/research_graph_input.json
 ```
 
 Or deterministically, without an LLM. This harness validates wiring and uses no-op producers,
 automatic reviewer approvals and automatic user-gate approvals:
 
 ```bash
-python shared/scripts/research/research_flow.py run mocks/research/research_graph_input.json
+python shared/scripts/g02/g02_flow.py run mocks/g02/research_graph_input.json
 # inspect what one agent would receive:
-python shared/scripts/research/research_flow.py inputs mocks/research/research_graph_input.json --node research-planner
+python shared/scripts/g02/g02_flow.py inputs mocks/g02/research_graph_input.json --node g02-a01-planner
 ```
 
 ## Develop & test

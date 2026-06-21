@@ -4,45 +4,45 @@
 
 ```mermaid
 flowchart TD
-    IN["ResearchGraphInput"] --> RP["Research Planner Agent"]
-    RP --> RV1["Research Output Reviewer\nprofile: research_plan"]
+    IN["ResearchGraphInput"] --> RP["G02-A01 Planner Agent"]
+    RP --> RV1["G02-A10 Output Reviewer\nprofile: research_plan"]
     RV1 -->|REVISE| RP
-    RV1 -->|APPROVED| DR["Domain Research Agents\none per topic"]
+    RV1 -->|APPROVED| DR["G02-A02 Domain Agents\none per topic"]
 
-    DR --> RV2["Research Output Reviewer\nprofile: domain_candidates"]
+    DR --> RV2["G02-A10 Output Reviewer\nprofile: domain_candidates"]
     RV2 -->|REVISE| DR
     RV2 -->|APPROVED| EXP["Parallel expansion"]
 
-    EXP --> CS["Canonical Sources Agents"]
-    EXP --> RD["Recent Developments Agents"]
-    CS --> RV3["Research Output Reviewer\nprofile: canonical_sources"]
-    RD --> RV4["Research Output Reviewer\nprofile: recent_developments"]
+    EXP --> CS["G02-A03 Canonical Sources Agents"]
+    EXP --> RD["G02-A04 Recent Developments Agents"]
+    CS --> RV3["G02-A10 Output Reviewer\nprofile: canonical_sources"]
+    RD --> RV4["G02-A10 Output Reviewer\nprofile: recent_developments"]
     RV3 -->|REVISE| CS
     RV4 -->|REVISE| RD
 
-    RV3 -->|APPROVED| IDX["Candidate Source Index Agent"]
+    RV3 -->|APPROVED| IDX["G02-A05 Candidate Source Index Agent"]
     RV4 -->|APPROVED| IDX
     RV2 -->|APPROVED| IDX
 
-    IDX --> RV5["Research Output Reviewer\nprofile: candidate_index"]
+    IDX --> RV5["G02-A10 Output Reviewer\nprofile: candidate_index"]
     RV5 -->|REVISE| IDX
     RV5 -->|APPROVED| HG1["Human Source Selection Gate"]
     HG1 -->|SEARCH_MORE| DR
-    HG1 -->|APPROVED| PR["Paper Retrieval Agent"]
+    HG1 -->|APPROVED| PR["G02-A06 Paper Retrieval Agent"]
 
-    PR --> RV6["Research Output Reviewer\nprofile: retrieved_corpus"]
+    PR --> RV6["G02-A10 Output Reviewer\nprofile: retrieved_corpus"]
     RV6 -->|REVISE| PR
-    RV6 -->|APPROVED| PRA["Paper Review Agents\none per document"]
+    RV6 -->|APPROVED| PRA["G02-A07 Paper Review Agents\none per document"]
 
-    PRA --> RV7["Research Output Reviewer\nprofile: paper_evidence"]
+    PRA --> RV7["G02-A10 Output Reviewer\nprofile: paper_evidence"]
     RV7 -->|REVISE| PRA
-    RV7 -->|APPROVED| CV["Claim Verification Agents\none per claim or tight claim group"]
+    RV7 -->|APPROVED| CV["G02-A08 Claim Verification Agents\none per claim or tight claim group"]
 
-    CV --> RV8["Research Output Reviewer\nprofile: claim_assessment"]
+    CV --> RV8["G02-A10 Output Reviewer\nprofile: claim_assessment"]
     RV8 -->|REVISE| CV
-    RV8 -->|APPROVED| RS["Research Synthesizer Agent"]
+    RV8 -->|APPROVED| RS["G02-A09 Synthesizer Agent"]
 
-    RS --> RV9["Research Output Reviewer\nprofile: research_synthesis"]
+    RS --> RV9["G02-A10 Output Reviewer\nprofile: research_synthesis"]
     RV9 -->|REVISE| RS
     RV9 -->|UPSTREAM_ERROR| RP
     RV9 -->|APPROVED| HG2["Human Research Gate"]
@@ -51,24 +51,28 @@ flowchart TD
     HG2 -->|APPROVED| OUT["UserApprovedResearchBundle"]
 ```
 
-Wszystkie pola oznaczone jako `Research Output Reviewer` są uruchomieniami tej samej
+Wszystkie pola oznaczone jako `G02-A10 Output Reviewer` są uruchomieniami tej samej
 fizycznej definicji agenta.
 
 ## 2. Fizyczne definicje agentów
 
-Moduł zawiera dziesięć plików agentów (płasko w `agents/`, auto-discovery; nazwy
-namespace'owane prefiksem `research-` — bez dublowania, gdy nazwa już zawiera „research"):
+Moduł zawiera dziesięć plików agentów, płasko w `agents/` dla auto-discovery. Każdy techniczny
+identyfikator składa się z kodu grafu `g02`, stałego kodu fizycznego agenta i krótkiej roli:
 
-1. `research-planner.md`
-2. `domain-research.md`
-3. `research-canonical-sources.md`
-4. `research-recent-developments.md`
-5. `research-candidate-source-index.md`
-6. `research-paper-retrieval.md`
-7. `research-paper-review.md`
-8. `research-claim-verification.md`
-9. `research-synthesizer.md`
-10. `research-output-reviewer.md`
+1. `g02-a01-planner.md`
+2. `g02-a02-domain.md`
+3. `g02-a03-canonical-sources.md`
+4. `g02-a04-recent-developments.md`
+5. `g02-a05-candidate-source-index.md`
+6. `g02-a06-paper-retrieval.md`
+7. `g02-a07-paper-review.md`
+8. `g02-a08-claim-verification.md`
+9. `g02-a09-synthesizer.md`
+10. `g02-a10-output-reviewer.md`
+
+Kody `a01`–`a10` są niezmienne i nie zależą od kolejności wykonania. Usuniętego kodu nie wolno
+przydzielać ponownie. Para `gNN-aNN` jest globalnie jednoznaczna, a numeracja agentów może
+rozpoczynać się od `a01` osobno w każdym grafie.
 
 `User Source Selection Gate` i `User Research Gate` są krokami orkiestratora. Nie wymagają
 osobnych agentów.
@@ -78,7 +82,12 @@ osobnych agentów.
 Docelowe pliki są po angielsku i zachowują następującą strukturę:
 
 ```markdown
-agent: **Research: Agent Name**
+---
+name: gNN-aNN-agent-role
+description: Short description of the isolated responsibility and its boundary.
+---
+
+# GNN-ANN Agent Role
 
 Short description of the isolated responsibility and why its boundary matters.
 
@@ -184,7 +193,7 @@ a adapter wykonuje zapytanie, normalizuje odpowiedź i zachowuje jej pochodzenie
 
 ## 5. Agenci wykonawczy
 
-### 5.1. Research Planner Agent
+### 5.1. G02-A01 Planner Agent
 
 **Cel:** zamienić zatwierdzony input na ograniczony plan badań.
 
@@ -208,7 +217,7 @@ a adapter wykonuje zapytanie, normalizuje odpowiedź i zachowuje jej pochodzenie
 
 **Wyjście:** `ResearchPlan`.
 
-### 5.2. Domain Research Agent
+### 5.2. G02-A02 Domain Agent
 
 Uruchamiany osobno dla każdego topic.
 
@@ -233,9 +242,9 @@ Uruchamiany osobno dla każdego topic.
 
 **Wyjście:** `DomainCandidateSources`.
 
-### 5.3. Canonical Sources Agent
+### 5.3. G02-A03 Canonical Sources Agent
 
-Uruchamiany po bazowym Domain Research, osobno dla topic lub domeny.
+Uruchamiany po bazowym G02-A02 Domain, osobno dla topic lub domeny.
 
 **Cel:** uzupełnić pulę o źródła fundamentalne, monografie, podręczniki, przeglądy i ważne
 prace metodologiczne.
@@ -257,9 +266,9 @@ prace metodologiczne.
 
 **Wyjście:** `CanonicalCandidateSources`.
 
-### 5.4. Recent Developments Agent
+### 5.4. G02-A04 Recent Developments Agent
 
-Uruchamiany równolegle z Canonical Sources po Domain Research.
+Uruchamiany równolegle z G02-A03 Canonical Sources po G02-A02 Domain.
 
 **Cel:** znaleźć aktualne, dojrzałe zmiany istotne dla zatwierdzonego topic lub claimu.
 
@@ -280,7 +289,7 @@ Uruchamiany równolegle z Canonical Sources po Domain Research.
 
 **Wyjście:** `RecentCandidateSources`.
 
-### 5.5. Candidate Source Index Agent
+### 5.5. G02-A05 Candidate Source Index Agent
 
 **Cel:** przygotować wiarygodny i czytelny indeks do decyzji człowieka.
 
@@ -305,7 +314,7 @@ Uruchamiany równolegle z Canonical Sources po Domain Research.
 
 **Wyjście:** `CandidateSourceIndex` i human-readable review document.
 
-### 5.6. Paper Retrieval Agent
+### 5.6. G02-A06 Paper Retrieval Agent
 
 **Cel:** pobrać lub zarejestrować wyłącznie źródła zatwierdzone przez człowieka.
 
@@ -327,7 +336,7 @@ Uruchamiany równolegle z Canonical Sources po Domain Research.
 
 **Wyjście:** `RetrievedCorpus`.
 
-### 5.7. Paper Review Agent
+### 5.7. G02-A07 Paper Review Agent
 
 Uruchamiany osobno dla jednego dokumentu.
 
@@ -351,9 +360,10 @@ Uruchamiany osobno dla jednego dokumentu.
 
 **Wyjście:** `PaperReview` oraz `PaperEvidenceCards`.
 
-### 5.8. Claim Verification Agent
+### 5.8. G02-A08 Claim Verification Agent
 
-Uruchamiany po zaakceptowanych Paper Reviews, osobno dla claimu lub ściśle powiązanego pakietu.
+Uruchamiany po zaakceptowanych wynikach G02-A07 Paper Review, osobno dla claimu lub ściśle
+powiązanego pakietu.
 
 **Cel:** ocenić claim w wielu wymiarach na podstawie zatwierdzonych evidence cards.
 
@@ -377,7 +387,7 @@ Uruchamiany po zaakceptowanych Paper Reviews, osobno dla claimu lub ściśle pow
 
 **Wyjście:** `ClaimAssessmentState`.
 
-### 5.9. Research Synthesizer Agent
+### 5.9. G02-A09 Synthesizer Agent
 
 **Cel:** utworzyć kompaktowy, dowodowy pakiet dla człowieka i Solution Graph.
 
@@ -400,12 +410,12 @@ Uruchamiany po zaakceptowanych Paper Reviews, osobno dla claimu lub ściśle pow
 
 ## 6. Uniwersalny reviewer
 
-### 6.1. Research Output Reviewer Agent
+### 6.1. G02-A10 Output Reviewer Agent
 
 **Cel:** sprawdzić, czy konkretny agent wykonał przydzielone zadanie zgodnie z kontraktem i
 profilem etapu.
 
-**Wejście:**
+**Wejście:** `ReviewTask` (`review_task@1`) zawierający:
 
 - oryginalne zadanie producenta,
 - ograniczony input producenta,
@@ -417,7 +427,7 @@ profilem etapu.
 - severity rules,
 - poprzednie findings i numer próby.
 
-**Wyjście:** `ReviewDecision`.
+**Wyjście:** `ReviewDecision` (`review_decision@1`) w `envelope@1`.
 
 **Decyzje:**
 
@@ -458,45 +468,48 @@ profilem etapu.
 | `claim_assessment` | Wszystkie wymiary oceny, dowody przeciwne, confidence i coverage. |
 | `research_synthesis` | Każda rekomendacja ma evidence refs, unresolved są jawne, handoff jest kompaktowy. |
 
-## 8. Proponowany katalog skilli
+## 8. Katalog skilli G02
 
-Nazwy są robocze, ale funkcje powinny pozostać rozdzielone.
+Nazwy są technicznymi identyfikatorami. Skill jednego agenta używa postaci
+`g02-aNN-<dotychczasowa-nazwa-skilla>`. Skill współdzielony przez kilka agentów, wiele logicznych
+węzłów albo cały graf używa postaci `g02-<dotychczasowa-nazwa-skilla>`. Część opisowa skilla nie
+otrzymuje numeru i zachowuje dotychczasową nazwę.
 
 | Skill | Główna funkcja |
 |---|---|
-| `plan-research-scope` | Topics, research needs, source strategy, coverage i stop rules. |
-| `expand-research-query` | Kontrolowane synonimy, terms, topics i wyłączenia. |
-| `search-scholarly-metadata` | Wyszukiwanie realnych rekordów bibliograficznych. |
-| `expand-citation-graph` | Rozszerzenie od seed sources i relacji cytowań. |
-| `classify-source-role` | Canonical, recent, survey, didactic, claim-specific, optional. |
-| `normalize-source-metadata` | Ujednolicenie DOI, autorów, roku, typu i identyfikatorów. |
-| `deduplicate-source-records` | Łączenie rekordów z wielu indeksów. |
-| `rank-source-candidates` | Osobne sygnały canonical i rising oraz priorytet coverage. |
-| `annotate-source-candidates` | Krótkie, ugruntowane w abstrakcie opisy dla człowieka. |
-| `assess-source-coverage` | Candidate, selection i evidence coverage. |
-| `resolve-open-access` | Ustalenie legalnej dostępnej wersji dokumentu. |
-| `retrieve-open-access-document` | Pobranie zatwierdzonego dokumentu. |
-| `validate-retrieved-document` | Integralność, typ, zgodność source ID i status. |
-| `extract-paper-evidence` | Ukierunkowane wydobycie evidence cards z dokumentu. |
-| `assess-claim-evidence` | Wielowymiarowa ocena claimu. |
-| `synthesize-research-findings` | ResearchState, EvidenceMap i handoff. |
-| `review-research-output` | Uniwersalna procedura review względem profile. |
-| `orchestrate-research` | Rozmowa, routing, reviewer loops i human gates. |
+| `g02-a01-plan-research-scope` | Topics, research needs, source strategy, coverage i stop rules. |
+| `g02-expand-research-query` | Kontrolowane synonimy, terms, topics i wyłączenia. |
+| `g02-search-scholarly-metadata` | Wyszukiwanie realnych rekordów bibliograficznych. |
+| `g02-expand-citation-graph` | Rozszerzenie od seed sources i relacji cytowań. |
+| `g02-classify-source-role` | Canonical, recent, survey, didactic, claim-specific, optional. |
+| `g02-normalize-source-metadata` | Ujednolicenie DOI, autorów, roku, typu i identyfikatorów. |
+| `g02-a05-deduplicate-source-records` | Łączenie rekordów z wielu indeksów. |
+| `g02-a05-rank-source-candidates` | Osobne sygnały canonical i rising oraz priorytet coverage. |
+| `g02-a05-annotate-source-candidates` | Krótkie, ugruntowane w abstrakcie opisy dla człowieka. |
+| `g02-assess-source-coverage` | Candidate, selection i evidence coverage. |
+| `g02-a06-resolve-open-access` | Ustalenie legalnej dostępnej wersji dokumentu. |
+| `g02-a06-retrieve-open-access-document` | Pobranie zatwierdzonego dokumentu. |
+| `g02-a06-validate-retrieved-document` | Integralność, typ, zgodność source ID i status. |
+| `g02-a07-extract-paper-evidence` | Ukierunkowane wydobycie evidence cards z dokumentu. |
+| `g02-a08-assess-claim-evidence` | Wielowymiarowa ocena claimu. |
+| `g02-a09-synthesize-research-findings` | ResearchState, EvidenceMap i handoff. |
+| `g02-review-research-output` | Uniwersalna procedura review względem profile. |
+| `g02-orchestrate-research` | Rozmowa, routing, reviewer loops i human gates. |
 
 ## 9. Macierz agentów i skilli
 
 | Agent | Wymagane skille | Opcjonalne skille |
 |---|---|---|
-| Research Planner | `plan-research-scope` | `expand-research-query` do planu terminów, bez wyszukiwania |
-| Domain Research | `expand-research-query`, `search-scholarly-metadata` | `expand-citation-graph` |
-| Canonical Sources | `expand-citation-graph`, `classify-source-role`, `search-scholarly-metadata` | `normalize-source-metadata` |
-| Recent Developments | `expand-research-query`, `search-scholarly-metadata`, `classify-source-role` | `expand-citation-graph` |
-| Candidate Source Index | `normalize-source-metadata`, `deduplicate-source-records`, `classify-source-role`, `rank-source-candidates`, `annotate-source-candidates`, `assess-source-coverage` | brak na start |
-| Paper Retrieval | `resolve-open-access`, `retrieve-open-access-document`, `validate-retrieved-document` | brak na start |
-| Paper Review | `extract-paper-evidence` | ukierunkowane ponowne wydobycie |
-| Claim Verification | `assess-claim-evidence`, `assess-source-coverage` | brak na start |
-| Research Synthesizer | `synthesize-research-findings`, `assess-source-coverage` | brak na start |
-| Research Output Reviewer | `review-research-output` | read-only użycie odpowiedniego skilla sprawdzającego, jeśli review profile tego wymaga |
+| G02-A01 Planner | `g02-a01-plan-research-scope` | `g02-expand-research-query` do planu terminów, bez wyszukiwania |
+| G02-A02 Domain | `g02-expand-research-query`, `g02-search-scholarly-metadata` | `g02-expand-citation-graph` |
+| G02-A03 Canonical Sources | `g02-expand-citation-graph`, `g02-classify-source-role`, `g02-search-scholarly-metadata` | `g02-normalize-source-metadata` |
+| G02-A04 Recent Developments | `g02-expand-research-query`, `g02-search-scholarly-metadata`, `g02-classify-source-role` | `g02-expand-citation-graph` |
+| G02-A05 Candidate Source Index | `g02-normalize-source-metadata`, `g02-a05-deduplicate-source-records`, `g02-classify-source-role`, `g02-a05-rank-source-candidates`, `g02-a05-annotate-source-candidates`, `g02-assess-source-coverage` | brak na start |
+| G02-A06 Paper Retrieval | `g02-a06-resolve-open-access`, `g02-a06-retrieve-open-access-document`, `g02-a06-validate-retrieved-document` | brak na start |
+| G02-A07 Paper Review | `g02-a07-extract-paper-evidence` | ukierunkowane ponowne wydobycie |
+| G02-A08 Claim Verification | `g02-a08-assess-claim-evidence`, `g02-assess-source-coverage` | brak na start |
+| G02-A09 Synthesizer | `g02-a09-synthesize-research-findings`, `g02-assess-source-coverage` | brak na start |
+| G02-A10 Output Reviewer | `g02-review-research-output` | read-only użycie odpowiedniego skilla sprawdzającego, jeśli review profile tego wymaga |
 
 ## 10. Human Source Selection Gate
 
@@ -541,7 +554,8 @@ Orkiestrator parsuje odpowiedź, pokazuje podsumowanie i prosi o finalne potwier
 ### 10.3. Powrót do wyszukiwania
 
 `SEARCH_MORE` musi zawierać claim, topic albo brakującą rolę. Orkiestrator kieruje żądanie do
-Domain, Canonical lub Recent zgodnie z typem luki. Po rozszerzeniu Candidate Source Index jest
+G02-A02 Domain, G02-A03 Canonical Sources lub G02-A04 Recent Developments zgodnie z typem luki.
+Po rozszerzeniu G02-A05 Candidate Source Index jest
 budowany ponownie, reviewer ocenia nową wersję, a człowiek otrzymuje zaktualizowany dokument.
 
 ## 11. Human Research Gate
@@ -562,10 +576,10 @@ Człowiek zatwierdza, odrzuca lub kieruje syntezę do korekty. Finalny pakiet za
 
 ## 12. Współbieżność
 
-- Domain Research działa równolegle per topic.
+- G02-A02 Domain działa równolegle per topic.
 - Canonical i Recent działają równolegle po zatwierdzeniu bazowej puli.
-- Paper Review działa równolegle per dokument.
-- Claim Verification może działać równolegle per niezależny claim lub ciasny claim group.
+- G02-A07 Paper Review działa równolegle per dokument.
+- G02-A08 Claim Verification może działać równolegle per niezależny claim lub ciasny claim group.
 - Reviewer ocenia każdy artefakt oddzielnie.
 - Fan-in następuje dopiero po zatwierdzeniu wszystkich wymaganych wyników albo oznaczeniu
   jawnych wyjątków.

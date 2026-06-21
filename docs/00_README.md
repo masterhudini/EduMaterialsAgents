@@ -46,6 +46,21 @@ Pliki w tym katalogu są częścią repozytorium i stanowią kontekst projektowy
    Krótkie przekazanie dla KH: decyzja o reviewerze, status integracji hostów i lista
    konsekwencji integracyjnych dla repozytorium.
 
+6. [06_Plan_finalizacji_1b1.md](06_Plan_finalizacji_1b1.md)
+
+   Wykonawczy plan finalizacji Research Graph agent po agencie, z zakresem pionowych wycinków,
+   bramkami jakości, kolejnością commitów i końcową integracją.
+
+7. [07_Rejestr_DEV_TEST_1b1.md](07_Rejestr_DEV_TEST_1b1.md)
+
+   Osobna checklista ukończenia implementacji i późniejszych testów dla każdego pionowego
+   wycinka.
+
+8. [08_Log_wynikow_TEST.md](08_Log_wynikow_TEST.md)
+
+   Chronologiczny, append-only log rund testowych wykonywanych w niezależnym środowisku, wraz
+   z wynikami, usterkami i mapą zmian statusu w rejestrze 07.
+
 ## Status decyzji
 
 ### Status implementacji warstwy treści
@@ -54,14 +69,14 @@ Warstwa definicji zawiera 10 kompletnych agentów i 18 skilli, w tym jeden uniwe
 oraz orkiestrator. W plikach agentów i skilli nie pozostają stuby wykonawcze.
 
 Deterministyczne adaptery dostawców, downloader, indeks tekstu PDF oraz rzeczywiste wywoływanie
-agentów przez `research_flow.py` są osobnym etapem implementacji. Obecny tryb `run` w Pythonie
+agentów przez `g02_flow.py` są osobnym etapem implementacji. Obecny tryb `run` w Pythonie
 pozostaje harness-em no-op do kontroli manifestu i kontraktów, a nie testem zachowania agentów.
 
 ### Zamknięta decyzja nadrzędna
 
 `[LOCKED PROJECT DECISION: SINGLE-REVIEWER]`
 
-Research Graph posiada jedną fizyczną definicję `ResearchOutputReviewerAgent`. Wszystkie
+Research Graph posiada jedną fizyczną definicję `G02A10OutputReviewerAgent`. Wszystkie
 logiczne etapy kontroli korzystają z tej definicji i przekazują jej specyficzny
 `review_profile`. Dokumentacja i repozytorium muszą zostać dostosowane do tej decyzji.
 
@@ -70,7 +85,7 @@ logiczne etapy kontroli korzystają z tej definicji i przekazują jej specyficzn
 - `[RESOLVED: RESEARCH-GRAPH-INPUT-CONTRACT]`, kontrakt został zatwierdzony i wdrożony jako
   `shared/contracts/research_graph_input.schema.json`.
 - `[TK-DECISION: CLAIM-ASSESSMENT-MODEL]`, decyzja zostanie podjęta z TK podczas przeglądu 1b1
-  agenta `research-claim-verification` i skilla `assess-claim-evidence`.
+  agenta `g02-a08-claim-verification` i skilla `g02-a08-assess-claim-evidence`.
 - `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]`, warianty skilli dla Codex są generowane, ale
   wykonanie prawdziwych node agents i deterministycznych narzędzi wymaga adaptera runtime/MCP.
 

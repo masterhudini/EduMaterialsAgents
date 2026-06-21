@@ -93,8 +93,9 @@ jakości ani poparcia dla claimu.
 ### 3.6. Oszczędność tokenów
 
 Przed pobraniem źródła są oceniane na podstawie metadanych i abstraktów. Jeden
-`PaperReviewAgent` analizuje jeden dokument i zwraca krótką kartę dowodową. Claim Verification
-i synteza korzystają z kart, a pełny tekst jest ponownie otwierany tylko przy konkretnej luce.
+`G02A07PaperReviewAgent` analizuje jeden dokument i zwraca krótką kartę dowodową. G02-A08 Claim
+Verification i synteza korzystają z kart, a pełny tekst jest ponownie otwierany tylko przy
+konkretnej luce.
 
 ## 4. Zamknięte decyzje projektowe
 
@@ -102,7 +103,7 @@ i synteza korzystają z kart, a pełny tekst jest ponownie otwierany tylko przy 
 
 `[LOCKED PROJECT DECISION: SINGLE-REVIEWER]`
 
-W module istnieje jedna fizyczna definicja `ResearchOutputReviewerAgent`. Każdy logiczny etap
+W module istnieje jedna fizyczna definicja `G02A10OutputReviewerAgent`. Każdy logiczny etap
 review przekazuje jej własny `review_profile`, zawierający kryteria akceptacji, wymagania
 dowodowe, zakazane zachowania i reguły ważności błędów.
 
@@ -117,21 +118,21 @@ Reviewer:
 
 Orkiestrator wykonuje techniczny loop i pilnuje limitu prób.
 
-### 4.2. Kolejność claim verification
+### 4.2. Kolejność G02-A08 Claim Verification
 
-Claim Verification odbywa się po Paper Review. Przed pobraniem LLM określa wyłącznie
+G02-A08 Claim Verification odbywa się po G02-A07 Paper Review. Przed pobraniem LLM określa wyłącznie
 potencjalną przydatność źródła na podstawie abstraktu. Właściwa ocena claimu korzysta z
 wydobytych dowodów pełnotekstowych.
 
 ### 4.3. Wyszukiwanie bazowe i rozszerzenia
 
-Domain Research tworzy pulę bazową dla każdego zatwierdzonego topic. Po zatwierdzeniu wyniku
-Canonical Sources i Recent Developments rozszerzają tę pulę równolegle, korzystając z różnych
-profili wyszukiwania.
+G02-A02 Domain tworzy pulę bazową dla każdego zatwierdzonego topic. Po zatwierdzeniu wyniku
+G02-A03 Canonical Sources i G02-A04 Recent Developments rozszerzają tę pulę równolegle,
+korzystając z różnych profili wyszukiwania.
 
-### 4.4. CandidateSourceIndexAgent
+### 4.4. G02A05CandidateSourceIndexAgent
 
-Dawny `SourceSelectionAgent` zostaje zastąpiony przez `CandidateSourceIndexAgent`.
+Dawny `SourceSelectionAgent` zostaje zastąpiony przez `G02A05CandidateSourceIndexAgent`.
 
 Agent agreguje kandydatów, normalizuje rekordy, usuwa duplikaty, klasyfikuje role źródeł,
 rankinguje, sprawdza pokrycie oraz przygotowuje opisy dla człowieka. Ostateczną decyzję o
@@ -185,19 +186,36 @@ Agent zachowuje strukturę:
 Skill zachowuje minimalny frontmatter `name` i `description`, a następnie Contract, Workflow,
 Output requirements, Boundaries, Failure handling i Resume.
 
-### 4.9. Język
+### 4.9. Stały namespace grafów, agentów i skilli
+
+`[LOCKED PROJECT DECISION: COMPONENT-NAMESPACE-GNN-ANN]`
+
+Docelowe grafy używają kodów `g01` dla Intake Graph, `g02` dla Research Graph i `g03` dla
+Solution Graph. Research Graph posiada dziesięciu fizycznych agentów `g02-a01`–`g02-a10`.
+Techniczna nazwa agenta ma postać `gNN-aNN-<role>` i nie powtarza słowa `research`.
+
+Skill przypisany wyłącznie do jednego fizycznego agenta ma nazwę
+`gNN-aNN-<dotychczasowa-nazwa-skilla>`. Skill współdzielony przez kilka agentów, wiele logicznych
+węzłów albo cały graf ma nazwę `gNN-<dotychczasowa-nazwa-skilla>`. Część opisowa skilla zachowuje
+dotychczasową nazwę i nie otrzymuje osobnego numeru.
+
+Kody są zero-padded, nie zależą od kolejności workflow, pozostają niezmienne i nie są ponownie
+wykorzystywane po usunięciu komponentu. Nazwa katalogu agenta lub skilla musi odpowiadać polu
+`name`; dozwolone są małe litery, cyfry i myślniki.
+
+### 4.10. Język
 
 Definicje agentów i skilli są po angielsku. `output_language` określa język treści czytanej
 przez użytkownika. Domyślną wartością jest `English`. Nazwy pól, identyfikatory, statusy i
 wartości kontrolne pozostają po angielsku.
 
-### 4.10. Źródła zamknięte
+### 4.11. Źródła zamknięte
 
 Źródła zamknięte mogą znajdować się w indeksie, pełnić funkcję canonical anchor i trafiać na
 listę dostępu bibliotecznego. Bez dostępu do właściwego fragmentu nie mogą być bezpośrednim
 dowodem semantycznym dla claimu.
 
-### 4.11. Domyślne limity
+### 4.12. Domyślne limity
 
 - maksymalnie 30 kandydatów prezentowanych człowiekowi,
 - pula surowa domyślnie dwa razy większa,
@@ -286,7 +304,7 @@ door, orkiestratora i scoped input bundles.
 ### `[TK-DECISION: CLAIM-ASSESSMENT-MODEL]`
 
 TK powinien zatwierdzić wielowymiarową ocenę claimów podczas przeglądu 1b1 agenta
-`research-claim-verification` i skilla `assess-claim-evidence`. Model rozdziela status dowodowy,
+`g02-a08-claim-verification` i skilla `g02-a08-assess-claim-evidence`. Model rozdziela status dowodowy,
 aktualność, jakość dydaktyczną, kontrowersyjność, confidence i rekomendowaną akcję.
 
 ### `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]`
@@ -297,18 +315,16 @@ Graph przez uzgodnioną powierzchnię MCP albo równoważny interfejs.
 
 ## 9. Konsekwencje dla aktualnego repozytorium
 
-Aktualny szkielet repo zakłada dziewięciu fizycznych reviewerów i jeden skill orkiestratora.
-Docelowo należy:
+Repozytorium zawiera dziewięciu agentów wykonawczych, jednego fizycznego reviewera, 18 skilli,
+manifest Research Graph oraz zatwierdzony kontrakt wejściowy. Manifest wskazuje
+`g02-a10-output-reviewer` jako wspólnego reviewera i przypisuje profil każdemu producentowi.
+G02-A05 Candidate Source Index zastąpił Source Selection, G02-A08 Claim Verification znajduje
+się po G02-A07 Paper Review, a oba human gates są zapisane jako kroki orkiestratora.
 
-- zastąpić listę reviewerów jednym `research-output-reviewer`,
-- zachować wiele logicznych review nodes wskazujących jeden `agent_ref`,
-- dodać kategorię nieinteraktywnych skilli wykonawczych,
-- zastąpić Source Selection przez Candidate Source Index,
-- dodać Human Source Selection Gate,
-- przenieść Claim Verification za Paper Review,
-- zaktualizować dokumentację, manifest grafu i `plugin.json`,
-- pozostawić mechanikę state, envelope, gate, revision i artifact refs jako wspólny runtime.
+Warstwa uniwersalnego reviewera posiada `review_task@1`, `review_decision@1`, deterministyczne
+przygotowanie i finalizację oraz powierzchnię MCP. Nadal wymagane są kontrakty producentów,
+narzędzia literaturowe, rzeczywiste wykonanie node agents, scoped input bundles, reviewer loops,
+fan-out i fan-in, pełne human gates oraz resume wykonywanego grafu.
 
-Repozytorium nie zawiera jeszcze agentów, skilli Research Graph, manifestu grafu ani kontraktów
-domenowych, więc zmiany można wprowadzić bez migracji działających komponentów.
+Mechanika state, envelope, gate, revision i artifact refs pozostaje wspólnym runtime.
 

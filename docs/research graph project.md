@@ -63,32 +63,32 @@ całego ConceptState,
 planu zmian slajdów.
 8.4 Graf Research
 flowchart TD
-    A[ResearchGraphInput] --> RP[Research Planner Agent]
+    A[ResearchGraphInput] --> RP[G02-A01 Planner Agent]
     RP --> RPR[Research Plan Reviewer]    RPR -->|REVISE via ResearchPlanner policy| RP
     RPR -->|APPROVED| P[Parallel Research Work]
-    P --> DR1[Domain Research Agents]    P --> CV[Claim Verification Agent]    P --> RD[Recent Developments Agent]    P --> CS[Canonical Sources Agent]
+    P --> DR1[G02-A02 Domain Agents]    P --> CV[G02-A08 Claim Verification Agent]    P --> RD[G02-A04 Recent Developments Agent]    P --> CS[G02-A03 Canonical Sources Agent]
     DR1 --> DSR[Domain Search Reviewer]    DSR -->|REVISE routed| DR1
     CV --> CER[Claim Evidence Reviewer]    CER -->|REVISE via ClaimVerification policy| CV
-    RD --> RDR[Recent Developments Reviewer]    RDR -->|REVISE via RecentDevelopments policy| RD
-    CS --> CSR[Canonical Sources Reviewer]    CSR -->|REVISE via CanonicalSources policy| CS
+    RD --> RDR[G02-A10 Output Reviewer]    RDR -->|REVISE via RecentDevelopments policy| RD
+    CS --> CSR[G02-A10 Output Reviewer]    CSR -->|REVISE via CanonicalSources policy| CS
     DSR -->|APPROVED| SS[Source Selection Agent]    CER -->|APPROVED| SS
     RDR -->|APPROVED| SS
     CSR -->|APPROVED| SS
     SS --> SQR[Source Quality Reviewer]    SQR -->|REVISE via SourceSelection policy| SS
-    SQR -->|APPROVED| PR[Paper Retrieval Agent]
+    SQR -->|APPROVED| PR[G02-A06 Paper Retrieval Agent]
     PR --> PIR[Retrieval Integrity Reviewer]    PIR -->|REVISE via Retrieval policy| PR
-    PIR -->|APPROVED| PRA[Paper Review Agents]
-    PRA --> PRQR[Paper Review Quality Reviewer]    PRQR -->|REVISE via PaperReview policy| PRA
-    PRQR -->|APPROVED| RS[Research Synthesizer Agent]
+    PIR -->|APPROVED| PRA[G02-A07 Paper Review Agents]
+    PRA --> PRQR[G02-A10 Output Reviewer]    PRQR -->|REVISE via PaperReview policy| PRA
+    PRQR -->|APPROVED| RS[G02-A09 Synthesizer Agent]
     RS --> RSR[Research Synthesis Reviewer]    RSR -->|REVISE via Synthesizer policy| RS
     RSR -->|BLOCKED: bad plan| RP
     RSR -->|APPROVED| H2[Human Research Gate]
     H2 -->|APPROVED| O[HumanApprovedResearchBundle]    H2 -->|NEEDS_CORRECTION| RS
 8.5 Agenci Research — definicje i wejścia
-Research Planner Agent
+G02-A01 Planner Agent
 AgentDefinition
 agent_definition:
-  agent_id: "ResearchPlannerAgent"
+  agent_id: "G02A01PlannerAgent"
   graph: "ResearchGraph"
   complexity_class: "research_planning"
   responsibility:
@@ -143,10 +143,10 @@ ResearchPlannerInputBundle:
       summary: "Posterior is used before likelihood is explained"
   output_contract:
     artifact: "ResearchPlan"
-Domain Research Agents
+G02-A02 Domain Agents
 AgentDefinition
 agent_definition:
-  agent_id: "DomainResearchAgent"
+  agent_id: "G02A02DomainAgent"
   graph: "ResearchGraph"
   complexity_class: "research_search"
   responsibility:
@@ -191,10 +191,10 @@ DomainResearchInputBundle:
     - "probabilistic programming"
   output_contract:
     artifact: "CandidateSources"
-Claim Verification Agent
+G02-A08 Claim Verification Agent
 AgentDefinition
 agent_definition:
-  agent_id: "ClaimVerificationAgent"
+  agent_id: "G02A08ClaimVerificationAgent"
   graph: "ResearchGraph"
   complexity_class: "evidence_high_impact"
   responsibility:
@@ -235,7 +235,7 @@ ClaimVerificationInputBundle:
         - "Bayesian inference"
         - "approximate inference"
   candidate_source_refs:
-    - "artifact://research/candidates/R1_sources.json"
+    - "artifact://g02/candidates/R1_sources.json"
   verification_profile:
     statuses:
       - "valid"
@@ -247,10 +247,10 @@ ClaimVerificationInputBundle:
       - "needs_context"
   output_contract:
     artifact: "ClaimVerificationState"
-Recent Developments Agent
+G02-A04 Recent Developments Agent
 AgentDefinition
 agent_definition:
-  agent_id: "RecentDevelopmentsAgent"
+  agent_id: "G02A04RecentDevelopmentsAgent"
   graph: "ResearchGraph"
   complexity_class: "research_search"
   responsibility:
@@ -292,10 +292,10 @@ RecentDevelopmentsInputBundle:
     allow_older_if_canonical: true
   output_contract:
     artifact: "RecentDevelopmentsState"
-Canonical Sources Agent
+G02-A03 Canonical Sources Agent
 AgentDefinition
 agent_definition:
-  agent_id: "CanonicalSourcesAgent"
+  agent_id: "G02A03CanonicalSourcesAgent"
   graph: "ResearchGraph"
   complexity_class: "research_search"
   responsibility:
@@ -372,10 +372,10 @@ InputBundle
 SourceSelectionInputBundle:
   task_id: "TASK_SOURCE_SELECTION_001"
   candidate_source_refs:
-    domain_sources_ref: "artifact://research/candidate_sources/domain.json"
-    recent_sources_ref: "artifact://research/candidate_sources/recent.json"
-    canonical_sources_ref: "artifact://research/candidate_sources/canonical.json"
-    claim_evidence_candidates_ref: "artifact://research/candidate_sources/claim_evidence.json"
+    domain_sources_ref: "artifact://g02/candidate_sources/domain.json"
+    recent_sources_ref: "artifact://g02/candidate_sources/recent.json"
+    canonical_sources_ref: "artifact://g02/candidate_sources/canonical.json"
+    claim_evidence_candidates_ref: "artifact://g02/candidate_sources/claim_evidence.json"
   selection_profile:
     max_sources_per_topic: 12
     min_canonical_per_foundational_topic: 1
@@ -383,10 +383,10 @@ SourceSelectionInputBundle:
     prefer_surveys: true
   output_contract:
     artifact: "SelectedSources"
-Paper Retrieval Agent
+G02-A06 Paper Retrieval Agent
 AgentDefinition
 agent_definition:
-  agent_id: "PaperRetrievalAgent"
+  agent_id: "G02A06PaperRetrievalAgent"
   graph: "ResearchGraph"
   complexity_class: "deterministic_technical"
   responsibility:
@@ -415,7 +415,7 @@ agent_definition:
 InputBundle
 PaperRetrievalInputBundle:
   task_id: "TASK_RETRIEVAL_001"
-  selected_sources_ref: "artifact://research/selected_sources.json"
+  selected_sources_ref: "artifact://g02/selected_sources.json"
   folder_policy:
     root: "research/"
     topic_folder_pattern: "{index}_{slugified_topic_name}"
@@ -423,10 +423,10 @@ PaperRetrievalInputBundle:
     reviews_subfolder: "reviews"
   output_contract:
     artifact: "RetrievedCorpus"
-Paper Review Agents
+G02-A07 Paper Review Agents
 AgentDefinition
 agent_definition:
-  agent_id: "PaperReviewAgent"
+  agent_id: "G02A07PaperReviewAgent"
   graph: "ResearchGraph"
   complexity_class: "evidence_high_impact"
   responsibility:
@@ -457,16 +457,16 @@ PaperReviewInputBundle:
   task_id: "TASK_PAPER_REVIEW_001"
   source:
     source_id: P_014
-    metadata_ref: "artifact://research/01_topic/papers/P_014_metadata.json"
-    pdf_ref: "artifact://research/01_topic/papers/P_014.pdf"
+    metadata_ref: "artifact://g02/01_topic/papers/P_014_metadata.json"
+    pdf_ref: "artifact://g02/01_topic/papers/P_014.pdf"
   review_context:
     related_claims: [CLM_001]    related_topics: [R1]    audience_level: "master"
   output_contract:
     artifact: "PaperReview"
-Research Synthesizer Agent
+G02-A09 Synthesizer Agent
 AgentDefinition
 agent_definition:
-  agent_id: "ResearchSynthesizerAgent"
+  agent_id: "G02A09SynthesizerAgent"
   graph: "ResearchGraph"
   complexity_class: "synthesis_decision"
   responsibility:
@@ -501,12 +501,12 @@ agent_definition:
 InputBundle
 ResearchSynthesizerInputBundle:
   task_id: "TASK_RESEARCH_SYNTH_001"
-  approved_research_plan_ref: "artifact://research/research_plan.approved.json"
-  claim_verification_ref: "artifact://research/claim_verification.approved.json"
-  selected_sources_ref: "artifact://research/selected_sources.approved.json"
-  paper_reviews_index_ref: "artifact://research/paper_reviews/index.json"
-  recent_developments_ref: "artifact://research/recent_developments.approved.json"
-  canonical_sources_ref: "artifact://research/canonical_sources.approved.json"
+  approved_research_plan_ref: "artifact://g02/research_plan.approved.json"
+  claim_verification_ref: "artifact://g02/claim_verification.approved.json"
+  selected_sources_ref: "artifact://g02/selected_sources.approved.json"
+  paper_reviews_index_ref: "artifact://g02/paper_reviews/index.json"
+  recent_developments_ref: "artifact://g02/recent_developments.approved.json"
+  canonical_sources_ref: "artifact://g02/canonical_sources.approved.json"
   synthesis_request:
     produce:
       - "evidence_map"
@@ -525,7 +525,7 @@ ResearchSynthesizerInputBundle:
 Człowiek zatwierdza, które wyniki researchu mają wpływać na nową wersję wykładu.
 9.2 Input
 HumanResearchGateInput:
-  research_summary_ref: "artifact://research/research_summary.md"
+  research_summary_ref: "artifact://g02/research_summary.md"
   validation_packet:
     verified_claims:
       valid: 10
@@ -556,7 +556,7 @@ HumanResearchGateInput:
       type: "confirm_unresolved_claim_handling"
 9.3 Output
 HumanApprovedResearchBundle:
-  approved_research_summary_ref: "artifact://research/research_summary.approved.md"
+  approved_research_summary_ref: "artifact://g02/research_summary.approved.md"
   approved_update_findings:
     - finding_id: RF_001
       impact: "UPDATE"
@@ -565,7 +565,7 @@ HumanApprovedResearchBundle:
         - evidence_id: EV_001
           source_id: P_014
           summary: "Approximate inference reduces practical computational barriers."
-          source_ref: "artifact://research/01_topic/reviews/P_014_review.json"
+          source_ref: "artifact://g02/01_topic/reviews/P_014_review.json"
   approved_optional_findings:
     - finding_id: RF_014
       impact: "ADD_OPTIONAL"
@@ -642,7 +642,7 @@ feeds the answer back. It sequences the nodes, maintains `draft.json`, and runs 
 - consumes: user request
 - produces: `target_stack_spec@2`
 ## Workflow (intake)
-> The canonical node sequence and edges live in `shared/graphs/intake.graph.json` (single
+> The canonical node sequence and edges live in `shared/graphs/g01.graph.json` (single
 > source of truth). This Workflow must agree with it; `graph_check.py` verifies the two,
 > plus `plugin.json`, never drift apart.
 1. **Probe basics** — `build-mode-prober` reads the full installed plugin and skill inventory
@@ -868,5 +868,3 @@ state:
     }
   ]
 }
- 
- 
