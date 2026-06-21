@@ -1,14 +1,14 @@
 # edu-materials-agents
 
 Agent-stack plugin for **Claude Code** and **Codex** that improves educational / lecture
-materials through reviewed agent graphs (intake → research → solution). First graph in scope:
+materials through reviewed agent graphs (`g01` intake → `g02` research → `g03` solution). First graph in scope:
 the **Research Graph** (see `docs/research graph project.md`).
 
 ## Layout
 
 ```
 plugin.manifest.json     # source of truth for metadata, components, host packaging
-agents/                  # flat: one .md per agent, auto-discovered (e.g. research-planner.md)
+agents/                  # flat: one .md per agent, auto-discovered (e.g. g02-a01-planner.md)
 skills/<name>/SKILL.md   # neutral skill plus adapters/claude* and adapters/codex.md
 commands/<name>.md       # slash-command entry points (e.g. research.md)
 shared/
@@ -29,7 +29,8 @@ docs/                    # design notes + component conventions
 
 > Component dirs (`agents/`, `commands/`, `skills/`) hold **only** source components. Conventions live in
 > `docs/02_Architektura_agentow_i_skilli.md`. Graphs are organised in `shared/graphs/` and
-> `shared/scripts/<graph>/`; components are flat and namespaced by name (e.g. `research-*`).
+> `shared/scripts/<graph>/`; components are flat and namespaced by stable graph and agent codes
+> (for example `g02-*` and `g02-a01-*`).
 
 ## Packaging model
 
@@ -108,7 +109,7 @@ Then, in Claude Code:
 /plugin                              # shows edu-materials-agents (marketplace: edu-materials)
 ```
 
-Verify the component inventory (expect 10 agents + 18 skills, including orchestrate-research):
+Verify the component inventory (expect 10 agents + 18 skills, including g02-orchestrate-research):
 
 ```bash
 claude plugin details edu-materials-agents
@@ -136,48 +137,48 @@ CLI plugin manifest does not currently register plugin `commands/` as slash comm
 In Claude Code:
 
 ```text
-/research mocks/research/research_graph_input.json
+/research mocks/g02/research_graph_input.json
 ```
 
 In Codex, start a new thread after install and ask in natural language, using an absolute JSON path
 so plugin runtime does not depend on the MCP or worker process working directory:
 
 ```text
-Zrób research dla /home/khudaszek/projects/EduMaterialsAgents/mocks/research/research_graph_input.json
+Zrób research dla /home/khudaszek/projects/EduMaterialsAgents/mocks/g02/research_graph_input.json
 ```
 
 or:
 
 ```text
-Run the research graph for /home/khudaszek/projects/EduMaterialsAgents/mocks/research/research_graph_input.json
+Run the research graph for /home/khudaszek/projects/EduMaterialsAgents/mocks/g02/research_graph_input.json
 ```
 
-The `orchestrate-research` skill treats these as semantic entrypoints and uses the
+The `g02-orchestrate-research` skill treats these as semantic entrypoints and uses the
 `research_run_codex` MCP tool. The default Codex gate mode is pause/resume (`gates: "pause"`), so
 human gates return a `resume_token` instead of reading interactive stdin from the MCP process.
 
 Or use the runner directly:
 
 ```bash
-python /home/khudaszek/.codex/plugins/edu-materials-agents/shared/scripts/research/research_flow.py run-codex /home/khudaszek/projects/EduMaterialsAgents/mocks/research/research_graph_input.json
+python /home/khudaszek/.codex/plugins/edu-materials-agents/shared/scripts/g02/g02_flow.py run-codex /home/khudaszek/projects/EduMaterialsAgents/mocks/g02/research_graph_input.json
 ```
 
 Or run deterministically, without an LLM. This harness validates wiring and uses no-op producers,
 automatic reviewer approvals and automatic user-gate approvals:
 
 ```bash
-python shared/scripts/research/research_flow.py run mocks/research/research_graph_input.json
+python shared/scripts/g02/g02_flow.py run mocks/g02/research_graph_input.json
 # inspect what one agent would receive:
-python shared/scripts/research/research_flow.py inputs mocks/research/research_graph_input.json --node research-planner
+python shared/scripts/g02/g02_flow.py inputs mocks/g02/research_graph_input.json --node g02-a01-planner
 ```
 
 Or drive the real graph through **Codex workers** (each node is an isolated `codex exec`, no API
 key — Codex subscription login; terminal user gates). Local/dev only:
 
 ```bash
-python shared/scripts/research/research_flow.py run-codex mocks/research/research_graph_input.json
+python shared/scripts/g02/g02_flow.py run-codex mocks/g02/research_graph_input.json
 # single isolated node (cheaper smoke):
-python shared/scripts/research/runners/codex.py research-planner
+python shared/scripts/research/runners/codex.py g02-a01-planner
 ```
 
 The engine is host-agnostic; execution is the per-host runner (Claude Task subagents vs Codex

@@ -4,11 +4,11 @@
 Implements the minimal MCP stdio protocol (JSON-RPC 2.0, newline-delimited) BY HAND — no
 third-party dependencies, so it runs with the system python3 like the rest of the plugin.
 Claude Code / Codex launch it via .mcp.json with ${CLAUDE_PLUGIN_ROOT}; the deterministic seams
-wrap shared/scripts/research/research_flow.py.
+wrap shared/scripts/g02/g02_flow.py.
 
-Methods: initialize, notifications/* (ignored), ping, prompts/list, prompts/get, tools/list, tools/call.
-Tools: research_front_door, research_node_input, research_finalize, research_run_stub,
-research_run_codex.
+Methods: initialize, notifications/* (ignored), ping, tools/list, tools/call.
+Tools: research_front_door, research_node_input, research_review_prepare,
+research_review_finalize, research_finalize, research_run_stub.
 """
 from __future__ import annotations
 
@@ -16,14 +16,15 @@ import json
 import sys
 import pathlib
 
-# Self-bootstrap sys.path so `core` and `research` import however we're launched.
+# Self-bootstrap sys.path so `core` and `g02` import however we're launched.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))  # -> shared/scripts
 
-from research import research_flow as rf  # noqa: E402
+from g02 import g02_flow as rf  # noqa: E402
+from g02 import review as reviewer  # noqa: E402
 from core import graphs, handoff  # noqa: E402
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "edu-materials-research", "version": "0.1.0"}
+SERVER_INFO = {"name": "edu-materials-research", "version": "0.2.0"}
 
 
 # ---- tool implementations (return JSON-serializable values) --------------
@@ -48,6 +49,14 @@ def _finalize(args: dict):
     if isinstance(bundle, str):                       # a path
         return rf.finalize(bundle)
     return handoff.emit_handoff(bundle, rf.OUTPUT_CONTRACT, name="research_bundle")  # inline
+
+
+def _review_prepare(args: dict):
+    return reviewer.prepare_review(args["task"])
+
+
+def _review_finalize(args: dict):
+    return reviewer.finalize_review_decision(args["task"], args["decision"])
 
 
 def _run_stub(args: dict):
@@ -106,6 +115,31 @@ TOOLS = [
             "properties": {"ref": {"type": "string", "description": "ref from research_front_door"},
                            "node": {"type": "string", "description": "optional single node name"}},
             "required": ["ref"],
+        },
+    },
+    {
+        "name": "research_review_prepare",
+        "description": "Validate one review_task@1, enforce one artifact and hydrate only that "
+                       "artifact for the isolated universal reviewer. Invalid review basis or "
+                       "unavailable artifact returns a completed BLOCKED decision envelope when "
+                       "audit identity is available.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"task": {"type": "object"}},
+            "required": ["task"],
+        },
+    },
+    {
+        "name": "research_review_finalize",
+        "description": "Validate one review_decision@1 against its ReviewTask, persist it and "
+                       "return envelope@1 with one review_decision descriptor.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "task": {"type": "object"},
+                "decision": {"type": "object"},
+            },
+            "required": ["task", "decision"],
         },
     },
     {
@@ -203,6 +237,8 @@ def _research_prompt(context: str) -> dict:
 DISPATCH = {
     "research_front_door": _front_door,
     "research_node_input": _node_input,
+    "research_review_prepare": _review_prepare,
+    "research_review_finalize": _review_finalize,
     "research_finalize": _finalize,
     "research_run_stub": _run_stub,
     "research_run_codex": _run_codex,

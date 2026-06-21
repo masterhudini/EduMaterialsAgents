@@ -14,7 +14,7 @@ które bezpośrednio wpływają na Twoją część.
 
 `[LOCKED PROJECT DECISION: SINGLE-REVIEWER]`
 
-Research Graph ma jedną fizyczną definicję `ResearchOutputReviewerAgent`.
+Research Graph ma jedną fizyczną definicję `G02A10OutputReviewerAgent`.
 
 W grafie nadal istnieje wiele logicznych etapów review, na przykład review planu, indeksu,
 paper evidence i syntezy. Każdy etap uruchamia ten sam agent z innym `review_profile`.
@@ -23,9 +23,11 @@ Konsekwencje:
 
 - repo nie powinno zawierać dziewięciu plików reviewerów,
 - manifest potrzebuje rozróżnienia logical node od physical agent reference,
-- każdy logical review node wskazuje `research-output-reviewer`,
+- każdy logical review node wskazuje `g02-a10-output-reviewer`,
 - review profile określa producer, acceptance criteria i revision policy,
-- `graph_check.py` powinien weryfikować physical reference, jeśli manifest wprowadzi takie pole,
+- `graph_check.py` weryfikuje kontrakty reviewera i profile producentów; w source i bundlu
+  Claude sprawdza także physical reviewer reference, a w bundlu Codex respektuje
+  `includeAgents: false`,
 - plugin rejestruje jeden komponent reviewer.
 
 Ta decyzja nie wymaga ponownego zatwierdzenia. Powinna zostać odzwierciedlona w repo.
@@ -84,15 +86,15 @@ Do czasu implementacji adapter Codex ma zakończyć działanie jawnym
 Docelowa kolejność:
 
 ```text
-Research Planner
-→ Domain Research
-→ parallel Canonical Sources and Recent Developments
-→ Candidate Source Index
+G02-A01 Planner
+→ G02-A02 Domain
+→ parallel G02-A03 Canonical Sources and G02-A04 Recent Developments
+→ G02-A05 Candidate Source Index
 → Human Source Selection Gate
-→ Paper Retrieval
-→ Paper Review
-→ Claim Verification
-→ Research Synthesizer
+→ G02-A06 Paper Retrieval
+→ G02-A07 Paper Review
+→ G02-A08 Claim Verification
+→ G02-A09 Synthesizer
 → Human Research Gate
 ```
 
@@ -100,11 +102,11 @@ Każdy agent wykonawczy jest oceniany przez tę samą fizyczną definicję revie
 
 Istotne zmiany:
 
-- `CandidateSourceIndexAgent` zastępuje `SourceSelectionAgent`,
-- Claim Verification przechodzi za Paper Review,
+- `G02A05CandidateSourceIndexAgent` zastępuje `SourceSelectionAgent`,
+- G02-A08 Claim Verification przechodzi za G02-A07 Paper Review,
 - przed retrieval dochodzi Human Source Selection Gate,
-- Paper Retrieval przyjmuje `HumanApprovedSourceSet`,
-- Claim Verification przyjmuje zaakceptowane EvidenceCards,
+- G02-A06 Paper Retrieval przyjmuje `HumanApprovedSourceSet`,
+- G02-A08 Claim Verification przyjmuje zaakceptowane EvidenceCards,
 - Solution Graph otrzymuje kompaktowy handoff bez pełnych PDF-ów.
 
 ## 6. Human Source Selection Gate
@@ -139,7 +141,7 @@ Skille nie wykonują surowych requestów przez LLM. Wywołują narzędzia Resear
 kontraktem JSON. Warstwa ta, wraz z adapterami OpenAlex, Semantic Scholar, arXiv, Unpaywall i
 usług uzupełniających, normalizacją, deduplikacją, downloaderem i przygotowaniem PDF, należy do
 naszego modułu. Dodatkowe zasoby skilla powstają tylko wtedy, gdy kod jest specyficzny dla jego
-procedury; narzędzia współdzielone mogą pozostać w `shared/scripts/research/`.
+procedury; narzędzia współdzielone mogą pozostać w `shared/scripts/g02/`.
 
 KH zapewnia uruchamianie agentów i narzędzi przez runtime, przekazywanie ograniczonych input
 bundles, storage i resume, konfigurację sekretów oraz integrację human gates z powierzchnią
@@ -163,6 +165,7 @@ Minimalny zestaw:
 - retrieved corpus,
 - paper review i evidence card,
 - claim assessment state,
+- review task,
 - review decision,
 - research state i evidence map,
 - human validation packet,
@@ -175,12 +178,17 @@ Reviewer decision jest artefaktem w `envelope.produced[]`. Nie zastępuje status
 Do dalszej integracji:
 
 - rozszerzyć `shared/contracts/` o zatwierdzone kontrakty pośrednie,
-- zastąpić no-op execution w `shared/scripts/research/research_flow.py` rzeczywistym uruchamianiem
+- zastąpić no-op execution w `shared/scripts/g02/g02_flow.py` rzeczywistym uruchamianiem
   agentów i ograniczaniem input bundles,
-- dodać fan-out/fan-in dla niezależnych wyszukiwań i Paper Review,
+- dodać fan-out/fan-in dla niezależnych wyszukiwań i G02-A07 Paper Review,
 - podłączyć deterministyczne narzędzia literaturowe i konfigurację sekretów,
 - rozszerzyć testy o contracts, shape checks, revision loops i human gates,
 - wyrównać starszy opis Research Graph w `docs/whole_outline.md`.
+
+Deterministyczna powierzchnia reviewera udostępnia `research_review_prepare` i
+`research_review_finalize`. Pierwsza operacja waliduje `review_task@1`, ogranicza dostęp do
+jednego artefaktu oraz zwraca jego shape validation i historię rewizji. Druga waliduje i
+utrwala `review_decision@1`. Wywołanie fizycznego node agenta nadal należy do adaptera runtime.
 
 ## 10. Mechanika pozostająca bez zmian
 
@@ -201,8 +209,10 @@ rejestrowania jednego physical reviewer pod wieloma logical nodes.
 
 Poniższe punkty pozostają poza treścią agentów i skilli, ale mogą wpływać na integrację:
 
-- `graph_check.py` sprawdza obecnie głównie rejestrację agentów i skilli. Nie weryfikuje jeszcze
-  pełnej zgodności edges, sequence, orchestrator workflow i logical-to-physical reviewer refs.
+- `graph_check.py` sprawdza rejestrację komponentów wysyłanych do danego hosta, kontrakty
+  reviewera i obecność profili. Source i Claude wymagają physical agent references. Codex
+  pomija wyłącznie obecność plików agentów zgodnie z `includeAgents: false`. Checker nie
+  weryfikuje jeszcze pełnej zgodności edges, sequence i orchestrator workflow.
 - Test `test_graph_check_ok_with_no_manifests` przechodzi przy zerowej liczbie manifestów.
   Po dodaniu Research Graph potrzebne są testy faktycznej zawartości manifestu.
 - Minimalny validator JSON Schema obsługuje ograniczony podzbiór specyfikacji. Nowe kontrakty

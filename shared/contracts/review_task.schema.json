@@ -1,0 +1,84 @@
+{
+  "title": "Universal Research Graph review task",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version",
+    "review_id",
+    "task_id",
+    "logical_review_node",
+    "producer_agent",
+    "attempt",
+    "review_profile",
+    "original_task",
+    "producer_input",
+    "artifact",
+    "expected_output_contract",
+    "acceptance_criteria",
+    "evidence_requirements",
+    "prohibited_behaviors",
+    "severity_rules"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["review_task@1"]},
+    "review_id": {"type": "string"},
+    "task_id": {"type": "string"},
+    "logical_review_node": {"type": "string"},
+    "producer_agent": {"type": "string"},
+    "attempt": {"type": "integer"},
+    "review_profile": {"type": "string"},
+    "original_task": {"type": "object"},
+    "producer_input": {"type": "object"},
+    "artifact": {
+      "type": "object",
+      "required": ["type", "ref", "schema_version", "artifact_version"],
+      "properties": {
+        "type": {"type": "string"},
+        "ref": {"type": "string"},
+        "schema_version": {"type": "string"},
+        "artifact_version": {"type": "string"}
+      }
+    },
+    "expected_output_contract": {"type": "string"},
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["criterion_id", "description", "mandatory"],
+        "properties": {
+          "criterion_id": {"type": "string"},
+          "description": {"type": "string"},
+          "mandatory": {"type": "boolean"}
+        }
+      }
+    },
+    "evidence_requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["requirement_id", "description", "mandatory"],
+        "properties": {
+          "requirement_id": {"type": "string"},
+          "description": {"type": "string"},
+          "mandatory": {"type": "boolean"}
+        }
+      }
+    },
+    "prohibited_behaviors": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "severity_rules": {
+      "type": "object",
+      "required": ["minor", "major", "blocker"],
+      "properties": {
+        "minor": {"type": "string"},
+        "major": {"type": "string"},
+        "blocker": {"type": "string"}
+      }
+    },
+    "previous_decision_ref": {"type": ["string", "null"]},
+    "producer_revision_response": {"type": ["object", "null"]}
+  }
+}

@@ -31,10 +31,20 @@ def parse_ref(ref: str) -> tuple[str, str | None]:
 
 
 def resolve_path(ref: str, base: str | Path | None = None) -> Path:
-    """Absolute filesystem path for a ref's file part (ignores the pointer)."""
+    """Absolute path for a ref, constrained to the configured artifact root.
+
+    Reject absolute paths, ``..`` traversal and symlink resolution that would leave the
+    artifact store. Artifact references may come from scoped input bundles and are never
+    trusted as filesystem paths.
+    """
     relpath, _ = parse_ref(ref)
-    root = Path(base) if base is not None else paths.artifacts_dir()
-    return (root / relpath).resolve()
+    root = (Path(base) if base is not None else paths.artifacts_dir()).resolve()
+    resolved = (root / relpath).resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"artifact ref escapes artifact root: {ref!r}") from exc
+    return resolved
 
 
 def _unescape(token: str) -> str:

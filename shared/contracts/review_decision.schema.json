@@ -1,52 +1,86 @@
 {
-  "title": "ReviewDecision \u2014 universal reviewer verdict (design 02 \u00a76).",
+  "title": "Universal Research Graph review decision",
   "x-version": "1.0",
   "x-major": 1,
   "type": "object",
   "required": [
-    "verdict"
+    "schema_version",
+    "review_id",
+    "task_id",
+    "logical_review_node",
+    "reviewer_agent",
+    "producer_agent",
+    "artifact_ref",
+    "artifact_version",
+    "review_profile",
+    "decision",
+    "findings",
+    "closed_finding_ids",
+    "revision_scope",
+    "root_cause",
+    "confidence",
+    "attempt",
+    "summary"
   ],
   "properties": {
-    "verdict": {
-      "type": "string",
-      "enum": [
-        "APPROVED",
-        "APPROVED_WITH_WARNINGS",
-        "REVISE",
-        "BLOCKED"
-      ]
-    },
-    "root_cause": {
-      "type": "string"
-    },
-    "issues": {
+    "schema_version": {"type": "string", "enum": ["review_decision@1"]},
+    "review_id": {"type": "string"},
+    "task_id": {"type": "string"},
+    "logical_review_node": {"type": "string"},
+    "reviewer_agent": {"type": "string", "enum": ["g02-a10-output-reviewer"]},
+    "producer_agent": {"type": "string"},
+    "artifact_ref": {"type": "string"},
+    "artifact_version": {"type": "string"},
+    "review_profile": {"type": "string"},
+    "decision": {"type": "string", "enum": ["APPROVED", "REVISE", "BLOCKED"]},
+    "findings": {
       "type": "array",
       "items": {
         "type": "object",
         "required": [
-          "severity"
+          "finding_id",
+          "criterion_id",
+          "severity",
+          "location",
+          "observed",
+          "required_correction",
+          "evidence_refs"
         ],
         "properties": {
-          "severity": {
-            "type": "string",
-            "enum": [
-              "low",
-              "medium",
-              "high",
-              "critical"
-            ]
-          },
-          "criterion": {
-            "type": "string"
-          },
-          "location": {
-            "type": "string"
-          },
-          "required_correction": {
-            "type": "string"
-          }
+          "finding_id": {"type": "string"},
+          "criterion_id": {"type": "string"},
+          "severity": {"type": "string", "enum": ["minor", "major", "blocker"]},
+          "location": {"type": "string"},
+          "observed": {"type": "string"},
+          "required_correction": {"type": "string"},
+          "evidence_refs": {"type": "array", "items": {"type": "string"}}
         }
       }
-    }
+    },
+    "closed_finding_ids": {"type": "array", "items": {"type": "string"}},
+    "revision_scope": {
+      "type": ["object", "null"],
+      "required": ["target_agent", "finding_ids"],
+      "properties": {
+        "target_agent": {"type": "string"},
+        "finding_ids": {"type": "array", "items": {"type": "string"}},
+        "notes": {"type": "string"}
+      }
+    },
+    "root_cause": {
+      "type": ["string", "null"],
+      "enum": [
+        "producer_error",
+        "insufficient_evidence",
+        "invalid_or_incomplete_input",
+        "upstream_plan_error",
+        "review_profile_error",
+        "external_dependency_blocked",
+        null
+      ]
+    },
+    "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+    "attempt": {"type": "integer"},
+    "summary": {"type": "string"}
   }
 }

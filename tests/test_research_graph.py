@@ -14,7 +14,7 @@ SCRIPTS = ROOT / "shared" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from core import artifacts, contracts, graph_check, graphs, handoff, paths  # noqa: E402
-from research import research_flow  # noqa: E402
+from g02 import g02_flow  # noqa: E402
 from research.runners.stub import stub_node_runner  # noqa: E402
 
 SEED = ROOT / "tests" / "fixtures" / "research_graph_input.example.json"
@@ -34,7 +34,7 @@ def test_graph_runs_end_to_end_and_emits_valid_bundle():
     seed = json.loads(SEED.read_text())
     in_ref = artifacts.store("handoffs/research_graph_input.json", seed)
 
-    desc = research_flow.run(in_ref)
+    desc = g02_flow.run(in_ref)
 
     assert desc["type"] == "user_approved_research_bundle"
     assert desc["schema_version"] == "user_approved_research_bundle@1"
@@ -55,16 +55,16 @@ def test_run_persists_node_artifacts_and_threads_upstream_refs():
         seen_upstream[node["name"]] = sorted(ctx.get("upstream") or {})
         return stub_node_runner(node, ctx, log)
 
-    research_flow.run(in_ref, node_runner=spy)
+    g02_flow.run(in_ref, node_runner=spy)
 
     # every agent node persisted an artifact under the store
     research_dir = paths.artifacts_dir() / "research"
     persisted = {p.stem for p in research_dir.glob("*.json")}
-    assert "research-planner" in persisted and len(persisted) == 9
+    assert "g02-a01-planner" in persisted and len(persisted) == 9
 
     # the first node sees no upstream; a later node sees the planner's ref threaded in
-    assert seen_upstream["research-planner"] == []
-    assert "research-planner" in seen_upstream["research-synthesizer"]
+    assert seen_upstream["g02-a01-planner"] == []
+    assert "g02-a01-planner" in seen_upstream["g02-a09-synthesizer"]
 
 
 def test_typed_artifact_is_validated_and_persisted():
@@ -78,21 +78,21 @@ def test_typed_artifact_is_validated_and_persisted():
                                  "required_source_roles": ["canonical"]}]}
 
     def runner(node, ctx, log):
-        if node["name"] == "research-planner":
+        if node["name"] == "g02-a01-planner":
             env = stub_node_runner(node, ctx, log)
             env["artifact"] = plan_artifact
             return env
         return stub_node_runner(node, ctx, log)
 
-    research_flow.run(in_ref, node_runner=runner)
+    g02_flow.run(in_ref, node_runner=runner)
 
     research_dir = paths.artifacts_dir() / "research"
-    plan = json.loads((research_dir / "research-planner.json").read_text())
+    plan = json.loads((research_dir / "g02-a01-planner.json").read_text())
     assert plan == plan_artifact                        # the artifact, not the envelope
     assert contracts.validate(plan, "research_plan@1")["ok"]
 
     # a stub node (no artifact) still persisted its envelope as a fallback
-    other = json.loads((research_dir / "research-synthesizer.json").read_text())
+    other = json.loads((research_dir / "g02-a09-synthesizer.json").read_text())
     assert other["status"] == "ok" and "summary" in other
 
 
@@ -113,7 +113,7 @@ def test_gate_handler_surface_runs_through():
         assert payload["required_decisions"]            # the gate carries its spec
         return {"answered": True}
 
-    desc = research_flow.run(in_ref, gate_handler=handler)
+    desc = g02_flow.run(in_ref, gate_handler=handler)
     assert desc["type"] == "user_approved_research_bundle"
     assert seen_gates == ["user-source-selection-gate", "user-research-gate"]
 
@@ -131,22 +131,22 @@ def test_gate_pause_and_resume():
         return stub_node_runner(node, ctx, log)
 
     # 1st leg -> pause at the source-selection gate
-    r1 = research_flow.run(in_ref, node_runner=runner, pause_on_gate=True)
+    r1 = g02_flow.run(in_ref, node_runner=runner, pause_on_gate=True)
     assert r1["status"] == "awaiting_user" and r1["gate"] == "user-source-selection-gate"
-    assert runs.get("research-candidate-source-index") == 1   # producers up to the gate ran
-    assert "research-synthesizer" not in runs                 # nothing past the gate yet
+    assert runs.get("g02-a05-candidate-source-index") == 1   # producers up to the gate ran
+    assert "g02-a09-synthesizer" not in runs                 # nothing past the gate yet
 
     # resume with the decision -> pause at the research gate
-    r2 = research_flow.run(node_runner=runner, pause_on_gate=True,
+    r2 = g02_flow.run(node_runner=runner, pause_on_gate=True,
                            resume_token=r1["resume_token"], decisions={r1["gate"]: {"source_actions": {}}})
     assert r2["status"] == "awaiting_user" and r2["gate"] == "user-research-gate"
-    assert runs.get("research-candidate-source-index") == 1   # NOT re-run on resume
+    assert runs.get("g02-a05-candidate-source-index") == 1   # NOT re-run on resume
 
     # final resume -> completes
-    r3 = research_flow.run(node_runner=runner, pause_on_gate=True,
+    r3 = g02_flow.run(node_runner=runner, pause_on_gate=True,
                            resume_token=r2["resume_token"], decisions={r2["gate"]: {"approve_required_updates": True}})
     assert r3["type"] == "user_approved_research_bundle"
-    assert runs.get("research-synthesizer") == 1
+    assert runs.get("g02-a09-synthesizer") == 1
 
 
 def _runner_with_reviewer(producer_calls, verdict_for):
@@ -167,13 +167,13 @@ def test_reviewer_revise_then_approve_reruns_producer():
     calls = {}
 
     def verdict_for(target, attempt):
-        if target == "research-planner" and attempt == 0:
+        if target == "g02-a01-planner" and attempt == 0:
             return {"verdict": "REVISE", "issues": [{"severity": "high"}]}
         return {"verdict": "APPROVED"}
 
-    research_flow.run(in_ref, node_runner=_runner_with_reviewer(calls, verdict_for))
-    assert calls["research-planner"] == 2          # original + one revision
-    assert calls["research-synthesizer"] == 1      # others approved first time
+    g02_flow.run(in_ref, node_runner=_runner_with_reviewer(calls, verdict_for))
+    assert calls["g02-a01-planner"] == 2          # original + one revision
+    assert calls["g02-a09-synthesizer"] == 1      # others approved first time
 
 
 def test_reviewer_exhausts_budget_then_escalates():
@@ -181,13 +181,13 @@ def test_reviewer_exhausts_budget_then_escalates():
     calls = {}
 
     def verdict_for(target, attempt):
-        if target == "research-planner":
+        if target == "g02-a01-planner":
             return {"verdict": "REVISE", "issues": [{"severity": "high"}]}
         return {"verdict": "APPROVED"}
 
-    research_flow.run(in_ref, node_runner=_runner_with_reviewer(calls, verdict_for))
+    g02_flow.run(in_ref, node_runner=_runner_with_reviewer(calls, verdict_for))
     # research_planning @ high = 3 revision attempts -> 1 initial + 3 retries, then ESCALATE
-    assert calls["research-planner"] == 4
+    assert calls["g02-a01-planner"] == 4
 
 
 def test_nodes_receive_mocked_context():
@@ -203,12 +203,12 @@ def test_nodes_receive_mocked_context():
         seen.append((node["name"], ctx["input"]["task_id"], len(ctx["input"]["claim_cards"])))
         return {"status": "ok", "produced": [], "summary": "spy", "issues": []}
 
-    research_flow.run(in_ref, node_runner=spy)
+    g02_flow.run(in_ref, node_runner=spy)
 
     names = [n for n, _, _ in seen]
     # all 9 producer agents ran (reviewer + the 2 user gates are not agent nodes)
     assert len(seen) == 9
-    assert "research-planner" in names and "research-synthesizer" in names
+    assert "g02-a01-planner" in names and "g02-a09-synthesizer" in names
     # every node received the SAME mocked context (task_id + claim cards visible)
     assert all(task_id == "RESEARCH_001" and n_claims == 1 for _, task_id, n_claims in seen)
 
@@ -216,28 +216,28 @@ def test_nodes_receive_mocked_context():
 def test_node_input_map_exposes_per_agent_context():
     """The harness can show exactly what each agent node receives (for isolated agent testing)."""
     seed = json.loads(SEED.read_text())
-    manifest = graphs.load("research")
-    inputs = research_flow.node_input_map(seed, manifest)
+    manifest = graphs.load("g02")
+    inputs = g02_flow.node_input_map(seed, manifest)
     assert len(inputs) == 9                       # 9 agent nodes (gates/reviewer excluded)
-    assert inputs["research-planner"]["task_id"] == "RESEARCH_001"
-    assert inputs["research-claim-verification"]["claim_cards"][0]["claim_id"] == "CLM_001"
+    assert inputs["g02-a01-planner"]["task_id"] == "RESEARCH_001"
+    assert inputs["g02-a08-claim-verification"]["claim_cards"][0]["claim_id"] == "CLM_001"
 
 
 def test_load_context_validates(tmp_path):
     good = tmp_path / "good.json"
     good.write_text(SEED.read_text())
-    assert research_flow.load_context(good)["task_id"] == "RESEARCH_001"
+    assert g02_flow.load_context(good)["task_id"] == "RESEARCH_001"
 
     bad = tmp_path / "bad.json"
     bad.write_text('{"task_id": "x"}')
     with pytest.raises(ValueError):
-        research_flow.load_context(bad)
+        g02_flow.load_context(bad)
 
 
 def test_run_rejects_bad_input():
     bad_ref = artifacts.store("handoffs/bad.json", {"task_id": "x"})  # missing required fields
     with pytest.raises(ValueError):
-        research_flow.run(bad_ref)
+        g02_flow.run(bad_ref)
 
 
 def test_manifest_matches_registration():
@@ -245,7 +245,7 @@ def test_manifest_matches_registration():
     assert res["ok"], res
 
     # every agent node in the manifest has a component file on disk; gates do not
-    manifest = graphs.load("research")
+    manifest = graphs.load("g02")
     registered = graph_check.registered_component_names()
     for node in graphs.nodes(manifest):
         if node["kind"] == "agent":

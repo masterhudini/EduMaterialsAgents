@@ -16,7 +16,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from mcp import research_server as srv  # noqa: E402
 
-SEED = str(ROOT / "mocks" / "research" / "research_graph_input.json")
+SEED = str(ROOT / "mocks" / "g02" / "research_graph_input.json")
 
 
 @pytest.fixture(autouse=True)
@@ -34,6 +34,7 @@ def test_initialize_and_tools_list():
     tools = srv.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     names = {t["name"] for t in tools["result"]["tools"]}
     assert names == {"research_front_door", "research_node_input",
+                     "research_review_prepare", "research_review_finalize",
                      "research_finalize", "research_run_stub", "research_run_codex"}
     run_codex = next(t for t in tools["result"]["tools"] if t["name"] == "research_run_codex")
     assert set(run_codex["inputSchema"]["properties"]) == {
@@ -65,9 +66,9 @@ def test_tool_call_front_door_then_node_input():
 
     ni = srv.handle({"jsonrpc": "2.0", "id": 4, "method": "tools/call",
                      "params": {"name": "research_node_input",
-                                "arguments": {"ref": ref, "node": "research-planner"}}})
+                                "arguments": {"ref": ref, "node": "g02-a01-planner"}}})
     seen = json.loads(ni["result"]["content"][0]["text"])
-    assert seen["research-planner"]["task_id"] == "RESEARCH_MOCK_001"
+    assert seen["g02-a01-planner"]["task_id"] == "RESEARCH_MOCK_001"
 
 
 def test_tool_error_is_isError_not_protocol_error():

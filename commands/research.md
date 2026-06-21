@@ -13,7 +13,7 @@ argument-hint: "[path or artifact:// ref to a research_graph_input bundle]"
 
 ## What it does
 
-Routes into the `orchestrate-research` skill, which runs the **Research Graph**: turn an
+Routes into the `g02-orchestrate-research` skill, which runs the **Research Graph**: turn an
 approved research-input bundle into a verified, evidence-backed `UserApprovedResearchBundle`
 (plan → domain/canonical/recent search → candidate index → *user source-selection gate* →
 retrieval → paper review → claim verification → synthesis → *user research gate*).
