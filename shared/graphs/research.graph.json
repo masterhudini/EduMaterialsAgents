@@ -1,6 +1,6 @@
 {
   "graph_id": "research",
-  "description": "Research Graph (thin/stub stage). Verifies approved claims and finds current literature for a lecture refresh, then freezes a UserApprovedResearchBundle. SINGLE SOURCE OF TRUTH for the node sequence — research_flow.py and the orchestrator prompt must agree with this manifest. Authoritative design: docs/02_Architektura_agentow_i_skilli.md. Reviewers are runs of ONE physical agent (research-output-reviewer) with a per-node review_profile; the two user gates are orchestrator steps, not agents.",
+  "description": "Research Graph. Verifies approved claims and finds current literature for a lecture refresh, then freezes a UserApprovedResearchBundle. SINGLE SOURCE OF TRUTH for the node sequence — research_flow.py and the orchestrator prompt must agree with this manifest. Authoritative design: docs/02_Architektura_agentow_i_skilli.md. Reviewers are runs of ONE physical agent (research-output-reviewer) with a per-node review_profile; the two user gates are orchestrator steps, not agents. The standalone deterministic harness may use injectable no-op executors for wiring tests until the runtime adapter is implemented.",
   "orchestrator": "orchestrate-research",
   "reviewer": "research-output-reviewer",
   "entry_node": "research-planner",

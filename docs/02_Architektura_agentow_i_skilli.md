@@ -48,7 +48,7 @@ flowchart TD
     RV9 -->|APPROVED| HG2["Human Research Gate"]
 
     HG2 -->|NEEDS_CORRECTION| RS
-    HG2 -->|APPROVED| OUT["HumanApprovedResearchBundle"]
+    HG2 -->|APPROVED| OUT["UserApprovedResearchBundle"]
 ```
 
 Wszystkie pola oznaczone jako `Research Output Reviewer` są uruchomieniami tej samej
@@ -125,8 +125,9 @@ Każdy agent:
 ## 4. Standard skilla
 
 Każdy skill znajduje się w `skills/<skill-name>/SKILL.md` (jeden poziom — Claude Code nie
-wykrywa zagnieżdżenia `skills/<graph>/<name>/`) i początkowo nie ma
-dodatkowych folderów.
+wykrywa zagnieżdżenia `skills/<graph>/<name>/`). Każdy katalog skilla zawiera również wymagany
+folder `adapters/`. Dodatkowe zasoby powstają tylko wtedy, gdy są potrzebne do deterministycznego
+i powtarzalnego wykonania procedury.
 
 ```markdown
 ---
@@ -146,6 +147,40 @@ description: What the skill does, when an authorized research agent must use it,
 
 Opis musi jednoznacznie wskazywać, czy skill jest interaktywnym orkiestratorem, czy procedurą
 wykonawczą uruchamianą przez agenta. Skille wykonawcze nie prowadzą rozmowy z użytkownikiem.
+
+Struktura host adapters:
+
+```text
+skills/<skill-name>/
+├── SKILL.md
+└── adapters/
+    ├── claude.frontmatter.yaml
+    ├── claude.md
+    └── codex.md
+```
+
+`SKILL.md` zawiera wyłącznie wspólną semantykę. `claude.frontmatter.yaml` wybiera model Claude
+dla danego skilla, `claude.md` opisuje Task/Agent i narzędzia Claude Code, a `codex.md` opisuje
+powierzchnię MCP lub równoważny adapter Codex. `scripts/render_skill_adapters.py` tworzy wariant
+instalacyjny bez modyfikacji źródła i bez dołączania instrukcji drugiego hosta.
+
+### 4.1. Deterministyczne narzędzia skilli
+
+Skille wyszukiwania, indeksowania, Open Access i pobierania korzystają z narzędzi Research
+Graph zamiast samodzielnie konstruować requesty w kontekście LLM. Narzędzie przyjmuje JSON,
+zwraca JSON i nie podejmuje decyzji semantycznych należących do agenta.
+
+Wspólny wynik operacji narzędzia zawiera co najmniej:
+
+- `operation_id`, `provider`, `status` i czas wykonania,
+- znormalizowane `records` albo deskryptory pobranych plików,
+- `query_log`, proweniencję oraz identyfikatory dostawcy,
+- informacje o paginacji, limitach i częściowych brakach,
+- strukturalne `issues` bez ukrywania degradacji.
+
+Provider adapters obejmują w pierwszej kolejności OpenAlex, Semantic Scholar, arXiv i
+Unpaywall. Crossref, CORE, DOAB i OAPEN pełnią funkcje uzupełniające. Agent wybiera strategię,
+a adapter wykonuje zapytanie, normalizuje odpowiedź i zachowuje jej pochodzenie.
 
 ## 5. Agenci wykonawczy
 
@@ -353,7 +388,7 @@ Uruchamiany po zaakceptowanych Paper Reviews, osobno dla claimu lub ściśle pow
 - utworzyć `EvidenceMap`,
 - rozdzielić required updates i optional improvements,
 - wskazać unresolved claims,
-- przygotować `HumanResearchValidationPacket`,
+- przygotować `UserResearchValidationPacket`,
 - przygotować `SolutionInputCandidate` bez pełnego korpusu.
 
 **Granice:**
@@ -446,7 +481,7 @@ Nazwy są robocze, ale funkcje powinny pozostać rozdzielone.
 | `assess-claim-evidence` | Wielowymiarowa ocena claimu. |
 | `synthesize-research-findings` | ResearchState, EvidenceMap i handoff. |
 | `review-research-output` | Uniwersalna procedura review względem profile. |
-| `orchestrate-research-graph` | Rozmowa, routing, reviewer loops i human gates. |
+| `orchestrate-research` | Rozmowa, routing, reviewer loops i human gates. |
 
 ## 9. Macierz agentów i skilli
 

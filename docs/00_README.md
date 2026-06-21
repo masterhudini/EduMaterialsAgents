@@ -3,8 +3,9 @@
 ## Cel zestawu
 
 Ten katalog zbiera uzgodnienia dotyczące drugiego modułu systemu `EduMaterialsAgents`, czyli
-`Research Graph`. Dokumenty są podstawą do dalszego podziału pracy między autora agentów i
-skilli oraz KH, który odpowiada za zgodność z pozostałymi modułami i warstwą orkiestracji.
+`Research Graph`. Dokumenty są podstawą do dalszego podziału pracy między autora agentów,
+skilli i deterministycznych narzędzi literaturowych oraz KH, który odpowiada za zgodność z
+pozostałymi modułami i systemową warstwą orkiestracji.
 
 Dokumentacja powstała na podstawie:
 
@@ -17,8 +18,7 @@ Dokumentacja powstała na podstawie:
 - aktualnego szkieletu repozytorium `EduMaterialsAgents`,
 - decyzji podjętych w rozmowie projektowej.
 
-Pliki w tym katalogu nie zostały dodane do repozytorium. Można je przenieść do repo po
-uzgodnieniu lokalizacji i nazw.
+Pliki w tym katalogu są częścią repozytorium i stanowią kontekst projektowy Research Graph.
 
 ## Dokumenty
 
@@ -43,10 +43,19 @@ uzgodnieniu lokalizacji i nazw.
 
 5. [05_Notatka_dla_KH.md](05_Notatka_dla_KH.md)
    
-   Krótkie przekazanie dla KH: decyzja o reviewerze, dwa punkty wymagające kontroli i lista
+   Krótkie przekazanie dla KH: decyzja o reviewerze, status integracji hostów i lista
    konsekwencji integracyjnych dla repozytorium.
 
 ## Status decyzji
+
+### Status implementacji warstwy treści
+
+Warstwa definicji zawiera 10 kompletnych agentów i 18 skilli, w tym jeden uniwersalny reviewer
+oraz orkiestrator. W plikach agentów i skilli nie pozostają stuby wykonawcze.
+
+Deterministyczne adaptery dostawców, downloader, indeks tekstu PDF oraz rzeczywiste wywoływanie
+agentów przez `research_flow.py` są osobnym etapem implementacji. Obecny tryb `run` w Pythonie
+pozostaje harness-em no-op do kontroli manifestu i kontraktów, a nie testem zachowania agentów.
 
 ### Zamknięta decyzja nadrzędna
 
@@ -56,15 +65,17 @@ Research Graph posiada jedną fizyczną definicję `ResearchOutputReviewerAgent`
 logiczne etapy kontroli korzystają z tej definicji i przekazują jej specyficzny
 `review_profile`. Dokumentacja i repozytorium muszą zostać dostosowane do tej decyzji.
 
-### Punkty wymagające kontroli KH
+### Status flag projektowych
 
-W dokumentacji występują dokładnie dwie flagi dla KH:
+- `[RESOLVED: RESEARCH-GRAPH-INPUT-CONTRACT]`, kontrakt został zatwierdzony i wdrożony jako
+  `shared/contracts/research_graph_input.schema.json`.
+- `[TK-DECISION: CLAIM-ASSESSMENT-MODEL]`, decyzja zostanie podjęta z TK podczas przeglądu 1b1
+  agenta `research-claim-verification` i skilla `assess-claim-evidence`.
+- `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]`, warianty skilli dla Codex są generowane, ale
+  wykonanie prawdziwych node agents i deterministycznych narzędzi wymaga adaptera runtime/MCP.
 
-- `[KH-DECISION: RESEARCH-GRAPH-INPUT-CONTRACT]`,
-- `[KH-DECISION: CLAIM-ASSESSMENT-MODEL]`.
-
-Pozostałe decyzje są przyjętymi założeniami modułu albo kwestiami implementacyjnymi do
-wykonania zgodnie z backlogiem.
+`[LOCKED PROJECT DECISION: SINGLE-REVIEWER]` oraz rozwiązany kontrakt wejściowy nie wymagają
+dalszych decyzji.
 
 ## Język i przenośność
 
@@ -75,3 +86,9 @@ angielsku. Treści prezentowane użytkownikowi respektują `output_language`, do
 Definicje agentów i skilli mają być przenośnym Markdownem dla Claude Code i Codex. Wspólna
 warstwa treści nie powinna zawierać wyboru konkretnego modelu ani składni narzędzi zależnej od
 jednego dostawcy.
+
+Research Graph obejmuje również własną deterministyczną warstwę narzędziową. Odpowiada ona za
+wywołania API indeksów naukowych, normalizację i deduplikację rekordów, rozstrzyganie Open
+Access, pobieranie oraz walidację dokumentów i przygotowanie pełnego tekstu do ukierunkowanej
+analizy. Skille opisują, kiedy i jak używać tych narzędzi, a kod narzędzi zwraca przenośne dane
+strukturalne zamiast logiki zależnej od konkretnego modelu.
