@@ -51,6 +51,11 @@ def test_nodes_receive_mocked_context():
     seen = []
 
     def spy(node, ctx, log):
+        # The universal reviewer runs through the same node_runner; approve it and skip recording
+        # so this test inspects only the producer-agent context.
+        if node.get("kind") == "reviewer":
+            return {"status": "ok", "produced": [], "summary": "review", "issues": [],
+                    "artifact": {"verdict": "APPROVED"}}
         seen.append((node["name"], ctx["input"]["task_id"], len(ctx["input"]["claim_cards"])))
         return {"status": "ok", "produced": [], "summary": "spy", "issues": []}
 

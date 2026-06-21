@@ -52,6 +52,17 @@ def test_every_skill_has_required_host_adapters():
             assert path.read_text(encoding="utf-8").strip(), f"{skill.name}: empty {name}"
 
 
+def test_every_command_has_required_host_adapters():
+    adapters = ROOT / "commands" / "adapters"
+    for command in (ROOT / "commands").glob("*.md"):
+        text = command.read_text(encoding="utf-8")
+        assert "{{HOST_ADAPTER}}" in text, f"{command.name}: missing host adapter placeholder"
+        for host in ("claude", "codex"):
+            path = adapters / f"{command.stem}.{host}.md"
+            assert path.is_file(), f"{command.name}: missing {path.name}"
+            assert path.read_text(encoding="utf-8").strip(), f"{command.name}: empty {path.name}"
+
+
 def test_every_agent_required_skill_exists():
     available = {skill.name for skill in source_skills()}
     for agent in (ROOT / "agents").glob("*.md"):
@@ -102,8 +113,12 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
     codex_plugin = tmp_path / "codex" / "plugins" / "edu-materials-agents"
     assert len(list((claude_plugin / "agents").glob("*.md"))) == 10
     assert len(list((claude_plugin / "commands").glob("*.md"))) == 1
-    assert not (codex_plugin / "agents").exists()
+    assert len(list((codex_plugin / "agents").glob("*.md"))) == 10
     assert not (codex_plugin / "commands").exists()
+    codex_manifest = json.loads((codex_plugin / ".codex-plugin" / "plugin.json").read_text())
+    assert "agents" not in codex_manifest
+    assert "commands" not in codex_manifest
+    assert codex_manifest["mcpServers"] == "./.mcp.json"
     assert source_before == digest_tree(ROOT / "skills")
 
 

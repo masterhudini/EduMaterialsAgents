@@ -1,0 +1,37 @@
+{
+  "title": "PaperReview \u2014 per-document evidence extraction (design 02 \u00a75.7).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "source_id",
+    "relevance_to_lecture",
+    "limitations"
+  ],
+  "properties": {
+    "source_id": {
+      "type": "string"
+    },
+    "relevance_to_lecture": {
+      "type": "string"
+    },
+    "limitations": {
+      "type": "string"
+    },
+    "contribution": {
+      "type": "string"
+    },
+    "method": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "string"
+    },
+    "evidence_cards": {
+      "type": "array"
+    },
+    "evidence_access_level": {
+      "type": "string"
+    }
+  }
+}

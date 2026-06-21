@@ -14,6 +14,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "plugin.manifest.json"
+GRAPHS_DIR = ROOT / "shared" / "graphs"
 DEFAULT_DIST = ROOT / "dist"
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", re.DOTALL)
 VALID_KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
@@ -167,6 +168,18 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
             if "name" in overlay and overlay["name"] != skill_root.name:
                 raise BuildError(f"{rel}: host overlay cannot rename a skill")
 
+    command_adapters = ROOT / "commands" / "adapters"
+    for rel in components["commands"]:
+        command = ROOT / rel
+        name = command.stem
+        body = command.read_text(encoding="utf-8")
+        if "{{HOST_ADAPTER}}" not in body:
+            raise BuildError(f"{rel}: missing {{HOST_ADAPTER}} placeholder")
+        for host in ("claude", "codex"):
+            adapter = command_adapters / f"{name}.{host}.md"
+            if not adapter.is_file() or not adapter.read_text(encoding="utf-8").strip():
+                raise BuildError(f"{rel}: missing or empty command adapter {adapter.name}")
+
 
 def base_metadata(manifest: dict[str, Any]) -> dict[str, Any]:
     return {
@@ -190,7 +203,11 @@ def build_codex_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     interface = dict(manifest["interface"])
     interface["category"] = manifest["category"]["codex"]
     payload = base_metadata(manifest)
-    payload.update({"skills": "./skills/", "mcpServers": "./.mcp.json", "interface": interface})
+    payload.update({
+        "skills": "./skills/",
+        "mcpServers": "./.mcp.json",
+        "interface": interface,
+    })
     return payload
 
 
@@ -291,12 +308,70 @@ def render_skill_adapters(manifest: dict[str, Any], plugin_root: Path, host: str
         shutil.rmtree(adapters)
 
 
+def render_command_adapters(manifest: dict[str, Any], plugin_root: Path, host: str) -> None:
+    adapters = ROOT / "commands" / "adapters"
+    for rel in manifest["components"]["commands"]:
+        command = plugin_root / rel
+        adapter = adapters / f"{command.stem}.{host}.md"
+        body = command.read_text(encoding="utf-8")
+        adapter_section = (
+            f"<!-- BEGIN HOST ADAPTER: {host.upper()} -->\n"
+            f"{adapter.read_text(encoding='utf-8').strip()}\n"
+            f"<!-- END HOST ADAPTER: {host.upper()} -->"
+        )
+        write_text(command, body.replace("{{HOST_ADAPTER}}", adapter_section).rstrip() + "\n")
+
+
+def agent_models(host: str) -> dict[str, str]:
+    """Map agent file stem -> model for ``host`` from each graph's complexity_class + model_bindings.
+
+    Single source: the graph manifests carry complexity_class (per node + reviewer) and the
+    complexity_class -> model table. The builder bakes the result into Claude agent frontmatter;
+    the Codex runner reads the same table at runtime for ``-m``.
+    """
+    models: dict[str, str] = {}
+    for graph_manifest in sorted(GRAPHS_DIR.glob("*.graph.json")):
+        manifest = json.loads(graph_manifest.read_text())
+        bindings = manifest.get("model_bindings", {})
+        for node in manifest.get("nodes", []):
+            if node.get("kind") == "agent":
+                model = bindings.get(node.get("complexity_class"), {}).get(host)
+                if model:
+                    models[node["name"]] = model
+        reviewer, rcc = manifest.get("reviewer"), manifest.get("reviewer_complexity_class")
+        if reviewer and rcc:
+            model = bindings.get(rcc, {}).get(host)
+            if model:
+                models[reviewer] = model
+    return models
+
+
+def bake_agent_models(plugin_root: Path, host: str) -> None:
+    """Inject ``model:`` into each shipped agent's frontmatter (agents are otherwise agnostic)."""
+    models = agent_models(host)
+    agents_dir = plugin_root / "agents"
+    if not agents_dir.exists():
+        return
+    for path in sorted(agents_dir.glob("*.md")):
+        model = models.get(path.stem)
+        if not model:
+            continue
+        text = path.read_text(encoding="utf-8")
+        if not text.startswith("---"):
+            continue
+        head = text.index("\n") + 1                 # after the opening '---'
+        write_text(path, text[:head] + f"model: {model}\n" + text[head:])
+
+
 def build_claude(manifest: dict[str, Any], dist: Path, python_command: str) -> Path:
     root = dist / "claude"
     plugin_root = root / "plugins" / manifest["name"]
     reset_dir(root)
     copy_common(manifest, plugin_root, "claude")
+    bake_agent_models(plugin_root, "claude")
     render_skill_adapters(manifest, plugin_root, "claude")
+    if manifest["hosts"]["claude"].get("includeCommands", False):
+        render_command_adapters(manifest, plugin_root, "claude")
     write_json(plugin_root / ".claude-plugin" / "plugin.json", build_claude_manifest(manifest))
     write_json(plugin_root / ".mcp.json", build_claude_mcp(manifest, python_command))
     write_json(root / ".claude-plugin" / "marketplace.json", build_claude_marketplace(manifest))
@@ -309,6 +384,8 @@ def build_codex(manifest: dict[str, Any], dist: Path, python_command: str) -> Pa
     reset_dir(root)
     copy_common(manifest, plugin_root, "codex")
     render_skill_adapters(manifest, plugin_root, "codex")
+    if manifest["hosts"]["codex"].get("includeCommands", False):
+        render_command_adapters(manifest, plugin_root, "codex")
     write_json(plugin_root / ".codex-plugin" / "plugin.json", build_codex_manifest(manifest))
     write_json(plugin_root / ".mcp.json", build_codex_mcp(manifest, python_command))
     write_json(root / ".agents" / "plugins" / "marketplace.json", build_codex_marketplace(manifest))
