@@ -186,7 +186,7 @@ def _run_codex(args: dict):
     MCP tools are not an interactive stdin surface, so the default gate behavior is pause/resume.
     Use gates=auto only for deterministic smoke runs where human approvals may be simulated.
     """
-    from research.runners.codex import codex_node_runner
+    from g02.runners.codex import codex_node_runner
 
     gates = args.get("gates", "pause")
     if gates not in {"pause", "auto"}:

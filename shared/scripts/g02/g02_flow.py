@@ -24,7 +24,7 @@ _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))
 from core import artifacts, contracts, event_log, gate, graphs, handoff, paths, revision  # noqa: E402
 from core import state as st  # noqa: E402
 from core import validate_state as vs  # noqa: E402
-from research.runners.stub import stub_node_runner  # noqa: E402
+from g02.runners.stub import stub_node_runner  # noqa: E402
 from g02 import planner  # noqa: E402
 
 GRAPH_ID = "g02"
@@ -567,7 +567,7 @@ def _cli(argv: list[str]) -> int:
             handler = terminal_gate_handler if args.gates == "prompt" else None
             out = run(front_door(args.context)["ref"], gate_handler=handler)
         elif args.cmd == "run-codex":
-            from research.runners.codex import codex_node_runner
+            from g02.runners.codex import codex_node_runner
 
             handler = terminal_gate_handler if args.gates == "prompt" else None
             out = run(

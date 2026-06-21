@@ -3,7 +3,7 @@
 Treats Codex as an isolated worker: builds a prompt from the node's agent `.md` + its scoped
 input (+ upstream artifact refs), runs `codex exec` non-interactively, and reads the agent's
 FINAL message (constrained to envelope@1) via `--output-last-message`. Plugs into
-``research_flow.run(..., node_runner=codex_node_runner)``.
+``g02_flow.run(..., node_runner=codex_node_runner)``.
 
 Local/dev only: relies on the Codex ChatGPT login (cached tokens — treat as a password). Not for
 CI/headless/SaaS, where an API key is the right path. Pure stdlib.
@@ -25,7 +25,7 @@ from core import contracts, graphs  # noqa: E402
 
 ROOT = _pl.Path(__file__).resolve().parents[4]
 AGENTS_DIR = ROOT / "agents"
-GRAPH_ID = "research"
+GRAPH_ID = "g02"
 
 
 def _codex_model(node: dict) -> str | None:
@@ -125,14 +125,14 @@ def codex_node_runner(node: dict, ctx: dict, log, *, codex_bin: str = "codex",
 
 
 if __name__ == "__main__":
-    from research import research_flow as rf
+    from g02 import g02_flow as rf
     from core import event_log, graphs
 
     node_name = sys.argv[1] if len(sys.argv) > 1 else "research-planner"
     ctx_path = sys.argv[2] if len(sys.argv) > 2 else str(ROOT / "mocks/research/research_graph_input.json")
 
     rgi = rf.load_context(ctx_path)
-    node = next((n for n in graphs.nodes(graphs.load("research")) if n["name"] == node_name), None)
+    node = next((n for n in graphs.nodes(graphs.load(GRAPH_ID)) if n["name"] == node_name), None)
     if node is None:
         print(f"no such node: {node_name}", file=sys.stderr)
         raise SystemExit(2)
