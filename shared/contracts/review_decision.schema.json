@@ -1,0 +1,52 @@
+{
+  "title": "ReviewDecision \u2014 universal reviewer verdict (design 02 \u00a76).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "verdict"
+  ],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "APPROVED",
+        "APPROVED_WITH_WARNINGS",
+        "REVISE",
+        "BLOCKED"
+      ]
+    },
+    "root_cause": {
+      "type": "string"
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "severity"
+        ],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "criterion": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "required_correction": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

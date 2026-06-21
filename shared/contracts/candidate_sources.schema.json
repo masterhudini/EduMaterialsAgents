@@ -1,0 +1,46 @@
+{
+  "title": "CandidateSources \u2014 domain/canonical/recent discovery output (design 02 \u00a75.2-5.4).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "candidates"
+  ],
+  "properties": {
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer"
+          },
+          "role": {
+            "type": "string"
+          },
+          "topic_id": {
+            "type": "string"
+          },
+          "relevance": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "query_trace": {
+      "type": "array"
+    }
+  }
+}

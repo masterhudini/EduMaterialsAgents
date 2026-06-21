@@ -1,0 +1,51 @@
+{
+  "title": "ResearchPlan \u2014 Research Planner output (design 02 \u00a75.1).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "topics"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string"
+    },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "topic_id",
+          "purpose",
+          "required_source_roles"
+        ],
+        "properties": {
+          "topic_id": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "approved_drivers": {
+            "type": "object"
+          },
+          "required_source_roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "search_strategy": {
+            "type": "object"
+          },
+          "coverage_requirements": {
+            "type": "array"
+          },
+          "stop_rule": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -63,6 +63,21 @@ def check_manifest(manifest_path, plugin_root: Path | None = None,
         if kind in ("agent", "skill") and name not in registered:
             errors.append(f"{manifest_path.name}: node {name!r} (kind={kind}) has no component "
                           f"file on disk")
+
+    # Parity guard: the host orchestrator skill must stay manifest-driven (single source of
+    # truth) rather than hardcoding a divergent sequence/policy. We require it to reference the
+    # manifest file so a refactor that copies the flow into the prompt is caught here.
+    orchestrator = manifest.get("orchestrator")
+    if orchestrator:
+        root = plugin_root or ROOT
+        skill_md = root / "skills" / orchestrator / "SKILL.md"
+        gid_file = f"{manifest.get('graph_id', manifest_path.stem)}.graph.json"
+        if not skill_md.exists():
+            errors.append(f"{manifest_path.name}: orchestrator skill {orchestrator!r} not found")
+        elif gid_file not in skill_md.read_text(encoding="utf-8"):
+            errors.append(f"{manifest_path.name}: orchestrator skill {orchestrator!r} must "
+                          f"reference {gid_file} (manifest is the single source of truth)")
+
     return {"ok": not errors, "graph": manifest.get("graph_id", manifest_path.stem), "errors": errors}
 
 

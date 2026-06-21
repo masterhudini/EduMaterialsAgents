@@ -21,6 +21,4 @@ retrieval → paper review → claim verification → synthesis → *user resear
 It consumes only the typed boundary contract `research_graph_input@1` (compact cards +
 `artifact://` refs), never raw slides or the full intake state.
 
-> **Deterministic wiring check:** this entry uses no-op node executors, so it verifies graph and
-> boundary wiring without exercising the implemented agent prompts or skills:
-> `python3 shared/scripts/research/research_flow.py run tests/fixtures/research_graph_input.example.json`
+{{HOST_ADAPTER}}

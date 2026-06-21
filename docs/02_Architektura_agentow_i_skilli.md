@@ -148,6 +148,22 @@ description: What the skill does, when an authorized research agent must use it,
 Opis musi jednoznacznie wskazywać, czy skill jest interaktywnym orkiestratorem, czy procedurą
 wykonawczą uruchamianą przez agenta. Skille wykonawcze nie prowadzą rozmowy z użytkownikiem.
 
+### Frontmatter i adaptery (ograniczenia buildu)
+
+`scripts/build-plugin.py` parsuje frontmatter **mini-podzbiorem YAML** (`key: scalar`, jedna
+linia na klucz). Stąd zasady, których autor skilla musi przestrzegać:
+
+- **Neutralny `SKILL.md`** ma we frontmatterze **wyłącznie `name` i `description`** — każde jako
+  pojedyncza linia (bez bloków `>-`/`|`, bez list/map). Cudzysłowy `"..."`/`'...'` są dozwolone.
+  `name` musi równać się nazwie folderu.
+- **Frontmatter zależny od hosta** (np. `model: opus`) idzie do
+  `adapters/<host>.frontmatter.yaml` — build nakłada go na neutralny frontmatter. Overlay
+  **nie może** zmienić `name`.
+- **Treść zależna od hosta** idzie do `adapters/<host>.md` (nie może być pusta). Build wstawia ją
+  w miejsce `{{HOST_ADAPTER}}` w ciele `SKILL.md`, a gdy placeholdera brak — **dokleja na końcu**.
+- W zbudowanym bundlu folder `adapters/` **jest usuwany** (host dostaje tylko swój wariant).
+- Wymagane pliki na skill: `adapters/claude.md`, `adapters/codex.md`, `adapters/claude.frontmatter.yaml`.
+
 Struktura host adapters:
 
 ```text
@@ -161,8 +177,11 @@ skills/<skill-name>/
 
 `SKILL.md` zawiera wyłącznie wspólną semantykę. `claude.frontmatter.yaml` wybiera model Claude
 dla danego skilla, `claude.md` opisuje Task/Agent i narzędzia Claude Code, a `codex.md` opisuje
-powierzchnię MCP lub równoważny adapter Codex. `scripts/render_skill_adapters.py` tworzy wariant
-instalacyjny bez modyfikacji źródła i bez dołączania instrukcji drugiego hosta.
+powierzchnię MCP lub równoważny adapter Codex. Renderowanie wykonuje krok buildu
+`scripts/build-plugin.py` (funkcja `render_skill_adapters`): nakłada `<host>.frontmatter.yaml` na
+neutralny frontmatter, wstawia treść `<host>.md` w miejsce `{{HOST_ADAPTER}}` (albo dokleja na
+końcu) i **usuwa katalog `adapters/`** z bundla — wariant instalacyjny powstaje bez modyfikacji
+źródła i bez instrukcji drugiego hosta.
 
 ### 4.1. Deterministyczne narzędzia skilli
 
@@ -595,3 +614,21 @@ Przykładowe sytuacje blocked:
 - wszystkie wymagane źródła zewnętrzne niedostępne,
 - potrzeba decyzji człowieka, której agent nie może bezpiecznie założyć.
 
+
+## 14. Model wykonania i parytet hostów
+
+Wykonanie jest **per host**, rdzeń pozostaje agnostyczny:
+
+- **Claude:** orkiestrator-skill prowadzi izolowanych subagentów przez Task tool (model „w cenie"
+  subskrypcji); deterministyczne szwy przez MCP.
+- **Codex:** silnik `research_flow.run` prowadzi graf, a każdy węzeł to izolowany `codex exec`
+  (`research_flow.py run-codex`), na loginie ChatGPT (bez API key).
+
+Ujednolicenie do jednej ścieżki odrzucono: Task nie jest wołalny z Pythona, a wołanie API LLM
+dla Claude wymagałoby klucza i kosztu poza subskrypcją.
+
+**Parytet utrzymujemy przez jedno źródło prawdy — manifest grafu** (`shared/graphs/<graph>.graph.json`):
+sekwencja węzłów, `review_profile`, `retry_matrix`, `complexity_class`, `model_bindings`,
+`required_decisions`. Obie ścieżki z niego czerpią; żadna nie hardkoduje polityki. `graph_check`
+wymusza, że skill-orkiestrator odwołuje się do manifestu (łapie rozjazd, gdy ktoś skopiuje
+przepływ do promptu).

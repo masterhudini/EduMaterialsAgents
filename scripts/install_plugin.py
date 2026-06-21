@@ -60,6 +60,7 @@ def build_bundle(host: str, dist: Path) -> None:
 def validate_bundle(dist: Path, manifest: dict[str, Any], hosts: set[str]) -> None:
     expected_skills = len(manifest["components"]["skills"])
     expected_agents = len(manifest["components"]["agents"])
+    expected_commands = len(manifest["components"]["commands"])
     for host in hosts:
         root = dist / host / "plugins" / manifest["name"]
         skills = list((root / "skills").glob("*/SKILL.md"))
@@ -75,6 +76,12 @@ def validate_bundle(dist: Path, manifest: dict[str, Any], hosts: set[str]) -> No
                 raise InstallError(
                     f"{host} bundle contains {len(agents)} agents; expected {expected_agents}"
                 )
+        if manifest["hosts"][host].get("includeCommands", False):
+            commands = list((root / "commands").glob("*.md"))
+            if len(commands) != expected_commands:
+                raise InstallError(
+                    f"{host} bundle contains {len(commands)} commands; expected {expected_commands}"
+                )
         mcp = json.loads((root / ".mcp.json").read_text(encoding="utf-8"))
         for cfg in mcp["mcpServers"].values():
             if cfg["command"] != sys.executable:
@@ -87,6 +94,7 @@ def preview_actions(target: str, dist: Path, manifest: dict[str, Any]) -> None:
     if target in {"all", "claude"}:
         root = DEFAULT_DIST / "claude"
         print(f"DRY: validated Claude bundle in temporary directory {dist / 'claude'}")
+        print(f"DRY: claude plugin uninstall {name}  (force fresh cache)")
         print(f"DRY: claude plugin marketplace remove {marketplace}")
         print(f"DRY: claude plugin marketplace add {root}")
         print(f"DRY: claude plugin install {name}@{marketplace}")
@@ -105,6 +113,13 @@ def install_claude(dist: Path, manifest: dict[str, Any]) -> None:
     name = manifest["name"]
     marketplace = manifest["marketplace"]["name"]
     root = dist / "claude"
+    # Force a fresh cache: Claude does not re-copy an already-installed same-version plugin, so
+    # uninstall first (ignored if absent) before re-adding the rebuilt marketplace. Without this,
+    # source edits at the same version leave stale agents and a stale MCP config in the cache.
+    subprocess.run(
+        [claude, "plugin", "uninstall", name],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+    )
     subprocess.run(
         [claude, "plugin", "marketplace", "remove", marketplace],
         stdout=subprocess.DEVNULL,
@@ -147,6 +162,34 @@ def restore_file(path: Path, original: bytes | None) -> None:
         path.write_bytes(original)
 
 
+def absolutize_mcp_paths(mcp_path: Path, plugin_dir: Path) -> None:
+    """Pin relative MCP entrypoints to the absolute install path and drop ``cwd``.
+
+    Codex has no ``${CLAUDE_PLUGIN_ROOT}`` and we cannot assume it launches the server with the
+    plugin dir as cwd, so the installer rewrites ``./entrypoint`` (+ ``cwd``) to an absolute path.
+    """
+    data = json.loads(mcp_path.read_text(encoding="utf-8"))
+    for cfg in data.get("mcpServers", {}).values():
+        cfg["args"] = [
+            str(plugin_dir / arg[2:]) if isinstance(arg, str) and arg.startswith("./") else arg
+            for arg in cfg.get("args", [])
+        ]
+        cfg.pop("cwd", None)
+    mcp_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def absolutize_codex_command_paths(plugin_dir: Path, installed_plugin_dir: Path) -> None:
+    commands_dir = plugin_dir / "commands"
+    if not commands_dir.exists():
+        return
+    for command in commands_dir.glob("*.md"):
+        text = command.read_text(encoding="utf-8")
+        command.write_text(
+            text.replace("{{CODEX_PLUGIN_ROOT}}", str(installed_plugin_dir)),
+            encoding="utf-8",
+        )
+
+
 def install_codex(dist: Path, manifest: dict[str, Any]) -> None:
     codex = require_cli("codex")
     name = manifest["name"]
@@ -162,6 +205,8 @@ def install_codex(dist: Path, manifest: dict[str, Any]) -> None:
     moved_old = False
 
     shutil.copytree(source, stage)
+    absolutize_mcp_paths(stage / ".mcp.json", destination)
+    absolutize_codex_command_paths(stage, destination)
     try:
         if destination.exists():
             os.replace(destination, backup)
@@ -200,7 +245,7 @@ def install_codex(dist: Path, manifest: dict[str, Any]) -> None:
     print(f"Codex: installed {name}@local-plugins at {destination}.")
     if moved_old:
         print(f"Previous installation backup: {backup}")
-    print("Start a new Codex thread to load the plugin skills and MCP tools.")
+    print("Start a new Codex thread to load plugin skills and MCP tools.")
 
 
 def parse_args() -> argparse.Namespace:

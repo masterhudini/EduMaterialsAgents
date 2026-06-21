@@ -65,8 +65,9 @@ file because Claude treats it as project MCP config when this repo is the curren
 ## Runtime is dependency-free by design
 
 Everything under `shared/scripts/**` is **pure stdlib**. At build time the MCP configuration is
-bound to the Python interpreter used by the installer, so both `python3` and `python` environments
-are supported. There is **no virtualenv in the installed plugin**. Anything needing third-party packages (network retrieval, PDF parsing)
+bound to the absolute Python interpreter used by the installer, so both `python3` and `python`
+environments are supported. If that interpreter path later changes (upgrade/relocation), rerun the
+installer to rebind the MCP command. There is **no virtualenv in the installed plugin**. Anything needing third-party packages (network retrieval, PDF parsing)
 goes into an isolated agent with its own tool, never into the deterministic core.
 
 Runtime artifacts (drafts, logs, hydrated `artifact://` files) live in the **current project**
@@ -126,16 +127,42 @@ On Windows use `.\install.ps1 --codex`. Replacement of an existing Codex plugin 
 the previous directory is retained as a timestamped backup after a successful installation.
 
 Then start a new Codex thread. The plugin appears as `edu-materials-agents` in the default
-`Local Plugins` marketplace. Codex receives the shared skill/runtime and MCP tools; Codex-specific
-subagent orchestration is a separate adapter layer from Claude's agent `.md` files.
+`Local Plugins` marketplace. Codex receives the shared skills, runtime and MCP tools. The Codex
+CLI plugin manifest does not currently register plugin `commands/` as slash commands, so
+`/research` is Claude-only in current Codex CLI builds.
 
 ## Run
 
-```
+In Claude Code:
+
+```text
 /research mocks/research/research_graph_input.json
 ```
 
-Or deterministically, without an LLM. This harness validates wiring and uses no-op producers,
+In Codex, start a new thread after install and ask in natural language, using an absolute JSON path
+so plugin runtime does not depend on the MCP or worker process working directory:
+
+```text
+Zrób research dla /home/khudaszek/projects/EduMaterialsAgents/mocks/research/research_graph_input.json
+```
+
+or:
+
+```text
+Run the research graph for /home/khudaszek/projects/EduMaterialsAgents/mocks/research/research_graph_input.json
+```
+
+The `orchestrate-research` skill treats these as semantic entrypoints and uses the
+`research_run_codex` MCP tool. The default Codex gate mode is pause/resume (`gates: "pause"`), so
+human gates return a `resume_token` instead of reading interactive stdin from the MCP process.
+
+Or use the runner directly:
+
+```bash
+python /home/khudaszek/.codex/plugins/edu-materials-agents/shared/scripts/research/research_flow.py run-codex /home/khudaszek/projects/EduMaterialsAgents/mocks/research/research_graph_input.json
+```
+
+Or run deterministically, without an LLM. This harness validates wiring and uses no-op producers,
 automatic reviewer approvals and automatic user-gate approvals:
 
 ```bash
@@ -143,6 +170,18 @@ python shared/scripts/research/research_flow.py run mocks/research/research_grap
 # inspect what one agent would receive:
 python shared/scripts/research/research_flow.py inputs mocks/research/research_graph_input.json --node research-planner
 ```
+
+Or drive the real graph through **Codex workers** (each node is an isolated `codex exec`, no API
+key — Codex subscription login; terminal user gates). Local/dev only:
+
+```bash
+python shared/scripts/research/research_flow.py run-codex mocks/research/research_graph_input.json
+# single isolated node (cheaper smoke):
+python shared/scripts/research/runners/codex.py research-planner
+```
+
+The engine is host-agnostic; execution is the per-host runner (Claude Task subagents vs Codex
+`codex exec`). Gates support auto / terminal (`--gates prompt`) / async pause-resume.
 
 ## Develop & test
 

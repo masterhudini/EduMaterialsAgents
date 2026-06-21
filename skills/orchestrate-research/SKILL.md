@@ -1,6 +1,6 @@
 ---
 name: orchestrate-research
-description: Run the complete Research Graph from an approved input bundle through isolated producer agents, one universal reviewer, the human source-selection gate and the human research gate. Use as the graph's only conversational surface and final handoff coordinator.
+description: Run the complete Research Graph from an approved input bundle through isolated producer agents, one universal reviewer, the human source-selection gate and the human research gate. Use when the user asks to "zrob research", "zrób research", "run research", "run the research graph", or otherwise requests the research pass over a research_graph_input bundle. Use as the graph's only conversational surface and final handoff coordinator.
 ---
 
 # Orchestrate Research
@@ -8,6 +8,16 @@ description: Run the complete Research Graph from an approved input bundle throu
 Drive the Research Graph without performing producer work. Read
 `shared/graphs/research.graph.json` as the node and contract source of truth. Agents never address
 the user; relay their questions and explain every required human action.
+
+## Semantic Entry
+
+- Treat "zrob research", "zrób research", "run research" and "run the research graph" as requests
+  to run this workflow when the user provides, references or can supply a `research_graph_input@1`
+  bundle.
+- Claude may enter through `/research`; Codex enters semantically through this skill and the
+  `research_run_codex` MCP tool when available.
+- If the input bundle path or `artifact://` ref is missing, ask for exactly that value before
+  starting the graph.
 
 ## Contract
 

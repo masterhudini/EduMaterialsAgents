@@ -29,11 +29,27 @@ def test_initialize_and_tools_list():
                        "params": {"protocolVersion": "2024-11-05"}})
     assert init["result"]["serverInfo"]["name"] == "edu-materials-research"
     assert init["result"]["protocolVersion"] == "2024-11-05"
+    assert "prompts" in init["result"]["capabilities"]
 
     tools = srv.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     names = {t["name"] for t in tools["result"]["tools"]}
     assert names == {"research_front_door", "research_node_input",
-                     "research_finalize", "research_run_stub"}
+                     "research_finalize", "research_run_stub", "research_run_codex"}
+    run_codex = next(t for t in tools["result"]["tools"] if t["name"] == "research_run_codex")
+    assert set(run_codex["inputSchema"]["properties"]) == {
+        "context", "gates", "resume_token", "decisions"
+    }
+
+
+def test_prompts_list_and_get_research():
+    prompts = srv.handle({"jsonrpc": "2.0", "id": 2, "method": "prompts/list"})
+    assert prompts["result"]["prompts"][0]["name"] == "research"
+
+    prompt = srv.handle({"jsonrpc": "2.0", "id": 3, "method": "prompts/get",
+                         "params": {"name": "research", "arguments": {"context": SEED}}})
+    text = prompt["result"]["messages"][0]["content"]["text"]
+    assert "research_graph_input bundle" in text
+    assert SEED in text
 
 
 def test_notifications_get_no_reply():
