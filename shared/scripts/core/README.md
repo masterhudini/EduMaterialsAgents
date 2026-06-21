@@ -15,7 +15,7 @@ are graph config the engine consumes).
 | `validate_state.py` | `validate_field_type` (local), `validate_state(required, route_back, extra_checks)` (global) → `state_validation@1`. The graph supplies its own required-field set. |
 | `gate.py` | GATE + FREEZE — the single bottleneck. Takes a `validator`, verifies upstream verdicts, freezes the clean spec. |
 | `revision.py` | Revision-policy engine: `decide()` → APPROVED / REVISE / ESCALATE, `AttemptCounter` per scope. |
-| `artifacts.py` | `artifact://path#/pointer` resolver + lazy hydration, **and** the write side (`store()`, `ref_for()`) — the central artifact store. |
+| `artifacts.py` | Constrained `artifact://path#/pointer` resolver + lazy hydration, **and** atomic write side (`store()`, `ref_for()`) — the central artifact store. |
 | `handoff.py` | The **subgraph seam**: `emit_handoff` (freeze → validate against contract → store → typed descriptor) / `load_handoff` (hydrate + re-validate). Only this crosses a subgraph boundary. |
 | `graphs.py` | Manifest loader + pipeline helpers (load by id, list graphs, read `subgraph` nodes / entry / exit). |
 | `event_log.py` | Append-only per-run diagnostic trail (`{ts, run_id, node, action, status, detail}`). Never feeds the product. |

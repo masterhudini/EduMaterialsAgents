@@ -68,11 +68,23 @@ file because Claude treats it as project MCP config when this repo is the curren
 Everything under `shared/scripts/**` is **pure stdlib**. At build time the MCP configuration is
 bound to the absolute Python interpreter used by the installer, so both `python3` and `python`
 environments are supported. If that interpreter path later changes (upgrade/relocation), rerun the
-installer to rebind the MCP command. There is **no virtualenv in the installed plugin**. Anything needing third-party packages (network retrieval, PDF parsing)
-goes into an isolated agent with its own tool, never into the deterministic core.
+installer to rebind the MCP command. There is **no virtualenv in the installed plugin**. Provider
+HTTP clients use the standard library. Work requiring third-party packages, such as PDF parsing,
+stays outside the deterministic core until its owning agent defines an isolated tool boundary.
 
 Runtime artifacts (drafts, logs, hydrated `artifact://` files) live in the **current project**
 under `.emagents/` (override with `EMAGENTS_HOME`); the dir is git-ignored.
+
+The implemented deterministic Research Graph seams currently cover the boundary front door,
+G02-A01 Planner, G02-A02 Domain, provider configuration and metadata search, the universal reviewer
+and the final handoff. OpenAlex, Semantic Scholar and arXiv adapters apply bounded requests, retry,
+rate limits, cache, normalization and raw-response provenance. The MCP server exposes fourteen
+operations at version `0.4.0`. Remaining operations are added with their owning agents.
+
+Before the first G02-A02 run, copy `shared/config/g02.providers.example.json` to
+`.emagents/config/g02-providers.json`, set `EMAGENTS_RESEARCH_CONTACT_EMAIL` and provide the
+required `OPENALEX_API_KEY`. `SEMANTIC_SCHOLAR_API_KEY` remains optional but is recommended for an
+individual rate limit. See `shared/config/README.md`; never place credentials in the JSON file.
 
 ## Host-specific skill rendering
 

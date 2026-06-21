@@ -1,5 +1,7 @@
 ## Host Adapter: Codex
 
-- Execute inside the isolated discovery node without direct network access.
-- Produce the provider-neutral QueryPlan for the configured Research Graph metadata tool.
-- Return `external_dependency_blocked` only when node isolation or required input is unavailable.
+- Execute inside the isolated discovery node after MCP `research_domain_prepare`.
+- Produce only `query_plan@1`, including one approved `generated_term_bases` entry for every
+  generated term, without direct browser or network access.
+- Pass the plan to MCP `research_metadata_search`; deterministic validation occurs there.
+- Return the supplied failure envelope when preparation or provider startup is blocked.

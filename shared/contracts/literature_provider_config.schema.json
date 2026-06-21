@@ -1,0 +1,65 @@
+{
+  "title": "Non-secret configuration for scholarly metadata providers",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": ["schema_version", "profile", "providers", "request", "limits", "cache", "paths", "rate_limits"],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["literature_provider_config@1"]},
+    "profile": {"type": "string"},
+    "providers": {
+      "type": "object",
+      "required": ["openalex", "semantic_scholar", "arxiv"],
+      "properties": {
+        "openalex": {"type": "object", "required": ["enabled"], "properties": {"enabled": {"type": "boolean"}}},
+        "semantic_scholar": {"type": "object", "required": ["enabled"], "properties": {"enabled": {"type": "boolean"}}},
+        "arxiv": {"type": "object", "required": ["enabled"], "properties": {"enabled": {"type": "boolean"}}}
+      }
+    },
+    "request": {
+      "type": "object",
+      "required": ["timeout_seconds", "max_retries", "backoff_seconds", "max_response_bytes"],
+      "properties": {
+        "timeout_seconds": {"type": "number"},
+        "max_retries": {"type": "integer"},
+        "backoff_seconds": {"type": "number"},
+        "max_response_bytes": {"type": "integer"}
+      }
+    },
+    "limits": {
+      "type": "object",
+      "required": ["per_page", "max_pages_per_call", "max_records_per_query"],
+      "properties": {
+        "per_page": {"type": "integer"},
+        "max_pages_per_call": {"type": "integer"},
+        "max_records_per_query": {"type": "integer"}
+      }
+    },
+    "cache": {
+      "type": "object",
+      "required": ["enabled", "ttl_seconds"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "ttl_seconds": {"type": "integer"}
+      }
+    },
+    "paths": {
+      "type": "object",
+      "required": ["cache_subdir", "corpus_subdir", "raw_artifact_subdir"],
+      "properties": {
+        "cache_subdir": {"type": "string"},
+        "corpus_subdir": {"type": "string"},
+        "raw_artifact_subdir": {"type": "string"}
+      }
+    },
+    "rate_limits": {
+      "type": "object",
+      "required": ["openalex_min_interval_seconds", "semantic_scholar_min_interval_seconds", "arxiv_min_interval_seconds"],
+      "properties": {
+        "openalex_min_interval_seconds": {"type": "number"},
+        "semantic_scholar_min_interval_seconds": {"type": "number"},
+        "arxiv_min_interval_seconds": {"type": "number"}
+      }
+    }
+  }
+}

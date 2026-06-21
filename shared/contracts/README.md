@@ -11,6 +11,17 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   resume_token?}`. Reusable, domain-agnostic. Do not change without bumping `x-major`.
 - `research_graph_input.schema.json` — approved Research Graph boundary input
   (`research_graph_input@1`).
+- `research_planner_input.schema.json` — isolated G02-A01 input projected from the approved
+  boundary (`research_planner_input@1`).
+- `research_plan.schema.json` — bounded, versioned G02-A01 output (`research_plan@1`).
+- `literature_provider_config.schema.json` defines the secret-free G02 provider profile.
+- `domain_research_input.schema.json` is the isolated G02-A02 input for one approved topic.
+- `query_plan.schema.json` defines bounded, provider-neutral search routes (`query_plan@1`, contract
+  version 1.1 within major 1), including an approved semantic basis for every generated term.
+- `source_record.schema.json` is the normalized provider record shared by discovery agents.
+- `literature_tool_result.schema.json` records one deterministic provider operation and provenance.
+- `domain_candidate_sources.schema.json` is the reviewed G02-A02 output
+  (`domain_candidate_sources@1`).
 - `review_task.schema.json` — one universal reviewer invocation (`review_task@1`) with one
   artifact, an explicit profile and observable review criteria.
 - `review_decision.schema.json` — auditable universal reviewer result (`review_decision@1`).
@@ -26,7 +37,7 @@ Typed handoff descriptors returned by `core/handoff.py` remain a separate bounda
 Input bundles (cards, not full states) and output artifacts per node, e.g.:
 
 - `research_graph_input` — §8.2 (approved context, domains, scope, claim/concept/flow cards).
-- `research_plan`, `candidate_sources`, `claim_verification_state`,
+- `claim_verification_state`,
   `recent_developments_state`, `canonical_sources_state`, `selected_sources`,
   `retrieved_corpus`, `paper_review`, `research_state`, `evidence_map`.
 - `user_research_validation_packet` / `user_approved_research_bundle` — §9.

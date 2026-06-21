@@ -206,9 +206,11 @@ Wspólny wynik operacji narzędzia zawiera co najmniej:
 - informacje o paginacji, limitach i częściowych brakach,
 - strukturalne `issues` bez ukrywania degradacji.
 
-Provider adapters obejmują w pierwszej kolejności OpenAlex, Semantic Scholar, arXiv i
-Unpaywall. Crossref, CORE, DOAB i OAPEN pełnią funkcje uzupełniające. Agent wybiera strategię,
-a adapter wykonuje zapytanie, normalizuje odpowiedź i zachowuje jej pochodzenie.
+Provider adapters G02-A02 obejmują OpenAlex, Semantic Scholar i arXiv. Unpaywall, Crossref, CORE,
+DOAB i OAPEN zostaną dołączone przy pierwszym agencie, który wymaga ich funkcji. Agent wybiera
+strategię, a adapter wykonuje zapytanie, normalizuje odpowiedź i zachowuje jej pochodzenie.
+Narzędzia są wystawione hostowi przez MCP, lecz komunikację z API, retry, cache i limity realizuje
+lokalny kod deterministyczny.
 
 ## 5. Agenci wykonawczy
 
@@ -232,9 +234,14 @@ a adapter wykonuje zapytanie, normalizuje odpowiedź i zachowuje jej pochodzenie
 - nie proponuje zmian slajdów,
 - nie rozszerza zatwierdzonego zakresu.
 
-**Wejście:** `ResearchGraphInput`.
+**Wejście:** ograniczony `research_planner_input@1`, przygotowany z zatwierdzonego
+`research_graph_input@1`.
 
-**Wyjście:** `ResearchPlan`.
+**Wyjście:** `research_plan@1` w `envelope@1`.
+
+Deterministyczny moduł `shared/scripts/g02/planner.py` odpowiada za scoping wejścia, walidację
+semantycznej kompletności, shape check planu, zapis artefaktu, minimalność rewizji i zbudowanie
+profilu `research_plan`. Planner nie otrzymuje narzędzi wyszukiwawczych.
 
 ### 5.2. G02-A02 Domain Agent
 
@@ -257,9 +264,18 @@ Uruchamiany osobno dla każdego topic.
 - nie pobiera PDF,
 - nie decyduje o kanoniczności poza wstępnym sygnałem.
 
-**Wejście:** topic z `ResearchPlan` oraz zatwierdzona strategia.
+**Wejście:** `domain_research_input@1`, czyli jeden zatwierdzony topic z `research_plan@1`, ref
+planu i jawne, pozbawione sekretów capabilities providerów.
 
-**Wyjście:** `DomainCandidateSources`.
+**Wyjście:** `domain_candidate_sources@1` w `envelope@1`.
+
+Agent tworzy provider-neutral `query_plan@1`. Każdy termin wygenerowany przez AI wskazuje w
+`generated_term_bases` zatwierdzony origin term, expansion area i typ relacji. Każda trasa jest wykonywana przez
+`research_metadata_search`, który zwraca zapisany `literature_tool_result@1` zawierający
+znormalizowane `source_record@1`. Moduły `provider_config.py`, `query_planning.py`, `providers.py`
+oraz `domain.py` odpowiadają za granice konfiguracji, wykonanie API, proweniencję, walidację,
+zapis i profil review. Agent nie wykonuje surowych requestów HTTP i nie modyfikuje metadanych
+zwróconych przez providerów.
 
 ### 5.3. G02-A03 Canonical Sources Agent
 
@@ -477,7 +493,7 @@ profilem etapu.
 
 | Profile | Najważniejsze kryteria |
 |---|---|
-| `research_plan` | Każdy topic ma purpose, research drivers, role źródeł, coverage i stop rule. |
+| `research_plan` | Każdy topic ma stabilne ID, purpose, research drivers, zatwierdzone domeny, role źródeł, coverage i stop rule; wszystkie drivery są rozliczone, a zakres i ograniczenia zachowane. |
 | `domain_candidates` | Kandydaci mapują się do topic, zapytania są w zakresie, metadane pochodzą z indeksów. |
 | `canonical_sources` | Kanoniczność ma podstawę, access level jest jawny, zamknięta treść nie jest interpretowana. |
 | `recent_developments` | Recency i maturity są jawne, hype jest oddzielony od dojrzałej aktualizacji. |

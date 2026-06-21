@@ -36,38 +36,46 @@ extend its fields inside the orchestrator.
    failure and explain the missing fields without inventing them.
 2. Load the manifest and create the smallest authorized input bundle for each node. Do not pass the
    complete graph input when the agent needs only a topic, source set, document or claim group.
-3. Invoke each producer and persist its artifacts. Conceptually independent G02-A03 Canonical
+   For G02-A01 call `research_planner_prepare`, pass only `research_planner_input@1`, finalize with
+   `research_planner_finalize` and build its review through `research_plan_review_task`.
+3. Before G02-A02, call `research_provider_status`. For each approved topic call
+   `research_domain_prepare`, pass only `domain_research_input@1`, and let the producer create one
+   provider-neutral `query_plan@1`. Execute each authorized route through
+   `research_metadata_search`; the agent never sends HTTP itself. Finalize only through
+   `research_domain_finalize` and build review through `research_domain_review_task`.
+4. Invoke each later producer and persist its artifacts. Conceptually independent G02-A03 Canonical
    Sources and G02-A04 Recent Developments runs may execute concurrently when runtime support and
    manifest semantics allow it; both consume the approved G02-A02 Domain result and join before
    G02-A05 Candidate Source Index.
-4. After every producer artifact, construct one `review_task@1` with the artifact, node profile,
+5. After every producer artifact, construct one `review_task@1` with the artifact, node profile,
    producer input, output contract, acceptance criteria and revision history. Prepare it through
    `research_review_prepare`, invoke `g02-a10-output-reviewer`, then submit the decision through
    `research_review_finalize`.
-5. Handle reviewer verdicts:
+6. Handle reviewer verdicts:
    - `APPROVED`: continue with the approved artifact ref;
    - `REVISE`: return minimal findings to the same producer and review the new artifact version;
    - `BLOCKED`: route by root cause or explain the blocking decision to the user;
    - exhausted revision budget: escalate through the conversation without silently approving.
-6. After G02-A05 Candidate Source Index, run the Human Source Selection Gate. Present or link
+7. After G02-A05 Candidate Source Index, run the Human Source Selection Gate. Present or link
    `candidate_source_review.md`, explain coverage and the actions DOWNLOAD, LIBRARY, CITATION,
    RESERVE, EXCLUDE and SEARCH_MORE, then provide a copyable response format.
-7. Parse the answer into `HumanSourceSelection`, show the interpretation and require final
+8. Parse the answer into `HumanSourceSelection`, show the interpretation and require final
    confirmation. Route SEARCH_MORE to the relevant discovery agent, rebuild and re-review the index.
    Retrieval receives only confirmed `HumanApprovedSourceSet`.
-8. Fan out G02-A07 Paper Review per validated document when supported, then G02-A08 Claim Verification per independent
+9. Fan out G02-A07 Paper Review per validated document when supported, then G02-A08 Claim Verification per independent
    claim or tight claim group. Preserve artifact isolation and join only reviewed results.
-9. After reviewed synthesis, run the Human Research Gate. Present verified, mixed, unsupported and
+10. After reviewed synthesis, run the Human Research Gate. Present verified, mixed, unsupported and
    insufficient claims, required updates, optional improvements, unresolved questions, confidence
    and accepted coverage exceptions in `output_language`.
-10. Apply requested corrections through the proper producer and reviewer loop. After approval,
+11. Apply requested corrections through the proper producer and reviewer loop. After approval,
     validate, freeze and emit `user_approved_research_bundle@1`.
 
 ## Output requirements
 
 - Keep a task, node, attempt and artifact-version audit trail.
 - Give the user plain-language instructions at both gates, even when the underlying response is JSON.
-- Default human-readable output to English when `output_language` is absent.
+- Require the boundary contract to provide `output_language` and preserve it in human-readable
+  output.
 - Never place full PDFs, extracted full text or verbose PaperReviews in the downstream handoff.
 
 ## Boundaries

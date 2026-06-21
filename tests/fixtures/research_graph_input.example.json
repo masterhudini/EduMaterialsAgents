@@ -1,4 +1,5 @@
 {
+  "schema_version": "research_graph_input@1",
   "task_id": "RESEARCH_001",
   "user_approved_context": {
     "audience_level": "master",
@@ -16,6 +17,28 @@
     "include_canonical_sources": true,
     "include_didactic_examples": true
   },
+  "research_drivers": [
+    {
+      "driver_id": "DRV_001",
+      "driver_type": "claim",
+      "priority": "high",
+      "purpose": "Verify the conditions under which Bayesian methods are computationally costly.",
+      "related_claims": ["CLM_001"],
+      "related_concepts": ["C1"],
+      "related_flow_issues": [],
+      "related_update_needs": []
+    },
+    {
+      "driver_id": "DRV_002",
+      "driver_type": "flow_issue",
+      "priority": "high",
+      "purpose": "Support the missing explanation that connects likelihood to posterior.",
+      "related_claims": [],
+      "related_concepts": ["C1"],
+      "related_flow_issues": ["F_001"],
+      "related_update_needs": []
+    }
+  ],
   "claim_cards": [
     {
       "claim_id": "CLM_001",
@@ -31,10 +54,27 @@
   "selected_flow_issue_cards": [
     {"issue_id": "F_001", "severity": "high", "summary": "Posterior is used before likelihood is explained"}
   ],
+  "selected_update_need_cards": [],
+  "existing_source_cards": [],
+  "constraints": {
+    "max_topics": 4,
+    "candidate_limit_per_topic": 20,
+    "no_new_coverage_passes": 2,
+    "allowed_languages": ["en"],
+    "allowed_work_types": ["article", "review", "book", "chapter", "preprint"],
+    "year_from": null,
+    "year_to": null
+  },
+  "selection_profile": {
+    "candidate_pool_target_per_topic": 12,
+    "minimum_sources_per_required_role": 1,
+    "open_access_preference": "preferred"
+  },
   "locked_sections": [
     {"section_id": "S1", "reason": "Author wants to keep opening narrative"}
   ],
   "artifact_refs_for_lazy_hydration": {
     "claim_state_ref": "artifact://states/claim_state.approved.json"
-  }
+  },
+  "output_language": "English"
 }

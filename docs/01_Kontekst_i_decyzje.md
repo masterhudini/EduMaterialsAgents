@@ -272,6 +272,13 @@ KH nie implementuje klientów usług literaturowych. KH zapewnia sposób uruchom
 przekazania ograniczonego kontekstu i artefaktów, konfigurację sekretów oraz zgodność granic
 Research Graph z resztą systemu.
 
+W G02-A02 ta granica jest wdrożona przez lokalne, deterministyczne adaptery Python wystawione jako
+narzędzia MCP. MCP jest powierzchnią wywołania hosta, a nie mechanizmem synchronizacji baz danych.
+Każde wywołanie pobiera ograniczoną stronę API, zapisuje surową odpowiedź i znormalizowany wynik,
+po czym zwraca `artifact://` ref. Cache ogranicza ponowne wywołania, lecz nie stanowi kopii indeksu.
+Konfiguracja jawna przechowuje wyłącznie limity, ścieżki i włączone usługi. Klucze i kontaktowy
+adres e-mail są pobierane ze zmiennych środowiskowych.
+
 ## 6. Dwie bramki człowieka
 
 ### 6.1. Human Source Selection Gate
@@ -309,9 +316,9 @@ aktualność, jakość dydaktyczną, kontrowersyjność, confidence i rekomendow
 
 ### `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]`
 
-Instalator potrafi wygenerować host-specific warianty skilli. Pełne wykonanie w Codex nadal
-wymaga systemowego adaptera uruchamiającego node agents oraz deterministyczne narzędzia Research
-Graph przez uzgodnioną powierzchnię MCP albo równoważny interfejs.
+Instalator generuje host-specific warianty skilli i powierzchnię MCP obejmującą narzędzia do
+G02-A02. Pełne wykonanie w Codex nadal wymaga systemowego adaptera uruchamiającego node agents z
+ograniczonymi input bundles. Kolejne narzędzia Research Graph są dodawane wraz z ich agentami.
 
 ## 9. Konsekwencje dla aktualnego repozytorium
 
@@ -322,9 +329,13 @@ G02-A05 Candidate Source Index zastąpił Source Selection, G02-A08 Claim Verifi
 się po G02-A07 Paper Review, a oba human gates są zapisane jako kroki orkiestratora.
 
 Warstwa uniwersalnego reviewera posiada `review_task@1`, `review_decision@1`, deterministyczne
-przygotowanie i finalizację oraz powierzchnię MCP. Nadal wymagane są kontrakty producentów,
-narzędzia literaturowe, rzeczywiste wykonanie node agents, scoped input bundles, reviewer loops,
-fan-out i fan-in, pełne human gates oraz resume wykonywanego grafu.
+przygotowanie i finalizację oraz powierzchnię MCP. G02-A01 posiada `research_planner_input@1`,
+`research_plan@1`, scoping, walidację, zapis, profil review i obsługę rewizji. G02-A02 posiada
+`domain_research_input@1`, `query_plan@1`, `source_record@1`, `literature_tool_result@1` oraz
+`domain_candidate_sources@1`, a także trzy pierwsze adaptery discovery. Nadal wymagane są kontrakty
+pozostałych producentów, kolejne operacje literaturowe, rzeczywiste wykonanie node agents, scoped
+input bundles kolejnych etapów, reviewer loops, fan-out i fan-in, pełne human gates oraz resume
+wykonywanego grafu.
 
 Mechanika state, envelope, gate, revision i artifact refs pozostaje wspólnym runtime.
 

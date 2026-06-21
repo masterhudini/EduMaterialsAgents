@@ -1,0 +1,73 @@
+{
+  "title": "Provider-neutral scholarly query plan",
+  "x-version": "1.1",
+  "x-major": 1,
+  "type": "object",
+  "required": ["schema_version", "artifact_version", "task_id", "topic_id", "routes", "excluded_terms"],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["query_plan@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "topic_id": {"type": "string"},
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "route_id",
+          "query_id",
+          "purpose",
+          "canonical_query",
+          "origin_terms",
+          "generated_terms",
+          "generated_term_bases",
+          "coverage_unit_ids",
+          "preferred_providers",
+          "filters",
+          "limit"
+        ],
+        "properties": {
+          "route_id": {"type": "string"},
+          "query_id": {"type": "string"},
+          "purpose": {"type": "string", "enum": ["core", "complementary", "qualifying_or_critical"]},
+          "canonical_query": {"type": "string"},
+          "origin_terms": {"type": "array", "items": {"type": "string"}},
+          "generated_terms": {"type": "array", "items": {"type": "string"}},
+          "generated_term_bases": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["term", "source_origin_terms", "expansion_area", "relation"],
+              "properties": {
+                "term": {"type": "string"},
+                "source_origin_terms": {"type": "array", "items": {"type": "string"}},
+                "expansion_area": {"type": "string"},
+                "relation": {
+                  "type": "string",
+                  "enum": ["synonym", "spelling_variant", "acronym", "established_technical_phrase"]
+                }
+              }
+            }
+          },
+          "coverage_unit_ids": {"type": "array", "items": {"type": "string"}},
+          "preferred_providers": {
+            "type": "array",
+            "items": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv"]}
+          },
+          "filters": {
+            "type": "object",
+            "required": ["year_from", "year_to", "languages", "work_types"],
+            "properties": {
+              "year_from": {"type": ["integer", "null"]},
+              "year_to": {"type": ["integer", "null"]},
+              "languages": {"type": "array", "items": {"type": "string"}},
+              "work_types": {"type": "array", "items": {"type": "string"}}
+            }
+          },
+          "limit": {"type": "integer"}
+        }
+      }
+    },
+    "excluded_terms": {"type": "array", "items": {"type": "string"}}
+  }
+}

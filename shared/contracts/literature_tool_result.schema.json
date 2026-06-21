@@ -1,0 +1,75 @@
+{
+  "title": "Deterministic scholarly provider operation result",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version",
+    "operation_id",
+    "operation_type",
+    "provider",
+    "status",
+    "started_at",
+    "completed_at",
+    "request",
+    "records",
+    "file_descriptors",
+    "pagination",
+    "provenance",
+    "issues"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["literature_tool_result@1"]},
+    "operation_id": {"type": "string"},
+    "operation_type": {"type": "string", "enum": ["metadata_search", "citation_expand", "oa_resolve", "retrieve", "validate", "text_index"]},
+    "provider": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv"]},
+    "status": {"type": "string", "enum": ["ok", "partial", "unavailable", "failed"]},
+    "started_at": {"type": "string"},
+    "completed_at": {"type": "string"},
+    "request": {
+      "type": "object",
+      "required": ["route_id", "query_id", "canonical_query", "filters", "cursor", "limit"],
+      "properties": {
+        "route_id": {"type": "string"},
+        "query_id": {"type": "string"},
+        "canonical_query": {"type": "string"},
+        "filters": {"type": "object"},
+        "cursor": {"type": ["string", "null"]},
+        "limit": {"type": "integer"}
+      }
+    },
+    "records": {"type": "array", "items": {"type": "object"}},
+    "file_descriptors": {"type": "array"},
+    "pagination": {
+      "type": "object",
+      "required": ["next_cursor", "exhausted", "pages_processed"],
+      "properties": {
+        "next_cursor": {"type": ["string", "null"]},
+        "exhausted": {"type": "boolean"},
+        "pages_processed": {"type": "integer"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["raw_response_refs", "provider_request_ids", "cache_hit", "config_profile"],
+      "properties": {
+        "raw_response_refs": {"type": "array", "items": {"type": "string"}},
+        "provider_request_ids": {"type": "array", "items": {"type": "string"}},
+        "cache_hit": {"type": "boolean"},
+        "config_profile": {"type": "string"}
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "retryable", "message"],
+        "properties": {
+          "code": {"type": "string"},
+          "retryable": {"type": "boolean"},
+          "message": {"type": "string"}
+        }
+      }
+    }
+  }
+}
