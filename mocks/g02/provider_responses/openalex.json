@@ -1,0 +1,25 @@
+{
+  "meta": {"count": 1, "db_response_time_ms": 11, "page": null, "per_page": 1, "next_cursor": null},
+  "results": [
+    {
+      "id": "https://openalex.org/WMOCK0001",
+      "doi": "https://doi.org/10.1214/17-STS668",
+      "title": "A Conceptual Introduction to Hamiltonian Monte Carlo",
+      "display_name": "A Conceptual Introduction to Hamiltonian Monte Carlo",
+      "authorships": [{"author": {"display_name": "Michael Betancourt"}}],
+      "publication_year": 2017,
+      "primary_location": {
+        "landing_page_url": "https://doi.org/10.1214/17-STS668",
+        "pdf_url": null,
+        "source": {"display_name": "arXiv", "host_organization_name": "Cornell University"}
+      },
+      "language": "en",
+      "type": "article",
+      "cited_by_count": 1200,
+      "abstract_inverted_index": {"Hamiltonian": [0], "Monte": [1], "Carlo": [2], "supports": [3], "efficient": [4], "posterior": [5], "sampling": [6]},
+      "open_access": {"is_oa": true, "oa_status": "green"},
+      "best_oa_location": {"pdf_url": "https://arxiv.org/pdf/1701.02434"}
+    }
+  ],
+  "group_by": []
+}

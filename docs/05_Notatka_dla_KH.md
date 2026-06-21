@@ -73,13 +73,24 @@ Możliwe rozstrzygnięcie TK:
 Host-specific skille są generowane dla Claude Code i Codex. Wariant Codex nie może jeszcze
 wykonać prawdziwego grafu, dopóki warstwa systemowa nie dostarczy:
 
-- powierzchni MCP albo równoważnego interfejsu dla deterministycznych operacji Research Graph,
+- rozszerzenia powierzchni MCP o operacje producentów po G02-A02 i kolejnych providerów,
 - sposobu uruchamiania fizycznych node agents z ograniczonym input bundle,
 - mapowania artifact refs i envelope między hostem a wspólnym runtime,
 - testu end-to-end wykonywanego bez no-op node runnera.
 
 Do czasu implementacji adapter Codex ma zakończyć działanie jawnym
 `external_dependency_blocked`, zamiast symulować agentów w promptach.
+
+Repo udostępnia obecnie MCP `0.4.0` z czternastoma operacjami dla wejścia grafu, G02-A01,
+G02-A02, statusu providerów, wyszukiwania metadanych, uniwersalnego reviewera, finalizacji i
+harnessu. TODO nie obejmuje ponownej implementacji tych operacji; pozostaje adapter realnych node
+agents oraz narzędzia następnych zestawów.
+
+MCP stanowi granicę wywołania. OpenAlex, Semantic Scholar i arXiv są obsługiwane przez lokalne
+adaptery deterministyczne, które stosują limity, retry, rate limiting, cache i zapis proweniencji.
+Plik konfiguracji nie zawiera sekretów. KH przekazuje `EMAGENTS_RESEARCH_CONTACT_EMAIL`, wymagany
+dla aktywnego OpenAlex `OPENALEX_API_KEY` oraz opcjonalny `SEMANTIC_SCHOLAR_API_KEY` przez
+środowisko albo magazyn sekretów hosta.
 
 ## 5. Zmiany przepływu względem obecnego repo
 
@@ -268,6 +279,6 @@ Wprowadzone elementy:
 
 Po tej zmianie pakowanie definicji agentów i skilli jest testowalne na obu hostach. Nadal otwarte
 pozostają właściwe zadania integracyjne KH oznaczone `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]`:
-wykonanie node agents, ograniczanie input bundles, reviewer loop, human gates, resume i pełny test
-end-to-end. Deterministyczne klienty literaturowe, downloader i indeks PDF pozostają w zakresie
-naszego modułu i będą uzupełniane podczas przeglądu 1b1 agentów oraz skilli.
+wykonanie node agents, ograniczanie input bundles po G02-A01, pełny reviewer loop, human gates,
+resume i test end-to-end. Deterministyczne klienty literaturowe, downloader i indeks PDF pozostają
+w zakresie naszego modułu i będą uzupełniane podczas przeglądu 1b1 agentów oraz skilli.

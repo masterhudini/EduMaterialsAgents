@@ -1,0 +1,85 @@
+{
+  "title": "G02-A02 base scholarly candidate pool for one topic",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version",
+    "artifact_version",
+    "task_id",
+    "topic_id",
+    "research_plan_ref",
+    "query_plan",
+    "candidates",
+    "query_log",
+    "coverage_map",
+    "stop_reason",
+    "remaining_coverage_units",
+    "provider_issues",
+    "review_profile_ref"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["domain_candidate_sources@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "topic_id": {"type": "string"},
+    "research_plan_ref": {"type": "string"},
+    "query_plan": {"type": "object"},
+    "candidates": {"type": "array", "items": {"type": "object"}},
+    "query_log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["operation_id", "route_id", "query_id", "provider", "status", "result_count", "literature_tool_result_ref"],
+        "properties": {
+          "operation_id": {"type": "string"},
+          "route_id": {"type": "string"},
+          "query_id": {"type": "string"},
+          "provider": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv"]},
+          "status": {"type": "string", "enum": ["ok", "partial", "unavailable", "failed"]},
+          "result_count": {"type": "integer"},
+          "literature_tool_result_ref": {"type": "string"}
+        }
+      }
+    },
+    "coverage_map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "coverage_unit_ids", "basis"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "coverage_unit_ids": {"type": "array", "items": {"type": "string"}},
+          "basis": {"type": "string", "enum": ["metadata", "title", "abstract"]}
+        }
+      }
+    },
+    "stop_reason": {"type": "string", "enum": ["completed", "candidate_limit", "saturation", "provider_unavailable", "partial_coverage"]},
+    "remaining_coverage_units": {"type": "array", "items": {"type": "string"}},
+    "provider_issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["operation_id", "provider", "status", "issues"],
+        "properties": {
+          "operation_id": {"type": "string"},
+          "provider": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv"]},
+          "status": {"type": "string", "enum": ["partial", "unavailable", "failed"]},
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["code", "retryable", "message"],
+              "properties": {
+                "code": {"type": "string"},
+                "retryable": {"type": "boolean"},
+                "message": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "review_profile_ref": {"type": "string", "enum": ["domain_candidates"]}
+  }
+}

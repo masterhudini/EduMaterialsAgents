@@ -1,0 +1,80 @@
+{
+  "schema_version": "query_plan@1",
+  "artifact_version": "1.0.0",
+  "task_id": "RESEARCH_MOCK_001",
+  "topic_id": "TOPIC_BAYESIAN_COMPUTATION",
+  "routes": [
+    {
+      "route_id": "ROUTE_BAYESIAN_CORE",
+      "query_id": "QUERY_BAYESIAN_CORE",
+      "purpose": "core",
+      "canonical_query": "\"Bayesian computation\" AND (\"MCMC computational cost\" OR \"posterior sampling\")",
+      "origin_terms": ["Bayesian computation", "MCMC computational cost", "posterior sampling"],
+      "generated_terms": [],
+      "generated_term_bases": [],
+      "coverage_unit_ids": ["COV_BAYESIAN_COST_CONDITIONS", "COV_POSTERIOR_METHODS"],
+      "preferred_providers": ["openalex", "semantic_scholar"],
+      "filters": {"year_from": null, "year_to": null, "languages": ["en"], "work_types": ["article", "review", "book", "chapter"]},
+      "limit": 16
+    },
+    {
+      "route_id": "ROUTE_BAYESIAN_COMPLEMENTARY",
+      "query_id": "QUERY_BAYESIAN_COMPLEMENTARY",
+      "purpose": "complementary",
+      "canonical_query": "\"posterior sampling\" AND (\"scalable inference\" OR \"gradient-based MCMC\")",
+      "origin_terms": ["posterior sampling"],
+      "generated_terms": ["scalable inference", "gradient-based MCMC"],
+      "generated_term_bases": [
+        {
+          "term": "scalable inference",
+          "source_origin_terms": ["posterior sampling"],
+          "expansion_area": "scalable inference",
+          "relation": "established_technical_phrase"
+        },
+        {
+          "term": "gradient-based MCMC",
+          "source_origin_terms": ["posterior sampling"],
+          "expansion_area": "gradient-based MCMC",
+          "relation": "established_technical_phrase"
+        }
+      ],
+      "coverage_unit_ids": ["COV_POSTERIOR_METHODS"],
+      "preferred_providers": ["openalex", "semantic_scholar"],
+      "filters": {"year_from": null, "year_to": null, "languages": ["en"], "work_types": ["article", "review", "book", "chapter"]},
+      "limit": 12
+    },
+    {
+      "route_id": "ROUTE_BAYESIAN_QUALIFYING",
+      "query_id": "QUERY_BAYESIAN_QUALIFYING",
+      "purpose": "qualifying_or_critical",
+      "canonical_query": "\"MCMC computational cost\" AND (limitations OR diagnostics OR efficiency)",
+      "origin_terms": ["MCMC computational cost"],
+      "generated_terms": ["limitations", "diagnostics", "efficiency"],
+      "generated_term_bases": [
+        {
+          "term": "limitations",
+          "source_origin_terms": ["MCMC computational cost"],
+          "expansion_area": "MCMC limitations",
+          "relation": "established_technical_phrase"
+        },
+        {
+          "term": "diagnostics",
+          "source_origin_terms": ["MCMC computational cost"],
+          "expansion_area": "MCMC diagnostics",
+          "relation": "established_technical_phrase"
+        },
+        {
+          "term": "efficiency",
+          "source_origin_terms": ["MCMC computational cost"],
+          "expansion_area": "MCMC efficiency",
+          "relation": "established_technical_phrase"
+        }
+      ],
+      "coverage_unit_ids": ["COV_BAYESIAN_COST_CONDITIONS"],
+      "preferred_providers": ["openalex", "semantic_scholar"],
+      "filters": {"year_from": null, "year_to": null, "languages": ["en"], "work_types": ["article", "review", "book", "chapter"]},
+      "limit": 12
+    }
+  ],
+  "excluded_terms": ["generic Bayesian applications without computational analysis"]
+}

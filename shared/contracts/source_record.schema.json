@@ -1,0 +1,110 @@
+{
+  "title": "Preliminary provider-backed scholarly source record",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version",
+    "source_id",
+    "identifiers",
+    "bibliographic",
+    "content_available",
+    "classification",
+    "signals",
+    "access",
+    "provenance",
+    "inclusion"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["source_record@1"]},
+    "source_id": {"type": "string"},
+    "identifiers": {
+      "type": "object",
+      "required": ["doi", "openalex_id", "semantic_scholar_id", "arxiv_id", "isbn"],
+      "properties": {
+        "doi": {"type": ["string", "null"]},
+        "openalex_id": {"type": ["string", "null"]},
+        "semantic_scholar_id": {"type": ["string", "null"]},
+        "arxiv_id": {"type": ["string", "null"]},
+        "isbn": {"type": ["string", "null"]}
+      }
+    },
+    "bibliographic": {
+      "type": "object",
+      "required": ["title", "authors", "year", "venue", "publisher", "language", "work_type"],
+      "properties": {
+        "title": {"type": "string"},
+        "authors": {"type": "array", "items": {"type": "string"}},
+        "year": {"type": ["integer", "null"]},
+        "venue": {"type": ["string", "null"]},
+        "publisher": {"type": ["string", "null"]},
+        "language": {"type": ["string", "null"]},
+        "work_type": {"type": ["string", "null"]}
+      }
+    },
+    "content_available": {
+      "type": "object",
+      "required": ["abstract", "abstract_source", "table_of_contents_available"],
+      "properties": {
+        "abstract": {"type": ["string", "null"]},
+        "abstract_source": {"type": ["string", "null"]},
+        "table_of_contents_available": {"type": "boolean"}
+      }
+    },
+    "classification": {
+      "type": "object",
+      "required": ["related_topics", "related_claims", "source_roles", "category"],
+      "properties": {
+        "related_topics": {"type": "array", "items": {"type": "string"}},
+        "related_claims": {"type": "array", "items": {"type": "string"}},
+        "source_roles": {"type": "array", "items": {"type": "string"}},
+        "category": {"type": ["string", "null"]}
+      }
+    },
+    "signals": {
+      "type": "object",
+      "required": ["cited_by_count", "citation_percentile", "recent_citation_velocity", "internal_graph_centrality", "recommendation_signal", "canonical_score", "rising_score"],
+      "properties": {
+        "cited_by_count": {"type": ["integer", "null"]},
+        "citation_percentile": {"type": ["number", "null"]},
+        "recent_citation_velocity": {"type": ["number", "null"]},
+        "internal_graph_centrality": {"type": ["number", "null"]},
+        "recommendation_signal": {"type": ["number", "null"]},
+        "canonical_score": {"type": ["number", "null"]},
+        "rising_score": {"type": ["number", "null"]}
+      }
+    },
+    "access": {
+      "type": "object",
+      "required": ["oa_status", "access_level", "candidate_pdf_urls", "publisher_url", "library_access_required"],
+      "properties": {
+        "oa_status": {"type": "string"},
+        "access_level": {"type": "string", "enum": ["metadata_only", "abstract", "table_of_contents", "preview", "partial_text", "full_text"]},
+        "candidate_pdf_urls": {"type": "array", "items": {"type": "string"}},
+        "publisher_url": {"type": ["string", "null"]},
+        "library_access_required": {"type": "boolean"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["source_apis", "provider_record_ids", "retrieved_at", "query_ids", "raw_response_refs", "merged_from_records"],
+      "properties": {
+        "source_apis": {"type": "array", "items": {"type": "string"}},
+        "provider_record_ids": {"type": "object"},
+        "retrieved_at": {"type": "string"},
+        "query_ids": {"type": "array", "items": {"type": "string"}},
+        "raw_response_refs": {"type": "array", "items": {"type": "string"}},
+        "merged_from_records": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "inclusion": {
+      "type": "object",
+      "required": ["reason_included", "coverage_units", "pool"],
+      "properties": {
+        "reason_included": {"type": "array", "items": {"type": "string"}},
+        "coverage_units": {"type": "array", "items": {"type": "string"}},
+        "pool": {"type": "string"}
+      }
+    }
+  }
+}

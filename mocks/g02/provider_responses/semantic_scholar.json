@@ -1,0 +1,22 @@
+{
+  "total": 1,
+  "offset": 0,
+  "next": null,
+  "data": [
+    {
+      "paperId": "S2MOCK0001",
+      "title": "A Conceptual Introduction to Hamiltonian Monte Carlo",
+      "abstract": "Hamiltonian Monte Carlo supports efficient exploration of posterior distributions.",
+      "year": 2017,
+      "authors": [{"authorId": "MOCKAUTHOR1", "name": "Michael Betancourt"}],
+      "venue": "arXiv",
+      "externalIds": {"DOI": "10.1214/17-STS668", "ArXiv": "1701.02434"},
+      "citationCount": 1200,
+      "influentialCitationCount": 100,
+      "publicationTypes": ["Review"],
+      "isOpenAccess": true,
+      "openAccessPdf": {"url": "https://arxiv.org/pdf/1701.02434", "status": "GREEN"},
+      "url": "https://www.semanticscholar.org/paper/S2MOCK0001"
+    }
+  ]
+}

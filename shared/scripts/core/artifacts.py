@@ -12,6 +12,8 @@ Pure stdlib.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 
 from . import paths
@@ -83,13 +85,29 @@ def ref_for(relpath: str) -> str:
 
 
 def store(relpath: str, obj, *, base: str | Path | None = None) -> str:
-    """Write ``obj`` as pretty JSON under ``relpath`` in the artifact store; return its ref.
+    """Atomically write ``obj`` under a constrained artifact-store path; return its ref.
 
     Parent dirs are created. ``base`` overrides the store root (default: the runtime artifacts
     dir), so a subgraph can persist a state/bundle and hand the returned ref downstream.
     """
-    root = Path(base) if base is not None else paths.artifacts_dir()
-    path = root / relpath
+    root = (Path(base) if base is not None else paths.artifacts_dir()).resolve()
+    path = (root / relpath).resolve()
+    try:
+        path.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"artifact write escapes artifact root: {relpath!r}") from exc
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, indent=2, ensure_ascii=False), encoding="utf-8")
+    fd, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            json.dump(obj, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
     return ref_for(relpath)

@@ -91,6 +91,17 @@ def check_manifest(manifest_path, plugin_root: Path | None = None,
     require_agent_files = resolved_host != "codex"
     registered = registered_component_names(root)
     errors: list[str] = []
+    for field in ("input_contract", "exit_artifact"):
+        if field not in manifest:
+            continue
+        ref = manifest.get(field)
+        if not isinstance(ref, str) or not ref:
+            errors.append(f"{manifest_path.name}: graph has invalid {field!r}")
+            continue
+        try:
+            _load_contract_from_root(ref, root)
+        except (KeyError, ValueError) as exc:
+            errors.append(f"{manifest_path.name}: invalid {field} {ref!r}: {exc}")
     reviewer = manifest.get("reviewer")
     if reviewer:
         reviewer_path = root / "agents" / f"{reviewer}.md"
@@ -127,6 +138,30 @@ def check_manifest(manifest_path, plugin_root: Path | None = None,
             if not isinstance(profile, str) or not profile.strip():
                 errors.append(
                     f"{manifest_path.name}: agent node {name!r} has no review_profile"
+                )
+        for field in ("input_contract", "output_contract"):
+            if field not in node:
+                continue
+            ref = node.get(field)
+            if not isinstance(ref, str) or not ref:
+                errors.append(
+                    f"{manifest_path.name}: node {name!r} has invalid {field} {ref!r}"
+                )
+                continue
+            try:
+                _load_contract_from_root(ref, root)
+            except (KeyError, ValueError) as exc:
+                errors.append(
+                    f"{manifest_path.name}: node {name!r} has invalid {field} {ref!r}: {exc}"
+                )
+        for ref in node.get("produces", []):
+            if not isinstance(ref, str) or "@" not in ref:
+                continue
+            try:
+                _load_contract_from_root(ref, root)
+            except (KeyError, ValueError) as exc:
+                errors.append(
+                    f"{manifest_path.name}: node {name!r} produces invalid contract {ref!r}: {exc}"
                 )
     return {
         "ok": not errors,

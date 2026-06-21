@@ -1,0 +1,169 @@
+{
+  "schema_version": "research_plan@1",
+  "artifact_version": "1.0.0",
+  "task_id": "RESEARCH_MOCK_001",
+  "topics": [
+    {
+      "topic_id": "TOPIC_BAYESIAN_COMPUTATION",
+      "name": "Bayesian computation, MCMC and scale",
+      "purpose": "Bound the computational-cost claim and position MCMC among posterior methods.",
+      "priority": "high",
+      "linked_driver_ids": ["DRV_001", "DRV_003"],
+      "related_claims": ["CLM_001", "CLM_003"],
+      "related_concepts": ["C1"],
+      "related_flow_issues": [],
+      "related_update_needs": [],
+      "approved_domains": ["D1", "D3"],
+      "source_roles_required": {
+        "canonical": true,
+        "current": true,
+        "survey": true,
+        "didactic": false,
+        "qualifying_or_critical": true
+      },
+      "search_strategy": {
+        "core_terms": ["Bayesian computation", "MCMC computational cost", "posterior sampling"],
+        "allowed_expansion_areas": [
+          "scalable inference",
+          "gradient-based MCMC",
+          "MCMC limitations",
+          "MCMC diagnostics",
+          "MCMC efficiency"
+        ],
+        "excluded_terms": ["generic Bayesian applications without computational analysis"],
+        "year_from": null,
+        "year_to": null,
+        "languages": ["en"],
+        "work_types": ["article", "review", "book", "chapter"],
+        "seed_sources": ["SRC_EXISTING_001"]
+      },
+      "coverage_requirements": [
+        {
+          "coverage_id": "COV_BAYESIAN_COST_CONDITIONS",
+          "description": "Identify conditions that raise or reduce Bayesian computational cost.",
+          "source_roles": ["survey", "qualifying_or_critical"],
+          "minimum_sources": 2,
+          "mandatory": true
+        },
+        {
+          "coverage_id": "COV_POSTERIOR_METHODS",
+          "description": "Compare MCMC with other posterior approximation or sampling routes.",
+          "source_roles": ["canonical", "current"],
+          "minimum_sources": 2,
+          "mandatory": true
+        }
+      ],
+      "stop_rule": {
+        "candidate_limit": 24,
+        "no_new_coverage_passes": 2,
+        "complementary_search_route_required": true
+      }
+    },
+    {
+      "topic_id": "TOPIC_VARIATIONAL_INFERENCE",
+      "name": "Variational inference variance and motivation",
+      "purpose": "Qualify the variance claim and support the transition from MCMC costs to variational inference.",
+      "priority": "high",
+      "linked_driver_ids": ["DRV_002", "DRV_005"],
+      "related_claims": ["CLM_001", "CLM_002"],
+      "related_concepts": ["C3"],
+      "related_flow_issues": ["F_002"],
+      "related_update_needs": [],
+      "approved_domains": ["D1", "D2", "D3"],
+      "source_roles_required": {
+        "canonical": true,
+        "current": true,
+        "survey": true,
+        "didactic": true,
+        "qualifying_or_critical": true
+      },
+      "search_strategy": {
+        "core_terms": ["variational inference posterior variance", "variational approximation limitations"],
+        "allowed_expansion_areas": ["calibration", "uncertainty quantification"],
+        "excluded_terms": ["optimization papers without posterior approximation"],
+        "year_from": null,
+        "year_to": null,
+        "languages": ["en"],
+        "work_types": ["article", "review", "chapter"],
+        "seed_sources": []
+      },
+      "coverage_requirements": [
+        {
+          "coverage_id": "COV_VARIANCE_QUALIFICATION",
+          "description": "Establish when variance underestimation occurs and document counterexamples or qualifications.",
+          "source_roles": ["canonical", "qualifying_or_critical"],
+          "minimum_sources": 2,
+          "mandatory": true
+        },
+        {
+          "coverage_id": "COV_VARIATIONAL_MOTIVATION",
+          "description": "Provide evidence for the computational motivation and teaching transition.",
+          "source_roles": ["survey", "didactic"],
+          "minimum_sources": 2,
+          "mandatory": true
+        }
+      ],
+      "stop_rule": {
+        "candidate_limit": 24,
+        "no_new_coverage_passes": 2,
+        "complementary_search_route_required": true
+      }
+    },
+    {
+      "topic_id": "TOPIC_LIKELIHOOD_POSTERIOR_BRIDGE",
+      "name": "Likelihood to posterior conceptual bridge",
+      "purpose": "Find didactic and canonical support for explaining likelihood before posterior use.",
+      "priority": "high",
+      "linked_driver_ids": ["DRV_004"],
+      "related_claims": [],
+      "related_concepts": ["C1", "C2"],
+      "related_flow_issues": ["F_001"],
+      "related_update_needs": [],
+      "approved_domains": ["D1"],
+      "source_roles_required": {
+        "canonical": true,
+        "current": false,
+        "survey": false,
+        "didactic": true,
+        "qualifying_or_critical": false
+      },
+      "search_strategy": {
+        "core_terms": ["likelihood posterior teaching", "Bayesian inference conceptual sequence"],
+        "allowed_expansion_areas": ["Bayes theorem pedagogy"],
+        "excluded_terms": ["advanced computation without conceptual exposition"],
+        "year_from": null,
+        "year_to": null,
+        "languages": ["en"],
+        "work_types": ["book", "chapter", "article"],
+        "seed_sources": ["SRC_EXISTING_001"]
+      },
+      "coverage_requirements": [
+        {
+          "coverage_id": "COV_LIKELIHOOD_POSTERIOR_SEQUENCE",
+          "description": "Support the conceptual sequence from likelihood to posterior for a master's audience.",
+          "source_roles": ["canonical", "didactic"],
+          "minimum_sources": 2,
+          "mandatory": true
+        }
+      ],
+      "stop_rule": {
+        "candidate_limit": 16,
+        "no_new_coverage_passes": 2,
+        "complementary_search_route_required": true
+      }
+    }
+  ],
+  "uncovered_driver_ids": [],
+  "input_issues": [],
+  "global_constraints": {
+    "max_topics": 6,
+    "candidate_limit_per_topic": 24,
+    "no_new_coverage_passes": 2,
+    "allowed_languages": ["en"],
+    "allowed_work_types": ["article", "review", "book", "chapter", "preprint"],
+    "year_from": null,
+    "year_to": null
+  },
+  "output_language": "English",
+  "review_profile_ref": "research_plan"
+}

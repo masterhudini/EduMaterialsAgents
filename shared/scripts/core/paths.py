@@ -9,6 +9,9 @@ the cwd is for the project's data. Override the base with ``EMAGENTS_HOME`` (tes
 Pure stdlib.
 
   <project>/.emagents/
+    config/      non-secret runtime configuration
+    cache/       provider response cache
+    corpus/      retrieved documents and text indexes
     drafts/      <graph>.state.json files (resumable graph state)
     logs/        run-<graph>-<run_id>.log files (diagnostic trail)
     artifacts/   files addressed by artifact:// refs (lazy hydration)
@@ -33,6 +36,18 @@ def _ensure(d: Path) -> Path:
 
 def drafts_dir() -> Path:
     return _ensure(runtime_home() / "drafts")
+
+
+def config_dir() -> Path:
+    return _ensure(runtime_home() / "config")
+
+
+def cache_dir() -> Path:
+    return _ensure(runtime_home() / "cache")
+
+
+def corpus_dir() -> Path:
+    return _ensure(runtime_home() / "corpus")
 
 
 def logs_dir() -> Path:

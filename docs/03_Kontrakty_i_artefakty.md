@@ -22,104 +22,83 @@ ResearchGraphInput:
   schema_version: research_graph_input@1
   task_id: RESEARCH_001
 
-  human_approved_context:
+  user_approved_context:
     course_name: Bayesian Statistics
-    lecture_title: Scalable Bayesian Inference
     audience_level: master
     target_duration_minutes: 90
-    teaching_goal: refresh_and_improve_logical_flow
-    output_language: English
+    teaching_goal: refresh and improve logical flow
+
+  approved_domains:
+    - domain_id: D1
+      label: Bayesian statistics
+    - domain_id: D2
+      label: probabilistic programming
 
   approved_research_scope:
-    domains:
-      - domain_id: D1
-        label: Bayesian statistics
-      - domain_id: D2
-        label: probabilistic programming
-
-    verify_claim_priorities:
-      - high
-      - medium
-
+    verify_claims:
+      priority: [high, medium]
     include_recent_developments: true
     include_canonical_sources: true
     include_didactic_examples: true
     recency_window_years: 5
 
-    access_policy:
-      index_open_and_closed: true
-      download_open_access_only: true
-      automate_institutional_access: false
-
   research_drivers:
-    claim_cards:
-      - claim_id: CLM_001
-        slide_id: 12
-        text: Bayesian methods are computationally expensive for large-scale problems.
-        type: methodological
-        verification_priority: high
-        related_concepts:
-          - Bayesian inference
-          - approximate inference
-        artifact_ref: artifact://states/claim_state.approved.json#/claims/CLM_001
+    - driver_id: DRV_001
+      driver_type: claim
+      priority: high
+      purpose: Qualify the computational-cost claim.
+      related_claims: [CLM_001]
+      related_concepts: [C1]
+      related_flow_issues: []
+      related_update_needs: []
 
-    concept_cards:
-      - concept_id: C1
-        label: Posterior distribution
-        role: core_concept
-        related_claims:
-          - CLM_001
-        artifact_ref: artifact://states/concept_state.approved.json#/concepts/C1
+  claim_cards:
+    - claim_id: CLM_001
+      text: Bayesian methods are computationally expensive for large-scale problems.
+      type: methodological
+      verification_need: high
+      artifact_ref: artifact://states/claim_state.approved.json#/claims/CLM_001
 
-    flow_issue_cards:
-      - issue_id: F_001
-        severity: high
-        summary: Posterior is used before likelihood is explained.
-        affected_slides:
-          - 6
-          - 7
-        artifact_ref: artifact://states/flow_state.approved.json#/issues/F_001
+  concept_context_cards:
+    - concept_id: C1
+      label: Posterior distribution
+      role: core_concept
 
-    update_need_cards:
-      - update_id: UPD_001
-        summary: Check whether computational limitations need qualification.
-        priority: high
-        related_domains:
-          - D1
+  selected_flow_issue_cards:
+    - issue_id: F_001
+      severity: high
+      summary: Posterior is used before likelihood is explained.
 
-    existing_source_cards:
-      - source_id: EXISTING_001
-        citation: null
-        doi: null
-        related_slides:
-          - 12
-        current_role: claim_support
-        verification_need: high
+  selected_update_need_cards: []
+  existing_source_cards:
+    - source_id: EXISTING_001
+      label: Existing course textbook
+      artifact_ref: null
 
   constraints:
-    locked_sections:
-      - section_id: S1
-        reason: Author wants to keep the opening narrative.
-    excluded_topics: []
+    max_topics: 6
+    candidate_limit_per_topic: 24
+    no_new_coverage_passes: 2
+    allowed_languages: [en]
+    allowed_work_types: [article, review, book, chapter, preprint]
+    year_from: null
+    year_to: null
 
   selection_profile:
-    max_displayed_candidates: 30
-    candidate_pool_factor: 2
-    soft_retrieval_limit: 12
-    hard_retrieval_limit: 20
-    max_sources_per_topic: 12
-    min_candidate_sources_high_claim: 3
-    min_candidate_sources_medium_claim: 2
-    min_recent_per_update_topic: 2
-    require_counterevidence_search_for_high_claims: true
+    candidate_pool_target_per_topic: 16
+    minimum_sources_per_required_role: 1
+    open_access_preference: preferred
+
+  locked_sections:
+    - section_id: S1
+      reason: Author wants to keep the opening narrative.
 
   artifact_refs_for_lazy_hydration:
     claim_state_ref: artifact://states/claim_state.approved.json
     concept_state_ref: artifact://states/concept_state.approved.json
     flow_state_ref: artifact://states/flow_state.approved.json
 
-  output_contract:
-    artifact: human_approved_research_bundle@1
+  output_language: English
 ```
 
 ### 2.1. Walidacja sensu wejścia
@@ -130,7 +109,8 @@ Research Graph może rozpocząć pracę, gdy:
 - istnieje przynajmniej jedna zatwierdzona domena,
 - istnieje co najmniej jeden research driver,
 - priorytety i access policy są znane,
-- output language jest określony lub może przyjąć `English`,
+- output language jest określony; upstream materializuje `English`, jeżeli użytkownik nie wybrał
+  innego języka,
 - zablokowane sekcje są jawne, nawet jeśli lista jest pusta.
 
 Brak claimów nie blokuje modułu, jeśli istnieje zatwierdzona potrzeba aktualizacji, problem
@@ -138,15 +118,20 @@ pojęciowy albo flow issue. Ogólny opis dziedziny bez research driver prowadzi 
 
 ## 3. ResearchPlan
 
+Wykonywalnym źródłem prawdy jest `shared/contracts/research_plan.schema.json`. Planner otrzymuje
+wyłącznie `research_planner_input@1`, przygotowane deterministycznie z kontraktu granicznego.
+
 ```yaml
 ResearchPlan:
   schema_version: research_plan@1
-  task_id:
+  artifact_version: 1.0.0
+  task_id: RESEARCH_001
   topics:
     - topic_id: TOPIC_001
       name:
       purpose:
       priority:
+      linked_driver_ids: []
       related_claims: []
       related_concepts: []
       related_flow_issues: []
@@ -170,23 +155,93 @@ ResearchPlan:
         work_types: []
         seed_sources: []
 
-      coverage_requirements: []
+      coverage_requirements:
+        - coverage_id: COV_001
+          description:
+          source_roles: []
+          minimum_sources: 1
+          mandatory: true
       stop_rule:
         candidate_limit:
         no_new_coverage_passes: 2
         complementary_search_route_required: true
 
-  global_constraints:
-  review_profile_ref:
+  uncovered_driver_ids: []
+  input_issues: []
+  global_constraints: {}
+  output_language: English
+  review_profile_ref: research_plan
 ```
 
-Każdy topic musi być powiązany z zatwierdzonym research driver. Planner nie może tworzyć
-topic wyłącznie dlatego, że wydaje się interesujący.
+Każdy topic musi być powiązany z zatwierdzonym research driver. Wszystkie drivery muszą znaleźć
+się w topicach albo w jawnej liście `uncovered_driver_ids` wraz z `input_issues`. Planner nie może
+tworzyć topic wyłącznie dlatego, że wydaje się interesujący. Moduł
+`shared/scripts/g02/planner.py` sprawdza strukturę, proweniencję ID, limity, zachowanie zakresu i
+minimalność rewizji, zapisuje artefakt oraz buduje profil `research_plan` dla reviewera.
+
+### 3.1. Wejście i wyjście G02-A02
+
+Wykonywalnymi źródłami prawdy są `shared/contracts/domain_research_input.schema.json` oraz
+`shared/contracts/domain_candidate_sources.schema.json`. Jedno uruchomienie Domain dotyczy
+wyłącznie jednego zatwierdzonego topic.
+
+```yaml
+DomainResearchInput:
+  schema_version: domain_research_input@1
+  task_id:
+  research_plan_ref:
+  research_plan_artifact_version:
+  topic: {}
+  provider_capabilities:
+    - provider: openalex | semantic_scholar | arxiv
+      enabled: true
+      ready: true
+      authentication: none | optional_key | required_key_missing | configured_key
+  output_language:
+
+DomainCandidateSources:
+  schema_version: domain_candidate_sources@1
+  artifact_version:
+  task_id:
+  topic_id:
+  research_plan_ref:
+  query_plan: {}
+  candidates: []
+  query_log: []
+  coverage_map: []
+  stop_reason: completed | candidate_limit | saturation | provider_unavailable | partial_coverage
+  remaining_coverage_units: []
+  provider_issues:
+    - operation_id:
+      provider:
+      status: partial | unavailable | failed
+      issues: []
+  review_profile_ref: domain_candidates
+```
+
+`query_log` przechowuje `artifact://` ref do każdego `literature_tool_result@1`. Finalizator
+sprawdza zgodność identity, planu zapytań, logu, rekordów providerów, coverage i stop reason.
+Kandydat musi być identyczny z rekordem z deterministycznego narzędzia. Semantyczne mapowanie do
+coverage pozostaje osobnym polem i może opierać się wyłącznie na metadata, title lub abstract.
+Coverage unit pozostaje na liście braków do chwili osiągnięcia `minimum_sources`. `provider_issues`
+jest dokładną projekcją wszystkich wyników narzędzi o statusie innym niż `ok`.
+
+### 3.2. QueryPlan
+
+`query_plan@1` oddziela decyzję agenta od wykonania providerów. Każda trasa zachowuje zatwierdzone
+terminy źródłowe, jawnie oznacza terminy wygenerowane, mapuje coverage oraz ogranicza listę
+providerów, filtry i limit. Każdy termin wygenerowany ma dokładnie jeden wpis
+`generated_term_bases`, który wskazuje terminy źródłowe użyte w trasie, dokładną zatwierdzoną
+`allowed_expansion_areas` i relację semantyczną. Walidator odrzuca brakującą, nadmiarową,
+zduplikowaną albo wykraczającą poza zatwierdzony topic podstawę. Wymagane są trasy core,
+complementary, a przy odpowiedniej roli także qualifying_or_critical. Wykonywalnym źródłem prawdy jest
+`shared/contracts/query_plan.schema.json` wraz z `shared/scripts/g02/query_planning.py`.
 
 ## 4. Rekord źródła
 
 ```yaml
 SourceRecord:
+  schema_version: source_record@1
   source_id: SRC_001
 
   identifiers:
@@ -234,8 +289,10 @@ SourceRecord:
 
   provenance:
     source_apis: []
+    provider_record_ids: {}
     retrieved_at: null
     query_ids: []
+    raw_response_refs: []
     merged_from_records: []
 
   inclusion:
@@ -288,11 +345,12 @@ LiteratureToolResult:
   completed_at:
 
   request:
+    route_id:
     query_id: null
     canonical_query: null
     filters: {}
     cursor: null
-    source_ids: []
+    limit:
 
   records: []
   file_descriptors: []
@@ -305,6 +363,8 @@ LiteratureToolResult:
   provenance:
     raw_response_refs: []
     provider_request_ids: []
+    cache_hit: false
+    config_profile:
 
   issues:
     - code:
@@ -313,11 +373,14 @@ LiteratureToolResult:
 ```
 
 Wynik `partial` oznacza użyteczny rezultat z jawnym brakiem, na przykład niedostępnością jednej
-strony wyników albo jednego dostawcy. Adapter nie tworzy brakujących rekordów, nie ocenia
+strony wyników, jednego dostawcy albo brakiem możliwości zagwarantowania filtra języka przez dany
+indeks. Adapter nie tworzy brakujących rekordów, nie ocenia
 relewantności i nie podejmuje decyzji wyboru źródeł. Te czynności należą do agentów.
 
 Klucze API i dane uwierzytelniające nie występują w artefakcie. Warstwa narzędzi odczytuje je z
 konfiguracji runtime, a do logu trafia wyłącznie nazwa użytego profilu konfiguracji.
+Wykonywalnymi źródłami prawdy są `shared/contracts/source_record.schema.json`,
+`shared/contracts/literature_tool_result.schema.json` oraz `shared/scripts/g02/providers.py`.
 
 ## 5. CandidateSourceIndex
 
