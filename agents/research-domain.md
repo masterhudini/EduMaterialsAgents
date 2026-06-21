@@ -1,5 +1,5 @@
 ---
-name: domain-research
+name: research-domain
 model: sonnet
 description: >-
   STUB (no-op) Research Graph node: Domain Research. Registered so the graph loads and runs end-to-end;
@@ -12,9 +12,9 @@ description: >-
 > **STUB — NOT IMPLEMENTED.** This agent does no work yet. Do not attempt the task.
 > Immediately return the no-op envelope below and let the orchestrator proceed to the
 > next node:
-> `{"status": "ok", "produced": [], "summary": "domain-research: stub, not implemented", "issues": []}`
+> `{"status": "ok", "produced": [], "summary": "research-domain: stub, not implemented", "issues": []}`
 
-Placeholder for the `domain-research` node. Not implemented.
+Placeholder for the `research-domain` node. Not implemented.
 
 The deterministic no-op lives in `shared/scripts/research/research_flow.py` and returns an
 empty `envelope@1`. Replace this prompt **and** that stub with the real agent.

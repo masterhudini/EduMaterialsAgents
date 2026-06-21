@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "edu-materials",
+  "description": "Local marketplace for the edu-materials-agents plugin.",
+  "owner": {
+    "name": "khudasze",
+    "email": "kamil.hudaszek95@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "edu-materials-agents",
+      "description": "Improve educational / lecture materials through reviewed agent graphs (intake -> research -> solution).",
+      "author": {
+        "name": "khudasze"
+      },
+      "category": "development",
+      "source": "./"
+    }
+  ]
+}

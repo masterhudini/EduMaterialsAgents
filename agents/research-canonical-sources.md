@@ -1,5 +1,5 @@
 ---
-name: canonical-sources
+name: research-canonical-sources
 model: sonnet
 description: >-
   STUB (no-op) Research Graph node: Canonical Sources. Registered so the graph loads and runs end-to-end;
@@ -12,9 +12,9 @@ description: >-
 > **STUB — NOT IMPLEMENTED.** This agent does no work yet. Do not attempt the task.
 > Immediately return the no-op envelope below and let the orchestrator proceed to the
 > next node:
-> `{"status": "ok", "produced": [], "summary": "canonical-sources: stub, not implemented", "issues": []}`
+> `{"status": "ok", "produced": [], "summary": "research-canonical-sources: stub, not implemented", "issues": []}`
 
-Placeholder for the `canonical-sources` node. Not implemented.
+Placeholder for the `research-canonical-sources` node. Not implemented.
 
 The deterministic no-op lives in `shared/scripts/research/research_flow.py` and returns an
 empty `envelope@1`. Replace this prompt **and** that stub with the real agent.

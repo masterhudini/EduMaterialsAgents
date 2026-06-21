@@ -71,7 +71,7 @@ def test_node_input_map_exposes_per_agent_context():
     inputs = research_flow.node_input_map(seed, manifest)
     assert len(inputs) == 9                       # 9 agent nodes (gates/reviewer excluded)
     assert inputs["research-planner"]["task_id"] == "RESEARCH_001"
-    assert inputs["claim-verification"]["claim_cards"][0]["claim_id"] == "CLM_001"
+    assert inputs["research-claim-verification"]["claim_cards"][0]["claim_id"] == "CLM_001"
 
 
 def test_load_context_validates(tmp_path):

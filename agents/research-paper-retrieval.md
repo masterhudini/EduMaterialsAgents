@@ -1,29 +1,29 @@
 ---
-name: candidate-source-index
+name: research-paper-retrieval
 model: sonnet
 description: >-
-  STUB (no-op) Research Graph node: Candidate Source Index. Registered so the graph loads and runs end-to-end;
+  STUB (no-op) Research Graph node: Paper Retrieval. Registered so the graph loads and runs end-to-end;
   logic not implemented yet. Isolated, talks only to the orchestrator, returns envelope@1.
-  NEVER invoke directly. Target spec: docs/02_Architektura_agentow_i_skilli.md §5.5.
+  NEVER invoke directly. Target spec: docs/02_Architektura_agentow_i_skilli.md §5.6.
 ---
 
-# Research: Candidate Source Index  (stub)
+# Research: Paper Retrieval  (stub)
 
 > **STUB — NOT IMPLEMENTED.** This agent does no work yet. Do not attempt the task.
 > Immediately return the no-op envelope below and let the orchestrator proceed to the
 > next node:
-> `{"status": "ok", "produced": [], "summary": "candidate-source-index: stub, not implemented", "issues": []}`
+> `{"status": "ok", "produced": [], "summary": "research-paper-retrieval: stub, not implemented", "issues": []}`
 
-Placeholder for the `candidate-source-index` node. Not implemented.
+Placeholder for the `research-paper-retrieval` node. Not implemented.
 
 The deterministic no-op lives in `shared/scripts/research/research_flow.py` and returns an
 empty `envelope@1`. Replace this prompt **and** that stub with the real agent.
 
-- **Output contract:** CandidateSourceIndex
-- **Review profile:** candidate_index
+- **Output contract:** RetrievedCorpus
+- **Review profile:** retrieved_corpus
 
 ## Contract
-TODO — input bundle, output artifact, consumes/produces, envelope behavior. See §5.5.
+TODO — input bundle, output artifact, consumes/produces, envelope behavior. See §5.6.
 
 ## Required Skills
 TODO — see the agent/skill matrix in docs/02_Architektura_agentow_i_skilli.md §9.
@@ -32,10 +32,10 @@ TODO — see the agent/skill matrix in docs/02_Architektura_agentow_i_skilli.md 
 TODO.
 
 ## Acceptance Criteria
-TODO — these become the reviewer's `candidate_index` review profile (§7).
+TODO — these become the reviewer's `retrieved_corpus` review profile (§7).
 
 ## Boundaries
-TODO — non-responsibilities and prohibited actions (§5.5).
+TODO — non-responsibilities and prohibited actions (§5.6).
 
 ## Failure handling
 TODO — ok / needs_input / degraded / failed semantics (§13).

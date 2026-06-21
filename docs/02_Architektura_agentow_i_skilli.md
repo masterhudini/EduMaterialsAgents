@@ -56,20 +56,21 @@ fizycznej definicji agenta.
 
 ## 2. Fizyczne definicje agentów
 
-Moduł zawiera dziesięć plików agentów:
+Moduł zawiera dziesięć plików agentów (płasko w `agents/`, auto-discovery; nazwy
+namespace'owane prefiksem `research-` — bez dublowania, gdy nazwa już zawiera „research"):
 
 1. `research-planner.md`
 2. `domain-research.md`
-3. `canonical-sources.md`
-4. `recent-developments.md`
-5. `candidate-source-index.md`
-6. `paper-retrieval.md`
-7. `paper-review.md`
-8. `claim-verification.md`
+3. `research-canonical-sources.md`
+4. `research-recent-developments.md`
+5. `research-candidate-source-index.md`
+6. `research-paper-retrieval.md`
+7. `research-paper-review.md`
+8. `research-claim-verification.md`
 9. `research-synthesizer.md`
 10. `research-output-reviewer.md`
 
-`Human Source Selection Gate` i `Human Research Gate` są krokami orkiestratora. Nie wymagają
+`User Source Selection Gate` i `User Research Gate` są krokami orkiestratora. Nie wymagają
 osobnych agentów.
 
 ## 3. Standard pliku agenta
@@ -123,7 +124,8 @@ Każdy agent:
 
 ## 4. Standard skilla
 
-Każdy skill znajduje się w `skills/research/<skill-name>/SKILL.md` i początkowo nie ma
+Każdy skill znajduje się w `skills/<skill-name>/SKILL.md` (jeden poziom — Claude Code nie
+wykrywa zagnieżdżenia `skills/<graph>/<name>/`) i początkowo nie ma
 dodatkowych folderów.
 
 ```markdown
