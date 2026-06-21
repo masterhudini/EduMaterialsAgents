@@ -46,7 +46,8 @@ Sanity check ucięć: 0 plików uciętych.
 
 35 sprawdzeń behawioralnych jak w Rundzie 2, na module `g02.review`. Dodatkowo potwierdzono, że
 schemat `review_decision@1` wymusza nowy enum `reviewer_agent` (`g02-a10-output-reviewer`); stara
-nazwa `research-output-reviewer` jest odrzucana, co dowodzi spójności migracji w kontraktach.
+techniczna nazwa reviewera sprzed migracji jest odrzucana, co dowodzi spójności migracji w
+kontraktach.
 
 #### TEST 1B, narzędzia deterministyczne — PASS
 
@@ -74,8 +75,7 @@ oboma schematami, `g02_flow.py` i serwerem MCP; `graph_check` host-aware OK na t
 - 10 skilli `g02-aNN-<skill>` + 8 skilli `g02-<shared>` zgodnie z mapą.
 - `plugin.manifest.json` zgodny z fizycznym inventory (agenci i skille), bez braków i duplikatów.
 - `g02.graph.json`: `graph_id: g02`, reviewer `g02-a10-output-reviewer`, 9 producer nodes z profilami.
-- Brak identyfikatorów sprzed migracji w repo (skan `research-output-reviewer`, `research-planner`,
-  `shared/scripts/research`, `research.graph.json`, `research_flow`, `g01-`): zero trafień.
+- Brak identyfikatorów i ścieżek sprzed migracji w całym repo: zero trafień.
 - Zachowane wstecznie: sześć nazw narzędzi MCP `research_*`, komenda `/research`, kontrakty
   `research_graph_input`, `review_task`, `review_decision`, `envelope`, `user_approved_research_bundle`.
 - Importy `g02`, `g02.review`, `g02.g02_flow` działają; CLI `g02_flow.py run` z nowej ścieżki emituje

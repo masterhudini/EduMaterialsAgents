@@ -1,5 +1,6 @@
 ## Host Adapter: Claude Code
 
-- Call the deterministic scholarly-metadata tool exposed by the Claude plugin for each QueryPlan route.
-- Pass structured JSON and consume normalized records plus provenance; never parse ad hoc web results.
-- If the configured provider tool is unavailable, return an explicit external dependency issue.
+- Call `research_provider_status` during startup and `research_metadata_search` per approved route.
+- Pass only structured QueryPlan data and consume normalized records plus artifact provenance.
+- Never parse ad hoc web results or put credentials in the agent context.
+- Preserve unavailable and zero-result operations in the Domain query log.

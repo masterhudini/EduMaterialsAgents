@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"
+      xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/"
+      xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <title>arXiv Query: mock</title>
+  <id>https://arxiv.org/api/mock</id>
+  <updated>2026-06-21T00:00:00Z</updated>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <entry>
+    <id>https://arxiv.org/abs/1701.02434</id>
+    <updated>2018-07-16T16:35:48Z</updated>
+    <published>2017-01-09T18:59:59Z</published>
+    <title>A Conceptual Introduction to Hamiltonian Monte Carlo</title>
+    <summary>Hamiltonian Monte Carlo supports efficient exploration of posterior distributions.</summary>
+    <author><name>Michael Betancourt</name></author>
+    <arxiv:doi>10.1214/17-STS668</arxiv:doi>
+    <arxiv:journal_ref>arXiv preprint</arxiv:journal_ref>
+    <link href="https://arxiv.org/abs/1701.02434" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1701.02434" rel="related" type="application/pdf" title="pdf"/>
+  </entry>
+</feed>

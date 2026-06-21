@@ -10,6 +10,13 @@ Namespaced per graph:
   lecture refresh). Feed it to the Research Graph:
   - deterministic harness: `python3 shared/scripts/g02/g02_flow.py run mocks/g02/research_graph_input.json`
   - real orchestration: `/research mocks/g02/research_graph_input.json` (plugin installed)
+- `g02/research_plan.json` — a complete `research_plan@1` example for G02-A01 finalization and
+  universal-reviewer checks. It is paired with the boundary input above.
+
+- `g02/query_plan.json` contains a provider-neutral `query_plan@1` example for the first
+  approved topic in `research_plan.json`, including semantic bases for all generated terms.
+- `g02/provider_responses/` contains fixed OpenAlex, Semantic Scholar and arXiv responses for
+  offline normalization, pagination and provenance tests of G02-A02.
 
 Later: `g01/…` and `g03/…` mocks as those graphs come online. Each mock is validated by
 the owning graph's front door on load, so a stale mock fails fast against its contract.

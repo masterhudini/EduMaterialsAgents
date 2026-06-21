@@ -1,0 +1,146 @@
+{
+  "title": "Bounded Research Plan produced by G02-A01 Planner",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version",
+    "artifact_version",
+    "task_id",
+    "topics",
+    "uncovered_driver_ids",
+    "input_issues",
+    "global_constraints",
+    "output_language",
+    "review_profile_ref"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["research_plan@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "topic_id",
+          "name",
+          "purpose",
+          "priority",
+          "linked_driver_ids",
+          "related_claims",
+          "related_concepts",
+          "related_flow_issues",
+          "related_update_needs",
+          "approved_domains",
+          "source_roles_required",
+          "search_strategy",
+          "coverage_requirements",
+          "stop_rule"
+        ],
+        "properties": {
+          "topic_id": {"type": "string"},
+          "name": {"type": "string"},
+          "purpose": {"type": "string"},
+          "priority": {"type": "string", "enum": ["high", "medium", "low"]},
+          "linked_driver_ids": {"type": "array", "items": {"type": "string"}},
+          "related_claims": {"type": "array", "items": {"type": "string"}},
+          "related_concepts": {"type": "array", "items": {"type": "string"}},
+          "related_flow_issues": {"type": "array", "items": {"type": "string"}},
+          "related_update_needs": {"type": "array", "items": {"type": "string"}},
+          "approved_domains": {"type": "array", "items": {"type": "string"}},
+          "source_roles_required": {
+            "type": "object",
+            "required": [
+              "canonical",
+              "current",
+              "survey",
+              "didactic",
+              "qualifying_or_critical"
+            ],
+            "properties": {
+              "canonical": {"type": "boolean"},
+              "current": {"type": "boolean"},
+              "survey": {"type": "boolean"},
+              "didactic": {"type": "boolean"},
+              "qualifying_or_critical": {"type": "boolean"}
+            }
+          },
+          "search_strategy": {
+            "type": "object",
+            "required": [
+              "core_terms",
+              "allowed_expansion_areas",
+              "excluded_terms",
+              "year_from",
+              "year_to",
+              "languages",
+              "work_types",
+              "seed_sources"
+            ],
+            "properties": {
+              "core_terms": {"type": "array", "items": {"type": "string"}},
+              "allowed_expansion_areas": {"type": "array", "items": {"type": "string"}},
+              "excluded_terms": {"type": "array", "items": {"type": "string"}},
+              "year_from": {"type": ["integer", "null"]},
+              "year_to": {"type": ["integer", "null"]},
+              "languages": {"type": "array", "items": {"type": "string"}},
+              "work_types": {"type": "array", "items": {"type": "string"}},
+              "seed_sources": {"type": "array", "items": {"type": "string"}}
+            }
+          },
+          "coverage_requirements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "coverage_id",
+                "description",
+                "source_roles",
+                "minimum_sources",
+                "mandatory"
+              ],
+              "properties": {
+                "coverage_id": {"type": "string"},
+                "description": {"type": "string"},
+                "source_roles": {"type": "array", "items": {"type": "string"}},
+                "minimum_sources": {"type": "integer"},
+                "mandatory": {"type": "boolean"}
+              }
+            }
+          },
+          "stop_rule": {
+            "type": "object",
+            "required": [
+              "candidate_limit",
+              "no_new_coverage_passes",
+              "complementary_search_route_required"
+            ],
+            "properties": {
+              "candidate_limit": {"type": "integer"},
+              "no_new_coverage_passes": {"type": "integer"},
+              "complementary_search_route_required": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    },
+    "uncovered_driver_ids": {"type": "array", "items": {"type": "string"}},
+    "input_issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["issue_id", "severity", "message", "related_driver_ids"],
+        "properties": {
+          "issue_id": {"type": "string"},
+          "severity": {"type": "string", "enum": ["blocker", "major", "minor"]},
+          "message": {"type": "string"},
+          "related_driver_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "global_constraints": {"type": "object"},
+    "output_language": {"type": "string"},
+    "review_profile_ref": {"type": "string", "enum": ["research_plan"]}
+  }
+}

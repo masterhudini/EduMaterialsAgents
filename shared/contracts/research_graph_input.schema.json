@@ -1,14 +1,32 @@
 {
-  "title": "Research Graph input — the boundary contract the graph consumes (design §8.2).",
+  "title": "Approved Research Graph boundary input",
   "x-version": "1.0",
   "x-major": 1,
   "type": "object",
-  "required": ["task_id", "user_approved_context", "approved_domains", "approved_research_scope", "claim_cards"],
+  "required": [
+    "schema_version",
+    "task_id",
+    "user_approved_context",
+    "approved_domains",
+    "approved_research_scope",
+    "research_drivers",
+    "claim_cards",
+    "concept_context_cards",
+    "selected_flow_issue_cards",
+    "selected_update_need_cards",
+    "existing_source_cards",
+    "constraints",
+    "selection_profile",
+    "locked_sections",
+    "artifact_refs_for_lazy_hydration",
+    "output_language"
+  ],
   "properties": {
+    "schema_version": {"type": "string", "enum": ["research_graph_input@1"]},
     "task_id": {"type": "string"},
     "user_approved_context": {
       "type": "object",
-      "required": ["audience_level", "course_name"],
+      "required": ["audience_level", "course_name", "teaching_goal"],
       "properties": {
         "audience_level": {"type": "string"},
         "course_name": {"type": "string"},
@@ -21,10 +39,42 @@
       "items": {
         "type": "object",
         "required": ["domain_id", "label"],
-        "properties": {"domain_id": {"type": "string"}, "label": {"type": "string"}}
+        "properties": {
+          "domain_id": {"type": "string"},
+          "label": {"type": "string"}
+        }
       }
     },
     "approved_research_scope": {"type": "object"},
+    "research_drivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "driver_id",
+          "driver_type",
+          "priority",
+          "purpose",
+          "related_claims",
+          "related_concepts",
+          "related_flow_issues",
+          "related_update_needs"
+        ],
+        "properties": {
+          "driver_id": {"type": "string"},
+          "driver_type": {
+            "type": "string",
+            "enum": ["claim", "concept", "flow_issue", "update_need", "mixed"]
+          },
+          "priority": {"type": "string", "enum": ["high", "medium", "low"]},
+          "purpose": {"type": "string"},
+          "related_claims": {"type": "array", "items": {"type": "string"}},
+          "related_concepts": {"type": "array", "items": {"type": "string"}},
+          "related_flow_issues": {"type": "array", "items": {"type": "string"}},
+          "related_update_needs": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
     "claim_cards": {
       "type": "array",
       "items": {
@@ -39,9 +89,94 @@
         }
       }
     },
-    "concept_context_cards": {"type": "array"},
-    "selected_flow_issue_cards": {"type": "array"},
+    "concept_context_cards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["concept_id", "label"],
+        "properties": {
+          "concept_id": {"type": "string"},
+          "label": {"type": "string"},
+          "role": {"type": "string"},
+          "related_claims": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "selected_flow_issue_cards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["issue_id", "summary"],
+        "properties": {
+          "issue_id": {"type": "string"},
+          "summary": {"type": "string"},
+          "severity": {"type": "string"}
+        }
+      }
+    },
+    "selected_update_need_cards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["update_need_id", "summary"],
+        "properties": {
+          "update_need_id": {"type": "string"},
+          "summary": {"type": "string"},
+          "priority": {"type": "string"}
+        }
+      }
+    },
+    "existing_source_cards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "label"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "label": {"type": "string"},
+          "artifact_ref": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "required": [
+        "max_topics",
+        "candidate_limit_per_topic",
+        "no_new_coverage_passes",
+        "allowed_languages",
+        "allowed_work_types",
+        "year_from",
+        "year_to"
+      ],
+      "properties": {
+        "max_topics": {"type": "integer"},
+        "candidate_limit_per_topic": {"type": "integer"},
+        "no_new_coverage_passes": {"type": "integer"},
+        "allowed_languages": {"type": "array", "items": {"type": "string"}},
+        "allowed_work_types": {"type": "array", "items": {"type": "string"}},
+        "year_from": {"type": ["integer", "null"]},
+        "year_to": {"type": ["integer", "null"]}
+      }
+    },
+    "selection_profile": {
+      "type": "object",
+      "required": [
+        "candidate_pool_target_per_topic",
+        "minimum_sources_per_required_role",
+        "open_access_preference"
+      ],
+      "properties": {
+        "candidate_pool_target_per_topic": {"type": "integer"},
+        "minimum_sources_per_required_role": {"type": "integer"},
+        "open_access_preference": {
+          "type": "string",
+          "enum": ["required", "preferred", "neutral"]
+        }
+      }
+    },
     "locked_sections": {"type": "array"},
-    "artifact_refs_for_lazy_hydration": {"type": "object"}
+    "artifact_refs_for_lazy_hydration": {"type": "object"},
+    "output_language": {"type": "string"}
   }
 }

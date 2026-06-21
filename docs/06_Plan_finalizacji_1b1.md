@@ -6,11 +6,12 @@ Ten dokument jest wykonawczym planem finalizacji Research Graph. Uzupełnia back
 `04_Backlog_i_podzial_pracy.md` o ścisłą kolejność pracy, granice pionowych wycinków i bramkę
 pozwalającą zamknąć jeden zestaw przed rozpoczęciem następnego.
 
-Aktualny etap: repozytoryjna migracja namespace przed zestawem 2. Implementacja i retest
-reviewera są zakończone; migracja nazw `g02` jest zakończona dewelopersko i oczekuje na osobny
-TEST 1E oraz decyzję o commicie.
+Aktualny etap: zestaw 3, G02-A02 Domain. Implementacja reviewera, migracji namespace oraz G02-A01
+jest zakończona. G02-A02 jest ukończony dewelopersko i oczekuje na osobny TEST 3 oraz decyzję o
+commicie. Rejestr 07 i log 08 muszą pozostać zgodne z testami faktycznie wykonanymi w środowisku
+testowym.
 
-Aktualny podetap: `1E. Namespace g02`, zakończony dewelopersko.
+Aktualny podetap: `3. G02-A02 Domain`, zakończony dewelopersko.
 
 Kolejny etap nie rozpoczyna się przed ukończeniem implementacji bieżącego zestawu, przeglądem
 zmian i zatwierdzeniem przez właściciela repozytorium.
@@ -48,6 +49,9 @@ Każdy zestaw agent, skille, kontrakty, narzędzia i testy przechodzi ten sam cy
 8. Raport zamykający z listą zmian, ograniczeń i odłożonych scenariuszy testowych.
 9. Zatwierdzenie właściciela repozytorium przed przejściem do następnego zestawu.
 
+Od zestawu 2 cały cykl DEV jest wykonywany jako jeden pakiet numerowany, bez osobnych bramek A,
+B i C. Po pakiecie następuje jeden raport, jedna kompletna lista TEST i jeden punkt zatwierdzenia.
+
 Pierwszy zestaw reviewera jest przypadkiem bootstrapowym. Przechodzi niezależny przegląd według
 jawnej checklisty, ponieważ jego własna decyzja nie może być jedynym dowodem poprawności.
 
@@ -74,9 +78,10 @@ Komponenty:
 - `agents/g02-a01-planner.md`,
 - `skills/g02-a01-plan-research-scope/`,
 - `research_plan@1`,
-- scoped planner input,
-- shape check planu,
-- profil `research_plan`.
+- `research_planner_input@1` wyprowadzany z `research_graph_input@1`,
+- shape check, bezpieczny zapis i obsługa rewizji w `shared/scripts/g02/planner.py`,
+- profil `research_plan`,
+- MCP prepare, finalize i review-task builder.
 
 Plan musi zawierać bounded topics, research drivers, source roles, coverage units i stop rules.
 
@@ -88,13 +93,25 @@ Komponenty:
 - `skills/g02-expand-research-query/`,
 - `skills/g02-search-scholarly-metadata/`,
 - `domain_candidate_sources@1`,
+- `domain_research_input@1`,
+- `query_plan@1`,
 - `source_record@1`,
 - `literature_tool_result@1`.
 
 W tym etapie powstaje wspólny setup providerów: konfiguracja usług, zmienne środowiskowe dla
 sekretów i adresów e-mail, katalogi cache, corpus, artifacts i logs, timeouty, retry, paginacja,
 rate limiting oraz walidacja konfiguracji przy starcie. Implementowane są pierwsze klienty
-OpenAlex, Semantic Scholar, arXiv i wymaganych usług uzupełniających wraz z mockami API.
+OpenAlex, Semantic Scholar i arXiv wraz z mockami API. Usługi uzupełniające są implementowane przy
+pierwszym późniejszym agencie, który wymaga ich kontraktowo.
+
+Aktywny OpenAlex wymaga `OPENALEX_API_KEY` oraz kontaktowego e-maila, Semantic Scholar dopuszcza
+klucz opcjonalny, a arXiv wymaga identyfikującego klienta i odstępu co najmniej 3 sekund. Każdy
+termin wygenerowany w `query_plan@1` zachowuje kontraktową podstawę w zatwierdzonych origin terms i
+allowed expansion areas.
+
+MCP udostępnia status providerów, przygotowanie scoped input, jedną operację metadata search,
+finalizację artefaktu oraz builder zadania review. MCP nie synchronizuje indeksów. Lokalne adaptery
+wykonują ograniczone requesty i zapisują raw response, cache oraz znormalizowany wynik.
 
 ### 4.4. G02-A03 Canonical Sources
 

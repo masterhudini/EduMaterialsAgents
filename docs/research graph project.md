@@ -3,8 +3,9 @@
 Research Graph nie bada „tematu ogólnie”. Bada zatwierdzone claimy, domeny, luki i potrzeby aktualizacji.
 8.2 Kontrakt wejścia do subgrafu
 ResearchGraphInput:
+  schema_version: "research_graph_input@1"
   task_id: "RESEARCH_001"
-  human_approved_context:
+  user_approved_context:
     audience_level: "master"
     course_name: "Bayesian Statistics"
     target_duration_minutes: 90
@@ -22,6 +23,15 @@ ResearchGraphInput:
     include_recent_developments: true
     include_canonical_sources: true
     include_didactic_examples: true
+  research_drivers:
+    - driver_id: DRV_001
+      driver_type: "claim"
+      priority: "high"
+      purpose: "Qualify the approved computational-cost claim"
+      related_claims: [CLM_001]
+      related_concepts: [C1]
+      related_flow_issues: []
+      related_update_needs: []
   claim_cards:
     - claim_id: CLM_001
       slide_id: 12
@@ -36,13 +46,28 @@ ResearchGraphInput:
     - concept_id: C1
       label: "Posterior distribution"
       role: "core_concept"
-      related_claims: [CLM_001, CLM_003]      artifact_ref: "artifact://states/concept_state.approved.json#/concepts/C1"
+      related_claims: [CLM_001]
   selected_flow_issue_cards:
     - issue_id: F_001
       severity: "high"
       summary: "Posterior is used before likelihood is explained"
-      affected_slides: [6, 7]      fix_hint: "REORDER_OR_ADD_BRIDGE"
+      affected_slides: [6, 7]
+      fix_hint: "REORDER_OR_ADD_BRIDGE"
       artifact_ref: "artifact://states/flow_state.approved.json#/issues/F_001"
+  selected_update_need_cards: []
+  existing_source_cards: []
+  constraints:
+    max_topics: 6
+    candidate_limit_per_topic: 24
+    no_new_coverage_passes: 2
+    allowed_languages: [en]
+    allowed_work_types: [article, review, book, chapter, preprint]
+    year_from: null
+    year_to: null
+  selection_profile:
+    candidate_pool_target_per_topic: 16
+    minimum_sources_per_required_role: 1
+    open_access_preference: "preferred"
   locked_sections:
     - section_id: S1
       reason: "Author wants to keep opening narrative"
@@ -50,8 +75,7 @@ ResearchGraphInput:
     claim_state_ref: "artifact://states/claim_state.approved.json"
     concept_state_ref: "artifact://states/concept_state.approved.json"
     flow_state_ref: "artifact://states/flow_state.approved.json"
-  output_contract:
-    artifact: "HumanApprovedResearchBundle"
+  output_language: "English"
 8.3 Czego Research Graph nie dostaje
 pełnego PDF,
 pełnego tekstu wszystkich slajdów,
@@ -114,20 +138,35 @@ agent_definition:
       high: 3
       critical: 3
     escalation_after_exhaustion: "human_research_scope_gate"
-  input_contract: "ResearchPlannerInputBundle"
-  output_contract: "ResearchPlan"
+  input_contract: "research_planner_input@1"
+  output_contract: "research_plan@1"
 InputBundle
-ResearchPlannerInputBundle:
-  task_id: "TASK_RESEARCH_PLAN_001"
-  human_approved_context:
+research_planner_input@1:
+  schema_version: "research_planner_input@1"
+  source_input_contract: "research_graph_input@1"
+  task_id: "RESEARCH_001"
+  user_approved_context:
     audience_level: "master"
     course_name: "Bayesian Statistics"
     teaching_goal: "refresh and improve logical flow"
+  approved_domains:
+    - domain_id: D1
+      label: "Bayesian statistics"
   approved_research_scope:
     verify_claims:
-      priority: ["high", "medium"]    include_recent_developments: true
+      priority: ["high", "medium"]
+    include_recent_developments: true
     include_canonical_sources: true
     include_didactic_examples: true
+  research_drivers:
+    - driver_id: DRV_001
+      driver_type: "claim"
+      priority: "high"
+      purpose: "Qualify the computational-cost claim"
+      related_claims: [CLM_001]
+      related_concepts: [C1]
+      related_flow_issues: []
+      related_update_needs: []
   claim_cards:
     - claim_id: CLM_001
       text: "Bayesian methods are computationally expensive for large-scale problems."
@@ -138,11 +177,26 @@ ResearchPlannerInputBundle:
     - concept_id: C1
       label: "Posterior distribution"
       role: "core_concept"
-  flow_issue_cards:
+  selected_flow_issue_cards:
     - issue_id: F_001
       summary: "Posterior is used before likelihood is explained"
-  output_contract:
-    artifact: "ResearchPlan"
+  selected_update_need_cards: []
+  existing_source_cards: []
+  constraints:
+    max_topics: 6
+    candidate_limit_per_topic: 24
+    no_new_coverage_passes: 2
+    allowed_languages: [en]
+    allowed_work_types: [article, review, book, chapter, preprint]
+    year_from: null
+    year_to: null
+  selection_profile:
+    candidate_pool_target_per_topic: 16
+    minimum_sources_per_required_role: 1
+    open_access_preference: "preferred"
+  locked_sections: []
+  artifact_refs_for_lazy_hydration: {}
+  output_language: "English"
 G02-A02 Domain Agents
 AgentDefinition
 agent_definition:

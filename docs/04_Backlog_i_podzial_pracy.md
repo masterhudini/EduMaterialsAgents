@@ -215,7 +215,8 @@ gates, reviewer loops oraz route back do planera przy upstream plan error.
 
 **Status implementacji:** kontrakty `review_task@1` i `review_decision@1`, agent, skill,
 deterministyczne przygotowanie i finalizacja oraz operacje MCP są zaimplementowane. Testy są
-odłożone do osobnego środowiska zgodnie z `07_Rejestr_DEV_TEST_1b1.md`.
+zakończone w osobnym środowisku zgodnie z `07_Rejestr_DEV_TEST_1b1.md` i
+`08_Log_wynikow_TEST.md`.
 
 ### D1. Skill `g02-review-research-output`
 
@@ -271,6 +272,10 @@ Użyć prostego artefaktu ResearchPlan:
 
 ## 7. Faza E, Planner
 
+**Status implementacji:** agent, skill, `research_planner_input@1`, `research_plan@1`, scoping,
+walidacja, zapis artefaktu, profil review, rewizja oraz trzy operacje MCP Plannera są ukończone
+dewelopersko. Scenariusze do osobnego TEST 2 znajdują się w `07_Rejestr_DEV_TEST_1b1.md`.
+
 ### E1. Skill `g02-a01-plan-research-scope`
 
 **Owner:** CONTENT
@@ -290,7 +295,15 @@ Zdefiniować pełny kontrakt i acceptance criteria. Planner nie wyszukuje publik
 
 Sprawdzić revision loop i route back przy brakującym albo zbyt szerokim planie.
 
+Seam integracyjny buduje pełny `review_task@1` przez `research_plan_review_task`. Routing decyzji
+reviewera pozostaje odpowiedzialnością orkiestratora finalizowanego po wszystkich producentach.
+
 ## 8. Faza F, wyszukiwanie bazowe
+
+**Status implementacji:** G02-A02, oba wymagane skille, sześć kontraktów, setup providerów,
+adaptery OpenAlex, Semantic Scholar i arXiv, normalizacja, raw provenance, cache, retry, rate
+limiting, finalizacja artefaktu, profil review i pięć operacji MCP są ukończone dewelopersko.
+Scenariusze do osobnego TEST 3 znajdują się w `07_Rejestr_DEV_TEST_1b1.md`.
 
 ### F1. Skill `g02-expand-research-query`
 
@@ -314,7 +327,12 @@ Szczegóły wywołań API pozostają w adapterach technicznych.
 
 Zaimplementować wspólne wejście i wyjście JSON oraz adaptery OpenAlex, Semantic Scholar i
 arXiv. Zapewnić paginację, retry dostawcy, provenance, jawne częściowe błędy i mapowanie do
-wspólnego `CandidateSourceRecord`. Crossref może uzupełniać DOI i brakujące metadane.
+wspólnego `source_record@1`. Crossref może uzupełniać DOI i brakujące metadane w późniejszym
+zestawie, gdy stanie się wymagany przez jego kontrakt.
+
+Wywołanie z hosta odbywa się przez MCP, natomiast requesty do indeksów wykonują lokalne adaptery
+Python. MCP nie synchronizuje pełnych baz providerów. Operacja pobiera wyłącznie stronę potrzebną
+dla zatwierdzonej trasy, zapisuje raw response i wynik znormalizowany oraz korzysta z cache.
 
 ### F3. Opcjonalny skill `g02-expand-citation-graph`
 
@@ -323,7 +341,7 @@ wspólnego `CandidateSourceRecord`. Crossref może uzupełniać DOI i brakujące
 Może być współdzielony przez Domain i Canonical. Powinien używać zatwierdzonych seed sources i
 zwracać powód dodania każdego rekordu.
 
-### F4. Agent `domain-research`
+### F4. Agent `g02-a02-domain`
 
 **Owner:** CONTENT
 

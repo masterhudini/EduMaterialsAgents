@@ -68,9 +68,11 @@ Pliki w tym katalogu są częścią repozytorium i stanowią kontekst projektowy
 Warstwa definicji zawiera 10 kompletnych agentów i 18 skilli, w tym jeden uniwersalny reviewer
 oraz orkiestrator. W plikach agentów i skilli nie pozostają stuby wykonawcze.
 
-Deterministyczne adaptery dostawców, downloader, indeks tekstu PDF oraz rzeczywiste wywoływanie
-agentów przez `g02_flow.py` są osobnym etapem implementacji. Obecny tryb `run` w Pythonie
-pozostaje harness-em no-op do kontroli manifestu i kontraktów, a nie testem zachowania agentów.
+Deterministyczne seams reviewera, G02-A01 Plannera i G02-A02 Domain są wdrożone. G02-A02 posiada
+konfigurację providerów, adaptery OpenAlex, Semantic Scholar i arXiv, cache, retry, rate limiting,
+normalizację oraz zapis surowej proweniencji. Downloader, indeks tekstu PDF oraz rzeczywiste
+wywoływanie agentów przez `g02_flow.py` pozostają kolejnymi etapami. Obecny tryb `run` w Pythonie
+jest harness-em no-op dla całego grafu, a nie testem zachowania agentów.
 
 ### Zamknięta decyzja nadrzędna
 
@@ -86,8 +88,8 @@ logiczne etapy kontroli korzystają z tej definicji i przekazują jej specyficzn
   `shared/contracts/research_graph_input.schema.json`.
 - `[TK-DECISION: CLAIM-ASSESSMENT-MODEL]`, decyzja zostanie podjęta z TK podczas przeglądu 1b1
   agenta `g02-a08-claim-verification` i skilla `g02-a08-assess-claim-evidence`.
-- `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]`, warianty skilli dla Codex są generowane, ale
-  wykonanie prawdziwych node agents i deterministycznych narzędzi wymaga adaptera runtime/MCP.
+- `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]`, warianty skilli dla Codex i narzędzia MCP do G02-A02
+  są generowane, ale wykonanie prawdziwych node agents nadal wymaga adaptera runtime hosta.
 
 `[LOCKED PROJECT DECISION: SINGLE-REVIEWER]` oraz rozwiązany kontrakt wejściowy nie wymagają
 dalszych decyzji.

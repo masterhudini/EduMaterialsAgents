@@ -33,6 +33,11 @@ def test_initialize_and_tools_list():
     tools = srv.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     names = {t["name"] for t in tools["result"]["tools"]}
     assert names == {"research_front_door", "research_node_input",
+                     "research_planner_prepare", "research_planner_finalize",
+                     "research_plan_review_task",
+                     "research_provider_status", "research_domain_prepare",
+                     "research_metadata_search", "research_domain_finalize",
+                     "research_domain_review_task",
                      "research_review_prepare", "research_review_finalize",
                      "research_finalize", "research_run_stub"}
 

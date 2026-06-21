@@ -9,8 +9,8 @@
   "input_contract": "research_graph_input@1",
   "exit_artifact": "user_approved_research_bundle@1",
   "nodes": [
-    {"name": "g02-a01-planner", "kind": "agent", "review_profile": "research_plan", "produces": ["ResearchPlan"]},
-    {"name": "g02-a02-domain", "kind": "agent", "review_profile": "domain_candidates", "produces": ["DomainCandidateSources"]},
+    {"name": "g02-a01-planner", "kind": "agent", "input_contract": "research_planner_input@1", "output_contract": "research_plan@1", "review_profile": "research_plan", "produces": ["research_plan@1"]},
+    {"name": "g02-a02-domain", "kind": "agent", "input_contract": "domain_research_input@1", "output_contract": "domain_candidate_sources@1", "review_profile": "domain_candidates", "produces": ["domain_candidate_sources@1"]},
     {"name": "g02-a03-canonical-sources", "kind": "agent", "review_profile": "canonical_sources", "produces": ["CanonicalCandidateSources"]},
     {"name": "g02-a04-recent-developments", "kind": "agent", "review_profile": "recent_developments", "produces": ["RecentCandidateSources"]},
     {"name": "g02-a05-candidate-source-index", "kind": "agent", "review_profile": "candidate_index", "produces": ["CandidateSourceIndex"]},

@@ -1,4 +1,5 @@
 {
+  "schema_version": "research_graph_input@1",
   "task_id": "RESEARCH_MOCK_001",
   "user_approved_context": {
     "audience_level": "master",
@@ -18,6 +19,58 @@
     "include_didactic_examples": true,
     "recency_window_years": 5
   },
+  "research_drivers": [
+    {
+      "driver_id": "DRV_001",
+      "driver_type": "claim",
+      "priority": "high",
+      "purpose": "Verify how computational cost depends on model, method and scale.",
+      "related_claims": ["CLM_001"],
+      "related_concepts": ["C1"],
+      "related_flow_issues": [],
+      "related_update_needs": []
+    },
+    {
+      "driver_id": "DRV_002",
+      "driver_type": "claim",
+      "priority": "high",
+      "purpose": "Qualify the variance behavior attributed to variational inference.",
+      "related_claims": ["CLM_002"],
+      "related_concepts": ["C3"],
+      "related_flow_issues": [],
+      "related_update_needs": []
+    },
+    {
+      "driver_id": "DRV_003",
+      "driver_type": "claim",
+      "priority": "medium",
+      "purpose": "Assess the place of MCMC among posterior sampling methods.",
+      "related_claims": ["CLM_003"],
+      "related_concepts": ["C1"],
+      "related_flow_issues": [],
+      "related_update_needs": []
+    },
+    {
+      "driver_id": "DRV_004",
+      "driver_type": "flow_issue",
+      "priority": "high",
+      "purpose": "Find evidence needed to explain likelihood before posterior use.",
+      "related_claims": [],
+      "related_concepts": ["C1", "C2"],
+      "related_flow_issues": ["F_001"],
+      "related_update_needs": []
+    },
+    {
+      "driver_id": "DRV_005",
+      "driver_type": "flow_issue",
+      "priority": "medium",
+      "purpose": "Support a clear motivation for variational inference after MCMC costs.",
+      "related_claims": ["CLM_001"],
+      "related_concepts": ["C3"],
+      "related_flow_issues": ["F_002"],
+      "related_update_needs": []
+    }
+  ],
   "claim_cards": [
     {
       "claim_id": "CLM_001",
@@ -62,6 +115,28 @@
       "fix_hint": "ADD_BRIDGE"
     }
   ],
+  "selected_update_need_cards": [],
+  "existing_source_cards": [
+    {
+      "source_id": "SRC_EXISTING_001",
+      "label": "Existing course textbook on Bayesian data analysis",
+      "artifact_ref": null
+    }
+  ],
+  "constraints": {
+    "max_topics": 6,
+    "candidate_limit_per_topic": 24,
+    "no_new_coverage_passes": 2,
+    "allowed_languages": ["en"],
+    "allowed_work_types": ["article", "review", "book", "chapter", "preprint"],
+    "year_from": null,
+    "year_to": null
+  },
+  "selection_profile": {
+    "candidate_pool_target_per_topic": 16,
+    "minimum_sources_per_required_role": 1,
+    "open_access_preference": "preferred"
+  },
   "locked_sections": [
     {"section_id": "S1", "reason": "Author wants to keep the opening narrative"}
   ],
@@ -69,5 +144,6 @@
     "claim_state_ref": "artifact://states/claim_state.approved.json",
     "concept_state_ref": "artifact://states/concept_state.approved.json",
     "flow_state_ref": "artifact://states/flow_state.approved.json"
-  }
+  },
+  "output_language": "English"
 }

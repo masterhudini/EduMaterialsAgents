@@ -23,6 +23,7 @@ _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))
 from core import contracts, event_log, gate, graphs, handoff  # noqa: E402
 from core import state as st  # noqa: E402
 from core import validate_state as vs  # noqa: E402
+from g02 import planner  # noqa: E402
 
 GRAPH_ID = "g02"
 INPUT_CONTRACT = "research_graph_input@1"
@@ -59,15 +60,18 @@ def load_context(path, *, validate: bool = True) -> dict:
 def scoped_input(node: dict, rgi: dict) -> dict:
     """The input bundle a given node receives.
 
-    SINGLE place where per-node context scoping lives. At stub stage every node gets the full
-    ResearchGraphInput; real scoping (planner -> ResearchPlan -> per-topic for g02-a02-domain,
-    one document for g02-a07-paper-review, etc.) will narrow this here as producers come online.
+    SINGLE place where boundary-only harness scoping lives. G02-A01 receives a validated
+    ``research_planner_input@1``. Dependency-based producers still receive the full boundary input
+    inside this no-op wiring harness because their approved upstream artifacts do not exist here.
+    Real G02-A02 execution must use ``research_domain_prepare`` with an approved ResearchPlan ref.
     """
+    if node.get("name") == planner.PLANNER_AGENT:
+        return planner.scope_planner_input(rgi)
     return rgi
 
 
 def node_input_map(rgi: dict, manifest: dict) -> dict:
-    """What each agent node would receive — for inspecting/testing a single agent in isolation."""
+    """Preview no-op harness inputs; dependency-based real runs use their prepare operation."""
     return {n["name"]: scoped_input(n, rgi)
             for n in graphs.nodes(manifest) if n.get("kind") == "agent"}
 
