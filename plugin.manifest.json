@@ -1,0 +1,82 @@
+{
+  "name": "edu-materials-agents",
+  "version": "0.1.0",
+  "description": "Agent-stack plugin for improving educational / lecture materials through reviewed agent graphs (intake -> research -> solution).",
+  "author": {
+    "name": "khudasze",
+    "email": "kamil.hudaszek95@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "agents",
+    "education",
+    "research-graph",
+    "claude-code",
+    "codex"
+  ],
+  "category": {
+    "claude": "development",
+    "codex": "Developer Tools"
+  },
+  "marketplace": {
+    "name": "edu-materials",
+    "displayName": "Edu Materials",
+    "description": "Local marketplace for the edu-materials-agents plugin."
+  },
+  "interface": {
+    "displayName": "Edu Materials Agents",
+    "shortDescription": "Improve lecture materials through reviewed research agent graphs.",
+    "longDescription": "Runs reviewed agent graphs for educational material improvement. The current thin stage exposes the Research Graph spine, contract validation, artifact handoff, and MCP deterministic seams.",
+    "developerName": "khudasze",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Run the research graph for this lecture input."
+    ],
+    "brandColor": "#2F6F73"
+  },
+  "components": {
+    "skills": [
+      "skills/orchestrate-research"
+    ],
+    "agents": [
+      "agents/research-candidate-source-index.md",
+      "agents/research-canonical-sources.md",
+      "agents/research-claim-verification.md",
+      "agents/research-domain.md",
+      "agents/research-output-reviewer.md",
+      "agents/research-paper-retrieval.md",
+      "agents/research-paper-review.md",
+      "agents/research-planner.md",
+      "agents/research-recent-developments.md",
+      "agents/research-synthesizer.md"
+    ],
+    "commands": [
+      "commands/research.md"
+    ],
+    "shared": [
+      "shared"
+    ]
+  },
+  "mcpServers": {
+    "edu-materials-research": {
+      "command": "python3",
+      "entrypoint": "shared/scripts/mcp/research_server.py"
+    }
+  },
+  "hosts": {
+    "claude": {
+      "includeCommands": true,
+      "includeAgents": true,
+      "manifestDir": ".claude-plugin"
+    },
+    "codex": {
+      "includeCommands": false,
+      "includeAgents": false,
+      "manifestDir": ".codex-plugin"
+    }
+  }
+}

@@ -3,6 +3,7 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+dist/
 
 # Runtime artifacts (drafts, logs, hydrated artifacts) — project-local, per design.
 # Override location with EMAGENTS_HOME.
@@ -12,5 +13,5 @@ __pycache__/
 *:Zone.Identifier
 .DS_Store
 
-#old code I use as inspiration
+#old code I use as an inspiration
 inspiration/
