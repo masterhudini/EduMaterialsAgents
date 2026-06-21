@@ -60,8 +60,8 @@ def scoped_input(node: dict, rgi: dict) -> dict:
     """The input bundle a given node receives.
 
     SINGLE place where per-node context scoping lives. At stub stage every node gets the full
-    ResearchGraphInput; real scoping (planner -> ResearchPlan -> per-topic for domain-research,
-    one document for paper-review, etc.) will narrow this here as producers come online.
+    ResearchGraphInput; real scoping (planner -> ResearchPlan -> per-topic for research-domain,
+    one document for research-paper-review, etc.) will narrow this here as producers come online.
     """
     return rgi
 

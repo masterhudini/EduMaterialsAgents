@@ -139,8 +139,8 @@ def test_artifact_hydration_with_pointer(tmp_path):
 
 # ---- graph_check + event_log --------------------------------------------
 
-def test_graph_check_ok_with_no_manifests():
-    res = graph_check.check_all()
+def test_graph_check_ok_with_no_manifests(tmp_path):
+    res = graph_check.check_all(graphs_dir=tmp_path)   # empty dir -> nothing to check
     assert res["ok"] and res["checked"] == 0
 
 
@@ -213,8 +213,6 @@ def test_graphs_loader_and_subgraph_nodes(tmp_path):
 def test_graph_check_subgraph_existence(tmp_path):
     gdir = tmp_path / "graphs"
     gdir.mkdir()
-    plugin = tmp_path / "plugin.json"
-    _write(plugin, {"skills": [], "agents": [], "commands": []})
     _write(gdir / "intake.graph.json", {"graph_id": "intake", "nodes": []})
     _write(gdir / "system.graph.json", {
         "graph_id": "system",
@@ -223,7 +221,7 @@ def test_graph_check_subgraph_existence(tmp_path):
             {"name": "research", "kind": "subgraph", "graph": "research"},  # missing -> error
         ],
     })
-    res = graph_check.check_all(graphs_dir=gdir, plugin_path=plugin)
+    res = graph_check.check_all(graphs_dir=gdir, plugin_root=tmp_path)
     assert not res["ok"]
     flat = [e for r in res["results"] for e in r["errors"]]
     assert any("research.graph.json" in e for e in flat)

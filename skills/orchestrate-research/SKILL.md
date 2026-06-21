@@ -65,7 +65,7 @@ RF="$CLAUDE_PLUGIN_ROOT/shared/scripts/research/research_flow.py"
         (minimal scope), counting attempts per scope;
       - budget exhausted → `ESCALATE` to the user; `BLOCKED` → surface and stop.
 
-4. **User Source Selection Gate** (`user-source-selection-gate`, after `candidate-source-index`):
+4. **User Source Selection Gate** (`user-source-selection-gate`, after `research-candidate-source-index`):
    present `candidate_source_review.md` + coverage notes; collect one action per source
    (`DOWNLOAD / LIBRARY / CITATION / RESERVE / EXCLUDE / SEARCH_MORE`). `SEARCH_MORE` must name
    a claim/topic/role and routes back to Domain / Canonical / Recent; then the index is rebuilt

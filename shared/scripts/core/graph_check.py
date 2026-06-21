@@ -1,9 +1,11 @@
 """Graph coherence checker — each graph manifest is the SINGLE SOURCE OF TRUTH.
 
-For every ``shared/graphs/*.graph.json`` it verifies that the functional nodes (kinds that map
-to a shipped component) are registered in ``plugin.json``, so the manifest and the registry
-can never silently drift apart. Graph-agnostic and tolerant of the scaffold stage: with no
-manifests yet it simply reports ok. Pure stdlib, offline, deterministic.
+For every ``shared/graphs/*.graph.json`` it verifies that nodes mapping to a shipped component
+actually EXIST on disk (an agent file / a skill dir), and that ``kind: "subgraph"`` nodes
+reference an existing manifest. Components are discovered from the filesystem
+(``agents/**/<name>.md``, ``skills/**/SKILL.md``) — the same auto-discovery Claude Code uses —
+so the check does NOT depend on the plugin manifest listing them (manifests use auto-discovery
+and carry no component arrays). Graph-agnostic, offline, deterministic, pure stdlib.
 
 Run whenever the node set changes:
     python3 -c "import sys; sys.path.insert(0,'shared/scripts'); \
@@ -16,35 +18,36 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 GRAPHS_DIR = ROOT / "shared" / "graphs"
-PLUGIN = ROOT / "plugin.json"
 
-# Node kinds that are NOT separately registered components in plugin.json:
+# Node kinds that are NOT separately shipped components:
 #   script / gate / user-gate are control steps inside the orchestrator;
-#   subgraph delegates to another manifest (checked for existence, not registration).
+#   subgraph delegates to another manifest (checked for existence, not for a component file).
 _NON_REGISTERED_KINDS = {"script", "gate", "user-gate", "subgraph"}
 
 
-def registered_component_names(plugin_path: Path | None = None) -> set[str]:
-    pj = json.loads((plugin_path or PLUGIN).read_text())
+def registered_component_names(plugin_root: Path | None = None) -> set[str]:
+    """Component names discovered on disk: agent file stems + skill dir names."""
+    root = plugin_root or ROOT
     names: set[str] = set()
-    for entry in pj.get("skills", []):
-        names.add(Path(entry).name)          # skill dir name
-    for entry in pj.get("agents", []):
-        names.add(Path(entry).stem)          # agent file stem
+    agents = root / "agents"
+    if agents.exists():
+        for p in agents.rglob("*.md"):
+            if p.name != "README.md":
+                names.add(p.stem)
+    skills = root / "skills"
+    if skills.exists():
+        for p in skills.rglob("SKILL.md"):
+            names.add(p.parent.name)
     return names
 
 
-def check_manifest(manifest_path: Path, plugin_path: Path | None = None,
+def check_manifest(manifest_path, plugin_root: Path | None = None,
                    graphs_dir: Path | None = None) -> dict:
-    """Validate one manifest:
-
-    - every ``agent``/``skill`` node is registered in plugin.json;
-    - every ``subgraph`` node references an existing ``<graph>.graph.json`` manifest.
-    """
+    """Validate one manifest against the components present on disk + sibling manifests."""
     manifest_path = Path(manifest_path)
     gdir = graphs_dir or manifest_path.parent or GRAPHS_DIR
     manifest = json.loads(manifest_path.read_text())
-    registered = registered_component_names(plugin_path)
+    registered = registered_component_names(plugin_root)
     errors: list[str] = []
     for node in manifest.get("nodes", []):
         kind = node.get("kind")
@@ -58,13 +61,14 @@ def check_manifest(manifest_path: Path, plugin_path: Path | None = None,
         if kind in _NON_REGISTERED_KINDS:
             continue
         if kind in ("agent", "skill") and name not in registered:
-            errors.append(f"{manifest_path.name}: node {name!r} (kind={kind}) not registered in plugin.json")
+            errors.append(f"{manifest_path.name}: node {name!r} (kind={kind}) has no component "
+                          f"file on disk")
     return {"ok": not errors, "graph": manifest.get("graph_id", manifest_path.stem), "errors": errors}
 
 
-def check_all(graphs_dir: Path | None = None, plugin_path: Path | None = None) -> dict:
-    """Check every manifest. No manifests yet -> ok (scaffold stage)."""
+def check_all(graphs_dir: Path | None = None, plugin_root: Path | None = None) -> dict:
+    """Check every manifest. No manifests -> ok (scaffold stage)."""
     gdir = graphs_dir or GRAPHS_DIR
     manifests = sorted(gdir.glob("*.graph.json")) if gdir.exists() else []
-    results = [check_manifest(m, plugin_path, graphs_dir=gdir) for m in manifests]
+    results = [check_manifest(m, plugin_root, graphs_dir=gdir) for m in manifests]
     return {"ok": all(r["ok"] for r in results), "checked": len(results), "results": results}

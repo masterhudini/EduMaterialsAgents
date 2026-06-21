@@ -71,7 +71,7 @@ def test_node_input_map_exposes_per_agent_context():
     inputs = research_flow.node_input_map(seed, manifest)
     assert len(inputs) == 9                       # 9 agent nodes (gates/reviewer excluded)
     assert inputs["research-planner"]["task_id"] == "RESEARCH_001"
-    assert inputs["claim-verification"]["claim_cards"][0]["claim_id"] == "CLM_001"
+    assert inputs["research-claim-verification"]["claim_cards"][0]["claim_id"] == "CLM_001"
 
 
 def test_load_context_validates(tmp_path):
@@ -95,10 +95,9 @@ def test_manifest_matches_registration():
     res = graph_check.check_all()
     assert res["ok"], res
 
-    # every agent node in the manifest is a registered agent; gates are not
+    # every agent node in the manifest has a component file on disk; gates do not
     manifest = graphs.load("research")
-    plugin = json.loads((ROOT / "plugin.json").read_text())
-    registered = {Path(a).stem for a in plugin["agents"]}
+    registered = graph_check.registered_component_names()
     for node in graphs.nodes(manifest):
         if node["kind"] == "agent":
             assert node["name"] in registered
