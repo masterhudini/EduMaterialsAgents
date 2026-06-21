@@ -11,10 +11,11 @@ w `produced[]` koperty.
 
 ## 2. Wejście całego modułu
 
-### `[KH-DECISION: RESEARCH-GRAPH-INPUT-CONTRACT]`
+### `[RESOLVED: RESEARCH-GRAPH-INPUT-CONTRACT]`
 
-KH powinien potwierdzić, czy wcześniejsze moduły mogą wytworzyć ten pakiet oraz czy nazwy
-stanów i artifact refs są spójne z resztą systemu.
+Kontrakt został zatwierdzony i wdrożony. Wykonywalnym źródłem prawdy jest
+`shared/contracts/research_graph_input.schema.json`; poniższy zapis opisuje semantyczny zakres
+danych konsumowanych przez Research Graph.
 
 ```yaml
 ResearchGraphInput:
@@ -270,6 +271,53 @@ Rekord może mieć więcej niż jedną rolę:
 - `claim_specific`,
 - `qualifying_or_critical`,
 - `optional`.
+
+### 4.3. Kontrakt deterministycznej operacji literaturowej
+
+Agenci i skille nie konsumują bezpośrednio różnych formatów OpenAlex, Semantic Scholar, arXiv,
+Unpaywall ani pozostałych dostawców. Adapter mapuje je do wspólnej odpowiedzi:
+
+```yaml
+LiteratureToolResult:
+  schema_version: literature_tool_result@1
+  operation_id:
+  operation_type: metadata_search | citation_expand | oa_resolve | retrieve | validate | text_index
+  provider:
+  status: ok | partial | unavailable | failed
+  started_at:
+  completed_at:
+
+  request:
+    query_id: null
+    canonical_query: null
+    filters: {}
+    cursor: null
+    source_ids: []
+
+  records: []
+  file_descriptors: []
+
+  pagination:
+    next_cursor: null
+    exhausted: false
+    pages_processed: 0
+
+  provenance:
+    raw_response_refs: []
+    provider_request_ids: []
+
+  issues:
+    - code:
+      retryable: false
+      message:
+```
+
+Wynik `partial` oznacza użyteczny rezultat z jawnym brakiem, na przykład niedostępnością jednej
+strony wyników albo jednego dostawcy. Adapter nie tworzy brakujących rekordów, nie ocenia
+relewantności i nie podejmuje decyzji wyboru źródeł. Te czynności należą do agentów.
+
+Klucze API i dane uwierzytelniające nie występują w artefakcie. Warstwa narzędzi odczytuje je z
+konfiguracji runtime, a do logu trafia wyłącznie nazwa użytego profilu konfiguracji.
 
 ## 5. CandidateSourceIndex
 
@@ -591,9 +639,10 @@ dowodów prowadzi do `insufficient_evidence` lub `unresolved`.
 
 ## 12. ClaimAssessmentState
 
-### `[KH-DECISION: CLAIM-ASSESSMENT-MODEL]`
+### `[TK-DECISION: CLAIM-ASSESSMENT-MODEL]`
 
-KH powinien zatwierdzić zgodność poniższego modelu z kontraktami innych modułów.
+TK powinien zatwierdzić poniższy model podczas przeglądu 1b1 Claim Verification Agent i
+`assess-claim-evidence`.
 
 ```yaml
 ClaimAssessment:
@@ -676,16 +725,21 @@ ReviewDecision:
   reviewer_agent: research-output-reviewer
   producer_agent:
   artifact_ref:
+  artifact_version:
   review_profile:
 
   decision: APPROVED
 
   findings:
-    - criterion_id:
-      severity: medium
+    - finding_id:
+      criterion_id:
+      severity: major
       location:
-      explanation:
+      observed:
       required_correction:
+      evidence_refs: []
+
+  closed_finding_ids: []
 
   revision_scope: null
 
@@ -711,7 +765,7 @@ Research Synthesizer tworzy:
 
 - `ResearchState`,
 - `EvidenceMap`,
-- `HumanResearchValidationPacket`,
+- `UserResearchValidationPacket`,
 - `SolutionInputCandidate`.
 
 ### 14.1. EvidenceMap
@@ -728,11 +782,11 @@ EvidenceMap:
       unresolved: false
 ```
 
-### 14.2. HumanResearchValidationPacket
+### 14.2. UserResearchValidationPacket
 
 ```yaml
-HumanResearchValidationPacket:
-  schema_version: human_research_validation_packet@1
+UserResearchValidationPacket:
+  schema_version: user_research_validation_packet@1
   research_summary_ref:
 
   claim_summary:
@@ -752,11 +806,11 @@ HumanResearchValidationPacket:
   required_human_decisions: []
 ```
 
-## 15. HumanApprovedResearchBundle
+## 15. UserApprovedResearchBundle
 
 ```yaml
-HumanApprovedResearchBundle:
-  schema_version: human_approved_research_bundle@1
+UserApprovedResearchBundle:
+  schema_version: user_approved_research_bundle@1
   approved_research_summary_ref:
 
   approved_update_findings:

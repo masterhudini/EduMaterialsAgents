@@ -26,7 +26,7 @@
   "interface": {
     "displayName": "Edu Materials Agents",
     "shortDescription": "Improve lecture materials through reviewed research agent graphs.",
-    "longDescription": "Runs reviewed agent graphs for educational material improvement. The current thin stage exposes the Research Graph spine, contract validation, artifact handoff, and MCP deterministic seams.",
+    "longDescription": "Runs reviewed agent graphs for educational material improvement. Research agent and skill definitions are implemented; the deterministic harness exposes contract validation, artifact handoff, and MCP integration seams.",
     "developerName": "khudasze",
     "capabilities": [
       "Interactive",
@@ -40,7 +40,24 @@
   },
   "components": {
     "skills": [
-      "skills/orchestrate-research"
+      "skills/annotate-source-candidates",
+      "skills/assess-claim-evidence",
+      "skills/assess-source-coverage",
+      "skills/classify-source-role",
+      "skills/deduplicate-source-records",
+      "skills/expand-citation-graph",
+      "skills/expand-research-query",
+      "skills/extract-paper-evidence",
+      "skills/normalize-source-metadata",
+      "skills/orchestrate-research",
+      "skills/plan-research-scope",
+      "skills/rank-source-candidates",
+      "skills/resolve-open-access",
+      "skills/retrieve-open-access-document",
+      "skills/review-research-output",
+      "skills/search-scholarly-metadata",
+      "skills/synthesize-research-findings",
+      "skills/validate-retrieved-document"
     ],
     "agents": [
       "agents/research-candidate-source-index.md",
@@ -63,7 +80,7 @@
   },
   "mcpServers": {
     "edu-materials-research": {
-      "command": "python3",
+      "command": "{python}",
       "entrypoint": "shared/scripts/mcp/research_server.py"
     }
   },

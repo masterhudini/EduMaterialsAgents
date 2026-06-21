@@ -10,7 +10,7 @@ Research Graph otrzymuje zatwierdzony przez człowieka pakiet z wcześniejszego 
 konkretne claimy, domeny, potrzeby aktualizacji, problemy pojęciowe i wybrane problemy
 przepływu wykładu. Nie prowadzi nieograniczonego researchu na temat całej dziedziny.
 
-Końcowym wynikiem jest `HumanApprovedResearchBundle`. Pakiet zawiera zatwierdzone wyniki
+Końcowym wynikiem jest `UserApprovedResearchBundle`. Pakiet zawiera zatwierdzone wyniki
 researchu, mapę dowodów, źródła, nierozstrzygnięte claimy i kompaktowe przekazanie do
 `Solution Graph`.
 
@@ -18,10 +18,15 @@ researchu, mapę dowodów, źródła, nierozstrzygnięte claimy i kompaktowe prz
 
 Nasza część obejmuje:
 
-- napisanie plików agentów w `agents/research/`,
-- napisanie współdzielonych skilli w `skills/research/`,
+- napisanie plików agentów w `agents/`,
+- napisanie współdzielonych skilli w `skills/<skill-name>/`,
 - określenie odpowiedzialności, wejść, wyjść i granic agentów,
 - opis procedur wykonywanych przez skille,
+- zaprojektowanie i implementację deterministycznych narzędzi wywoływanych przez skille,
+- adaptery API indeksów naukowych i usług Open Access,
+- normalizację, deduplikację, ranking i indeksowanie kandydatów,
+- downloader, walidację dokumentów i przygotowanie PDF do ukierunkowanej analizy,
+- kontrakty JSON wejścia i wyjścia narzędzi wewnątrz Research Graph,
 - zdefiniowanie kryteriów akceptacji używanych przez reviewera,
 - opis komunikatów i decyzji wymaganych od człowieka,
 - zachowanie zgodności semantycznej między agentami i skillami.
@@ -29,13 +34,12 @@ Nasza część obejmuje:
 Poza naszą częścią pozostają:
 
 - wykonanie grafu i mechanika routingu,
-- fizyczne schematy JSON i ich walidatory,
+- graniczne schematy JSON między modułami i ich systemowe walidatory,
 - zapis i synchronizacja state,
-- adaptery API, downloader i parser PDF,
 - konfiguracja modeli dla konkretnych platform,
 - interfejs użytkownika,
-- limity retry realizowane przez runtime,
-- techniczne testy integracyjne i instalator.
+- systemowy scheduler, retry agentów i resume grafu,
+- instalator oraz testy integracyjne obejmujące inne moduły.
 
 Nasze definicje muszą dostarczać jednoznaczne kontrakty semantyczne dla tych elementów.
 
@@ -148,16 +152,24 @@ przez kilku agentów. Definicja agenta jawnie wymienia skille wymagane i opcjona
 
 Nie obowiązuje relacja jeden agent do jednego skilla.
 
-### 4.7. Skille bez dodatkowych zasobów na początku
+### 4.7. Zasoby skilli tylko przy rzeczywistej potrzebie
 
-Skille będą tworzone razem z agentami. Początkowo każdy skill składa się z `SKILL.md`.
-Foldery `references/`, `scripts/` i `assets/` powstaną tylko wtedy, gdy rzeczywiste użycie
-wykaże taką potrzebę.
+Skille są tworzone razem z agentami. Każdy skill posiada `SKILL.md`. Kod powtarzalnych i
+wrażliwych operacji, takich jak requesty HTTP, paginacja, pobieranie lub kontrola integralności,
+powinien działać jako deterministyczne narzędzie Python z wejściem i wyjściem JSON. Narzędzie
+może być współdzielone w warstwie Research Graph albo dołączone do skilla, jeśli pozostaje
+specyficzne dla jednej procedury. Foldery `references/` i `assets/` powstają tylko przy
+rzeczywistej potrzebie.
 
 ### 4.8. Przenośny Markdown
 
 Pliki mają działać jako wspólna warstwa semantyczna dla Claude Code i Codex. Nazwy modeli,
 platformowe listy narzędzi i platformowa konfiguracja pozostają w warstwie integracyjnej.
+
+Każdy skill przechowuje neutralny `SKILL.md` oraz `adapters/claude.frontmatter.yaml`,
+`adapters/claude.md` i `adapters/codex.md`. Instalator generuje osobny wariant dla hosta przez
+scalenie frontmatter i dołączenie tylko właściwej instrukcji hosta. Plik źródłowy pozostaje
+niezmieniony.
 
 Agent zachowuje strukturę:
 
@@ -198,7 +210,8 @@ Limity są konfigurowalne przez zatwierdzony input.
 ## 5. Zastosowanie ustaleń LitPipe
 
 Z LitPipe przyjmujemy logikę procesu, role usług oraz zasady bezpieczeństwa źródeł. Nie
-przenosimy kodu Pythona ani architektury aplikacji wykonywalnej.
+przenosimy bezpośrednio jego architektury aplikacji wykonywalnej. Implementujemy własną,
+modułową warstwę narzędzi Python, podporządkowaną kontraktom agentów i skilli Research Graph.
 
 Przydatny podział źródeł:
 
@@ -226,6 +239,21 @@ kategoryzować i opisywać abstrakty. Nie może tworzyć rekordów bibliograficz
 Szczegółowe limity, ceny, klucze i warunki usług są zmienne i wymagają sprawdzenia podczas
 integracji. Stan dokumentów LitPipe nie jest gwarancją aktualności tych parametrów.
 
+### 5.1. Granica między decyzją agenta a wykonaniem narzędzia
+
+Agent decyduje, czego szukać, jak rozszerzyć zapytanie, które wyniki są istotne i czy pokrycie
+jest wystarczające. Skill określa procedurę oraz dozwolone narzędzia. Deterministyczny kod:
+
+- wykonuje requesty, paginację, retry dostawcy i kontrolę limitów,
+- zachowuje surową proweniencję odpowiedzi,
+- mapuje odpowiedzi dostawców do wspólnego rekordu,
+- pobiera wyłącznie dokumenty zaakceptowane przez człowieka,
+- zwraca jawne błędy bez tworzenia brakujących metadanych.
+
+KH nie implementuje klientów usług literaturowych. KH zapewnia sposób uruchomienia narzędzi,
+przekazania ograniczonego kontekstu i artefaktów, konfigurację sekretów oraz zgodność granic
+Research Graph z resztą systemu.
+
 ## 6. Dwie bramki człowieka
 
 ### 6.1. Human Source Selection Gate
@@ -247,20 +275,25 @@ Agenci otrzymują input bundles i artifact refs. Zwracają artefakty przez `enve
 Zatwierdzone artefakty stają się niezmienne. Zmiana wymaga nowej wersji albo ponownego
 uruchomienia właściwego etapu.
 
-## 8. Punkty dla KH
+## 8. Statusy integracyjne
 
-### `[KH-DECISION: RESEARCH-GRAPH-INPUT-CONTRACT]`
+### `[RESOLVED: RESEARCH-GRAPH-INPUT-CONTRACT]`
 
-KH powinien sprawdzić, czy proponowany `ResearchGraphInput` może zostać wytworzony przez
-wcześniejsze moduły oraz czy nazwy artifact refs są zgodne z resztą systemu. Szczególnej
-kontroli wymagają `research_drivers`, `existing_source_cards`, `selection_profile` i
-`output_language`.
+Kontrakt wejścia został zatwierdzony i wdrożony jako
+`shared/contracts/research_graph_input.schema.json`. Ta wersja jest źródłem prawdy dla front
+door, orkiestratora i scoped input bundles.
 
-### `[KH-DECISION: CLAIM-ASSESSMENT-MODEL]`
+### `[TK-DECISION: CLAIM-ASSESSMENT-MODEL]`
 
-KH powinien sprawdzić zgodność wielowymiarowej oceny claimów z kontraktami całego systemu.
-Model rozdziela status dowodowy, aktualność, jakość dydaktyczną, kontrowersyjność, confidence
-i rekomendowaną akcję.
+TK powinien zatwierdzić wielowymiarową ocenę claimów podczas przeglądu 1b1 agenta
+`research-claim-verification` i skilla `assess-claim-evidence`. Model rozdziela status dowodowy,
+aktualność, jakość dydaktyczną, kontrowersyjność, confidence i rekomendowaną akcję.
+
+### `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]`
+
+Instalator potrafi wygenerować host-specific warianty skilli. Pełne wykonanie w Codex nadal
+wymaga systemowego adaptera uruchamiającego node agents oraz deterministyczne narzędzia Research
+Graph przez uzgodnioną powierzchnię MCP albo równoważny interfejs.
 
 ## 9. Konsekwencje dla aktualnego repozytorium
 
