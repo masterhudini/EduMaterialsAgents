@@ -49,11 +49,17 @@ Return both descriptors in `envelope@1.produced`.
 7. Annotate displayed and library candidates from available metadata or abstract only. For market
    cases, use the separate reviewed A11 market fact and didactic mechanism. Every card must expose
    `description_basis`, `basis_excerpt` and limitations. A metadata-only card must say that it does
-   not summarize publication contents.
+   not summarize publication contents. Explain that this is the pre-selection preview; when the
+   user approves a market case for DOWNLOAD, A06 will create a fuller readable Markdown document
+   from the same reviewed A11 annotation and the post-gate page extraction.
 8. Generate `candidate_source_review.md` in `output_language` with instructions, coverage overview,
    grouped candidate cards, access limitations, reserve, known gaps and a copyable response template.
 9. Call `research_candidate_index_finalize` to create and cross-reference both artifacts. Then use
    `research_candidate_index_review_task` to freeze the `candidate_index` review profile.
+
+A05 may recommend `DOWNLOAD`, but the recommendation is non-binding. The human chooses the exact
+source IDs at the following Human Source Selection Gate. The count finally shown for confirmation
+is the number of unique IDs assigned `DOWNLOAD`, split into scholarly PDFs and market-case files.
 
 ## Acceptance Criteria
 
@@ -74,6 +80,7 @@ Return both descriptors in `envelope@1.produced`.
 - Do not fabricate missing metadata, abstracts or canonicality claims.
 - Do not omit closed canonical anchors; route them to library or citation consideration.
 - Do not communicate directly with the user.
+- Do not decide or silently increase the number of files authorized for retrieval.
 
 ## Failure handling
 

@@ -414,7 +414,7 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
 - [x] Nieprawidłowy kontrakt config, ujemne limity, zbyt duży timeout i arXiv interval poniżej
   3 sekund są odrzucane.
 - [x] Ścieżki absolutne oraz traversal poza `EMAGENTS_HOME` są odrzucane.
-- [ ] Provider disabled zwraca `unavailable`, nie wykonuje requestu i zapisuje jednoznaczny wynik.  — `❌ FAIL` (Runda 7): faktycznie `failed`/`invalid_provider_route`; request NIE wykonany (substancja OK), gałąź `unavailable` nieosiągalna. Do decyzji dev — 08 Runda 7.
+- [ ] Provider disabled zwraca `unavailable`, nie wykonuje requestu i zapisuje jednoznaczny wynik.  — `❌ FAIL` (Runda 7): faktycznie `failed`/`invalid_provider_route`; request nie został wykonany. DEV 2026-06-23: sprawdzenie autoryzacji trasy i stanu `disabled` przeniesiono przed walidację gotowości QueryPlan; dodano regresję `test_disabled_provider_returns_unavailable_without_request`. Wymagany rerun TEST.
 - [x] Allowlista blokuje HTTP, nieznany hostname oraz redirect poza oficjalny endpoint.
 - [x] Limit bajtów przerywa nadmierną odpowiedź, a komunikat nie zawiera nagłówków ani kluczy.
 
@@ -850,48 +850,48 @@ DEV potwierdzają wyłącznie składnię i spójność statyczną, więc nie zaz
 
 #### A. Kontrakty, scoped input i przygotowanie
 
-- [ ] Schematy `market_case_research_input@1`, `web_case_tool_result@1`,
+- [x] Schematy `market_case_research_input@1`, `web_case_tool_result@1`,
   `web_case_extract_result@1`, `human_source_selection@1` oraz `candidate_sources@1` parsują się i
   przechodzą pozytywne oraz negatywne fixtures.
-- [ ] `research_market_cases_prepare` hydratuje dokładny reviewed ResearchPlan i A02 ref, wybiera
+- [x] `research_market_cases_prepare` hydratuje dokładny reviewed ResearchPlan i A02 ref, wybiera
   jeden topic oraz zachowuje task ID i wersje obu artefaktów.
-- [ ] Scoped input zawiera wyłącznie topic, claim IDs, traceable market-case needs, role, coverage,
+- [x] Scoped input zawiera wyłącznie topic, claim IDs, traceable market-case needs, role, coverage,
   limity, tier policy, provider mode, secret-free capabilities i język wyjścia.
-- [ ] Scoped input nie zawiera całego intake, rekordów A02, prywatnego e-maila, kluczy, endpointu
+- [x] Scoped input nie zawiera całego intake, rekordów A02, prywatnego e-maila, kluczy, endpointu
   SearXNG, cache paths ani nieautoryzowanych artefaktów.
-- [ ] Każdy need ma jednoznaczny `need_id`, coverage i origin do zatwierdzonego claimu, drivera,
+- [x] Każdy need ma jednoznaczny `need_id`, coverage i origin do zatwierdzonego claimu, drivera,
   update need albo coverage; sfałszowany scope, wersja lub A02 ref kończy się jawnie.
 - [ ] Brak zgody na przykłady dydaktyczne daje kontrolowany skip, brak gotowego providera daje
   jawny failure, a revision bez poprzedniego artefaktu jest odrzucana.
 
 #### B. QueryPlan i operacje providerów offline
 
-- [ ] QueryPlan ma core, complementary i qualifying/critical route zgodnie z ResearchPlan;
+- [x] QueryPlan ma core, complementary i qualifying/critical route zgodnie z ResearchPlan;
   wszystkie terminy mają approved origin i generated-term basis.
-- [ ] Każda trasa zachowuje provider mode, filtry, coverage, limity oraz domeny wybrane wyłącznie z
+- [x] Każda trasa zachowuje provider mode, filtry, coverage, limity oraz domeny wybrane wyłącznie z
   administrator tier policy. Provider syntax, dodatkowa domena i endpoint od modelu są odrzucane.
-- [ ] Publiczne schema pięciu operacji MCP A11 nie zawierają parametru `config`; profil runtime jest
+- [x] Publiczne schema pięciu operacji MCP A11 nie zawierają parametru `config`; profil runtime jest
   wybierany wyłącznie przez administratora.
-- [ ] Tavily i SearXNG fixtures zwracają niezmienione, poprawne `source_record@1` typu
+- [x] Tavily i SearXNG fixtures zwracają niezmienione, poprawne `source_record@1` typu
   `market_case`, z URL, datą gdy dostarczona, tierem, raw ref, query ID i provenance.
-- [ ] `auto_budgeted` używa gotowego SearXNG do discovery i Tavily do kontrolowanego uzupełnienia;
+- [x] `auto_budgeted` używa gotowego SearXNG do discovery i Tavily do kontrolowanego uzupełnienia;
   tryby pojedynczego providera nie uruchamiają drugiego adaptera.
 - [ ] Zero results daje `ok`; disabled, missing key/endpoint, timeout, DNS, 429, 5xx, invalid JSON,
   zły content type i zbyt duża odpowiedź dają właściwe `partial`, `unavailable` albo `failed`.
 - [ ] Cache hit nie zużywa kolejnego budżetu; limity wspólne, per-provider i rate limit są
   egzekwowane. Retry respektuje `Retry-After` i nie przekracza konfiguracji.
-- [ ] Redirect poza origin lub na inną ścieżkę operacji jest blokowany; SearXNG może użyć wyłącznie
+- [ ] Redirect poza origin lub na inną ścieżkę operacji jest blokowany; SearXNG może użyć wyłącznie  — `❌ FAIL` (Runda 8): redirect zablokowany (status `partial`, treść nieużyta) ale issue-code `unsafe_searxng_endpoint`, nie `cross_origin_redirect_blocked`. DEV 2026-06-23: kolejność walidacji poprawiona wspólnym `_validate_redirect_target` dla transportu, cache i ścieżki produkcyjnej; wymagany rerun TEST przed zaznaczeniem.
   jawnie zatwierdzonego endpointu, bez credentials w URL i bez losowej publicznej instancji.
-- [ ] Wyniki z innego tasku, topicu, ResearchPlan, A02 ref, route, query albo provider mode nie mogą
+- [x] Wyniki z innego tasku, topicu, ResearchPlan, A02 ref, route, query albo provider mode nie mogą
   zostać użyte przy finalizacji A11.
 
 #### C. Finalizacja MarketCaseCandidateSources
 
-- [ ] Każdy candidate jest identyczny z rekordem w zapisanym `web_case_tool_result@1`; mutacja
+- [x] Każdy candidate jest identyczny z rekordem w zapisanym `web_case_tool_result@1`; mutacja
   tytułu, daty, URL, tieru, provenance albo null metadata jest odrzucana.
-- [ ] Każdy candidate ma dokładnie jedną adnotację, a role, case identity, evidence type, source
+- [x] Każdy candidate ma dokładnie jedną adnotację, a role, case identity, evidence type, source
   assessment, materiality, market fact i coverage cytują obserwacje title/snippet/date/URL.
-- [ ] Fakt rynkowy pozostaje oddzielony od interpretacji dydaktycznej, która mapuje się do
+- [x] Fakt rynkowy pozostaje oddzielony od interpretacji dydaktycznej, która mapuje się do
   zatwierdzonego topicu lub claimu. Agent nie tworzy publikacji naukowej ani DOI.
 - [ ] Tier-3 bez potwierdzenia pozostaje `weak_signal`; wyższy tier lub poprawna korelacja są
   odnotowane osobno. Anegdota nie może wejść jako documented case.
@@ -901,20 +901,20 @@ DEV potwierdzają wyłącznie składnię i spójność statyczną, więc nie zaz
   current regime bez podstawy.
 - [ ] Coverage liczy wyłącznie case'y przechodzące materiality; remaining units, provider issues i
   stop reason są wyliczone zgodnie z rzeczywistym wynikiem.
-- [ ] `completed` z luką lub provider issue, fałszywy `candidate_limit`, niepoprawny revision target
+- [x] `completed` z luką lub provider issue, fałszywy `candidate_limit`, niepoprawny revision target
   oraz zmiana pola poza findings reviewera są odrzucane.
-- [ ] Finalizacja zapisuje wersjonowany artefakt, zwraca `ok` przy pełnym coverage lub `degraded`
+- [x] Finalizacja zapisuje wersjonowany artefakt, zwraca `ok` przy pełnym coverage lub `degraded`
   przy użytecznej puli z jawnymi brakami, bez fałszywego statusu sukcesu.
 
 #### D. Review G02-A10
 
-- [ ] `research_market_cases_review_task` tworzy jeden `review_task@1` o profilu `market_cases`,
+- [x] `research_market_cases_review_task` tworzy jeden `review_task@1` o profilu `market_cases`,
   producencie `g02-a11-market-cases` i dokładnie jednym artefakcie.
 - [ ] Kryteria MC-01–MC-06, wymagania dowodowe, prohibited behaviors i severity rules są kompletne,
   zgodne między agentem, skillem reviewera, runtime i dokumentacją.
 - [ ] G02-A10 zatwierdza poprawny artefakt, kieruje naprawialne błędy do REVISE, a scope mismatch,
   zmieniony record, fabrykację, anegdotę lub ekstrakcję przed bramką do BLOCKED.
-- [ ] Kolejna rewizja zwiększa `artifact_version`, zachowuje nieobjęte pola i używa poprzedniej
+- [x] Kolejna rewizja zwiększa `artifact_version`, zachowuje nieobjęte pola i używa poprzedniej
   decyzji oraz producer revision response zgodnie z kontraktem reviewera.
 
 #### E. Ekstrakcja po Human Source Selection Gate
@@ -922,29 +922,29 @@ DEV potwierdzają wyłącznie składnię i spójność statyczną, więc nie zaz
 Ta sekcja sprawdza egzekwowanie już zapisanego `human_source_selection@1`. Rzeczywiste pokazanie
 dokumentu użytkownikowi, parser odpowiedzi i osobne finalne potwierdzenie są testowane w TEST 7F.
 
-- [ ] Brak zapisanego `human_source_selection@1`, status inny niż `approved`, brak finalnego
+- [x] Brak zapisanego `human_source_selection@1`, status inny niż `approved`, brak finalnego
   potwierdzenia albo source ID poza `approved_for_download` blokuje request przed Tavily.
 - [ ] Selection i market candidates muszą mieć ten sam task; candidate index ref musi być czytelny,
   source ID ma rozwiązać się dokładnie raz w indeksie i puli, a URL pochodzi wyłącznie z zapisanego
   rekordu i musi być credential-free HTTPS.
 - [ ] Duplikat decyzji source ID, source wykluczony albo nie-market-case są odrzucane.
-- [ ] Tavily extraction zwraca dokładnie zatwierdzony URL, ogranicza rozmiar, zapisuje hash, raw ref,
+- [x] Tavily extraction zwraca dokładnie zatwierdzony URL, ogranicza rozmiar, zapisuje hash, raw ref,
   request ID, truncation i `content_boundary: untrusted_external_research`.
-- [ ] Pełna treść nie występuje inline w `web_case_extract_result@1`; prompt-injection flags i zakaz
+- [x] Pełna treść nie występuje inline w `web_case_extract_result@1`; prompt-injection flags i zakaz
   forwardowania tekstu downstream są zachowane.
 - [ ] G02-A07 otrzymuje wyłącznie zatwierdzony descriptor i tworzy kompaktową evidence card z
   odrębnym faktem oraz interpretacją. Odrzucone case'y nie są ekstrahowane.
 
 #### F. Live API i bezpieczeństwo sekretów
 
-- [ ] Opt-in live Tavily search zwraca realne, datowane i identyfikowalne case'y z allowlisted
-  domen, poprawnym provenance i bez raw page extraction podczas discovery.
-- [ ] Opt-in live Tavily extraction działa tylko po finalnej bramce i zachowuje dokładny URL oraz
+- [x] Opt-in live Tavily search zwraca realne, datowane i identyfikowalne case'y z allowlisted
+  domen, poprawnym provenance i bez raw page extraction podczas discovery.  — Runda 8 PASS: 6 case'ów (risk.net itd.), `source_record@1` ważny, `abstract_source: search_snippet`, `raw_page_ref: None`, cache hit na powtórzeniu.
+- [ ] Opt-in live Tavily extraction działa tylko po finalnej bramce i zachowuje dokładny URL oraz  — Runda 8: nie wykonano live (wymaga pełnego łańcucha A11→A05→human gate); egzekwowanie bramki + bounded untrusted zielone offline.
   bounded untrusted artifact. Koszt i liczba wywołań mieszczą się w konfiguracji.
-- [ ] Opt-in live skonfigurowanego SearXNG używa JSON API tej jednej instancji; brak instancji daje
+- [ ] Opt-in live skonfigurowanego SearXNG używa JSON API tej jednej instancji; brak instancji daje  — Runda 8: nie wykonano (brak skonfigurowanej instancji SearXNG).
   jawny status i nie uruchamia wyszukiwania publicznego.
-- [ ] Skan repo, logów, cache, raw responses, MCP output i artefaktów nie znajduje wartości
-  `TAVILY_API_KEY`, prywatnego e-maila ani innych sekretów.
+- [x] Skan repo, logów, cache, raw responses, MCP output i artefaktów nie znajduje wartości
+  `TAVILY_API_KEY`, prywatnego e-maila ani innych sekretów.  — Runda 8: skan `EMAGENTS_HOME` 0 wycieków klucza i e-maila.
 - [ ] Network failure, rate limit i częściowa dostępność providerów zachowują audytowalny wynik i
   nie uruchamiają WebSearch, WebFetch, shell HTTP ani przeglądarki zastępczej.
 
@@ -963,18 +963,18 @@ dokumentu użytkownikowi, parser odpowiedzi i osobne finalne potwierdzenie są t
 
 #### H. Packaging i integracja A02–A05
 
-- [ ] Inventory zawiera 11 agentów i 20 skilli; oba bundle zawierają agenta A11 zgodnie z polityką
-  hosta, dwa skille z właściwymi adapterami, cztery nowe kontrakty i oba moduły runtime.
-- [ ] MCP raportuje bieżącą wersję `0.8.0` i dokładnie 30 operacji, w tym pięć A11 i trzy A05;
+- [x] Inventory zawiera 11 agentów i 20 skilli; oba bundle zawierają agenta A11 zgodnie z polityką
+  hosta, dwa skille z właściwymi adapterami, cztery nowe kontrakty i oba moduły runtime.  — Runda 8: dry-run `Validated 20 skills and 11 agents`, build obu bundli OK.
+- [ ] MCP raportuje bieżącą wersję `0.9.0` i dokładnie 39 operacji, w tym pięć A11, trzy A05 i dziewięć operacji bramki/A06; MCP **PASS** w Rundzie 8. `graph_check` pozostał **FAIL** na source/Claude/Codex przez brak `retrieval_directory@1`; DEV 2026-06-23 dodał kontrakt i typed descriptor, wymagany rerun TEST.
   source, Claude i Codex przechodzą `graph_check`.
-- [ ] Bundle nie zawierają mocków, testów, `.emagents`, cache, raw responses, runtime config,
-  `__pycache__`, `.pyc` ani sekretów. Build i dry-run instalacji nie mutują źródeł.
+- [x] Bundle nie zawierają mocków, testów, `.emagents`, cache, raw responses, runtime config,
+  `__pycache__`, `.pyc` ani sekretów. Build i dry-run instalacji nie mutują źródeł.  — Runda 8: higiena bundla czysta, dry-run bez mutacji.
 - [ ] Graf wiąże A11 z `market_case_research_input@1`, `candidate_sources@1`, profilem
   `market_cases` oraz pozycją po A04 i przed A05; scheduler może pozostać sekwencyjny.
 - [ ] Reviewed A02, A03, A04 i A11 trafiają do A05 bez cross-stream deduplikacji przed A05; pełny
   przepływ i SEARCH_MORE zostaną sprawdzone po implementacji A05. — `⏳ KOŃCOWY`
-- [ ] Wyniki TEST 6 należy dopisać jako nową rundę na górze `08_Log_wynikow_TEST.md`, bez zmiany
-  historycznej Rundy 7; zaznaczyć tylko scenariusze faktycznie wykonane i zaliczone.
+- [x] Wyniki TEST 6 należy dopisać jako nową rundę na górze `08_Log_wynikow_TEST.md`, bez zmiany
+  historycznej Rundy 7; zaznaczyć tylko scenariusze faktycznie wykonane i zaliczone.  — Runda 8 dopisana.
 
 #### I. Konkretny protokół wykonania TEST 6
 
@@ -1030,12 +1030,12 @@ nie potwierdzają zachowania agenta, parsera bramki ani interakcji z użytkownik
 
 #### A. Kontrakty i reviewed-only scoped input
 
-- [ ] `candidate_index_input@1` i `candidate_source_index@1` przechodzą pozytywne oraz negatywne
+- [x] `candidate_index_input@1` i `candidate_source_index@1` przechodzą pozytywne oraz negatywne
   fixtures, a `candidate_source_index@1` zachowuje kompatybilną listę `sources` wymaganą przez A11.
-- [ ] `research_candidate_index_prepare` przyjmuje dokładny ResearchPlan oraz pary artifact/ref
+- [x] `research_candidate_index_prepare` przyjmuje dokładny ResearchPlan oraz pary artifact/ref
   review dla A02, A03, A04 i A11. Każda decyzja ma `APPROVED`, pustą listę findings i zgodne task,
   producer, profile, artifact ref oraz artifact version.
-- [ ] `REVISE`, `BLOCKED`, findings przy `APPROVED`, zły producer/profile, inny task, plan, topic,
+- [x] `REVISE`, `BLOCKED`, findings przy `APPROVED`, zły producer/profile, inny task, plan, topic,
   ref lub version są odrzucane przed zbudowaniem indeksu.
 - [ ] Brak oczekiwanego reviewed streamu daje jawny `missing_reviewed_stream` i pozwala utworzyć
   `degraded` indeks, o ile pozostałe dane są użyteczne. Duplikat stream/topic jest odrzucany.
@@ -1047,7 +1047,7 @@ nie potwierdzają zachowania agenta, parsera bramki ani interakcji z użytkownik
 
 #### B. Normalizacja, deduplikacja, provenance i resume
 
-- [ ] Identyczny DOI scala rekordy A02/A03/A04; testy osobno obejmują arXiv ID, ISBN, Semantic
+- [x] Identyczny DOI scala rekordy A02/A03/A04; testy osobno obejmują arXiv ID, ISBN, Semantic
   Scholar ID, OpenAlex ID oraz konserwatywny fallback title-year-first-author bez stabilnego ID.
 - [ ] Różne wydania, tłumaczenia, rozdziały i preprint/version of record pozostają rozłączne, jeżeli
   nie ma jednoznacznej reguły równoważności. Konflikt trafia do `ambiguous_duplicate_groups`.
@@ -1079,11 +1079,11 @@ nie potwierdzają zachowania agenta, parsera bramki ani interakcji z użytkownik
 
 #### D. Opisy treści i `candidate_source_review.md`
 
-- [ ] Artykuł z abstraktem otrzymuje krótki `content_summary`, `description_basis: abstract` i
+- [x] Artykuł z abstraktem otrzymuje krótki `content_summary`, `description_basis: abstract` i
   bounded `basis_excerpt`, który jest rzeczywistym fragmentem dostępnego abstraktu.
 - [ ] Publikacja bez abstraktu otrzymuje `description_basis: metadata` i jawny komunikat, że opis
   nie streszcza zawartości publikacji. Tytuł, venue i rok nie są rozwijane w zmyślone findings.
-- [ ] Market case otrzymuje `description_basis: market_case_annotation`; opis łączy reviewed
+- [x] Market case otrzymuje `description_basis: market_case_annotation`; opis łączy reviewed
   `market_fact.statement` i `didactic_interpretation.mechanism`, zachowując ich rozdzielenie w A11.
 - [ ] Karta market case pokazuje tier i regime limitation oraz informuje, że pełna strona nie została
   jeszcze wyodrębniona. Tekst strony, raw response i instrukcje z treści zewnętrznej nie trafiają do
@@ -1098,11 +1098,11 @@ nie potwierdzają zachowania agenta, parsera bramki ani interakcji z użytkownik
 
 #### E. Finalizacja, status i review G02-A10
 
-- [ ] `research_candidate_index_finalize` zapisuje wersjonowany JSON i Markdown z działającymi
+- [x] `research_candidate_index_finalize` zapisuje wersjonowany JSON i Markdown z działającymi
   cross-references. Brak możliwości zapisania lub odczytania któregokolwiek artefaktu daje failure.
 - [ ] Pełne mandatory coverage bez upstream issues daje `ok`; mandatory gap albo brak oczekiwanego
   streamu daje `degraded`, metrics i resume token. Błędny indeks nie daje pozornego sukcesu.
-- [ ] `research_candidate_index_review_task` tworzy jeden review task profilu `candidate_index`,
+- [x] `research_candidate_index_review_task` tworzy jeden review task profilu `candidate_index`,
   producenta A05 i dokładnie jednego indeksu, którego document ref jest czytelny i kompletny.
 - [ ] Kryteria CI-01–CI-08, CI-E01–CI-E03, prohibited behaviors i severity rules są identyczne w
   agencie, runtime, skillu reviewera i dokumentacji.
@@ -1128,16 +1128,18 @@ nie potwierdzają zachowania agenta, parsera bramki ani interakcji z użytkownik
 - [ ] Status `cancelled` kończy ścieżkę bez pobierania. LIBRARY, CITATION, RESERVE i EXCLUDE nie są
   przekazywane jako zgoda na automatyczny download.
 - [ ] Zatwierdzony market case może uruchomić gated A11 extraction, a zwykła publikacja przechodzi do
-  A06. Odrzucony source ID nie uruchamia żadnej operacji sieciowej.
+  A06. Po ekstrakcji A06 ma utworzyć czytelny Markdown zgodny z faktem i mechanizmem pokazanym
+  wcześniej na karcie A05 oraz oddzielny JSON audytowy. Odrzucony source ID nie uruchamia żadnej
+  operacji sieciowej ani nie tworzy żadnego z tych plików.
 
 #### G. MCP, packaging i forward hosts
 
-- [ ] MCP raportuje `0.8.0` i 30 operacji, w tym prepare, finalize i review task A05. Publiczne schema
+- [ ] MCP raportuje `0.9.0` i 39 operacji, w tym prepare, finalize i review task A05 oraz operacje A06. Publiczne schema  — MCP/parity **PASS** w Rundzie 8; `graph_check` **FAIL** przez brak kontraktu katalogu. DEV 2026-06-23 dodał `retrieval_directory@1`; wymagany rerun TEST.
   nie przyjmują filesystem base, sekretu ani konfiguracji providera od modelu.
 - [ ] Graf wiąże A05 z `candidate_index_input@1`, `candidate_source_index@1`, profilem
   `candidate_index`, dokumentem Markdown i user-source-selection-gate przed A06.
-- [ ] Oba bundle zawierają runtime A05, dwa kontrakty, agenta, sześć wymaganych skilli i poprawne
-  adaptery, bez mocków, tests, runtime artifacts, cache, `__pycache__`, `.pyc` i sekretów.
+- [x] Oba bundle zawierają runtime A05, dwa kontrakty, agenta, sześć wymaganych skilli i poprawne
+  adaptery, bez mocków, tests, runtime artifacts, cache, `__pycache__`, `.pyc` i sekretów.  — Runda 8: higiena bundla czysta.
 - [ ] Claude i Codex na tym samym scoped input tworzą zgodne source IDs, basis, coverage, action
   recommendations i strukturę dokumentu. Żaden host nie pobiera treści ani nie podejmuje decyzji.
 - [ ] Missing MCP operation, nieczytelny artifact ref lub brak host executora daje jawny status
@@ -1206,9 +1208,11 @@ spisane niżej jako batch TEST. W DEV nie uruchamiano `pytest`, venv, live API a
   case niesie `market_candidate_sources_ref` do reviewed artefaktu A11.
 - [x] Wykonawcza bramka orkiestratora (`g02_flow`, `source_selection`): pokazuje dokument, przyjmuje
   template lub zwykły język, prezentuje sparsowane podsumowanie i dopiero potem zapisuje zatwierdzenie.
-- [x] `retrieved_corpus@1` (x-version 1.1) z task, approved set ref, validated documents, market
+- [x] `retrieved_corpus@1` (x-version 1.2) z task, approved set ref, validated documents, market
   cases, unavailable, failed, skipped library/citation/reserve/excluded, attempt log, checksums,
   wersje, licencje, run directory ref, policy i retrieval summary.
+- [x] `retrieval_directory@1` opisuje jeden katalog wyniku, jego manifest, katalog PDF, katalog
+  market case oraz liczby zapisanych plików; envelope zwraca `artifact://` typed descriptor.
 - [x] Zamrożony scoped input `retrieval_input@1` oraz kontrakty pośrednie `open_access_resolution@1`,
   `retrieved_file_candidate@1`, `validated_document@1` i `web_case_extract_result@1`.
 - [x] Deterministyczne OA resolvers (record/arXiv, Unpaywall po DOI, opcjonalny CORE po DOI,
@@ -1220,39 +1224,74 @@ spisane niżej jako batch TEST. W DEV nie uruchamiano `pytest`, venv, live API a
   `research_retrieval_prepare`, `research_oa_resolve`, `research_document_retrieve`,
   `research_document_validate`, `research_retrieval_finalize`, `research_retrieval_review_task`)
   oraz `research_web_case_extract`; publiczne schema nie przyjmują config path ani sekretów od modelu.
-- [x] Profil review `retrieved_corpus` i kryteria RT-01–RT-08 (RT-08 dotyczy gated market-case
-  files z `content_boundary: untrusted_external_research`).
+- [x] Profil review `retrieved_corpus` i kryteria RT-01–RT-08. RT-08 wymaga gated market-case
+  bundle z dokładnie jedną adnotacją A11, czytelnym Markdown, osobnym JSON, checksumami,
+  provenance i `content_boundary: untrusted_external_research`.
 - [x] Mocki: `retrieval_provider_config.json`, `sample_article.pdf`, `html_login_instead_of_pdf.html`,
   `market_case_source_record.json` oraz odpowiedzi `unpaywall`, `core_works`, `doab_search`,
   `oapen_search` i komplet book search/metadata/bitstreams dla DOAB/OAPEN.
 - [x] Testy offline `tests/test_g02_retrieval.py` (przeznaczone do uruchomienia w środowisku TEST).
+- [x] Każdy zatwierdzony market case jest pakietem dwóch plików: czytelnego
+  `<source_id>.market-case.md` oraz audytowego `<source_id>.market-case.json`. Markdown korzysta z
+  dokładnie jednej reviewed adnotacji A11 i zawiera fakt rynkowy, mechanizm dydaktyczny, ocenę
+  źródła/materialności, kontekst reżimu, powiązania, treść pobraną po bramce i ostrzeżenie o
+  niezaufanym materiale. Manifest ma osobne refs i SHA-256 obu plików.
 - [x] Node A06 w grafie ma `input_contract: retrieval_input@1`, `review_profile: retrieved_corpus`
   i `produces`; manifest wymienia agenta i trzy skille; sekcja `retrieval` w przykładowej konfiguracji
   providerów; dokumentacja 02/03/04 opisuje A06.
 
 #### Batch TEST A06 do osobnego środowiska
 
-- [ ] Pełny offline `pytest`, w tym `tests/test_g02_retrieval.py`; brak regresji w A01–A05, A10, A11.  — `⏳ KOŃCOWY`
-- [ ] Walidacja zmienionych JSON Schema A06 i przykładowej konfiguracji providerów z sekcją `retrieval`.  — `⏳ KOŃCOWY`
-- [ ] `prepare` odrzuca brak finalnego potwierdzenia, niezgodny task/candidate index, przekroczony limit  — `⏳ KOŃCOWY`
+- [ ] Pełny offline `pytest`, w tym `tests/test_g02_retrieval.py`; brak regresji w A01–A05, A10, A11.  — Runda 8: `test_g02_retrieval` **6/6 PASS**, ale pełny pytest **93/95** (FAIL: A11 redirect = finding 1; `graph_check` = finding 2). DEV 2026-06-23 naprawił oba miejsca i rozszerzył test katalogu; wymagany pełny rerun.
+- [x] Walidacja zmienionych JSON Schema A06 i przykładowej konfiguracji providerów z sekcją `retrieval`.  — Runda 8: kontrakty A06 walidują się w testach offline.
+- [ ] `prepare` odrzuca brak finalnego potwierdzenia, niezgodny task/candidate index, przekroczony limit  — Runda 8 potwierdziła osobne finalne potwierdzenie. DEV 2026-06-23 dodał jawne liczniki PDF/market case i `test_prepare_enforces_human_download_count_and_admin_cap`; pełny zakres wymaga rerun.
   dokumentów oraz wyłączony profil retrieval; produkuje minimalny `retrieval_input@1` bez sekretów.
-- [ ] Resolvery: record/arXiv, Unpaywall po DOI, CORE po DOI (z `CORE_API_KEY`), DOAB jako katalog  — `⏳ KOŃCOWY`
+- [x] Resolvery: record/arXiv, Unpaywall po DOI, CORE po DOI (z `CORE_API_KEY`), DOAB jako katalog  — Runda 8: `test_resolvers_include_*` + `test_doab_is_catalog_and_oapen_*` PASS (offline).
   bez file URL, OAPEN dostarcza ORIGINAL PDF bitstream; identity basis po DOI/ISBN/title.
 - [ ] Downloader: kontrola HTTPS i portu 443, odrzucenie prywatnego/loopback DNS, limit redirectów,  — `⏳ KOŃCOWY`
   timeout, retry na 408/429/5xx, limit bajtów; plik tymczasowy nigdy nie jest zaakceptowanym dokumentem.
-- [ ] Walidacja: poprawny `%PDF` accepted, HTML login page i zły content-type rejected, identity  — `⏳ KOŃCOWY`
+- [x] Walidacja: poprawny `%PDF` accepted, HTML login page i zły content-type rejected, identity  — Runda 8: `test_html_login_page_is_rejected` + `test_mixed_retrieval_*` (PDF accepted, checksum) PASS.
   mismatch rejected, duplikat po checksumie oznaczony jako `duplicate` bez drugiej kopii bajtów.
-- [ ] `finalize` tworzy jeden folder runtime z `documents/<id>.pdf`, `market-cases/<id>.market-case.json`  — `⏳ KOŃCOWY`
+- [x] `finalize` tworzy jeden folder runtime z `documents/<id>.pdf`, `market-cases/<id>.market-case.json`  — Runda 8: `test_mixed_retrieval_creates_one_folder_with_pdf_and_market_case` PASS.
   i `retrieved_corpus.json`; każde zatwierdzone źródło występuje dokładnie raz w wyniku.
-- [ ] Gated A11 extraction tylko dla zatwierdzonego market source ID; plik zachowuje  — `⏳ KOŃCOWY`
+- [ ] Nowy pakiet market case: ten sam test ma utworzyć także
+  `market-cases/<id>.market-case.md`, a `retrieved_corpus@1` ma zawierać `human_document_ref`,
+  `human_document_sha256`, `machine_artifact_ref` i `machine_artifact_sha256`. Obie sumy muszą
+  zgadzać się z plikami. To rozszerzenie powstało w DEV 2026-06-23 i wymaga nowego TEST.
+- [ ] Czytelność dokumentu market case: otworzyć ścieżkę wypisaną jako
+  `A06_MARKET_CASE_RUN_DIRECTORY`, odczytać Markdown bez narzędzi programistycznych i potwierdzić,
+  że widoczne są tytuł, URL, zweryfikowany fakt A11, znaczenie dydaktyczne, tier, materiality,
+  regime context, topic/claim oraz wyraźna granica niezaufanej treści strony.
+- [ ] Spójność A11→A06: usunięcie lub podmiana reviewed `market_case_annotations` ma uniemożliwić
+  utworzenie Markdown, umieścić source ID w `failed` i pozostawić `market_cases` puste. Test:
+  `test_market_case_document_requires_exact_reviewed_a11_annotation`.
+- [x] Gated A11 extraction tylko dla zatwierdzonego market source ID; plik zachowuje  — Runda 8: pokryte przez `test_mixed_retrieval_*` (market case w osobnym folderze) offline.
   `content_boundary: untrusted_external_research`, flagi prompt injection i ref do reviewed A11.
 - [ ] LIBRARY, CITATION, RESERVE i EXCLUDE nie uruchamiają żadnej operacji sieciowej.  — `⏳ KOŃCOWY`
-- [ ] MCP inventory zawiera 9 operacji A06 bez publicznego parametru `config`; review task ma RT-01–RT-08.  — `⏳ KOŃCOWY`
-- [ ] Live OA smoke (opt-in): Unpaywall z kontaktem ze środowiska, CORE z kluczem, DOAB/OAPEN; brak  — `⏳ KOŃCOWY`
+- [x] MCP inventory zawiera 9 operacji A06 bez publicznego parametru `config`; review task ma RT-01–RT-08.  — Runda 8: `test_a06_mcp_inventory_has_no_public_config_parameter` PASS (MCP `0.9.0`/39 łącznie).
+- [ ] Live OA smoke (opt-in): Unpaywall z kontaktem ze środowiska, CORE z kluczem, DOAB/OAPEN; brak  — Runda 8: Unpaywall **PASS** (PLOS OA→2 cc-by; zamknięty→0); CORE poprawnie `unavailable` (brak klucza); OAPEN odpowiada; DOAB zwrócił HTTP 403. DEV 2026-06-23 ustalił, że DSpace 6 `/rest/` nadal działa, a 403 powodował domyślny `Python-urllib/3.14`; dodano stały `User-Agent: EduMaterialsAgents/0.9`. Wymagany rerun DOAB i osobny test CORE z kluczem.
   dostępu daje kontrolowany `unavailable`/`library_required`, nie udawany sukces.
+- [ ] Live rzeczywisty PDF (opt-in): `EMAGENTS_RUN_LIVE_A06=1` uruchamia Unpaywall dla stałego
+  otwartego DOI PLOS, produkcyjny downloader, walidację i finalizację. Test ma potwierdzić bajty
+  `%PDF-`, SHA-256 oraz wydrukować `A06_LIVE_RUN_DIRECTORY` z PDF i `retrieved_corpus.json`.
 - [ ] Integracja end-to-end: A02/A03/A04/A11 discovery → reviewed A05 → bramka użytkownika → A06.  — `⏳ KOŃCOWY`
   Przed final confirmation zero requestów download i zero plików w corpus.
 - [ ] Resume: poprawny checksum nie jest pobierany ponownie, retry obejmuje tylko unresolved IDs,  — `⏳ KOŃCOWY`
   wynik to pełny nowy `RetrievedCorpus` z zachowaną historią prób.
-- [ ] Forward A06 na Claude i Codex, build obu bundle, `graph_check`, skan sekretów, brak runtime  — `⏳ KOŃCOWY`
+- [ ] Forward A06 na Claude i Codex, build obu bundle, `graph_check`, skan sekretów, brak runtime  — Runda 8: build obu bundli + skan sekretów + higiena **OK**; `graph_check` **FAIL** (finding 2, blocker). DEV 2026-06-23 dodał brakujący kontrakt i test packagingu; graph/forward wymagają rerun. Forward Claude/Codex `⏳ KOŃCOWY`.
   artifacts; wyniki zapisać jako nową rundę na górze `docs/08_Log_wynikow_TEST.md`.
+
+#### Konkretny rerun TEST A06 po rozszerzeniu dokumentu market case
+
+1. Uruchomić `python -m pytest -q tests/test_g02_retrieval.py`; oczekiwane jest 8 PASS i 1 SKIPPED
+   dla domyślnie wyłączonego live smoke.
+2. Uruchomić test pakietu z widocznym outputem:
+   `python -m pytest -q -s tests/test_g02_retrieval.py -k mixed_retrieval`.
+3. Otworzyć katalog z `A06_MARKET_CASE_RUN_DIRECTORY` i ręcznie sprawdzić PDF, Markdown, JSON oraz
+   `retrieved_corpus.json` według punktów powyżej.
+4. Uruchomić pełny `python -m pytest -q`, następnie projektowe `graph_check.check_all` dla źródła i
+   obu zbudowanych bundli. Historyczne 93/95 z Rundy 8 nie jest wynikiem tego rerunu.
+5. Live rzeczywisty PDF uruchomić osobno według `tests/README.md`. Live gated Tavily extraction
+   wykonać dopiero w pełnym łańcuchu A11→A05→final confirmation→A06.
+6. Wynik dopisać jako nową rundę na górze `docs/08_Log_wynikow_TEST.md`; checkboxy powyżej
+   zaznaczyć wyłącznie na podstawie faktycznie wykonanych asercji i inspekcji dokumentu.

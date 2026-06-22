@@ -13,7 +13,7 @@ SCRIPTS = ROOT / "shared" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from core import artifacts, contracts  # noqa: E402
-from g02 import canonical, citations, providers  # noqa: E402
+from g02 import canonical, citations, provider_config, providers  # noqa: E402
 
 MOCKS = ROOT / "mocks" / "g02"
 TOPIC_ID = "TOPIC_BAYESIAN_COMPUTATION"
@@ -84,6 +84,28 @@ def _operation_entry(result: dict) -> dict:
             "relation": request["relation"],
         })
     return entry
+
+
+def test_disabled_provider_returns_unavailable_without_request(tmp_path):
+    prepared = _prepared()
+    query_plan = _json(MOCKS / "query_plan.json")
+    config_payload = _json(ROOT / "shared" / "config" / "g02.providers.example.json")
+    config_payload["providers"]["openalex"]["enabled"] = False
+    config_path = tmp_path / "openalex-disabled.json"
+    config_path.write_text(json.dumps(config_payload), encoding="utf-8")
+    config = provider_config.load_config(config_path)
+    scoped = copy.deepcopy(prepared["canonical_input"])
+    scoped["provider_capabilities"] = config.public_status()["capabilities"]
+
+    def no_request(*args, **kwargs):
+        raise AssertionError("disabled provider must not execute a request")
+
+    result = providers.search_metadata(
+        query_plan, scoped, route_id=query_plan["routes"][0]["route_id"],
+        provider="openalex", config_path=config_path, transport=no_request,
+    )
+    assert result["status"] == "unavailable"
+    assert result["issues"][0]["code"] == "provider_disabled"
 
 
 def _build_output(prepared: dict) -> tuple[dict, list[dict]]:

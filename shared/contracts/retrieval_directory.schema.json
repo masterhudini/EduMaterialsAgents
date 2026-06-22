@@ -1,0 +1,23 @@
+{
+  "title": "Stable A06 run-directory descriptor",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "run_directory_ref",
+    "retrieved_corpus_ref", "manifest_ref", "documents_directory_ref",
+    "market_cases_directory_ref", "document_count", "market_case_count"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["retrieval_directory@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "run_directory_ref": {"type": "string"},
+    "retrieved_corpus_ref": {"type": "string"},
+    "manifest_ref": {"type": "string"},
+    "documents_directory_ref": {"type": "string"},
+    "market_cases_directory_ref": {"type": "string"},
+    "document_count": {"type": "integer"},
+    "market_case_count": {"type": "integer"}
+  }
+}

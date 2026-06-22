@@ -38,7 +38,7 @@ flowchart TD
     PR --> RV6["G02-A10 Output Reviewer\nprofile: retrieved_corpus"]
     RV6 -->|REVISE| PR
     RV6 -->|APPROVED| PRA["G02-A07 Paper Review Agents\none per document"]
-    WEX --> PRA
+    WEX --> PR
 
     PRA --> RV7["G02-A10 Output Reviewer\nprofile: paper_evidence"]
     RV7 -->|REVISE| PRA
@@ -413,7 +413,13 @@ akcję, pozostawiając decyzję człowiekowi.
 - nie analizuje treści,
 - nie automatyzuje dostępu instytucjonalnego.
 
-**Wyjście:** `RetrievedCorpus`.
+**Wyjście:** `RetrievedCorpus` oraz typed `retrieval_directory@1`. Deskryptor katalogu wskazuje
+manifest, katalog zwalidowanych PDF i katalog zatwierdzonych market-case bundles przez `corpus://`.
+Każdy bundle zawiera przyjazny dla człowieka Markdown renderowany z reviewed adnotacji A11 i
+ograniczonej ekstrakcji po bramce oraz osobny JSON przeznaczony do audytu maszynowego. Manifest
+przechowuje oddzielne refs i SHA-256 obu plików.
+A06 próbuje dokładnie source IDs oznaczone przez człowieka jako `DOWNLOAD`; przekroczenie
+administracyjnego `max_documents_per_task` zatrzymuje przygotowanie przed requestem.
 
 ### 5.7. G02-A07 Paper Review Agent
 
@@ -543,7 +549,7 @@ profilem etapu.
 | `recent_developments` | Recency i maturity są jawne, hype jest oddzielony od dojrzałej aktualizacji. |
 | `market_cases` | Instytucja lub zdarzenie, data, tier źródła, mapowanie do claimu/topic, rozdzielenie faktu od interpretacji i jawne ograniczenia reżimu. |
 | `candidate_index` | Deduplikacja, role, ranking, pokrycie, opisy oparte na abstraktach, dokument dla człowieka. |
-| `retrieved_corpus` | Tylko zatwierdzone źródła, stabilne ID, integralne pliki, jawne błędy i unavailable. |
+| `retrieved_corpus` | Tylko zatwierdzone źródła, stabilne ID, integralne PDF oraz market-case Markdown + JSON, jawne błędy i unavailable. |
 | `paper_evidence` | Evidence location, metoda, findings, ograniczenia, relacja z claimem i access level. |
 | `claim_assessment` | Wszystkie wymiary oceny, dowody przeciwne, confidence i coverage. |
 | `research_synthesis` | Każda rekomendacja ma evidence refs, unresolved są jawne, handoff jest kompaktowy. |
@@ -632,7 +638,9 @@ EXCLUDE: SRC_..., reason: ...
 SEARCH_MORE: CLM_... or TOPIC_..., need: ...
 ```
 
-Orkiestrator parsuje odpowiedź, pokazuje podsumowanie i prosi o finalne potwierdzenie.
+Orkiestrator parsuje odpowiedź, pokazuje dokładną liczbę `DOWNLOAD` oraz osobno liczbę PDF
+scholarly i plików market case, po czym prosi o finalne potwierdzenie. Człowiek podejmuje decyzję.
+A05 wyłącznie rekomenduje, a A06 nie może zwiększyć ani zmienić zatwierdzonego zbioru.
 
 ### 10.3. Powrót do wyszukiwania
 

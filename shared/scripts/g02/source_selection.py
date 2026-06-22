@@ -267,6 +267,14 @@ def validate_source_selection(candidate_source_index_ref: str, *, selection: dic
         candidate_source_index_ref, selection, base=base
     )
     normalized["final_confirmation"] = False
+    by_id = {item["source_id"]: item for item in index["sources"]}
+    download_ids = normalized["approved_for_download"]
+    scholarly_download_count = sum(
+        by_id[source_id]["record_type"] == "scholarly" for source_id in download_ids
+    )
+    market_case_download_count = sum(
+        by_id[source_id]["record_type"] == "market_case" for source_id in download_ids
+    )
     return {
         "ready_for_confirmation": normalized["status"] in {"approved", "cancelled", "needs_more_search"},
         "selection_draft": normalized,
@@ -274,6 +282,9 @@ def validate_source_selection(candidate_source_index_ref: str, *, selection: dic
         "summary": {
             "status": normalized["status"],
             "download": deepcopy(normalized["approved_for_download"]),
+            "download_count": len(download_ids),
+            "scholarly_download_count": scholarly_download_count,
+            "market_case_download_count": market_case_download_count,
             "library": deepcopy(normalized["request_library_access"]),
             "citation": deepcopy(normalized["keep_citation_only"]),
             "reserve": deepcopy(normalized["keep_in_reserve"]),

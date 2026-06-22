@@ -1046,8 +1046,9 @@ TOOLS = [
     {
         "name": "research_retrieval_finalize",
         "description": "Re-prepare exact authorization, partition validated scholarly files and "
-                       "gated A11 market-case extraction results, copy both into one run folder and "
-                       "persist retrieved_corpus@1 with failures and skipped actions.",
+                       "gated A11 market-case extraction results, render each accepted market case "
+                       "as readable Markdown plus a separate JSON audit artifact, and persist both "
+                       "with validated PDFs in retrieved_corpus@1.",
         "inputSchema": {
             "type": "object",
             "properties": {

@@ -113,6 +113,7 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
             "shared/contracts/retrieved_file_candidate.schema.json",
             "shared/contracts/validated_document.schema.json",
             "shared/contracts/retrieved_corpus.schema.json",
+            "shared/contracts/retrieval_directory.schema.json",
             "shared/contracts/candidate_sources.schema.json",
             "shared/scripts/g02/canonical.py",
             "shared/scripts/g02/citations.py",

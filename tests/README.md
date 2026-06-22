@@ -9,6 +9,12 @@ smoke tests belong to the separate TEST environment and follow the authoritative
 materiality, review, safety and gated-extraction scenarios. It is authored for the separate TEST
 environment; the A11 DEV session runs only the short static checks allowed by the checklist.
 
+`test_g02_retrieval.py` verifies the two-step human gate, OA resolution and PDF validation, then
+checks the complete market-case bundle. The expected run directory contains the PDF, a readable
+`.market-case.md`, a separate `.market-case.json` and `retrieved_corpus.json`; the test checks A11
+fact/mechanism content, safety warning, refs, SHA-256 values and rejection of a missing A11 annotation.
+The default A06 module run should report eight passed tests and one skipped opt-in live test.
+
 ## Run
 
 ```bash
@@ -22,6 +28,34 @@ Windows:
 .\scripts\dev-setup.ps1
 .\.venv\Scripts\python.exe -m pytest
 ```
+
+## Opt-in real PDF smoke for G02-A06
+
+The A06 live smoke is skipped by default. It uses a fixed open-access PLOS DOI, resolves the PDF
+through Unpaywall, downloads the real bytes with the production transport, validates the file and
+stores the PDF plus `retrieved_corpus.json` in one run directory. Use a real contact email and an
+isolated runtime home. The test prints `A06_LIVE_RUN_DIRECTORY=...` when run with output capture off.
+
+Linux or WSL:
+
+```bash
+export EMAGENTS_RUN_LIVE_A06=1
+export EMAGENTS_RESEARCH_CONTACT_EMAIL='your-contact@example.edu'
+export EMAGENTS_LIVE_A06_HOME=/tmp/emagents-a06-live
+.venv/bin/python -m pytest -q -s tests/test_g02_retrieval.py -k live_unpaywall
+```
+
+Windows PowerShell:
+
+```powershell
+$env:EMAGENTS_RUN_LIVE_A06 = '1'
+$env:EMAGENTS_RESEARCH_CONTACT_EMAIL = 'your-contact@example.edu'
+$env:EMAGENTS_LIVE_A06_HOME = Join-Path $env:TEMP 'emagents-a06-live'
+.\.venv\Scripts\python.exe -m pytest -q -s tests/test_g02_retrieval.py -k live_unpaywall
+```
+
+`EMAGENTS_LIVE_A06_HOME` is optional. Setting it makes the resulting run folder easy to inspect
+after pytest exits. No API key is required for this Unpaywall-only smoke.
 
 `tests/` is excluded from generated plugin bundles by `scripts/build-plugin.py`.
 

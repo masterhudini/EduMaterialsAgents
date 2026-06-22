@@ -46,6 +46,11 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   extraction. A05 remains responsible for producing and confirming this artifact.
 - `web_case_extract_result.schema.json` returns only a bounded untrusted-content descriptor, hash,
   provenance and safety flags after the gate; full page text is not returned inline.
+- `retrieved_corpus.schema.json` version 1.2 represents each accepted market case as a bundle with
+  a human-readable Markdown ref and checksum plus a separate machine JSON ref and checksum. The
+  document is rendered from reviewed A11 semantics and the gated untrusted extraction.
+- `retrieval_directory.schema.json` describes the stable A06 run folder, its manifest, scholarly
+  document directory and gated market-case directory without embedding local filesystem paths.
 - `review_task.schema.json` — one universal reviewer invocation (`review_task@1`) with one
   artifact, an explicit profile and observable review criteria.
 - `review_decision.schema.json` — auditable universal reviewer result (`review_decision@1`).

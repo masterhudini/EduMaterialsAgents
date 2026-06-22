@@ -92,3 +92,13 @@ streams into a constrained `corpus://` temporary ref. A file is promoted only af
 content-type, `%PDF-` signature and resolver-backed identity checks. Market cases are not downloaded
 by this path. They use gated `research_web_case_extract` and are copied to the same A06 run folder as
 JSON with `content_boundary: untrusted_external_research`.
+
+All metadata providers receive the fixed non-secret `User-Agent: EduMaterialsAgents/0.9`. DOAB
+currently rejects Python's default `Python-urllib` identifier with HTTP 403 while its official
+DSpace 6 REST endpoint remains available to identified clients. The fixed identifier is therefore
+part of the deterministic transport policy, not a model-controlled header.
+
+The human fixes the retrieval count at the Human Source Selection Gate by assigning `DOWNLOAD` to
+exact source IDs and separately confirming the parsed summary. A06 attempts exactly those IDs and
+rejects a confirmed set above `retrieval.limits.max_documents_per_task`. Scholarly DOWNLOAD items
+produce PDFs; approved market cases produce bounded JSON files through the gated A11 extraction.

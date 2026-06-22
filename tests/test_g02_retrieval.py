@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -24,13 +25,54 @@ TOPIC = "TOPIC_RETRIEVAL"
 @pytest.fixture(autouse=True)
 def _runtime(tmp_path, monkeypatch):
     monkeypatch.setenv("EMAGENTS_HOME", str(tmp_path / ".emagents"))
-    monkeypatch.setenv("EMAGENTS_RESEARCH_CONTACT_EMAIL", "retrieval-test@example.org")
+    if os.getenv("EMAGENTS_RUN_LIVE_A06") != "1" \
+            or not os.getenv("EMAGENTS_RESEARCH_CONTACT_EMAIL"):
+        monkeypatch.setenv("EMAGENTS_RESEARCH_CONTACT_EMAIL", "retrieval-test@example.org")
     monkeypatch.setenv("OPENALEX_API_KEY", "openalex-test-key")
-    monkeypatch.setenv("CORE_API_KEY", "core-test-key")
+    if not os.getenv("CORE_API_KEY"):
+        monkeypatch.setenv("CORE_API_KEY", "core-test-key")
 
 
 def _load(name):
     return json.loads((MOCKS / name).read_text(encoding="utf-8"))
+
+
+def _retrieval_market_annotation(record):
+    return {
+        "source_id": record["source_id"],
+        "role_assignments": [{
+            "role": "applied_case", "confidence": "high",
+            "observed_signals": ["documented institutional loss"],
+            "access_basis": "search_snippet", "topic_ids": [TOPIC],
+            "claim_ids": ["CLM_RETRIEVAL"], "coverage_unit_ids": ["COV_MARKET"],
+        }],
+        "case_identity": {
+            "institution_or_event": "Societe Generale",
+            "event_label": "Unauthorized derivatives positions and resulting loss",
+            "event_date": "2008-01-24", "observed_basis": [],
+        },
+        "evidence_type": {"value": "control_failure", "basis": []},
+        "source_assessment": {
+            "source_tier": "tier_2_reputable_media", "weakly_sourced": False,
+            "corroborating_source_ids": [], "tier_basis": "reviewed Reuters result",
+        },
+        "materiality_assessment": {
+            "scale_observed": True, "real_consequence_observed": True,
+            "higher_tier_confirmation": True, "passes_threshold": True, "basis": [],
+        },
+        "market_fact": {"statement": "The bank disclosed a EUR 4.9 billion loss.", "basis": []},
+        "didactic_interpretation": {
+            "mechanism": "The case links exposure and weak controls to loss.",
+            "topic_ids": [TOPIC], "claim_ids": ["CLM_RETRIEVAL"],
+        },
+        "documentation_status": "documented",
+        "regime_context": {
+            "status": "historical_regime", "note": "Teach within the 2008 regime.",
+            "basis": "event date",
+        },
+        "coverage_unit_ids": ["COV_MARKET"], "quality_status": "not_assessed",
+        "doi_status": "absent",
+    }
 
 
 def _market_artifact(record, index_plan_ref):
@@ -40,7 +82,7 @@ def _market_artifact(record, index_plan_ref):
         "research_plan_ref": index_plan_ref,
         "upstream_refs": {"domain_candidate_sources": "artifact://g02/domain/mock.json"},
         "query_plan": {}, "candidates": [copy.deepcopy(record)],
-        "market_case_annotations": [], "operation_log": [],
+        "market_case_annotations": [_retrieval_market_annotation(record)], "operation_log": [],
         "coverage_map": [{"source_id": record["source_id"],
                           "coverage_unit_ids": ["COV_MARKET"], "basis": "search_snippet"}],
         "remaining_coverage_units": [], "provider_issues": [], "unresolved_seed_ids": [],
@@ -68,15 +110,7 @@ def _index_fixture():
              "source_roles": ["didactic"], "minimum_sources": 1, "mandatory": True},
         ],
     }
-    market_annotation = {
-        "market_fact": {"statement": "The bank disclosed a EUR 4.9 billion loss."},
-        "didactic_interpretation": {"mechanism": "The case links exposure and weak controls to loss.",
-                                    "claim_ids": ["CLM_RETRIEVAL"]},
-        "documentation_status": "documented",
-        "materiality_assessment": {"passes_threshold": True},
-        "regime_context": {"status": "historical_regime"},
-        "source_assessment": {"source_tier": "tier_2_reputable_media"},
-    }
+    market_annotation = _retrieval_market_annotation(market)
     scoped = {
         "schema_version": "candidate_index_input@1", "task_id": TASK,
         "research_plan_ref": plan_ref, "research_plan_artifact_version": "1.0.0",
@@ -135,6 +169,7 @@ def _approved_set():
 
 
 def _metadata_transport(url, headers, timeout, max_bytes):
+    assert headers["User-Agent"] == oa_retrieval.METADATA_USER_AGENT
     if "unpaywall.org" in url:
         payload = (MOCKS / "provider_responses" / "unpaywall.json").read_bytes()
     elif "api.core.ac.uk" in url:
@@ -160,6 +195,7 @@ def _pdf_transport(url, headers, timeout, max_bytes, target, max_redirects):
 
 
 def _book_metadata_transport(url, headers, timeout, max_bytes):
+    assert headers["User-Agent"] == oa_retrieval.METADATA_USER_AGENT
     if "directory.doabooks.org/rest/search" in url:
         name = "doab_book_search.json"
     elif "directory.doabooks.org/rest/items" in url and url.endswith("/metadata"):
@@ -215,11 +251,28 @@ def test_gate_requires_separate_final_confirmation():
     checked = source_selection.validate_source_selection(
         index_ref, response_text=f"DOWNLOAD: {scholarly_id}, {market_id}"
     )
+    assert checked["summary"]["download_count"] == 2
+    assert checked["summary"]["scholarly_download_count"] == 1
+    assert checked["summary"]["market_case_download_count"] == 1
     result = source_selection.finalize_source_selection(
         index_ref, checked["selection_draft"], checked["confirmation_token"]
     )
     assert result["status"] == "needs_input"
     assert result["issues"][0]["type"] == "final_confirmation_required"
+
+
+def test_prepare_enforces_human_download_count_and_admin_cap(tmp_path):
+    approved_ref, _, _ = _approved_set()
+    config_payload = json.loads(CONFIG.read_text(encoding="utf-8"))
+    config_payload["retrieval"]["limits"]["max_documents_per_task"] = 1
+    config_path = tmp_path / "one-download-only.json"
+    config_path.write_text(json.dumps(config_payload), encoding="utf-8")
+    prepared = retrieval.prepare_retrieval(approved_ref, config_path=config_path)
+    assert not prepared["ready"]
+    assert prepared["envelope"]["status"] == "failed"
+    assert prepared["envelope"]["issues"][0]["type"] == "invalid_retrieval_basis"
+    assert "DOWNLOAD source count exceeds retrieval policy" in \
+        prepared["envelope"]["issues"][0]["message"]
 
 
 def test_resolvers_include_record_unpaywall_core_doab_oapen():
@@ -287,11 +340,48 @@ def test_mixed_retrieval_creates_one_folder_with_pdf_and_market_case():
                       if item["type"] == "retrieved_corpus")
     corpus = artifacts.hydrate(corpus_ref)
     assert len(corpus["documents"]) == 1 and len(corpus["market_cases"]) == 1
+    assert corpus["retrieval_summary"]["market_case_count"] == 1
+    assert corpus["retrieval_summary"]["market_case_human_document_count"] == 1
+    assert corpus["retrieval_summary"]["market_case_machine_artifact_count"] == 1
     config = provider_config.load_config(CONFIG)
     run_dir = oa_retrieval.resolve_corpus_ref(corpus["run_directory_ref"], config)
+    print(f"A06_MARKET_CASE_RUN_DIRECTORY={run_dir}")
     assert (run_dir / "documents" / f"{scholarly_id}.pdf").is_file()
     assert (run_dir / "market-cases" / f"{market_id}.market-case.json").is_file()
+    human_case_path = run_dir / "market-cases" / f"{market_id}.market-case.md"
+    assert human_case_path.is_file()
+    human_case = human_case_path.read_text(encoding="utf-8")
+    assert "Zweryfikowany fakt rynkowy A11" in human_case
+    assert "The bank disclosed a EUR 4.9 billion loss." in human_case
+    assert "The case links exposure and weak controls to loss." in human_case
+    assert "https://www.reuters.com/article/sgeneral-kerviel-archive" in human_case
+    assert r"tier\_2\_reputable\_media" in human_case
+    assert "Próg materialności spełniony: tak" in human_case
+    assert r"Kontekst reżimu: historical\_regime" in human_case
+    assert "niezaufanym materiałem badawczym" in human_case
     assert (run_dir / "retrieved_corpus.json").is_file()
+    market_case = corpus["market_cases"][0]
+    assert market_case["file_type"] == "market_case_bundle"
+    assert oa_retrieval.resolve_corpus_ref(market_case["human_document_ref"], config) \
+        == human_case_path
+    assert oa_retrieval.resolve_corpus_ref(market_case["machine_artifact_ref"], config) \
+        == run_dir / "market-cases" / f"{market_id}.market-case.json"
+    assert hashlib.sha256(human_case_path.read_bytes()).hexdigest() \
+        == market_case["human_document_sha256"]
+    machine_case_path = run_dir / "market-cases" / f"{market_id}.market-case.json"
+    assert hashlib.sha256(machine_case_path.read_bytes()).hexdigest() \
+        == market_case["machine_artifact_sha256"]
+    assert retrieval.validate_retrieved_corpus(
+        corpus, scoped, config_path=CONFIG
+    )["ok"]
+    directory_ref = next(item["path"] for item in envelope["produced"]
+                         if item["type"] == "retrieval_directory")
+    directory = artifacts.hydrate(directory_ref)
+    assert contracts.validate(directory, "retrieval_directory@1")["ok"]
+    assert directory["run_directory_ref"] == corpus["run_directory_ref"]
+    assert directory["retrieved_corpus_ref"] == corpus_ref
+    assert directory["document_count"] == 1
+    assert directory["market_case_count"] == 1
     descriptor = envelope["produced"][0]
     task = retrieval.build_retrieval_review_task(
         scoped, descriptor, review_id="REV_A06_001", config_path=CONFIG
@@ -299,6 +389,27 @@ def test_mixed_retrieval_creates_one_folder_with_pdf_and_market_case():
     assert [item["criterion_id"] for item in task["acceptance_criteria"]] == [
         "RT-01", "RT-02", "RT-03", "RT-04", "RT-05", "RT-06", "RT-07", "RT-08"
     ]
+
+
+def test_market_case_document_requires_exact_reviewed_a11_annotation():
+    approved_ref, _, market_id = _approved_set()
+    scoped = retrieval.prepare_retrieval(approved_ref, config_path=CONFIG)["retrieval_input"]
+    market_source = next(item for item in scoped["approved_sources"]
+                         if item["source_id"] == market_id)
+    reviewed = artifacts.hydrate(market_source["market_candidate_sources_ref"])
+    reviewed["market_case_annotations"] = []
+    malformed_ref = artifacts.store("g02/market/retrieval-missing-annotation.json", reviewed)
+    market_source["market_candidate_sources_ref"] = malformed_ref
+    market_ref = _market_extract(scoped, market_id)
+    envelope = retrieval.finalize_retrieval(scoped, [market_ref], config_path=CONFIG)
+    assert envelope["status"] == "failed"
+    corpus_ref = next(item["path"] for item in envelope["produced"]
+                      if item["type"] == "retrieved_corpus")
+    corpus = artifacts.hydrate(corpus_ref)
+    market_failure = next(item for item in corpus["failed"]
+                          if item["source_id"] == market_id)
+    assert "exactly one reviewed A11 annotation" in market_failure["reason"]
+    assert corpus["market_cases"] == []
 
 
 def test_html_login_page_is_rejected():
@@ -337,4 +448,103 @@ def test_a06_mcp_inventory_has_no_public_config_parameter():
     assert a06 <= names
     tools = [item for item in srv.TOOLS if item["name"] in a06]
     assert all("config" not in item["inputSchema"]["properties"] for item in tools)
-    assert contracts.load_schema("retrieved_corpus@1")["x-version"] == "1.1"
+    assert contracts.load_schema("retrieved_corpus@1")["x-version"] == "1.2"
+    assert contracts.load_schema("retrieval_directory@1")["x-version"] == "1.0"
+
+
+def test_live_unpaywall_downloads_and_stores_real_pdf(tmp_path, monkeypatch):
+    """Opt-in TEST-environment smoke for the real metadata and PDF transports."""
+    if os.getenv("EMAGENTS_RUN_LIVE_A06") != "1":
+        pytest.skip("set EMAGENTS_RUN_LIVE_A06=1 to run the real A06 download smoke")
+    contact = os.getenv("EMAGENTS_RESEARCH_CONTACT_EMAIL", "").strip()
+    if not contact or contact.endswith("@example.org"):
+        pytest.skip("live A06 smoke requires a real EMAGENTS_RESEARCH_CONTACT_EMAIL")
+    live_home = Path(os.getenv("EMAGENTS_LIVE_A06_HOME") or (tmp_path / "a06-live-home"))
+    monkeypatch.setenv("EMAGENTS_HOME", str(live_home.resolve()))
+
+    config_payload = json.loads(
+        (ROOT / "shared" / "config" / "g02.providers.example.json").read_text(encoding="utf-8")
+    )
+    config_payload["profile"] = "retrieval-live-smoke"
+    for provider in config_payload["retrieval"]["providers"]:
+        config_payload["retrieval"]["providers"][provider]["enabled"] = provider == "unpaywall"
+    config_payload["retrieval"]["limits"]["max_documents_per_task"] = 1
+    config_payload["retrieval"]["request"]["max_document_bytes"] = 20971520
+    config_path = tmp_path / "g02-live-retrieval.json"
+    config_path.write_text(json.dumps(config_payload), encoding="utf-8")
+    runtime = provider_config.load_config(config_path, create_dirs=True)
+
+    source_id = "SRC_LIVE_PLOS_0000308"
+    retrieval_input = {
+        "schema_version": "retrieval_input@1",
+        "task_id": "A06_LIVE_PDF_SMOKE",
+        "approved_source_set_ref": "artifact://g02/approved-source-sets/live-smoke.json",
+        "approved_source_set_artifact_version": "1.0.0",
+        "source_selection_ref": "artifact://g02/source-selection/live-smoke.json",
+        "candidate_source_index_ref": "artifact://g02/candidate-index/live-smoke.json",
+        "approved_sources": [{
+            "source_id": source_id,
+            "action": "DOWNLOAD",
+            "record_type": "scholarly",
+            "source_record": {
+                "identifiers": {"doi": "10.1371/journal.pone.0000308"},
+                "bibliographic": {"title": "Why Most Published Research Findings Are False"},
+                "access": {
+                    "candidate_pdf_urls": [],
+                    "publisher_url": "https://doi.org/10.1371/journal.pone.0000308",
+                    "library_access_required": False,
+                },
+            },
+            "related_topics": ["TOPIC_LIVE_SMOKE"],
+            "related_claims": [],
+            "source_roles": ["canonical"],
+            "market_candidate_sources_ref": None,
+        }],
+        "skipped_actions": {"library": [], "citation": [], "reserve": [], "excluded": []},
+        "retrieval_policy": {
+            "profile": runtime.profile,
+            "lawful_open_access_only": True,
+            "institutional_access_automation": False,
+            "max_documents_per_task": 1,
+            "max_document_bytes": 20971520,
+            "max_redirects": config_payload["retrieval"]["request"]["max_redirects"],
+            "resolver_order": ["record", "unpaywall", "core", "doab", "oapen"],
+        },
+        "provider_capabilities": runtime.public_retrieval_status()["capabilities"],
+        "output_language": "English",
+        "previous_corpus_ref": None,
+        "previous_documents": [],
+    }
+    assert contracts.validate(retrieval_input, "retrieval_input@1")["ok"]
+
+    resolved = oa_retrieval.resolve_open_access(
+        retrieval_input, source_id, config_path=config_path
+    )
+    assert resolved["status"] == "resolved"
+    assert resolved["selected_candidate"]["provider"] == "unpaywall"
+    downloaded = oa_retrieval.retrieve_document(
+        retrieval_input, resolved["artifact_ref"], config_path=config_path
+    )
+    assert downloaded["status"] == "downloaded"
+    assert downloaded["signature"] == "%PDF-"
+    assert downloaded["byte_count"] > 1024
+    validated = oa_retrieval.validate_document(
+        retrieval_input, downloaded["artifact_ref"], config_path=config_path
+    )
+    assert validated["status"] == "accepted"
+    envelope = retrieval.finalize_retrieval(
+        retrieval_input,
+        [resolved["artifact_ref"], downloaded["artifact_ref"], validated["artifact_ref"]],
+        config_path=config_path,
+    )
+    assert envelope["status"] == "ok"
+    directory_ref = next(item["path"] for item in envelope["produced"]
+                         if item["type"] == "retrieval_directory")
+    directory = artifacts.hydrate(directory_ref)
+    run_dir = oa_retrieval.resolve_corpus_ref(directory["run_directory_ref"], runtime)
+    pdf_path = run_dir / "documents" / f"{source_id}.pdf"
+    assert pdf_path.is_file()
+    assert pdf_path.read_bytes()[:5] == b"%PDF-"
+    assert hashlib.sha256(pdf_path.read_bytes()).hexdigest() == validated["sha256"]
+    assert (run_dir / "retrieved_corpus.json").is_file()
+    print(f"A06_LIVE_RUN_DIRECTORY={run_dir}")

@@ -49,7 +49,8 @@ Use these standard profile identifiers and minimum concerns:
   role-aware coverage and human-readable descriptions whose abstract, metadata or A11 basis and
   access limits are explicit;
 - `retrieved_corpus`: final human authorization, lawful OA provenance, stable identity, PDF
-  integrity, gated market-case files, skipped actions and explicit failures;
+  integrity, gated market-case bundles with readable Markdown and separate untrusted JSON,
+  checksums, skipped actions and explicit failures;
 - `paper_evidence`: evidence location, method, findings, limitations and claim relation;
 - `claim_assessment`: evidence dimensions, counterevidence, confidence and coverage;
 - `research_synthesis`: evidence-linked recommendations, unresolved items and compact handoff.

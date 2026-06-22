@@ -20,7 +20,8 @@ action.
 3. Explain why the source may help a named topic, claim or coverage unit.
 4. Store `description_basis` and the bounded `basis_excerpt`. State access restrictions, preprint
    or version status, missing abstract and uncertainty. For a market case, state that the page has
-   not been extracted before the gate.
+   not been extracted before the gate and that A06 will create the fuller readable case document
+   only if the user assigns DOWNLOAD and separately confirms the selection.
 5. Translate human-readable prose into `output_language`; preserve IDs, status values and field names.
 6. Keep the annotation short enough for comparison across the candidate list.
 
