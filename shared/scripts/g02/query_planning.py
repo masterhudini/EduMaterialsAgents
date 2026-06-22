@@ -9,7 +9,10 @@ QUERY_PLAN_CONTRACT = "query_plan@1"
 DOMAIN_INPUT_CONTRACT = "domain_research_input@1"
 CANONICAL_INPUT_CONTRACT = "canonical_research_input@1"
 RECENT_INPUT_CONTRACT = "recent_research_input@1"
-PROVIDERS = {"openalex", "semantic_scholar", "arxiv"}
+MARKET_INPUT_CONTRACT = "market_case_research_input@1"
+SCHOLARLY_PROVIDERS = {"openalex", "semantic_scholar", "arxiv"}
+WEB_PROVIDERS = {"tavily", "searxng", "auto_budgeted"}
+PROVIDERS = SCHOLARLY_PROVIDERS | WEB_PROVIDERS
 MAX_ROUTES = 12
 MAX_TERMS_PER_ROUTE = 20
 MAX_TERM_LENGTH = 120
@@ -47,7 +50,7 @@ def _unknown_fields(value: object, allowed: set[str]) -> list[str]:
 def _discovery_input_contract(discovery_input: object) -> str:
     if isinstance(discovery_input, dict):
         version = discovery_input.get("schema_version")
-        if version in {CANONICAL_INPUT_CONTRACT, RECENT_INPUT_CONTRACT}:
+        if version in {CANONICAL_INPUT_CONTRACT, RECENT_INPUT_CONTRACT, MARKET_INPUT_CONTRACT}:
             return version
     return DOMAIN_INPUT_CONTRACT
 
@@ -128,6 +131,9 @@ def validate_query_plan(query_plan: object, domain_input: object, *,
     topic_stop = topic.get("stop_rule") if isinstance(topic.get("stop_rule"), dict) else {}
     topic_limit = topic_stop.get("candidate_limit")
 
+    is_market = domain_input.get("schema_version") == MARKET_INPUT_CONTRACT
+    market_limits = domain_input.get("search_limits") \
+        if is_market and isinstance(domain_input.get("search_limits"), dict) else {}
     routes = query_plan.get("routes") if isinstance(query_plan.get("routes"), list) else []
     if not routes:
         issues.append(_issue("empty_query_plan", "at least one query route is required", "routes"))
@@ -135,6 +141,19 @@ def validate_query_plan(query_plan: object, domain_input: object, *,
         issues.append(_issue(
             "query_route_limit_exceeded", f"query plan cannot exceed {MAX_ROUTES} routes",
             "routes",
+        ))
+    if is_market and isinstance(market_limits.get("route_limit"), int) \
+            and len(routes) > market_limits["route_limit"]:
+        issues.append(_issue(
+            "market_query_route_limit_exceeded",
+            f"market query plan cannot exceed {market_limits['route_limit']} scoped routes",
+            "routes",
+        ))
+    if is_market and isinstance(market_limits.get("max_queries"), int) \
+            and len(routes) > market_limits["max_queries"]:
+        issues.append(_issue(
+            "market_query_budget_exceeded",
+            "market query plan exceeds the scoped per-task query budget", "routes",
         ))
     route_ids: list[str] = []
     query_ids: list[str] = []
@@ -148,7 +167,7 @@ def validate_query_plan(query_plan: object, domain_input: object, *,
             route,
             {"route_id", "query_id", "purpose", "canonical_query", "origin_terms",
              "generated_terms", "generated_term_bases", "coverage_unit_ids",
-             "preferred_providers", "filters", "limit"},
+             "preferred_providers", "web", "filters", "limit"},
         )
         if unknown_route:
             issues.append(_issue(
@@ -347,11 +366,81 @@ def validate_query_plan(query_plan: object, domain_input: object, *,
                 f"preferred providers must be configured and ready; unauthorized={unauthorized}",
                 f"{location}.preferred_providers",
             ))
+        if is_market:
+            mode = domain_input.get("provider_mode")
+            if providers != [mode]:
+                issues.append(_issue(
+                    "market_provider_mode_mismatch",
+                    "each A11 route must use exactly the prepared provider mode",
+                    f"{location}.preferred_providers",
+                ))
+        elif set(providers) & WEB_PROVIDERS:
+            issues.append(_issue(
+                "web_provider_outside_market_scope",
+                "web providers are authorized only for market_case_research_input@1",
+                f"{location}.preferred_providers",
+            ))
         if "arxiv" in providers and "preprint" not in set(_strings(strategy.get("work_types"))):
             issues.append(_issue(
                 "provider_route_incompatible",
                 "arxiv requires preprint to be allowed by the topic work_types",
                 f"{location}.preferred_providers",
+            ))
+        web_route = route.get("web")
+        if is_market:
+            if not isinstance(web_route, dict):
+                issues.append(_issue(
+                    "missing_market_web_policy", "every A11 route requires a web policy",
+                    f"{location}.web",
+                ))
+                web_route = {}
+            unknown_web = _unknown_fields(
+                web_route,
+                {"include_domains", "exclude_domains", "source_tier_floor", "preferred_tier"},
+            )
+            if unknown_web:
+                issues.append(_issue(
+                    "unknown_market_web_fields", f"unsupported fields {unknown_web}",
+                    f"{location}.web",
+                ))
+            policy = domain_input.get("source_tier_policy") \
+                if isinstance(domain_input.get("source_tier_policy"), dict) else {}
+            allowed_domains = set(_strings(policy.get("allowed_domains")))
+            approved_excluded_domains = set(_strings(policy.get("excluded_domains")))
+            include_domains = _strings(web_route.get("include_domains"))
+            exclude_domains = _strings(web_route.get("exclude_domains"))
+            if not include_domains or _duplicates(include_domains) \
+                    or set(include_domains) - allowed_domains:
+                issues.append(_issue(
+                    "invalid_market_include_domains",
+                    "include_domains must be unique, non-empty and administrator-allowlisted",
+                    f"{location}.web.include_domains",
+                ))
+            if _duplicates(exclude_domains) \
+                    or set(exclude_domains) - approved_excluded_domains:
+                issues.append(_issue(
+                    "invalid_market_exclude_domains",
+                    "exclude_domains must stay inside the administrator exclusion policy",
+                    f"{location}.web.exclude_domains",
+                ))
+            if set(include_domains) & set(exclude_domains):
+                issues.append(_issue(
+                    "market_domain_policy_conflict",
+                    "a domain cannot be included and excluded on the same route",
+                    f"{location}.web",
+                ))
+            tiers = {"tier_1_authoritative", "tier_2_reputable_media", "tier_3_signal_only"}
+            if web_route.get("source_tier_floor") not in tiers \
+                    or web_route.get("preferred_tier") not in tiers:
+                issues.append(_issue(
+                    "invalid_market_source_tier",
+                    "source tier floor and preferred tier must use the approved vocabulary",
+                    f"{location}.web",
+                ))
+        elif web_route is not None:
+            issues.append(_issue(
+                "market_web_policy_outside_scope",
+                "the web route block is authorized only for G02-A11", f"{location}.web",
             ))
         filters = route.get("filters") if isinstance(route.get("filters"), dict) else {}
         unknown_filters = _unknown_fields(
@@ -396,6 +485,8 @@ def validate_query_plan(query_plan: object, domain_input: object, *,
         else:
             ceilings = [value for value in (topic_limit, max_records_per_query)
                         if isinstance(value, int)]
+            if is_market and isinstance(market_limits.get("max_results_per_route"), int):
+                ceilings.append(market_limits["max_results_per_route"])
             if ceilings and limit > min(ceilings):
                 issues.append(_issue(
                     "route_limit_exceeded", f"route limit exceeds {min(ceilings)}",

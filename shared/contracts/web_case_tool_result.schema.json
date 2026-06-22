@@ -1,0 +1,77 @@
+{
+  "title": "Deterministic web case discovery operation result",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "operation_id", "operation_type", "provider", "status",
+    "started_at", "completed_at", "request", "records", "pagination", "provenance", "issues"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["web_case_tool_result@1"]},
+    "operation_id": {"type": "string"},
+    "operation_type": {"type": "string", "enum": ["web_case_search"]},
+    "provider": {"type": "string", "enum": ["tavily", "searxng", "auto_budgeted"]},
+    "status": {"type": "string", "enum": ["ok", "partial", "unavailable", "failed"]},
+    "started_at": {"type": "string"},
+    "completed_at": {"type": "string"},
+    "request": {
+      "type": "object",
+      "required": ["route_id", "query_id", "canonical_query", "filters", "web", "cursor", "limit", "scope"],
+      "properties": {
+        "route_id": {"type": "string"},
+        "query_id": {"type": "string"},
+        "canonical_query": {"type": "string"},
+        "filters": {"type": "object"},
+        "web": {"type": "object"},
+        "cursor": {"type": ["string", "null"]},
+        "limit": {"type": "integer"},
+        "scope": {
+          "type": "object",
+          "required": ["input_contract", "task_id", "topic_id", "research_plan_ref", "domain_candidates_ref"],
+          "properties": {
+            "input_contract": {"type": "string", "enum": ["market_case_research_input@1"]},
+            "task_id": {"type": "string"},
+            "topic_id": {"type": "string"},
+            "research_plan_ref": {"type": "string"},
+            "domain_candidates_ref": {"type": "string"}
+          }
+        }
+      }
+    },
+    "records": {"type": "array", "items": {"type": "object"}},
+    "pagination": {
+      "type": "object",
+      "required": ["next_cursor", "exhausted", "pages_processed"],
+      "properties": {
+        "next_cursor": {"type": ["string", "null"]},
+        "exhausted": {"type": "boolean"},
+        "pages_processed": {"type": "integer"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["raw_response_refs", "provider_request_ids", "cache_hit", "config_profile", "provider_runs", "budget"],
+      "properties": {
+        "raw_response_refs": {"type": "array", "items": {"type": "string"}},
+        "provider_request_ids": {"type": "array", "items": {"type": "string"}},
+        "cache_hit": {"type": "boolean"},
+        "config_profile": {"type": "string"},
+        "provider_runs": {"type": "array", "items": {"type": "object"}},
+        "budget": {"type": "object"}
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "retryable", "message"],
+        "properties": {
+          "code": {"type": "string"},
+          "retryable": {"type": "boolean"},
+          "message": {"type": "string"}
+        }
+      }
+    }
+  }
+}

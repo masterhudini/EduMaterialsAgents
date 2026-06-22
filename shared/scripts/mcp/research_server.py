@@ -13,8 +13,11 @@ research_domain_prepare, research_metadata_search, research_domain_finalize,
 research_domain_review_task, research_canonical_prepare, research_citation_expand,
 research_canonical_finalize, research_canonical_review_task,
 research_recent_prepare, research_recent_finalize, research_recent_review_task,
+research_market_cases_prepare, research_web_case_search,
+research_market_cases_finalize, research_market_cases_review_task,
+research_web_case_extract,
 research_review_prepare, research_review_finalize,
-research_finalize, research_run_stub.
+research_finalize, research_run_stub, research_run_codex.
 """
 from __future__ import annotations
 
@@ -30,6 +33,8 @@ from g02 import domain  # noqa: E402
 from g02 import canonical  # noqa: E402
 from g02 import citations  # noqa: E402
 from g02 import recent  # noqa: E402
+from g02 import market_cases  # noqa: E402
+from g02 import web_cases  # noqa: E402
 from g02 import planner  # noqa: E402
 from g02 import provider_config  # noqa: E402
 from g02 import providers  # noqa: E402
@@ -37,7 +42,7 @@ from g02 import review as reviewer  # noqa: E402
 from core import artifacts, graphs, handoff  # noqa: E402
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "edu-materials-research", "version": "0.6.0"}
+SERVER_INFO = {"name": "edu-materials-research", "version": "0.7.0"}
 
 
 # ---- tool implementations (return JSON-serializable values) --------------
@@ -247,6 +252,57 @@ def _recent_review_task(args: dict):
         attempt=args.get("attempt", 1),
         previous_decision_ref=args.get("previous_decision_ref"),
         producer_revision_response=args.get("producer_revision_response"),
+    )
+
+
+def _market_cases_prepare(args: dict):
+    return market_cases.prepare_market_cases(
+        args["research_plan_ref"], args["domain_candidates_ref"], args["topic_id"],
+        previous_candidates_ref=args.get("previous_candidates_ref"),
+        revision_items=args.get("revision_items"),
+    )
+
+
+def _web_case_search(args: dict):
+    return web_cases.search_web_cases(
+        args["query_plan"], args["market_case_input"],
+        route_id=args["route_id"], provider=args["provider"],
+        cursor=args.get("cursor"),
+    )
+
+
+def _market_cases_finalize(args: dict):
+    prepared = market_cases.prepare_market_cases(
+        args["research_plan_ref"], args["domain_candidates_ref"], args["topic_id"],
+        previous_candidates_ref=args.get("previous_candidates_ref"),
+        revision_items=args.get("revision_items"),
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return market_cases.finalize_market_case_candidates(
+        prepared["market_case_input"], args["output"],
+        previous_candidates=prepared["previous_candidates"],
+        revision_items=prepared["revision_items"],
+    )
+
+
+def _market_cases_review_task(args: dict):
+    prepared = market_cases.prepare_market_cases(
+        args["research_plan_ref"], args["domain_candidates_ref"], args["topic_id"],
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return market_cases.build_market_case_review_task(
+        prepared["market_case_input"], args["artifact"], review_id=args["review_id"],
+        attempt=args.get("attempt", 1),
+        previous_decision_ref=args.get("previous_decision_ref"),
+        producer_revision_response=args.get("producer_revision_response"),
+    )
+
+
+def _web_case_extract(args: dict):
+    return web_cases.extract_web_case(
+        args["selection_ref"], args["candidate_sources_ref"], args["source_id"],
     )
 
 
@@ -634,6 +690,96 @@ TOOLS = [
         },
     },
     {
+        "name": "research_market_cases_prepare",
+        "description": "Project one approved topic and reviewed A02 identity into the minimal "
+                       "market_case_research_input@1, including traceable case needs, bounded "
+                       "web routes, administrator tier policy and secret-free provider status.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "domain_candidates_ref": {"type": "string"},
+                "topic_id": {"type": "string"},
+                "previous_candidates_ref": {"type": "string"},
+                "revision_items": {"type": "array", "items": {"type": "object"}},
+            },
+            "required": ["research_plan_ref", "domain_candidates_ref", "topic_id"],
+        },
+    },
+    {
+        "name": "research_web_case_search",
+        "description": "Execute one authorized A11 query route through the configured Tavily, "
+                       "administrator-pinned SearXNG or auto_budgeted mode. Applies endpoint and "
+                       "redirect controls, JSON-only responses, budgets, cache, timeout, rate "
+                       "limits, source tiers, normalized records and full provenance.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query_plan": {"type": "object"},
+                "market_case_input": {"type": "object"},
+                "route_id": {"type": "string"},
+                "provider": {
+                    "type": "string", "enum": ["tavily", "searxng", "auto_budgeted"],
+                },
+                "cursor": {"type": "string"},
+            },
+            "required": ["query_plan", "market_case_input", "route_id", "provider"],
+        },
+    },
+    {
+        "name": "research_market_cases_finalize",
+        "description": "Validate unchanged provider-backed market-case records, scoped web "
+                       "operation refs, separate semantic annotations, materiality, tiering and "
+                       "coverage, then persist the market_cases candidate_sources@1 stream.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "domain_candidates_ref": {"type": "string"},
+                "topic_id": {"type": "string"},
+                "output": {"type": "object"},
+                "previous_candidates_ref": {"type": "string"},
+                "revision_items": {"type": "array", "items": {"type": "object"}},
+            },
+            "required": ["research_plan_ref", "domain_candidates_ref", "topic_id", "output"],
+        },
+    },
+    {
+        "name": "research_market_cases_review_task",
+        "description": "Freeze MC-01 through MC-06 and build one market_cases review_task@1 "
+                       "for a persisted G02-A11 candidate artifact.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "domain_candidates_ref": {"type": "string"},
+                "topic_id": {"type": "string"},
+                "artifact": {"type": "object"},
+                "review_id": {"type": "string"},
+                "attempt": {"type": "integer"},
+                "previous_decision_ref": {"type": "string"},
+                "producer_revision_response": {"type": "object"},
+            },
+            "required": ["research_plan_ref", "domain_candidates_ref", "topic_id", "artifact", "review_id"],
+        },
+    },
+    {
+        "name": "research_web_case_extract",
+        "description": "Extract one exact HTTPS market-case URL through Tavily only after a "
+                       "persisted, final human_source_selection@1 approves that source for "
+                       "download. Returns a bounded untrusted-content artifact descriptor and "
+                       "prompt-injection flags, never page text inline.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "selection_ref": {"type": "string"},
+                "candidate_sources_ref": {"type": "string"},
+                "source_id": {"type": "string"},
+            },
+            "required": ["selection_ref", "candidate_sources_ref", "source_id"],
+        },
+    },
+    {
         "name": "research_review_prepare",
         "description": "Validate one review_task@1, enforce one artifact and hydrate only that "
                        "artifact for the isolated universal reviewer. Invalid review basis or "
@@ -768,6 +914,11 @@ DISPATCH = {
     "research_recent_prepare": _recent_prepare,
     "research_recent_finalize": _recent_finalize,
     "research_recent_review_task": _recent_review_task,
+    "research_market_cases_prepare": _market_cases_prepare,
+    "research_web_case_search": _web_case_search,
+    "research_market_cases_finalize": _market_cases_finalize,
+    "research_market_cases_review_task": _market_cases_review_task,
+    "research_web_case_extract": _web_case_extract,
     "research_review_prepare": _review_prepare,
     "research_review_finalize": _review_finalize,
     "research_finalize": _finalize,

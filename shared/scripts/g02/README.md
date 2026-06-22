@@ -16,12 +16,14 @@ Authoritative design references: `docs/02_Architektura_agentow_i_skilli.md` and
 | `domain.py` | Scope one approved topic for G02-A02, validate and store `domain_candidate_sources@1`, audit provider-result refs, constrain revisions and build the frozen `domain_candidates` review task. |
 | `canonical.py` | Scope reviewed A01/A02 artifacts for G02-A03, validate and store canonical `candidate_sources@1`, constrain revisions and build the frozen `canonical_sources` review task. |
 | `recent.py` | Derive the exact intake-approved recent window, scope reviewed A01/A02 artifacts for G02-A04, validate and store recent `candidate_sources@1`, constrain revisions and build the frozen `recent_developments` review task. |
+| `market_cases.py` | Project the minimal A11 input from reviewed A01/A02 refs, validate market-case annotations, materiality, tiering, coverage and revisions, persist the `market_cases` stream and build MC-01 to MC-06 review tasks. |
+| `web_cases.py` | Execute controlled Tavily/SearXNG discovery with fixed or administrator-pinned endpoints, budgets, cache, redirect and response controls, normalize `market_case` records, and perform Tavily extraction only after a final stored source selection. |
 | `citations.py` | Execute bounded one-hop OpenAlex and Semantic Scholar citation relations with the shared provider transport, normalization, cache and provenance boundary. |
 | `provider_config.py` | Load and validate the secret-free provider profile, environment credentials, runtime paths and startup capabilities. |
 | `query_planning.py` | Validate provider-neutral `query_plan@1` routes, generated-term bases, approved topic scope, coverage and enabled providers. |
 | `providers.py` | Execute bounded OpenAlex, Semantic Scholar and arXiv requests with allowlisted endpoints, retry, rate limits, cache, raw artifacts and normalized `source_record@1` results. |
 | `review.py` | Validate ReviewTask and ReviewDecision, constrain artifact access, map severity, persist review decisions and standardize reviewer envelopes. |
-| `*_shape.py` | Planned structural validators for later producer artifacts. G02-A01 through G02-A04 validation lives in the owning modules. |
+| `*_shape.py` | Planned structural validators for later producer artifacts. G02-A01 through G02-A04 and G02-A11 validation lives in the owning modules. |
 | `revision.py` (or in core) | Apply `revision_policy` counters and decide REVISE / APPROVED / ESCALATE for a reviewer node. |
 
 Later producer shape checks follow the same pure-stdlib pattern as the implemented modules

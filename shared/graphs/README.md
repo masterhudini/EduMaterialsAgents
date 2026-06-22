@@ -33,14 +33,17 @@ fizycznego `g02-a10-output-reviewer` oraz profile logicznych etapów review. Obo
 kolejność to planner, domain, canonical, recent, market cases, candidate index, source-selection
 gate, retrieval, evidence review, claim verification, synthesis i final research gate. Canonical,
 recent i market cases są logicznym fan-outem projektu, ale bieżący `g02_flow.py` wykonuje manifest
-sekwencyjnie. A11 jest scaffoldem definicji; seam Tavily zostanie dodany w jego pionowym wycinku po
-A03 i A04, przed agregującym A05.
+sekwencyjnie. A11 jest pełnym pionowym wycinkiem: scoped input, Tavily, kontrolowany SearXNG,
+review `market_cases` i ekstrakcja po bramce są gotowe. Następnym producerem do implementacji jest
+agregujący A05.
 
 Węzły G02-A01 do G02-A04 mają zamrożone kontrakty wejścia i wyjścia. G02-A01 używa
 `research_planner_input@1` oraz `research_plan@1`, a G02-A02 używa
 `domain_research_input@1` oraz `domain_candidate_sources@1`. G02-A03 i G02-A04 używają odpowiednio
 `canonical_research_input@1` i `recent_research_input@1`, po czym zwracają rozłączne strumienie
-`candidate_sources@1`. Kontrakty kolejnych producer nodes są dodawane z ich zestawami.
+`candidate_sources@1`. G02-A11 używa `market_case_research_input@1` i zwraca wariant
+`market_cases` tego samego `candidate_sources@1`. Kontrakty kolejnych producer nodes są dodawane z
+ich zestawami.
 
 Reviewer nie jest kopiowany jako osobny fizyczny node dla każdego producenta. Orkiestrator
 tworzy `review_task@1` na podstawie `review_profile`, uruchamia wspólnego reviewera i konsumuje

@@ -1,13 +1,14 @@
 ---
 name: g02-expand-research-query
-description: Produce a bounded provider-neutral query_plan@1 from one approved domain_research_input@1 or recent_research_input@1 topic. Use inside A02 or A04 before deterministic metadata search, preserving terms, exclusions, coverage, provider readiness and exact date filters without calling a provider.
+description: Produce a bounded provider-neutral query_plan@1 from one approved domain_research_input@1, recent_research_input@1 or market_case_research_input@1 topic. Use inside A02, A04 or A11 before deterministic search, preserving terms, exclusions, coverage, provider readiness, exact filters and controlled web policy without calling a provider.
 ---
 
 # Expand Research Query
 
 ## Contract
 
-Consume one scoped topic from `domain_research_input@1` or `recent_research_input@1`. Produce one `query_plan@1` with stable
+Consume one scoped topic from `domain_research_input@1`, `recent_research_input@1` or
+`market_case_research_input@1`. Produce one `query_plan@1` with stable
 route and query IDs, canonical queries, approved origin terms, generated terms with explicit bases,
 coverage-unit links, provider preferences, unchanged filters and per-route limits.
 
@@ -33,6 +34,9 @@ coverage-unit links, provider preferences, unchanged filters and per-route limit
    approved work types.
 9. For A04, copy `recency_window.year_from` and `year_to` exactly into every route. Preserve at
    least one preprint route when preprints are approved; never recalculate the window.
+10. For A11, map routes to `market_case_needs`; use exactly `provider_mode`, the prepared web work
+    types and include domains from `source_tier_policy.allowed_domains`. Exclude domains only when
+    present in the prepared exclusion policy. Do not invent an endpoint or provider fallback.
 
 ## Output requirements
 
@@ -42,6 +46,8 @@ coverage-unit links, provider preferences, unchanged filters and per-route limit
   outside the route or name an expansion area outside the approved topic.
 - Include at least one core route and every route required by the topic stop and source-role rules.
 - Preserve all exclusions and map each route to at least one approved coverage unit.
+- Every A11 route contains a web block with administrator-allowlisted domains, a tier floor and
+  preferred tier, and remains within the prepared query and result budgets.
 - Produce no provider response, bibliographic record or claimed search result.
 
 ## Boundaries

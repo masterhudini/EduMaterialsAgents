@@ -1,0 +1,22 @@
+{
+  "query": "derivatives control failure unauthorized trading",
+  "number_of_results": 2,
+  "results": [
+    {
+      "title": "AMF decision concerning control weaknesses at Societe Generale",
+      "url": "https://www.amf-france.org/en/sanctions/decision-societe-generale-controls",
+      "content": "The regulator documented control weaknesses connected with unauthorized derivatives positions and the resulting losses disclosed in 2008.",
+      "publishedDate": "2008-07-04",
+      "engine": "bing",
+      "score": 1.0
+    },
+    {
+      "title": "Societe Generale reports loss from unauthorized derivatives trading",
+      "url": "https://www.reuters.com/markets/societe-generale-kerviel-2008",
+      "content": "Societe Generale disclosed a EUR 4.9 billion loss after unauthorized equity-index derivatives positions were unwound in January 2008.",
+      "publishedDate": "2008-01-24",
+      "engine": "google",
+      "score": 0.9
+    }
+  ]
+}

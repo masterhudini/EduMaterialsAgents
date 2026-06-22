@@ -204,7 +204,7 @@ def test_upstream_and_recent_contracts_are_valid():
         _json(MOCKS / "domain_candidate_sources.json"), "domain_candidate_sources@1"
     )["ok"]
     assert contracts.load_schema("recent_research_input@1")["x-major"] == 1
-    assert contracts.load_schema("candidate_sources@1")["x-version"] == "1.2"
+    assert contracts.load_schema("candidate_sources@1")["x-version"] == "1.3"
 
 
 def test_planner_preserves_intake_recency_policy():

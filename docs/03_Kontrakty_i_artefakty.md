@@ -510,13 +510,43 @@ konfiguracji runtime, a do logu trafia wyłącznie nazwa użytego profilu konfig
 Wykonywalnymi źródłami prawdy są `shared/contracts/source_record.schema.json`,
 `shared/contracts/literature_tool_result.schema.json` oraz `shared/scripts/g02/providers.py`.
 
-Scaffold A11 rozszerza `query_plan@1` o opcjonalny blok trasy `web` i providera `tavily`, a
-`source_record@1` o opcjonalne `record_type: market_case`, blok `web_case` oraz
-`access_level: web_page`. Są to dodatki w major version 1. Bieżący `query_planning.py`,
-`providers.py` i `literature_tool_result@1` obsługują wyszukiwanie naukowe A02, A03 i A04.
-Osobny wynik operacji web, walidacja semantyczna trasy oraz reguła ekstrakcji wyłącznie po Human
-Source Selection Gate zostaną zamrożone z runtime A11. Do tego czasu kontrakty scaffoldu nie
-oznaczają dostępności `research_web_case_search` ani `research_web_case_extract`.
+Pionowy wycinek A11 rozszerza `query_plan@1` do wersji 1.3 o tryby `tavily`, `searxng` i
+`auto_budgeted` oraz obowiązkowy blok `web` na trasie A11. `source_record@1` zachowuje
+`record_type: market_case`, blok obserwacji `web_case` oraz `access_level: web_page`. Wersja 1.2
+oddziela `provider_date` od `event_date`: adapter zapisuje datę publikacji lub wyniku jako
+`provider_date`, a datę zdarzenia pozostawia pustą do czasu osobnej, ugruntowanej adnotacji A11.
+
+`market_case_research_input@1` jest najmniejszym wejściem producenta. Zawiera identyfikatory tasku,
+planu i reviewed A02, jeden deterministycznie projektowany topic, claim IDs, market-case needs,
+coverage, limity, source-tier policy, provider mode, zredagowane capabilities i język wyjścia.
+Nie zawiera całego intake, rekordów naukowych A02, sekretów, kontaktowego e-maila ani endpointu
+SearXNG. Każdy need zachowuje identyfikowalność do coverage oraz odpowiednich claimów, driverów lub
+update needs z ResearchPlan.
+
+Publiczne operacje MCP A11 nie przyjmują ścieżki konfiguracji od agenta. Profil wybiera
+administrator przez `EMAGENTS_RESEARCH_CONFIG` albo standardową lokalizację runtime, dzięki czemu
+model nie może podmienić endpointu SearXNG, trybu providera ani polityki domen.
+
+`web_case_tool_result@1` jest osobnym wynikiem operacji `research_web_case_search`. Request zawiera
+route, query, filtry, web policy i dokładny scope: input contract, task, topic, ResearchPlan ref i
+reviewed A02 ref. Provenance zawiera surowe refy, request IDs, cache status, publiczne liczniki
+budżetu i przebiegi providerów. Tavily i SearXNG normalizują do tego samego `source_record@1` bez
+łączenia rekordów. Zero results pozostaje `ok`; błędy mają jawne `partial`, `unavailable` lub
+`failed`.
+
+`candidate_sources@1` w wersji 1.3 dodaje wariant `stream: market_cases`. Rekordy providerów są
+kopiowane bez zmian, a `market_case_annotations` przechowują role, identity, evidence type, tier,
+materiality, market fact, odrębną interpretację dydaktyczną, documentation status, regime context,
+coverage, `quality_status: not_assessed` oraz `doi_status: absent`. Operation log używa
+`web_case_tool_result_ref`, a owning validator wymaga wykonania każdej trasy i identycznego scope.
+
+Ekstrakcja ma osobny `web_case_extract_result@1` i wymaga zapisanego
+`human_source_selection@1`. Runtime hydratuje oba refy, wymaga statusu `approved`, finalnego
+potwierdzenia, czytelnego `candidate_source_index@1`, dokładnie jednego source ID w indeksie oraz
+tego ID w `approved_for_download`, po czym sam rozwiązuje URL z reviewed market candidates. Wynik
+zwraca ref ograniczonej treści oznaczonej
+`untrusted_external_research`, hash, długość, truncation, provenance i flagi prompt injection. Pełna
+treść nie występuje inline i nie może być przekazana downstream.
 
 ## 5. CandidateSourceIndex
 
@@ -607,6 +637,7 @@ Komunikat orkiestratora musi:
 ```yaml
 HumanSourceSelection:
   schema_version: human_source_selection@1
+  artifact_version:
   task_id:
   candidate_source_index_ref:
 

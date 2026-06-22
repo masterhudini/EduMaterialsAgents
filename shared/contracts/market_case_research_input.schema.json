@@ -1,0 +1,92 @@
+{
+  "title": "Scoped input for one G02-A11 Market Cases run",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "research_plan_ref",
+    "research_plan_artifact_version",
+    "domain_candidates_ref",
+    "domain_candidates_artifact_version",
+    "topic",
+    "linked_claim_ids",
+    "market_case_needs",
+    "required_roles",
+    "target_coverage_units",
+    "search_limits",
+    "source_tier_policy",
+    "provider_mode",
+    "provider_capabilities",
+    "output_language"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["market_case_research_input@1"]},
+    "task_id": {"type": "string"},
+    "research_plan_ref": {"type": "string"},
+    "research_plan_artifact_version": {"type": "string"},
+    "domain_candidates_ref": {"type": "string"},
+    "domain_candidates_artifact_version": {"type": "string"},
+    "topic": {"type": "object"},
+    "linked_claim_ids": {"type": "array", "items": {"type": "string"}},
+    "market_case_needs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["need_id", "coverage_unit_id", "claim_ids", "need_type", "description", "origin_ids"],
+        "properties": {
+          "need_id": {"type": "string"},
+          "coverage_unit_id": {"type": "string"},
+          "claim_ids": {"type": "array", "items": {"type": "string"}},
+          "need_type": {"type": "string", "enum": ["applied_use", "failure_or_critical", "didactic_example"]},
+          "description": {"type": "string"},
+          "origin_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "required_roles": {
+      "type": "array",
+      "items": {"type": "string", "enum": ["applied_case", "qualifying_or_critical"]}
+    },
+    "target_coverage_units": {"type": "array", "items": {"type": "string"}},
+    "search_limits": {
+      "type": "object",
+      "required": ["candidate_limit", "route_limit", "max_queries", "max_results_per_route", "no_new_coverage_passes"],
+      "properties": {
+        "candidate_limit": {"type": "integer"},
+        "route_limit": {"type": "integer"},
+        "max_queries": {"type": "integer"},
+        "max_results_per_route": {"type": "integer"},
+        "no_new_coverage_passes": {"type": "integer"}
+      }
+    },
+    "source_tier_policy": {
+      "type": "object",
+      "required": ["tier_1_domains", "tier_2_domains", "tier_3_domains", "allowed_domains", "excluded_domains", "require_higher_tier_confirmation"],
+      "properties": {
+        "tier_1_domains": {"type": "array", "items": {"type": "string"}},
+        "tier_2_domains": {"type": "array", "items": {"type": "string"}},
+        "tier_3_domains": {"type": "array", "items": {"type": "string"}},
+        "allowed_domains": {"type": "array", "items": {"type": "string"}},
+        "excluded_domains": {"type": "array", "items": {"type": "string"}},
+        "require_higher_tier_confirmation": {"type": "boolean"}
+      }
+    },
+    "provider_mode": {"type": "string", "enum": ["tavily", "searxng", "auto_budgeted"]},
+    "provider_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["provider", "enabled", "ready", "authentication"],
+        "properties": {
+          "provider": {"type": "string", "enum": ["tavily", "searxng", "auto_budgeted"]},
+          "enabled": {"type": "boolean"},
+          "ready": {"type": "boolean"},
+          "authentication": {"type": "string", "enum": ["configured_key", "required_key_missing", "configured_endpoint", "endpoint_missing", "composite"]}
+        }
+      }
+    },
+    "output_language": {"type": "string"}
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "request_id": "tavily-extract-mock-0001",
+  "results": [
+    {
+      "url": "https://www.reuters.com/markets/societe-generale-kerviel-2008",
+      "raw_content": "Societe Generale disclosed in January 2008 that unauthorized equity-index derivatives positions produced a EUR 4.9 billion loss when they were unwound. The report describes the positions and the internal-control failure."
+    }
+  ],
+  "failed_results": []
+}

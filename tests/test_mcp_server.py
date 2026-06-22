@@ -28,7 +28,7 @@ def test_initialize_and_tools_list():
     init = srv.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                        "params": {"protocolVersion": "2024-11-05"}})
     assert init["result"]["serverInfo"]["name"] == "edu-materials-research"
-    assert init["result"]["serverInfo"]["version"] == "0.6.0"
+    assert init["result"]["serverInfo"]["version"] == "0.7.0"
     assert init["result"]["protocolVersion"] == "2024-11-05"
     assert "prompts" in init["result"]["capabilities"]
 
@@ -44,9 +44,19 @@ def test_initialize_and_tools_list():
                      "research_canonical_finalize", "research_canonical_review_task",
                      "research_recent_prepare", "research_recent_finalize",
                      "research_recent_review_task",
+                     "research_market_cases_prepare", "research_web_case_search",
+                     "research_market_cases_finalize", "research_market_cases_review_task",
+                     "research_web_case_extract",
                      "research_review_prepare", "research_review_finalize",
                      "research_finalize", "research_run_stub", "research_run_codex"}
     run_codex = next(t for t in tools["result"]["tools"] if t["name"] == "research_run_codex")
+    a11_tools = [t for t in tools["result"]["tools"] if t["name"] in {
+        "research_market_cases_prepare", "research_web_case_search",
+        "research_market_cases_finalize", "research_market_cases_review_task",
+        "research_web_case_extract",
+    }]
+    assert len(a11_tools) == 5
+    assert all("config" not in t["inputSchema"]["properties"] for t in a11_tools)
     assert set(run_codex["inputSchema"]["properties"]) == {
         "context", "gates", "resume_token", "decisions"
     }

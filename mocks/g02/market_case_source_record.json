@@ -48,7 +48,8 @@
   "web_case": {
     "institution": null,
     "event_label": "Societe Generale reports EUR 4.9 billion loss from unauthorized trading",
-    "event_date": "2008-01-24",
+    "provider_date": "2008-01-24",
+    "event_date": null,
     "source_tier": "tier_2_reputable_media",
     "evidence_type": null,
     "corroborating_source_urls": [],

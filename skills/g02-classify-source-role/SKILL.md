@@ -29,6 +29,8 @@ confidence, access basis and mapped topics, claims or coverage units.
    the provider record's `classification.source_roles`.
 8. For G02-A04, write assignments only into `recent_annotations`. Keep recency, maturity,
    `core_update`/`optional_trend`/`watch` and `quality_status` as separate fields.
+9. For G02-A11, write assignments only into `market_case_annotations`. Keep role, source tier,
+   evidence type, materiality, documentation status and scientific quality separate.
 
 ## Output requirements
 

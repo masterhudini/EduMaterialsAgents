@@ -750,12 +750,12 @@ Definicje agentów i skilli istnieją. Dalsza praca przebiega pionowymi wycinkam
 
 ## 21. Faza E, G02-A11 Market Cases (web case studies)
 
-**Status:** scaffold definicji przygotowany, runtime planowany. Agent, dwa skille, mocki i
-wstecznie kompatybilne rozszerzenia kontraktów są zarejestrowane, aby repo i build zachowały
-spójność. Implementacja operacji Tavily i SearXNG, walidator semantyczny tras web oraz testy
-zachowania A11 nastąpią po zamknięciu testów G02-A01 i G02-A02 oraz DEV G02-A03 i G02-A04. A11
-powstaje przed G02-A05, który agreguje jego wynik. Do tego czasu A11 nie jest zaliczony jako
-działający pionowy wycinek.
+**Status:** pełny pionowy wycinek DEV zaimplementowany, minimalne kontrole statyczne i właściwe
+testy pozostają rozdzielone zgodnie z `07_Rejestr_DEV_TEST_1b1.md`. Agent, skille, scoped input,
+wariant `candidate_sources@1`, Tavily, administrator-controlled SearXNG, materiality gate, review,
+ekstrakcja po bramce, mocki, testy, graf i packaging są zsynchronizowane. Pełna regresja, live API
+oraz forward Claude/Codex odbędą się w osobnym środowisku. Po akceptacji A11 następny jest A05,
+który agreguje reviewed A02, A03, A04 i A11.
 
 ### E1. Treść agenta i skilli
 
@@ -771,7 +771,9 @@ działający pionowy wycinek.
 
 **Owner:** TOOLS
 
-- operacja MCP `research_web_case_search` i `research_web_case_extract` w `research_server.py`,
+- operacje MCP `research_market_cases_prepare`, `research_web_case_search`,
+  `research_market_cases_finalize`, `research_market_cases_review_task` i
+  `research_web_case_extract` w `research_server.py`,
 - moduł `shared/scripts/g02/web_cases.py` według wzorca `providers.py`, z abstrakcją providera i
   Tavily jako pierwszym adapterem (`tavily_search`, `tavily_extract`) oraz SearXNG jako
   kontrolowanym, bezkluczowym adapterem discovery przez JSON API,
@@ -808,10 +810,14 @@ wartości sekretów we wszystkich wyjściach oraz artefaktach.
 
 **Owner:** KH z konsultacją CONTENT
 
+- `market_case_research_input@1` jako najmniejsza projekcja zatwierdzonego planu i reviewed A02,
+- `web_case_tool_result@1` oraz `web_case_extract_result@1` jako oddzielne granice operacji web,
+- `human_source_selection@1` jako wymagana, hydratowana autoryzacja ekstrakcji,
 - `source_record@1` rozszerzony o `record_type`, blok `web_case` i `access_level: web_page`
   (wstecznie kompatybilnie, pola opcjonalne),
 - `query_plan@1` rozszerzony o providera `tavily` i opcjonalny blok `web` na trasie,
-- nazwany artefakt `MarketCaseCandidateSources` (bez osobnego pliku schematu, parytet z A03 i A04),
+- nazwany artefakt `MarketCaseCandidateSources` jako `stream: market_cases` w
+  `candidate_sources@1`, z osobnymi `market_case_annotations`,
 - manifest `g02.graph.json` z węzłem `g02-a11-market-cases` w sekwencji przed A05.
 
 ### E4. Tiering źródeł i próg materialności
@@ -853,6 +859,6 @@ tylko dla zatwierdzonych case'ów, lekką A07, pełną A09 i Human Research Gate
 identyfikowalność need, claim, market_case, evidence card, rekomendacja, brak ekstrakcji przed
 bramką oraz powrót `SEARCH_MORE` do A11 z przebudową indeksu.
 
-**Definition of done:** A11 produkuje audytowalne case'y mapowane do claimów, przechodzi przez te
-same bramki co źródła z API, a wspólny test czterech węzłów discovery (A03, A04, A11 i agregacja
-A05) jest zielony.
+**Definition of done:** implementacja DEV A11 produkuje audytowalne case'y mapowane do claimów i
+używa tej samej bramki co źródła z API. Certyfikacja pozostaje otwarta do czasu wykonania TEST A11
+oraz wspólnego testu czterech węzłów discovery po implementacji A05.

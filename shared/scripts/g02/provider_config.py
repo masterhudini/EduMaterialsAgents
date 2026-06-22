@@ -7,8 +7,10 @@ status objects or provider artifacts.
 from __future__ import annotations
 
 import json
+import ipaddress
 import os
 import re
+import urllib.parse
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,7 +24,9 @@ CONFIG_ENV = "EMAGENTS_RESEARCH_CONFIG"
 CONTACT_ENV = "EMAGENTS_RESEARCH_CONTACT_EMAIL"
 OPENALEX_KEY_ENV = "OPENALEX_API_KEY"
 SEMANTIC_SCHOLAR_KEY_ENV = "SEMANTIC_SCHOLAR_API_KEY"
+TAVILY_KEY_ENV = "TAVILY_API_KEY"
 PROVIDERS = ("openalex", "semantic_scholar", "arxiv")
+WEB_PROVIDERS = ("tavily", "searxng")
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 SOURCE_ROOT = Path(__file__).resolve().parents[2]
@@ -41,6 +45,9 @@ class ProviderRuntimeConfig:
     cache_dir: Path
     corpus_dir: Path
     raw_artifact_subdir: str
+    web_cache_dir: Path | None
+    web_raw_artifact_subdir: str | None
+    web_extract_artifact_subdir: str | None
     contact_email: str | None
     _api_keys: Mapping[str, str | None]
 
@@ -59,6 +66,63 @@ class ProviderRuntimeConfig:
     def api_key(self, provider: str) -> str | None:
         _require_provider(provider)
         return self._api_keys.get(provider)
+
+    def web_enabled(self) -> bool:
+        web = self.data.get("web")
+        return isinstance(web, Mapping) and web.get("enabled") is True
+
+    def web_mode(self) -> str | None:
+        web = self.data.get("web")
+        return str(web.get("mode")) if isinstance(web, Mapping) and self.web_enabled() else None
+
+    def web_provider_enabled(self, provider: str) -> bool:
+        if provider not in WEB_PROVIDERS:
+            raise KeyError(f"unsupported web provider {provider!r}")
+        web = self.data.get("web")
+        providers = web.get("providers") if isinstance(web, Mapping) else None
+        item = providers.get(provider) if isinstance(providers, Mapping) else None
+        return self.web_enabled() and isinstance(item, Mapping) and item.get("enabled") is True
+
+    def web_api_key(self, provider: str) -> str | None:
+        if provider != "tavily":
+            return None
+        return self._api_keys.get("tavily")
+
+    def searxng_endpoint(self) -> str | None:
+        web = self.data.get("web")
+        providers = web.get("providers") if isinstance(web, Mapping) else None
+        item = providers.get("searxng") if isinstance(providers, Mapping) else None
+        endpoint = item.get("endpoint") if isinstance(item, Mapping) else None
+        return endpoint.strip() if isinstance(endpoint, str) and endpoint.strip() else None
+
+    def public_web_status(self) -> dict:
+        tavily_enabled = self.web_provider_enabled("tavily") if self.web_enabled() else False
+        searxng_enabled = self.web_provider_enabled("searxng") if self.web_enabled() else False
+        tavily_ready = tavily_enabled and self.web_api_key("tavily") is not None
+        searxng_ready = searxng_enabled and self.searxng_endpoint() is not None
+        mode = self.web_mode()
+        auto_ready = (tavily_ready or searxng_ready) if mode == "auto_budgeted" else False
+        return {
+            "enabled": self.web_enabled(),
+            "mode": mode,
+            "capabilities": [
+                {
+                    "provider": "tavily", "enabled": tavily_enabled,
+                    "ready": tavily_ready,
+                    "authentication": "configured_key" if tavily_ready else "required_key_missing",
+                },
+                {
+                    "provider": "searxng", "enabled": searxng_enabled,
+                    "ready": searxng_ready,
+                    "authentication": "configured_endpoint" if searxng_ready else "endpoint_missing",
+                },
+                {
+                    "provider": "auto_budgeted", "enabled": mode == "auto_budgeted",
+                    "ready": auto_ready, "authentication": "composite",
+                },
+            ],
+            "searxng_endpoint_configured": self.searxng_endpoint() is not None,
+        }
 
     def public_status(self) -> dict:
         capabilities = []
@@ -82,7 +146,7 @@ class ProviderRuntimeConfig:
                 "ready": ready,
                 "authentication": authentication,
             })
-        return {
+        status = {
             "schema_version": CONFIG_CONTRACT,
             "profile": self.profile,
             "source": self.source,
@@ -96,6 +160,8 @@ class ProviderRuntimeConfig:
                 "logs": str(self.runtime_home / "logs"),
             },
         }
+        status["web"] = self.public_web_status()
+        return status
 
 
 def _require_provider(provider: str) -> None:
@@ -173,6 +239,52 @@ def _safe_subdir(root: Path, raw: object, field: str, errors: list[str]) -> Path
     return resolved
 
 
+def _valid_domain(value: object) -> bool:
+    if not isinstance(value, str) or not value or len(value) > 253:
+        return False
+    if "://" in value or "/" in value or "@" in value:
+        return False
+    normalized = value.rstrip(".")
+    if "." not in normalized or normalized.casefold() == "localhost":
+        return False
+    return all(re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", part)
+               for part in normalized.split("."))
+
+
+def _validate_searxng_endpoint(value: object, allow_http_loopback: bool,
+                               errors: list[str]) -> None:
+    if not isinstance(value, str) or not value.strip():
+        errors.append("web.providers.searxng.endpoint is required when SearXNG is enabled")
+        return
+    parsed = urllib.parse.urlparse(value.strip())
+    try:
+        port = parsed.port
+    except ValueError:
+        errors.append("web.providers.searxng.endpoint has an invalid port")
+        return
+    host = parsed.hostname
+    if parsed.username or parsed.password or not host or parsed.query or parsed.fragment:
+        errors.append("web.providers.searxng.endpoint must be a credential-free exact endpoint")
+        return
+    loopback = host.casefold() == "localhost"
+    try:
+        address = ipaddress.ip_address(host)
+        loopback = address.is_loopback
+        if (address.is_private or address.is_link_local or address.is_reserved) and not loopback:
+            errors.append("web.providers.searxng.endpoint cannot use a private or reserved address")
+    except ValueError:
+        pass
+    if parsed.scheme == "http":
+        if not (loopback and allow_http_loopback):
+            errors.append("SearXNG requires HTTPS except for explicitly enabled loopback DEV")
+    elif parsed.scheme != "https":
+        errors.append("web.providers.searxng.endpoint must use HTTPS")
+    if parsed.scheme == "https" and port not in (None, 443):
+        errors.append("HTTPS SearXNG endpoint must use port 443")
+    if parsed.scheme == "http" and port is None:
+        errors.append("loopback HTTP SearXNG endpoint must use an explicit port")
+
+
 def validate_config(payload: object, *, env: Mapping[str, str] | None = None,
                     runtime_home: str | Path | None = None) -> dict:
     """Validate shape, safe paths, limits and required contact configuration."""
@@ -189,7 +301,7 @@ def validate_config(payload: object, *, env: Mapping[str, str] | None = None,
     _reject_unknown_keys(
         payload,
         {"schema_version", "profile", "providers", "request", "limits", "cache",
-         "paths", "rate_limits"},
+         "paths", "rate_limits", "web"},
         "provider config",
         errors,
     )
@@ -305,6 +417,156 @@ def validate_config(payload: object, *, env: Mapping[str, str] | None = None,
         )
         resolved_paths["raw_artifact_subdir"] = raw_subdir if raw_path else None
 
+    web = payload.get("web")
+    if web is not None and not isinstance(web, dict):
+        errors.append("web must be an object")
+    if isinstance(web, dict):
+        _reject_unknown_keys(
+            web, {"enabled", "mode", "providers", "request", "limits", "cache", "paths",
+                  "rate_limits", "source_tiers"}, "web", errors,
+        )
+        if not isinstance(web.get("enabled"), bool):
+            errors.append("web.enabled must be boolean")
+        mode = web.get("mode")
+        if mode not in {"tavily", "searxng", "auto_budgeted"}:
+            errors.append("web.mode must be tavily, searxng or auto_budgeted")
+        web_providers = web.get("providers")
+        enabled_web: list[str] = []
+        if not isinstance(web_providers, dict):
+            errors.append("web.providers must be an object")
+        else:
+            _reject_unknown_keys(web_providers, set(WEB_PROVIDERS), "web.providers", errors)
+            for provider in WEB_PROVIDERS:
+                item = web_providers.get(provider)
+                if not isinstance(item, dict):
+                    errors.append(f"web.providers.{provider} must be an object")
+                    continue
+                allowed = {"enabled"} if provider == "tavily" else {
+                    "enabled", "endpoint", "allow_http_loopback_dev", "categories"
+                }
+                _reject_unknown_keys(item, allowed, f"web.providers.{provider}", errors)
+                if not isinstance(item.get("enabled"), bool):
+                    errors.append(f"web.providers.{provider}.enabled must be boolean")
+                if item.get("enabled") is True:
+                    enabled_web.append(provider)
+            searx = web_providers.get("searxng")
+            if isinstance(searx, dict):
+                allow_loopback = searx.get("allow_http_loopback_dev") is True
+                if not isinstance(searx.get("allow_http_loopback_dev"), bool):
+                    errors.append("web.providers.searxng.allow_http_loopback_dev must be boolean")
+                categories = searx.get("categories")
+                if not isinstance(categories, list) or not categories \
+                        or any(item not in {"general", "news"} for item in categories):
+                    errors.append("web.providers.searxng.categories must use general/news")
+                if searx.get("enabled") is True:
+                    _validate_searxng_endpoint(searx.get("endpoint"), allow_loopback, errors)
+        if web.get("enabled") is True:
+            if not enabled_web:
+                errors.append("at least one web provider must be enabled")
+            if mode in WEB_PROVIDERS and mode not in enabled_web:
+                errors.append(f"web.mode {mode} requires that provider to be enabled")
+
+        web_request = web.get("request")
+        if not isinstance(web_request, dict):
+            errors.append("web.request must be an object")
+        else:
+            _reject_unknown_keys(
+                web_request,
+                {"timeout_seconds", "max_retries", "backoff_seconds", "max_response_bytes"},
+                "web.request", errors,
+            )
+            _positive_number(web_request.get("timeout_seconds"), "web.request.timeout_seconds", errors)
+            _positive_integer(web_request.get("max_retries"), "web.request.max_retries", errors, allow_zero=True)
+            _positive_number(web_request.get("backoff_seconds"), "web.request.backoff_seconds", errors, allow_zero=True)
+            _positive_integer(web_request.get("max_response_bytes"), "web.request.max_response_bytes", errors)
+            if isinstance(web_request.get("timeout_seconds"), (int, float)) \
+                    and web_request["timeout_seconds"] > 60:
+                errors.append("web.request.timeout_seconds cannot exceed 60")
+            if isinstance(web_request.get("max_retries"), int) and web_request["max_retries"] > 5:
+                errors.append("web.request.max_retries cannot exceed 5")
+            if isinstance(web_request.get("max_response_bytes"), int) \
+                    and web_request["max_response_bytes"] > 10485760:
+                errors.append("web.request.max_response_bytes cannot exceed 10 MiB")
+
+        web_limits = web.get("limits")
+        limit_fields = {
+            "max_queries_per_task", "max_tavily_queries_per_task",
+            "max_searxng_queries_per_task", "max_results_per_query",
+            "auto_searxng_results_per_route", "max_extractions_per_task",
+            "max_extracted_characters",
+        }
+        if not isinstance(web_limits, dict):
+            errors.append("web.limits must be an object")
+        else:
+            _reject_unknown_keys(web_limits, limit_fields, "web.limits", errors)
+            for field in limit_fields:
+                _positive_integer(web_limits.get(field), f"web.limits.{field}", errors)
+            if isinstance(web_limits.get("max_queries_per_task"), int) \
+                    and web_limits["max_queries_per_task"] > 100:
+                errors.append("web.limits.max_queries_per_task cannot exceed 100")
+            if isinstance(web_limits.get("max_results_per_query"), int) \
+                    and web_limits["max_results_per_query"] > 50:
+                errors.append("web.limits.max_results_per_query cannot exceed 50")
+            if isinstance(web_limits.get("max_extracted_characters"), int) \
+                    and web_limits["max_extracted_characters"] > 200000:
+                errors.append("web.limits.max_extracted_characters cannot exceed 200000")
+
+        web_cache = web.get("cache")
+        if not isinstance(web_cache, dict):
+            errors.append("web.cache must be an object")
+        else:
+            _reject_unknown_keys(web_cache, {"enabled", "ttl_seconds"}, "web.cache", errors)
+            if not isinstance(web_cache.get("enabled"), bool):
+                errors.append("web.cache.enabled must be boolean")
+            _positive_integer(web_cache.get("ttl_seconds"), "web.cache.ttl_seconds", errors, allow_zero=True)
+
+        web_rates = web.get("rate_limits")
+        rate_fields = {"tavily_min_interval_seconds", "searxng_min_interval_seconds"}
+        if not isinstance(web_rates, dict):
+            errors.append("web.rate_limits must be an object")
+        else:
+            _reject_unknown_keys(web_rates, rate_fields, "web.rate_limits", errors)
+            for field in rate_fields:
+                _positive_number(web_rates.get(field), f"web.rate_limits.{field}", errors, allow_zero=True)
+
+        web_paths = web.get("paths")
+        if not isinstance(web_paths, dict):
+            errors.append("web.paths must be an object")
+        else:
+            _reject_unknown_keys(
+                web_paths,
+                {"cache_subdir", "raw_artifact_subdir", "extract_artifact_subdir"},
+                "web.paths", errors,
+            )
+            resolved_paths["web_cache_subdir"] = _safe_subdir(
+                home, web_paths.get("cache_subdir"), "web.paths.cache_subdir", errors
+            )
+            for field in ("raw_artifact_subdir", "extract_artifact_subdir"):
+                valid = _safe_subdir(
+                    home / "artifacts", web_paths.get(field), f"web.paths.{field}", errors
+                )
+                resolved_paths[f"web_{field}"] = web_paths.get(field) if valid else None
+
+        tiers = web.get("source_tiers")
+        tier_fields = {"tier_1_domains", "tier_2_domains", "tier_3_domains", "excluded_domains"}
+        if not isinstance(tiers, dict):
+            errors.append("web.source_tiers must be an object")
+        else:
+            _reject_unknown_keys(tiers, tier_fields, "web.source_tiers", errors)
+            seen_domains: set[str] = set()
+            for field in tier_fields:
+                values = tiers.get(field)
+                if not isinstance(values, list) or any(not _valid_domain(item) for item in values):
+                    errors.append(f"web.source_tiers.{field} must contain valid bare domains")
+                    continue
+                normalized = [item.casefold().rstrip(".") for item in values]
+                if len(normalized) != len(set(normalized)):
+                    errors.append(f"web.source_tiers.{field} contains duplicates")
+                overlap = seen_domains & set(normalized)
+                if overlap:
+                    errors.append(f"web.source_tiers domain appears in multiple lists: {sorted(overlap)}")
+                seen_domains.update(normalized)
+
     return {"ok": not errors, "errors": errors, "resolved_paths": resolved_paths}
 
 
@@ -324,9 +586,12 @@ def load_config(config_path: str | Path | None = None, *,
     cache_dir = validation["resolved_paths"]["cache_subdir"]
     corpus_dir = validation["resolved_paths"]["corpus_subdir"]
     assert isinstance(cache_dir, Path) and isinstance(corpus_dir, Path)
+    web_cache_dir = validation["resolved_paths"].get("web_cache_subdir")
     if create_dirs:
         for directory in (home / "config", home / "artifacts", home / "logs",
-                          cache_dir, corpus_dir):
+                          cache_dir, corpus_dir, web_cache_dir):
+            if directory is None:
+                continue
             directory.mkdir(parents=True, exist_ok=True)
 
     contact = environment.get(CONTACT_ENV, "").strip() or None
@@ -334,6 +599,7 @@ def load_config(config_path: str | Path | None = None, *,
         "openalex": environment.get(OPENALEX_KEY_ENV, "").strip() or None,
         "semantic_scholar": environment.get(SEMANTIC_SCHOLAR_KEY_ENV, "").strip() or None,
         "arxiv": None,
+        "tavily": environment.get(TAVILY_KEY_ENV, "").strip() or None,
     })
     return ProviderRuntimeConfig(
         data=MappingProxyType(deepcopy(payload)),
@@ -342,6 +608,11 @@ def load_config(config_path: str | Path | None = None, *,
         cache_dir=cache_dir,
         corpus_dir=corpus_dir,
         raw_artifact_subdir=str(payload["paths"]["raw_artifact_subdir"]).strip("/\\"),
+        web_cache_dir=web_cache_dir if isinstance(web_cache_dir, Path) else None,
+        web_raw_artifact_subdir=(str(payload.get("web", {}).get("paths", {}).get(
+            "raw_artifact_subdir", "")).strip("/\\") or None),
+        web_extract_artifact_subdir=(str(payload.get("web", {}).get("paths", {}).get(
+            "extract_artifact_subdir", "")).strip("/\\") or None),
         contact_email=contact,
         _api_keys=api_keys,
     )

@@ -73,23 +73,25 @@ Host-specific skille i wspólne pliki agentów są generowane dla Claude Code i 
 `research_run_codex` oraz `shared/scripts/g02/g02_flow.py run-codex` prowadzą graf, uruchamiając
 każdy node jako izolowany `codex exec`. Po implementacji A01–A04 pozostają dalsze pionowe wycinki:
 
-- operacje i scoped input producentów od G02-A11 oraz G02-A05 wzwyż,
+- operacje i scoped input producentów od G02-A05 wzwyż,
 - scheduler fan-out/fan-in,
 - test end-to-end zachowania wszystkich producentów bez no-op node runnera.
 
 Brak CLI Codex lub logowania nadal prowadzi do jawnego `external_dependency_blocked`; runtime nie
 symuluje agentów we wspólnym kontekście orkiestratora.
 
-Repo udostępnia obecnie MCP `0.6.0` z dwudziestoma dwiema operacjami dla wejścia grafu, G02-A01,
-G02-A02, G02-A03, G02-A04, statusu providerów, wyszukiwania metadanych, ekspansji cytowań, uniwersalnego
-reviewera, finalizacji i harnessu, w tym `research_run_codex`. Kolejne zestawy dodają własne
-narzędzia deterministyczne.
+Repo udostępnia obecnie MCP `0.7.0` z dwudziestoma siedmioma operacjami dla wejścia grafu, G02-A01,
+G02-A02, G02-A03, G02-A04, G02-A11, statusu providerów, wyszukiwania naukowego i webowego,
+ekspansji cytowań, gated extraction, uniwersalnego reviewera, finalizacji i harnessu, w tym
+`research_run_codex`. Kolejne zestawy dodają własne narzędzia deterministyczne.
 
-MCP stanowi granicę wywołania. OpenAlex, Semantic Scholar i arXiv są obsługiwane przez lokalne
-adaptery deterministyczne, które stosują limity, retry, rate limiting, cache i zapis proweniencji.
+MCP stanowi granicę wywołania. OpenAlex, Semantic Scholar, arXiv, Tavily i administrator-controlled
+SearXNG są obsługiwane przez lokalne adaptery deterministyczne, które stosują limity, retry, rate
+limiting, cache i zapis proweniencji.
 Plik konfiguracji nie zawiera sekretów. KH przekazuje `EMAGENTS_RESEARCH_CONTACT_EMAIL`, wymagany
 dla aktywnego OpenAlex `OPENALEX_API_KEY` oraz opcjonalny `SEMANTIC_SCHOLAR_API_KEY` przez
-środowisko albo magazyn sekretów hosta.
+środowisko albo magazyn sekretów hosta. A11 pobiera `TAVILY_API_KEY` wyłącznie z runtime; endpoint
+SearXNG jest nie-sekretną konfiguracją administratora i nie trafia do scoped input agenta.
 
 ## 5. Zmiany przepływu względem obecnego repo
 

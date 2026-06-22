@@ -1,0 +1,37 @@
+{
+  "title": "Human decisions at the G02 source-selection gate",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "candidate_source_index_ref", "status",
+    "approved_for_download", "keep_citation_only", "request_library_access", "keep_in_reserve",
+    "excluded", "requested_search_extensions", "coverage_exceptions", "human_notes", "final_confirmation"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["human_source_selection@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "candidate_source_index_ref": {"type": "string"},
+    "status": {"type": "string", "enum": ["approved", "needs_more_search", "cancelled"]},
+    "approved_for_download": {"type": "array", "items": {"type": "string"}},
+    "keep_citation_only": {"type": "array", "items": {"type": "string"}},
+    "request_library_access": {"type": "array", "items": {"type": "string"}},
+    "keep_in_reserve": {"type": "array", "items": {"type": "string"}},
+    "excluded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "reason"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "reason": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "requested_search_extensions": {"type": "array", "items": {"type": "object"}},
+    "coverage_exceptions": {"type": "array", "items": {"type": "object"}},
+    "human_notes": {"type": ["string", "null"]},
+    "final_confirmation": {"type": "boolean"}
+  }
+}

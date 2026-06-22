@@ -1,0 +1,77 @@
+{
+  "schema_version": "research_plan@1",
+  "artifact_version": "1.0.0",
+  "task_id": "RESEARCH_MARKET_MOCK_001",
+  "approved_research_scope": {
+    "verify_claims": {"priority": ["high", "medium"]},
+    "include_recent_developments": true,
+    "include_canonical_sources": true,
+    "include_didactic_examples": true,
+    "recency_window_years": 5
+  },
+  "topics": [
+    {
+      "topic_id": "TOPIC_DERIVATIVES_OPTIONS",
+      "name": "Institutional options use and control failures",
+      "purpose": "Document real option-related applications and failures for teaching.",
+      "priority": "high",
+      "linked_driver_ids": ["DRV_OPTIONS_CASES"],
+      "related_claims": ["CLM_OPTIONS_HEDGING", "CLM_OPTIONS_CONTROL_RISK"],
+      "related_concepts": ["CONCEPT_OPTIONS"],
+      "related_flow_issues": [],
+      "related_update_needs": ["UPDATE_OPTIONS_CASES"],
+      "approved_domains": ["D_DERIVATIVES"],
+      "source_roles_required": {
+        "canonical": true,
+        "current": true,
+        "survey": false,
+        "didactic": true,
+        "qualifying_or_critical": true
+      },
+      "search_strategy": {
+        "core_terms": ["options hedging", "options structured products", "derivatives control failure"],
+        "allowed_expansion_areas": ["corporate hedging programs", "option-based structured products", "rogue trading incidents"],
+        "excluded_terms": ["generic options pricing tutorials"],
+        "year_from": null,
+        "year_to": null,
+        "languages": ["en"],
+        "work_types": ["article", "review", "book"],
+        "seed_sources": []
+      },
+      "coverage_requirements": [
+        {
+          "coverage_id": "COV_OPTIONS_APPLIED_USE",
+          "description": "Show a documented institutional use or construction involving options.",
+          "source_roles": ["didactic"],
+          "minimum_sources": 1,
+          "mandatory": true
+        },
+        {
+          "coverage_id": "COV_OPTIONS_RISK_FAILURE",
+          "description": "Show a documented control failure with a real financial consequence.",
+          "source_roles": ["qualifying_or_critical"],
+          "minimum_sources": 1,
+          "mandatory": true
+        }
+      ],
+      "stop_rule": {
+        "candidate_limit": 12,
+        "no_new_coverage_passes": 2,
+        "complementary_search_route_required": true
+      }
+    }
+  ],
+  "uncovered_driver_ids": [],
+  "input_issues": [],
+  "global_constraints": {
+    "max_topics": 6,
+    "candidate_limit_per_topic": 12,
+    "no_new_coverage_passes": 2,
+    "allowed_languages": ["en"],
+    "allowed_work_types": ["article", "review", "book"],
+    "year_from": null,
+    "year_to": null
+  },
+  "output_language": "English",
+  "review_profile_ref": "research_plan"
+}

@@ -3,11 +3,23 @@
 ## Zasada użycia
 
 Rejestr rozdziela ukończenie implementacji w repozytorium od weryfikacji prowadzonej później w
-osobnym katalogu i osobnym środowisku. Bieżąca faza nie tworzy ani nie uruchamia testów.
+osobnym katalogu i osobnym środowisku. DEV tworzy testy i mocki, lecz nie uruchamia pełnych pakietów,
+live API ani forward testów.
 
 Po zakończeniu każdego numerowanego zestawu aktualizowana jest lista DEV oraz kompletna lista
 scenariuszy TEST. Commit powinien następować po osiągnięciu stanu wymaganego przez właściciela
 repozytorium.
+
+### Legenda markerów (od Rundy 7)
+
+- `- [x]` — w sekcji TEST scenariusz wykonany i zaliczony (szczegóły w `08`); w sekcji DEV element
+  implementacji ukończony w repozytorium.
+- `- [ ]` — niewykonany lub niezaliczony; dopisek wyjaśnia powód.
+- `❌ FAIL` (w treści) — wykonany, nie przeszedł zgodnie z zapisem; dopisek mówi co poprawić.
+- `⏳ KOŃCOWY` (w treści) — świadomie odroczony do końcowego testu integracyjnego całej
+  funkcjonalności: forward testy na realnym hoście (Claude/Codex) oraz pełny przepływ
+  A01→…→A05 wraz z A11/A05/Tavily/SearXNG. Od kolejnych rund weryfikujemy już tylko nowe lub
+  zmienione funkcjonalności oraz pozycje `⏳ KOŃCOWY` i `❌ FAIL`.
 
 ## Wspólna runda TEST 2 + TEST 3 przed commitem A01 i A02
 
@@ -249,22 +261,22 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
 
 ### TEST 2, kontrakty i kompletność wejścia
 
-- [ ] Poprawny `research_graph_input@1` przechodzi kontrakt, a brak każdego nowego pola wymaganego
+- [x] Poprawny `research_graph_input@1` przechodzi kontrakt, a brak każdego nowego pola wymaganego
   (`schema_version`, drivers, constraints, selection profile, card arrays, output language) jest
   odrzucany.
 - [x] `research_planner_input@1` powstaje wyłącznie z dozwolonych pól boundary input i zachowuje
   ich wartości bez mutacji.
-- [ ] Poprawne wejście bez claim cards przechodzi, jeżeli ma zatwierdzony driver concept,
+- [x] Poprawne wejście bez claim cards przechodzi, jeżeli ma zatwierdzony driver concept,
   flow-issue albo update-need z istniejącą kartą upstream.
 - [x] Brak driverów lub zatwierdzonych domen daje `needs_input` bez artefaktu.
 - [x] Pusty `task_id`, output language albo wymagane pole zatwierdzonego kontekstu daje
   `needs_input`.
-- [ ] Duplikaty domain, driver, claim, concept, flow, update lub existing-source IDs są odrzucane.
-- [ ] Driver bez upstream linku, z nieznanym linkiem, pustym purpose, nieznanym typem albo
+- [x] Duplikaty domain, driver, claim, concept, flow, update lub existing-source IDs są odrzucane.
+- [x] Driver bez upstream linku, z nieznanym linkiem, pustym purpose, nieznanym typem albo
   priorytetem jest odrzucany.
-- [ ] Niepoprawne limity, puste listy languages/work types, odwrócone lata i selection target
+- [x] Niepoprawne limity, puste listy languages/work types, odwrócone lata i selection target
   większy od candidate limit są odrzucane.
-- [ ] Lazy artifact refs bez `artifact://` są odrzucane, a przygotowanie pierwszego przebiegu nie
+- [x] Lazy artifact refs bez `artifact://` są odrzucane, a przygotowanie pierwszego przebiegu nie
   hydratuje żadnego z nich.
 
 ### TEST 2, walidacja i finalizacja ResearchPlan
@@ -273,18 +285,18 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
   względem sparowanego mock input.
 - [x] Poprawny plan jest zapisywany pod bezpiecznym `artifact://g02/research-plans/...`, zwraca
   `status: ok` oraz dokładnie jeden deskryptor `research_plan@1` z `artifact_version`.
-- [ ] Plan nie mutuje planner input ani obiektu przekazanego do finalizacji.
-- [ ] Pusty plan, przekroczenie `max_topics`, duplikaty albo niepoprawne formaty `TOPIC_*` i
+- [x] Plan nie mutuje planner input ani obiektu przekazanego do finalizacji.
+- [x] Pusty plan, przekroczenie `max_topics`, duplikaty albo niepoprawne formaty `TOPIC_*` i
   `COV_*` są odrzucane.
-- [ ] Topic bez drivera, purpose, zatwierdzonej domeny, source role, core terms, coverage albo stop
+- [x] Topic bez drivera, purpose, zatwierdzonej domeny, source role, core terms, coverage albo stop
   rule nie tworzy artefaktu.
-- [ ] Nieznany driver lub upstream ID, niezatwierdzona domena i niezatwierdzony seed source są
+- [x] Nieznany driver lub upstream ID, niezatwierdzona domena i niezatwierdzony seed source są
   odrzucane.
 - [ ] Topic priority nie może być niższy niż najwyższy priorytet powiązanego drivera.
-- [ ] Languages, work types i date window nie mogą rozszerzać global constraints.
+- [x] Languages, work types i date window nie mogą rozszerzać global constraints.
 - [ ] Candidate limit mieści się w konfiguracji, saturation passes są zachowane, a complementary
   search route jest wymagana.
-- [ ] Każdy driver trafia dokładnie do covered albo uncovered; overlap, unknown i unaccounted
+- [x] Każdy driver trafia dokładnie do covered albo uncovered; overlap, unknown i unaccounted
   drivers są odrzucane.
 - [ ] Uncovered driver bez odpowiadającego `input_issues.related_driver_ids` jest odrzucany.
 - [ ] Użyteczny plan z poprawnie zadeklarowanym uncovered driverem zwraca `degraded`; high-priority
@@ -298,41 +310,41 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
 ### TEST 2, rewizja i reviewer
 
 - [x] Rewizja bez `previous_plan_ref` jest odrzucana, gdy przekazano `revision_items`.
-- [ ] Previous plan z innym task ID, złym kontraktem albo niedostępnym refem jest odrzucany.
+- [x] Previous plan z innym task ID, złym kontraktem albo niedostępnym refem jest odrzucany.
 - [ ] Traversal, ścieżka absolutna i symlink poza artifact root w `previous_plan_ref` są odrzucane.
 - [ ] Rewizja musi zwiększyć `artifact_version`.
 - [ ] Gdy findings wskazują konkretne `TOPIC_*`, wszystkie pozostałe topiki pozostają niezmienione.
 - [x] `research_plan_review_task` buduje poprawny `review_task@1` z producentem
   `g02-a01-planner`, profilem `research_plan` i kryteriami `RP-01`–`RP-06`.
-- [ ] Deskryptor innego typu, kontraktu, bez artifact version lub bez `artifact://` nie pozwala
+- [x] Deskryptor innego typu, kontraktu, bez artifact version lub bez `artifact://` nie pozwala
   zbudować review task.
-- [ ] Próba review większa niż 1 wymaga `previous_decision_ref` i poprawnej historii reviewera.
+- [x] Próba review większa niż 1 wymaga `previous_decision_ref` i poprawnej historii reviewera.
 - [ ] Poprawny plan może otrzymać `APPROVED`; brak coverage, zbyt szeroki plan i uncovered
   high-priority driver prowadzą do `REVISE` albo `BLOCKED` zgodnie z root cause.
-- [ ] Reviewer pozostaje read-only i nie zmienia ResearchPlan podczas oceny.
+- [x] Reviewer pozostaje read-only i nie zmienia ResearchPlan podczas oceny.
 
 ### TEST 2, agent, MCP, graf i packaging
 
-- [ ] Forward test G02-A01 na poprawnym wejściu tworzy wyłącznie plan, bez publikacji, verdictów i
+- [ ] Forward test G02-A01 na poprawnym wejściu tworzy wyłącznie plan, bez publikacji, verdictów i  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   rozwiązań slajdowych.
-- [ ] Forward testy na wariantach intake claim-only, flow-only, update-only i mixed tworzą jeden
+- [ ] Forward testy na wariantach intake claim-only, flow-only, update-only i mixed tworzą jeden  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   najlepiej dopasowany ResearchPlan, a nie kilka konkurencyjnych planów. Każdy driver zachowuje
   ścieżkę do właściwych kart upstream, topic, coverage requirements i search strategy.
-- [ ] Zmiana zatwierdzonego audience level, teaching goal albo driver purpose prowadzi do adekwatnej
+- [ ] Zmiana zatwierdzonego audience level, teaching goal albo driver purpose prowadzi do adekwatnej  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   zmiany planu w dozwolonym zakresie, a identyczny intake zachowuje stabilne topic i coverage IDs.
-- [ ] Topic wymagający qualifying_or_critical posiada wystarczająco konkretne
+- [ ] Topic wymagający qualifying_or_critical posiada wystarczająco konkretne  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   `allowed_expansion_areas`, aby A02 mógł przypisać podstawę terminom ograniczeń, kontrprzykładów
   albo warunków brzegowych bez ponownego otwierania intake.
-- [ ] Forward test na atrakcyjnym temacie spoza zakresu nie dodaje topic ani nowego drivera.
-- [ ] Prompt injection w kartach wejściowych pozostaje danymi i nie uruchamia wyszukiwania ani nie
+- [ ] Forward test na atrakcyjnym temacie spoza zakresu nie dodaje topic ani nowego drivera.  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
+- [ ] Prompt injection w kartach wejściowych pozostaje danymi i nie uruchamia wyszukiwania ani nie  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   zmienia kontraktu.
-- [ ] Agent nie korzysta z WebSearch, WebFetch, API literaturowych ani narzędzi kolejnych agentów.
-- [ ] Brak host executora i wyjątek executora zwracają `failed` bez planu.
+- [ ] Agent nie korzysta z WebSearch, WebFetch, API literaturowych ani narzędzi kolejnych agentów.  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
+- [x] Brak host executora i wyjątek executora zwracają `failed` bez planu.
 - [x] Bieżący wspólny MCP raportuje wersję `0.4.0` i dokładnie piętnaście operacji, w tym trzy
   operacje Plannera oraz pięć operacji G02-A02; osobny wynik TEST 2 wskazuje wyłącznie zachowanie A01.
 - [ ] Trzy operacje MCP Plannera odpowiadają wynikom bezpośrednich funkcji Python dla first run,
   degraded plan, failure i revision.
-- [ ] `research_node_input` zwraca G02-A01 `research_planner_input@1`, a późniejszym producentom nie
+- [x] `research_node_input` zwraca G02-A01 `research_planner_input@1`, a późniejszym producentom nie
   przypisuje jeszcze kontraktów, które nie zostały zaimplementowane.
 - [ ] `g02_flow.py run` zachowuje jawny tryb stub całego grafu i działa po rozszerzeniu scoping.
 - [x] Source `graph_check` oraz bundle Claude i Codex przechodzą bez brakujących komponentów.
@@ -391,7 +403,7 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
 - [x] Poprawny plik config, `EMAGENTS_RESEARCH_CONTACT_EMAIL` i wymagany dla aktywnego OpenAlex
   `OPENALEX_API_KEY` tworzą katalogi runtime i raportują trzy jawne capabilities bez wartości
   sekretów.
-- [ ] Jawna ścieżka config ma pierwszeństwo przed `EMAGENTS_RESEARCH_CONFIG`, konfiguracją projektu
+- [x] Jawna ścieżka config ma pierwszeństwo przed `EMAGENTS_RESEARCH_CONFIG`, konfiguracją projektu
   i przykładem w repo.
 - [x] Brak kontaktowego e-maila przy włączonym OpenAlex lub arXiv kończy startup czytelnym błędem.
 - [x] Brak `OPENALEX_API_KEY` przy włączonym OpenAlex kończy startup przed requestem czytelnym
@@ -402,25 +414,25 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
 - [x] Nieprawidłowy kontrakt config, ujemne limity, zbyt duży timeout i arXiv interval poniżej
   3 sekund są odrzucane.
 - [x] Ścieżki absolutne oraz traversal poza `EMAGENTS_HOME` są odrzucane.
-- [ ] Provider disabled zwraca `unavailable`, nie wykonuje requestu i zapisuje jednoznaczny wynik.
+- [ ] Provider disabled zwraca `unavailable`, nie wykonuje requestu i zapisuje jednoznaczny wynik.  — `❌ FAIL` (Runda 7): faktycznie `failed`/`invalid_provider_route`; request NIE wykonany (substancja OK), gałąź `unavailable` nieosiągalna. Do decyzji dev — 08 Runda 7.
 - [x] Allowlista blokuje HTTP, nieznany hostname oraz redirect poza oficjalny endpoint.
-- [ ] Limit bajtów przerywa nadmierną odpowiedź, a komunikat nie zawiera nagłówków ani kluczy.
+- [x] Limit bajtów przerywa nadmierną odpowiedź, a komunikat nie zawiera nagłówków ani kluczy.
 
 ### TEST 3, QueryPlan
 
 - [x] Poprawny `mocks/g02/query_plan.json` przechodzi walidację dla scoped input pierwszego topic.
-- [ ] Każdy generated term ma dokładnie jeden `generated_term_bases`, którego `term` odpowiada
+- [x] Każdy generated term ma dokładnie jeden `generated_term_bases`, którego `term` odpowiada
   wpisowi w `generated_terms`, `source_origin_terms` należą do tej samej trasy, `expansion_area`
   dokładnie odpowiada zatwierdzonemu `allowed_expansion_areas`, a `relation` należy do kontraktu.
-- [ ] Brakujący, nadmiarowy albo zduplikowany basis, nieznany origin term, niezatwierdzony expansion
+- [x] Brakujący, nadmiarowy albo zduplikowany basis, nieznany origin term, niezatwierdzony expansion
   area i nieznana relation są odrzucane deterministycznie.
-- [ ] Trasa bez generated terms wymaga pustego `generated_term_bases`; basis nie może samodzielnie
+- [x] Trasa bez generated terms wymaga pustego `generated_term_bases`; basis nie może samodzielnie
   wprowadzić terminu do canonical query.
-- [ ] Brak trasy core, wymaganej complementary albo qualifying_or_critical jest odrzucany.
-- [ ] Nieznane origin terms, coverage IDs, providerzy, work types i languages są odrzucane.
-- [ ] Węższe daty i filtry są akceptowane, rozszerzenie poza zatwierdzony zakres jest odrzucane.
+- [x] Brak trasy core, wymaganej complementary albo qualifying_or_critical jest odrzucany.
+- [x] Nieznane origin terms, coverage IDs, providerzy, work types i languages są odrzucane.
+- [x] Węższe daty i filtry są akceptowane, rozszerzenie poza zatwierdzony zakres jest odrzucane.
 - [x] Duplikaty route ID lub query ID, pusty canonical query i przekroczony limit są odrzucane.
-- [ ] Prompt injection w topic lub seed source pozostaje danymi i nie zmienia endpointu, configu ani
+- [x] Prompt injection w topic lub seed source pozostaje danymi i nie zmienia endpointu, configu ani
   autoryzowanych tras.
 
 ### TEST 3, adaptery providerów offline
@@ -435,72 +447,72 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
 - [ ] Każdy provider przestrzega route limit, page limit i zwraca prawidłowy next cursor oraz
   exhausted dla odpowiedniego formatu paginacji.
 - [x] HTTP 408, 425, 429 i 5xx uruchamiają ograniczony retry z backoff; pozostałe 4xx kończą próbę.
-- [ ] `Retry-After` jest respektowany do zamrożonego maksimum, a arXiv zachowuje odstęp co najmniej
+- [x] `Retry-After` jest respektowany do zamrożonego maksimum, a arXiv zachowuje odstęp co najmniej
   3 sekund.
 - [x] Identyczne żądanie korzysta z cache, nie wykonuje transportu drugi raz i oznacza cache hit.
-- [ ] Uszkodzony lub przeterminowany cache nie jest traktowany jako poprawna odpowiedź.
-- [ ] Częściowa awaria po użytecznej stronie daje `partial`; zero wyników daje `ok` z pustą listą,
+- [x] Uszkodzony lub przeterminowany cache nie jest traktowany jako poprawna odpowiedź.
+- [x] Częściowa awaria po użytecznej stronie daje `partial`; zero wyników daje `ok` z pustą listą,
   jeśli provider gwarantuje filtry, albo `partial` z `provider_filter_unverifiable`; awaria przed
   wynikiem daje `failed` albo `unavailable`.
-- [ ] Raw response i `literature_tool_result@1` są zapisane jako osobne, możliwe do hydratacji
+- [x] Raw response i `literature_tool_result@1` są zapisane jako osobne, możliwe do hydratacji
   artefakty z pełną proweniencją.
 
 ### TEST 3, live API smoke, wyłącznie opt-in
 
-- [ ] Testy sieciowe są domyślnie pomijane i uruchamiają się wyłącznie po jawnej fladze środowiska;
+- [ ] Testy sieciowe są domyślnie pomijane i uruchamiają się wyłącznie po jawnej fladze środowiska;  — Runda 7: N/A w pakiecie `tests/`; live smoke wykonano osobnym opt-in harnessem (osobny `EMAGENTS_HOME`, limit 1–2 rekordy).
   używają osobnego katalogu `EMAGENTS_HOME`, limitu 1–2 rekordów i kontrolowanego timeoutu.
 - [x] Preflight potwierdza obecność `EMAGENTS_RESEARCH_CONTACT_EMAIL` i `OPENALEX_API_KEY` bez
   drukowania wartości. `SEMANTIC_SCHOLAR_API_KEY` jest sprawdzany jako opcjonalny, ale zalecany.
 - [x] OpenAlex przyjmuje skonfigurowany klucz, zwraca HTTP success i co najmniej jeden rekord dla
   stabilnego małego query; wynik, rekord i raw-response ref przechodzą kontrakty. Brak klucza jest
   zatrzymywany lokalnie przed requestem.
-- [ ] Semantic Scholar wykonuje małe query z nagłówkiem `x-api-key`, gdy klucz jest skonfigurowany,
+- [ ] Semantic Scholar wykonuje małe query z nagłówkiem `x-api-key`, gdy klucz jest skonfigurowany,  — Runda 7: tryb bez klucza zweryfikowany; ścieżka `x-api-key` wymaga opcjonalnego `SEMANTIC_SCHOLAR_API_KEY`.
   oraz poprawnie raportuje limit lub tryb bez klucza. Kod nie przekracza jednego requestu na sekundę.
 - [x] arXiv wykonuje małe query bez klucza, wysyła identyfikujący User-Agent, zachowuje odstęp co
   najmniej 3 sekund i zwraca poprawny rekord z XML.
 - [x] Pierwszy request każdego providera omija cache, a drugi identyczny request potwierdza cache hit
   bez ponownego połączenia, jeżeli cache jest włączony.
-- [ ] Po smoke testach automatyczny skan całego testowego `EMAGENTS_HOME`, przechwyconego stdout i
+- [x] Po smoke testach automatyczny skan całego testowego `EMAGENTS_HOME`, przechwyconego stdout i
   stderr potwierdza brak jawnych wartości e-maila i obu kluczy. Artefakty zachowują tylko
   niesekretny status authentication i proweniencję.
-- [ ] Każdy live wynik odróżnia prawidłowe zero results, błąd autoryzacji, rate limit i awarię
+- [x] Każdy live wynik odróżnia prawidłowe zero results, błąd autoryzacji, rate limit i awarię
   providera. Test nie prowokuje 429 przez celowe przekraczanie limitu.
 
 ### TEST 3, Domain artifact i reviewer
 
 - [x] `research_domain_prepare` hydratuje wyłącznie zatwierdzony plan i jeden topic oraz zwraca
   `domain_research_input@1` bez kluczy API.
-- [ ] Brak planu, zły kontrakt, nieznany topic i brak gotowego providera zwracają odpowiedni
+- [x] Brak planu, zły kontrakt, nieznany topic i brak gotowego providera zwracają odpowiedni
   `needs_input` albo `failed` bez uruchomienia agenta.
-- [ ] Poprawny wynik z query logs i niezmienionymi provider records zapisuje
+- [x] Poprawny wynik z query logs i niezmienionymi provider records zapisuje
   `domain_candidate_sources@1` i zwraca `ok`.
 - [ ] Każdy wpis query log zgadza się z hydratowanym `literature_tool_result@1`; obcy, brakujący albo
   zmodyfikowany ref jest odrzucany.
-- [ ] Kandydat spoza wyników providera, zmienione metadane, duplikat source ID i przekroczony limit
+- [x] Kandydat spoza wyników providera, zmienione metadane, duplikat source ID i przekroczony limit
   są odrzucane.
-- [ ] G02-A02 nie może przypisywać finalnych source roles ani verdictów claimów.
-- [ ] Coverage map używa wyłącznie kandydatów i approved coverage IDs, a basis ma wartość metadata,
+- [x] G02-A02 nie może przypisywać finalnych source roles ani verdictów claimów.
+- [x] Coverage map używa wyłącznie kandydatów i approved coverage IDs, a basis ma wartość metadata,
   title albo abstract.
-- [ ] Niepełne coverage lub jawne provider issues zapisują użyteczny artefakt jako `degraded` z
+- [x] Niepełne coverage lub jawne provider issues zapisują użyteczny artefakt jako `degraded` z
   resume token; `completed` z lukami jest odrzucane.
-- [ ] Rewizja wymaga poprzedniego artefaktu, zachowuje task/topic i zwiększa artifact version.
+- [x] Rewizja wymaga poprzedniego artefaktu, zachowuje task/topic i zwiększa artifact version.
 - [x] Builder review tworzy dokładnie jeden `review_task@1`, profil `domain_candidates`, zamrożone
   DR-01 do DR-06 i ref tylko do ocenianego artefaktu.
-- [ ] Uniwersalny reviewer zwraca APPROVED, REVISE lub BLOCKED zgodnie z artefaktem i nie wykonuje
+- [x] Uniwersalny reviewer zwraca APPROVED, REVISE lub BLOCKED zgodnie z artefaktem i nie wykonuje
   wyszukiwania ani nie modyfikuje wyniku.
 
 ### TEST 3, agent, MCP, packaging i regresja
 
-- [ ] Forward test G02-A02 tworzy QueryPlan, wywołuje wyłącznie narzędzia MCP, zachowuje neutralność
+- [ ] Forward test G02-A02 tworzy QueryPlan, wywołuje wyłącznie narzędzia MCP, zachowuje neutralność  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   stanowisk i nie wykonuje pracy A03-A09.
-- [ ] Forward test G02-A02 zachowuje pełną ścieżkę `driver → topic → origin term → generated term
+- [ ] Forward test G02-A02 zachowuje pełną ścieżkę `driver → topic → origin term → generated term  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   basis → route → coverage unit`; reviewer odrzuca semantycznie nieuzasadniony basis nawet wtedy,
   gdy jego shape przechodzi kontrakt.
-- [ ] Dla jednego topic agent tworzy kilka uzasadnionych tras wyszukiwania, a nie kilka wariantów
+- [ ] Dla jednego topic agent tworzy kilka uzasadnionych tras wyszukiwania, a nie kilka wariantów  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   ResearchPlan. Core, complementary i qualifying_or_critical różnią się celem oraz terminologią,
   lecz pozostają w tym samym zatwierdzonym zakresie.
-- [ ] Agent nie używa WebSearch, WebFetch, shell HTTP, downloadera PDF ani bezpośrednich klientów API.
-- [ ] Forward testy A01 i A02 przechodzą osobno na Claude i Codex. Brak rzeczywistego izolowanego
+- [ ] Agent nie używa WebSearch, WebFetch, shell HTTP, downloadera PDF ani bezpośrednich klientów API.  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
+- [ ] Forward testy A01 i A02 przechodzą osobno na Claude i Codex. Brak rzeczywistego izolowanego  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   executora hosta daje jawny failure i nie może zostać zaliczony jako test zachowania agenta.
 - [x] MCP raportuje wersję `0.4.0` i dokładnie piętnaście operacji, w tym pięć operacji G02-A02 i
   dziesięć pozostałych.
@@ -612,77 +624,77 @@ testowym. Lokalny test DEV nie zastępuje live smoke ani forward testu agenta na
 
 #### A. Przygotowanie i regresja deterministyczna
 
-- [ ] Użyć świeżej kopii repo i nowego środowiska Python z `requirements-dev.txt`; ustawić osobny
+- [x] Użyć świeżej kopii repo i nowego środowiska Python z `requirements-dev.txt`; ustawić osobny
   `EMAGENTS_HOME`, który można po teście w całości przeskanować pod kątem sekretów.
-- [ ] Uruchomić `python -m pytest tests/test_g02_canonical.py tests/test_mcp_server.py -q`; wszystkie
+- [x] Uruchomić `python -m pytest tests/test_g02_canonical.py tests/test_mcp_server.py -q`; wszystkie
   testy A03 i bieżące 22 operacje MCP przechodzą.
-- [ ] Uruchomić `python -m pytest -q`; A01, A02, A10, packaging i pozostałe moduły nie mają regresji.
-- [ ] `research_canonical_prepare` przyjmuje dokładnie jeden zatwierdzony topic i odpowiadający mu
+- [x] Uruchomić `python -m pytest -q`; A01, A02, A10, packaging i pozostałe moduły nie mają regresji.
+- [x] `research_canonical_prepare` przyjmuje dokładnie jeden zatwierdzony topic i odpowiadający mu
   reviewed `domain_candidate_sources@1`; odrzuca zły task, topic, ref lub artifact version.
-- [ ] Scoped input zawiera tylko zatwierdzone rekordy, zweryfikowane seedy, nierozwiązane seedy,
+- [x] Scoped input zawiera tylko zatwierdzone rekordy, zweryfikowane seedy, nierozwiązane seedy,
   role, coverage, limity i publiczny status providerów. Nie zawiera e-maila ani wartości kluczy.
 
 #### B. Ekspansja, metadane i walidacja artefaktu
 
-- [ ] Fixture OpenAlex potwierdza `cited_by`, a fixture'y Semantic Scholar potwierdzają
+- [x] Fixture OpenAlex potwierdza `cited_by`, a fixture'y Semantic Scholar potwierdzają
   `references`, `cited_by` i `recommendations`, wraz z seed ID, provider ID, relation, distance 1,
   operation ID, raw-response provenance oraz niezmienionym `source_record@1`.
-- [ ] OpenAlex dopuszcza wyłącznie `cited_by`; Semantic Scholar dopuszcza `references`, `cited_by`
+- [x] OpenAlex dopuszcza wyłącznie `cited_by`; Semantic Scholar dopuszcza `references`, `cited_by`
   i `recommendations`; arXiv i nieobsługiwana relacja zwracają kontrolowane `unavailable`.
-- [ ] Niezatwierdzony seed, brak identyfikatora właściwego providera, depth inne niż 1 i limit ponad
+- [x] Niezatwierdzony seed, brak identyfikatora właściwego providera, depth inne niż 1 i limit ponad
   scoped budget są odrzucane przed połączeniem sieciowym.
-- [ ] `research_metadata_search` przyjmuje `canonical_input`, nadal wymaga zgodnego `query_plan@1`
+- [x] `research_metadata_search` przyjmuje `canonical_input`, nadal wymaga zgodnego `query_plan@1`
   i zapisuje wynik każdej wykonanej trasy, także zero-result, partial oraz failed.
-- [ ] Finalizacja odrzuca rekord zmodyfikowany względem reviewed A02 albo tool result, brak
+- [x] Finalizacja odrzuca rekord zmodyfikowany względem reviewed A02 albo tool result, brak
   operation ref, niepełny search log, niezgodną projekcję provider issues i przekroczony limit.
-- [ ] Każdy użyty `literature_tool_result@1` ma `request.scope` zgodny z task, topic, ResearchPlan
+- [x] Każdy użyty `literature_tool_result@1` ma `request.scope` zgodny z task, topic, ResearchPlan
   i reviewed A02 ref. Próba podpięcia wyniku z innego scope jest blokowana.
-- [ ] Każdy kandydat ma dokładnie jedną adnotację. Pojedynczy citation count nie wystarcza jako
+- [x] Każdy kandydat ma dokładnie jedną adnotację. Pojedynczy citation count nie wystarcza jako
   canonicality basis; `domain_authoritative` wymaga dokładnego seed ID zatwierdzonego w planie i
   evidence source `domain_authority`; access i library requirement odpowiadają rekordowi.
-- [ ] Coverage, nierozwiązane seedy, stop reason i status `completed`/`degraded` są wzajemnie
+- [x] Coverage, nierozwiązane seedy, stop reason i status `completed`/`degraded` są wzajemnie
   zgodne. Surrogate pozostaje osobnym source ID i nie jest oznaczany jako semantyczny odpowiednik.
-- [ ] Rewizja wymaga poprzedniego artefaktu, zwiększa `artifact_version`, zmienia wyłącznie wskazane
+- [x] Rewizja wymaga poprzedniego artefaktu, zwiększa `artifact_version`, zmienia wyłącznie wskazane
   pola i zachowuje task, topic oraz niekwestionowane rekordy.
-- [ ] `research_canonical_review_task` tworzy ważny `review_task@1`, profil `canonical_sources`,
+- [x] `research_canonical_review_task` tworzy ważny `review_task@1`, profil `canonical_sources`,
   kryteria `CS-01` do `CS-06` i ref wyłącznie do zapisanego artefaktu A03.
 
 #### C. Live API i zachowanie operacyjne
 
-- [ ] Preflight potwierdza `EMAGENTS_RESEARCH_CONTACT_EMAIL`, `OPENALEX_API_KEY` oraz opcjonalny
+- [x] Preflight potwierdza `EMAGENTS_RESEARCH_CONTACT_EMAIL`, `OPENALEX_API_KEY` oraz opcjonalny
   `SEMANTIC_SCHOLAR_API_KEY` bez drukowania wartości. Brak wymaganego sekretu kończy się lokalnie.
-- [ ] Live OpenAlex `cited_by` dla stabilnego zweryfikowanego seeda zwraca 1–2 ważne rekordy,
+- [ ] Live OpenAlex `cited_by` dla stabilnego zweryfikowanego seeda zwraca 1–2 ważne rekordy,  — niewykonalne z mock seedem (placeholder `openalex_id`); ścieżka kodu i normalizacja zaliczone offline. Do wykonania z realnym seedem — 08 Runda 7.
   respektuje limit i zapisuje request ID, raw-response ref, paginację oraz config profile.
-- [ ] Live Semantic Scholar wykonuje co najmniej jedną relację dostępną dla stabilnego seeda. Tryb
+- [x] Live Semantic Scholar wykonuje co najmniej jedną relację dostępną dla stabilnego seeda. Tryb
   bez klucza, 429 lub quota limit jest raportowany jako jawny status, bez pozornego success.
-- [ ] Live complementary metadata search działa dla każdego gotowego providera: OpenAlex,
+- [x] Live complementary metadata search działa dla każdego gotowego providera: OpenAlex,
   Semantic Scholar i arXiv. Zero wyników pozostaje prawidłowym, audytowalnym wynikiem.
-- [ ] Powtórzone identyczne wywołanie potwierdza cache hit bez drugiego requestu. Timeout, 429/5xx,
+- [x] Powtórzone identyczne wywołanie potwierdza cache hit bez drugiego requestu. Timeout, 429/5xx,
   uszkodzony cache i częściowa odpowiedź przechodzą ograniczony retry oraz właściwy failure path.
-- [ ] Skan `EMAGENTS_HOME`, stdout i stderr nie znajduje jawnego e-maila ani kluczy. Artefakty
+- [x] Skan `EMAGENTS_HOME`, stdout i stderr nie znajduje jawnego e-maila ani kluczy. Artefakty
   zawierają tylko publiczny status konfiguracji i bezpieczny `config_profile`.
 
 #### D. Forward test Claude i Codex
 
-- [ ] Na Claude agent wykonuje prepare, dozwolone expand/search, buduje poprawne adnotacje,
+- [ ] Na Claude agent wykonuje prepare, dozwolone expand/search, buduje poprawne adnotacje,  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   finalizuje artefakt i tworzy review task bez bezpośredniego HTTP, WebSearch ani pobierania PDF.
-- [ ] Ten sam scenariusz przechodzi na Codex z tą samą semantyką kontraktów i identyfikowalnością.
-- [ ] Scenariusz z zamkniętą monografią nie przypisuje jej niedostępnej treści. Dostępny surrogate
+- [ ] Ten sam scenariusz przechodzi na Codex z tą samą semantyką kontraktów i identyfikowalnością.  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
+- [ ] Scenariusz z zamkniętą monografią nie przypisuje jej niedostępnej treści. Dostępny surrogate  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   jest osobnym kandydatem, a citation count pozostaje sygnałem discovery, nie oceną jakości.
-- [ ] Scenariusz z provider issue lub luką coverage kończy się `degraded`; brak rzeczywistego
+- [ ] Scenariusz z provider issue lub luką coverage kończy się `degraded`; brak rzeczywistego  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   izolowanego executora hosta daje jawny failure i nie jest zaliczany jako forward test.
-- [ ] G02-A10 zatwierdza poprawny wynik, kieruje naruszenie `CS-*` do REVISE albo BLOCKED, a A03
+- [ ] G02-A10 zatwierdza poprawny wynik, kieruje naruszenie `CS-*` do REVISE albo BLOCKED, a A03  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   wykonuje wyłącznie wskazaną rewizję.
 
 #### E. Packaging i bramka wejścia do DEV A04
 
-- [ ] `python scripts/install_plugin.py --all --dry-run` raportuje 20 skilli i 11 agentów bez
+- [x] `python scripts/install_plugin.py --all --dry-run` raportuje 20 skilli i 11 agentów bez
   modyfikacji źródeł ani istniejącego `dist`.
-- [ ] `python scripts/build-plugin.py --host all` buduje bundle Claude i Codex; oba zawierają
+- [x] `python scripts/build-plugin.py --host all` buduje bundle Claude i Codex; oba zawierają
   `canonical.py`, `citations.py`, nowy kontrakt, definicję A03 i wymagane skille.
-- [ ] `graph_check` przechodzi dla source oraz obu bundli. Bundle nie zawiera mocków, testów,
+- [x] `graph_check` przechodzi dla source oraz obu bundli. Bundle nie zawiera mocków, testów,
   `.emagents`, konfiguracji lokalnej, raw responses, cache, `__pycache__` ani `.pyc`.
-- [ ] Wynik TEST 4 dopisać jako nową rundę na górze `08_Log_wynikow_TEST.md`, oddzielając testy
+- [x] Wynik TEST 4 dopisać jako nową rundę na górze `08_Log_wynikow_TEST.md`, oddzielając testy
   deterministyczne, live API, forward Claude, forward Codex i packaging.
 - [ ] Po zaliczeniu testów oraz akceptacji właściciela wykonać osobny commit A03 i rozpocząć DEV A04.
 
@@ -713,107 +725,252 @@ Dzisiejsze testy DEV nie zastępują live smoke ani forward testu agenta na rzec
 
 #### A. Intake, przygotowanie i regresja
 
-- [ ] Użyć świeżej kopii repo, nowego środowiska z `requirements-dev.txt` i osobnego
+- [x] Użyć świeżej kopii repo, nowego środowiska z `requirements-dev.txt` i osobnego
   `EMAGENTS_HOME` przeznaczonego do późniejszego skanu sekretów.
-- [ ] Potwierdzić, że intake `recency_window_years` przechodzi bez zmiany przez
+- [x] Potwierdzić, że intake `recency_window_years` przechodzi bez zmiany przez
   `research_planner_input@1` do `research_plan@1`; brak lub wartość niepoprawna jest blokowana.
-- [ ] `research_recent_prepare` dla topicu z rolą `current` zwraca `recent_research_input@1`; dla
+- [x] `research_recent_prepare` dla topicu z rolą `current` zwraca `recent_research_input@1`; dla
   topicu bez tej roli albo przy wyłączonym recent discovery zwraca jawny, bezpieczny skip.
-- [ ] Dla okna pięciu lat i roku uruchomienia 2026 przygotowane lata wynoszą dokładnie 2022–2026.
+- [x] Dla okna pięciu lat i roku uruchomienia 2026 przygotowane lata wynoszą dokładnie 2022–2026.
   Jawne ograniczenia planu mogą okno zawęzić, lecz nigdy rozszerzyć.
-- [ ] Scoped input zawiera wyłącznie approved topic, reviewed A02, zweryfikowane seedy, role,
+- [x] Scoped input zawiera wyłącznie approved topic, reviewed A02, zweryfikowane seedy, role,
   coverage, limity i publiczne capabilities. Nie zawiera e-maila ani wartości kluczy.
-- [ ] `python -m pytest tests/test_g02_recent.py tests/test_mcp_server.py -q` przechodzi, a MCP
+- [x] `python -m pytest tests/test_g02_recent.py tests/test_mcp_server.py -q` przechodzi, a MCP
   `0.6.0` raportuje dokładnie 22 operacje.
-- [ ] `python -m pytest -q` przechodzi bez regresji A01–A03, A10, providerów i packagingu.
+- [x] `python -m pytest -q` przechodzi bez regresji A01–A03, A10, providerów i packagingu.
 
 #### B. QueryPlan, operacje i semantyka recent artifact
 
-- [ ] Każda trasa `query_plan@1` ma dokładnie zamrożone `year_from` i `year_to`, zachowane
+- [x] Każda trasa `query_plan@1` ma dokładnie zamrożone `year_from` i `year_to`, zachowane
   exclusions, zatwierdzone terminy i coverage. Poszerzenie choć jednej daty jest odrzucane.
-- [ ] Przy zatwierdzonym `preprint` istnieje co najmniej jedna trasa preprint. arXiv nie jest
+- [x] Przy zatwierdzonym `preprint` istnieje co najmniej jedna trasa preprint. arXiv nie jest
   autoryzowany, jeżeli topic nie dopuszcza preprintów.
-- [ ] `research_metadata_search` z `recent_input` działa dla OpenAlex, Semantic Scholar i arXiv,
+- [x] `research_metadata_search` z `recent_input` działa dla OpenAlex, Semantic Scholar i arXiv,
   zwraca `recent_metadata` oraz zapisuje także zero results, partial i failed.
-- [ ] Opcjonalny `research_citation_expand` przyjmuje `discovery_input: recent_input`, tylko
+- [x] Opcjonalny `research_citation_expand` przyjmuje `discovery_input: recent_input`, tylko
   zweryfikowany seed i jeden hop, a zwrócone rekordy mają pulę `recent_expansion`.
-- [ ] Finalizacja odrzuca rekord spoza okna, bez roku, zmieniony względem A02/tool result, brak
+- [x] Finalizacja odrzuca rekord spoza okna, bez roku, zmieniony względem A02/tool result, brak
   operation ref, niepełny log, niezgodne provider issues i przekroczony candidate limit.
-- [ ] Każdy użyty `literature_tool_result@1` ma `request.scope` zgodny z task, topic, ResearchPlan
+- [x] Każdy użyty `literature_tool_result@1` ma `request.scope` zgodny z task, topic, ResearchPlan
   i reviewed A02 ref. Wynik z innego scope jest blokowany.
-- [ ] Każdy kandydat ma dokładnie jedną `recent_annotation`; recency basis dokładnie odpowiada
+- [x] Każdy kandydat ma dokładnie jedną `recent_annotation`; recency basis dokładnie odpowiada
   rekordowi i oknu, a role wskazują zatwierdzony topic, claim IDs i coverage.
-- [ ] Rekord z `work_type: preprint` otrzymuje status preprint. Znany opublikowany typ otrzymuje
+- [x] Rekord z `work_type: preprint` otrzymuje status preprint. Znany opublikowany typ otrzymuje
   `published_unknown`, a brak rozpoznanego typu pozostaje `unknown`; venue, article ani review nie
   są samodzielnym dowodem peer review.
-- [ ] Każdy maturity signal jest weryfikowalny w metadanych, abstrakcie lub citation operation.
+- [x] Każdy maturity signal jest weryfikowalny w metadanych, abstrakcie lub citation operation.
   Fałszywy citation count, velocity, review type, multi-provider signal albo niedopasowany evidence
   source jest odrzucany.
-- [ ] `core_update` wymaga `established`, co najmniej dwóch sygnałów, abstraktu i braku statusu
+- [x] `core_update` wymaga `established`, co najmniej dwóch sygnałów, abstraktu i braku statusu
   preprint. Słabszy wynik jest `optional_trend` albo `watch`; `quality_status` pozostaje
   `not_assessed`.
-- [ ] Coverage, remaining units, provider issues i stop reason są wzajemnie zgodne. Rewizja
+- [x] Coverage, remaining units, provider issues i stop reason są wzajemnie zgodne. Rewizja
   zwiększa wersję i zmienia wyłącznie pola wskazane przez findings.
-- [ ] `research_recent_review_task` tworzy ważny `review_task@1`, profil `recent_developments`,
+- [x] `research_recent_review_task` tworzy ważny `review_task@1`, profil `recent_developments`,
   kryteria `RD-01` do `RD-06` i ref wyłącznie do zapisanego artefaktu A04.
 
 #### C. Live API i zachowanie operacyjne
 
-- [ ] Preflight potwierdza e-mail, klucz OpenAlex i opcjonalny klucz Semantic Scholar bez
+- [x] Preflight potwierdza e-mail, klucz OpenAlex i opcjonalny klucz Semantic Scholar bez
   drukowania wartości. Brak wymaganego sekretu kończy się przed requestem.
-- [ ] Live OpenAlex wykonuje małe zapytanie w dokładnym oknie i zwraca 1–2 rekordy z rokiem
+- [x] Live OpenAlex wykonuje małe zapytanie w dokładnym oknie i zwraca 1–2 rekordy z rokiem
   mieszczącym się w nim; wynik i raw-response ref przechodzą kontrakty.
-- [ ] Live Semantic Scholar wykonuje małe zapytanie recent. Brak klucza, quota albo 429 jest jawnie
+- [x] Live Semantic Scholar wykonuje małe zapytanie recent. Brak klucza, quota albo 429 jest jawnie
   raportowany i nie staje się pozornym success.
-- [ ] Live arXiv wykonuje małe zapytanie preprint z User-Agent i rate limit. Rekord spoza okna nie
+- [x] Live arXiv wykonuje małe zapytanie preprint z User-Agent i rate limit. Rekord spoza okna nie
   przechodzi do artefaktu nawet wtedy, gdy provider go zwróci.
-- [ ] Dla stabilnego verified seeda wykonać jedną dozwoloną relację live. Brak relacji albo ID
+- [x] Dla stabilnego verified seeda wykonać jedną dozwoloną relację live. Brak relacji albo ID
   providera daje kontrolowane `unavailable`, bez wyszukiwania po podobnym tytule.
-- [ ] Powtórzone zapytanie potwierdza cache hit. Timeout, 429/5xx, uszkodzony cache i partial
+- [x] Powtórzone zapytanie potwierdza cache hit. Timeout, 429/5xx, uszkodzony cache i partial
   response uruchamiają ograniczony retry i prawidłowy failure path.
-- [ ] Skan całego `EMAGENTS_HOME`, stdout i stderr nie znajduje e-maila ani wartości kluczy.
+- [x] Skan całego `EMAGENTS_HOME`, stdout i stderr nie znajduje e-maila ani wartości kluczy.
 
 #### D. Forward test Claude i Codex
 
-- [ ] Claude wykonuje prepare, tworzy query plan, wywołuje wyłącznie dozwolone operacje, buduje
+- [ ] Claude wykonuje prepare, tworzy query plan, wywołuje wyłącznie dozwolone operacje, buduje  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   adnotacje, finalizuje i tworzy review task bez WebSearch, WebFetch, direct HTTP i pobierania PDF.
-- [ ] Ten sam scenariusz przechodzi na Codex z identyczną semantyką kontraktów i proweniencji.
-- [ ] Scenariusz z nowym preprintem kończy się `optional_trend` albo `watch`, bez twierdzenia o
+- [ ] Ten sam scenariusz przechodzi na Codex z identyczną semantyką kontraktów i proweniencji.  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
+- [ ] Scenariusz z nowym preprintem kończy się `optional_trend` albo `watch`, bez twierdzenia o  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   konsensusie i bez jakościowej oceny publikacji.
-- [ ] Scenariusz z dojrzałym review może otrzymać `core_update` wyłącznie przy co najmniej dwóch
+- [ ] Scenariusz z dojrzałym review może otrzymać `core_update` wyłącznie przy co najmniej dwóch  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   obserwowalnych sygnałach i abstrakcie. Sama data lub wysoki citation count nie wystarcza.
-- [ ] Provider issue albo brak coverage daje `degraded`; brak prawdziwego executora hosta daje
+- [ ] Provider issue albo brak coverage daje `degraded`; brak prawdziwego executora hosta daje  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   jawny failure i nie jest zaliczany jako forward test.
-- [ ] G02-A10 zatwierdza poprawny wynik, kieruje naruszenia `RD-*` do REVISE/BLOCKED, a A04 zmienia
+- [ ] G02-A10 zatwierdza poprawny wynik, kieruje naruszenia `RD-*` do REVISE/BLOCKED, a A04 zmienia  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   tylko wskazane pola.
 
 #### E. Packaging i bramka wejścia do DEV A11
 
-- [ ] `python scripts/install_plugin.py --all --dry-run` raportuje 20 skilli i 11 agentów bez
+- [x] `python scripts/install_plugin.py --all --dry-run` raportuje 20 skilli i 11 agentów bez
   mutacji źródeł lub istniejącego `dist`.
-- [ ] `python scripts/build-plugin.py --host all` buduje oba bundle z `recent.py`, nowym kontraktem,
+- [x] `python scripts/build-plugin.py --host all` buduje oba bundle z `recent.py`, nowym kontraktem,
   agentem A04, wspólnymi skillami i 22 operacjami MCP. Mocki i testy pozostają poza bundlem.
-- [ ] `graph_check` przechodzi dla source, Claude i Codex. Bundle nie zawiera `.emagents`, lokalnej
+- [x] `graph_check` przechodzi dla source, Claude i Codex. Bundle nie zawiera `.emagents`, lokalnej
   konfiguracji, cache, raw responses, `__pycache__` ani `.pyc`.
-- [ ] Wynik TEST 5 dopisać jako nową rundę na górze `08_Log_wynikow_TEST.md`, osobno oznaczając
+- [x] Wynik TEST 5 dopisać jako nową rundę na górze `08_Log_wynikow_TEST.md`, osobno oznaczając
   deterministyczne, live API, forward Claude, forward Codex i packaging.
 - [ ] Po zaliczeniu testów i akceptacji właściciela wykonać osobny commit A04 i rozpocząć DEV A11.
 
 ### DEV 6, G02-A11 Market Cases
 
-- [ ] Zamrozić wejście A11, web routes i semantykę `MarketCaseCandidateSources`.
-- [ ] Zaimplementować `research_web_case_search` z abstrakcją providerów: Tavily oraz kontrolowany
+- [x] Zamrożono `market_case_research_input@1`, web routes, `web_case_tool_result@1` i wariant
+  `market_cases` kontraktu `candidate_sources@1` z osobnymi adnotacjami semantycznymi.
+- [x] Zaimplementowano `research_web_case_search` z abstrakcją providerów: Tavily oraz kontrolowany
   darmowy adapter SearXNG. Agent nie otrzymuje ogólnego narzędzia przeglądarkowego.
-- [ ] Dla SearXNG dopuścić wyłącznie skonfigurowaną przez administratora instancję, format JSON,
+- [x] Dla SearXNG dopuszczono wyłącznie instancję wskazaną przez administratora poza publicznym
+  wywołaniem MCP, format JSON,
   ścisły budżet zapytań, cache, timeout, rate limit, tier-domain policy, blokadę redirectów poza
-  origin i pełną provenance. Publiczne, losowo wybierane instancje są zabronione.
-- [ ] Zaimplementować tryby `tavily`, `searxng` i `auto_budgeted`; w ostatnim trybie SearXNG służy
+  autoryzowaną ścieżkę i pełną provenance. Publiczne, losowo wybierane instancje są zabronione.
+- [x] Zaimplementowano tryby `tavily`, `searxng` i `auto_budgeted`; w ostatnim trybie SearXNG służy
   do taniego discovery, a Tavily do uzupełnienia braków, ważnych tras i ekstrakcji po bramce.
-- [ ] Zaimplementować `research_web_case_extract` wyłącznie dla case'ów zatwierdzonych przez
+- [x] Zaimplementowano `research_web_case_extract` wyłącznie dla case'ów zatwierdzonych przez
   człowieka, wraz z ochroną przed prompt injection i limitami treści.
-- [ ] Dodać profil `market_cases`, materiality gate, source tiers, failure paths, resume, mocki obu
+- [x] Dodano profil `market_cases`, materiality gate, source tiers, failure paths, resume, mocki obu
   providerów, testy redakcji sekretów i build.
-- [ ] Przedstawić ukończony pionowy wycinek do akceptacji przed DEV A05.
+- [x] Zsynchronizowano agenta, skille i adaptery Claude/Codex, pięć operacji MCP, graf, manifest,
+  packaging, README oraz dokumenty 00–08. Pełne wykonanie testów pozostaje poza sesją DEV.
+- [ ] Akceptacja właściciela pionowego wycinka A11 przed rozpoczęciem DEV A05.
+
+#### Minimalne kontrole DEV A11, 2026-06-22
+
+- [x] AST dziesięciu zmienionych plików Python, parse 49 plików JSON, odczyt ośmiu zmienionych
+  kontraktów oraz walidacja schematów pięciu mocków A11: PASS.
+- [x] Walidacja przykładowej konfiguracji providerów, manifestu, 20 skilli i adapterów obu hostów:
+  PASS; inventory wynosi 11 agentów i 20 skilli.
+- [x] Statyczny `graph_check`: PASS dla source; MCP `0.7.0` ma 27 operacji, a pięć publicznych
+  operacji A11 nie przyjmuje ścieżki konfiguracji.
+- [x] `git diff --check` i skan prywatnego e-maila oraz kluczy Tavily: PASS.
+- [ ] `pytest`, build bundle, live API i forward Claude/Codex nie były uruchamiane w DEV.
+
+### TEST 6, G02-A11 Market Cases
+
+Wszystkie poniższe scenariusze pozostają niewykonane do osobnego środowiska TEST. Krótkie kontrole
+DEV potwierdzają wyłącznie składnię i spójność statyczną, więc nie zaznaczają checkboxów TEST.
+
+#### A. Kontrakty, scoped input i przygotowanie
+
+- [ ] Schematy `market_case_research_input@1`, `web_case_tool_result@1`,
+  `web_case_extract_result@1`, `human_source_selection@1` oraz `candidate_sources@1` parsują się i
+  przechodzą pozytywne oraz negatywne fixtures.
+- [ ] `research_market_cases_prepare` hydratuje dokładny reviewed ResearchPlan i A02 ref, wybiera
+  jeden topic oraz zachowuje task ID i wersje obu artefaktów.
+- [ ] Scoped input zawiera wyłącznie topic, claim IDs, traceable market-case needs, role, coverage,
+  limity, tier policy, provider mode, secret-free capabilities i język wyjścia.
+- [ ] Scoped input nie zawiera całego intake, rekordów A02, prywatnego e-maila, kluczy, endpointu
+  SearXNG, cache paths ani nieautoryzowanych artefaktów.
+- [ ] Każdy need ma jednoznaczny `need_id`, coverage i origin do zatwierdzonego claimu, drivera,
+  update need albo coverage; sfałszowany scope, wersja lub A02 ref kończy się jawnie.
+- [ ] Brak zgody na przykłady dydaktyczne daje kontrolowany skip, brak gotowego providera daje
+  jawny failure, a revision bez poprzedniego artefaktu jest odrzucana.
+
+#### B. QueryPlan i operacje providerów offline
+
+- [ ] QueryPlan ma core, complementary i qualifying/critical route zgodnie z ResearchPlan;
+  wszystkie terminy mają approved origin i generated-term basis.
+- [ ] Każda trasa zachowuje provider mode, filtry, coverage, limity oraz domeny wybrane wyłącznie z
+  administrator tier policy. Provider syntax, dodatkowa domena i endpoint od modelu są odrzucane.
+- [ ] Publiczne schema pięciu operacji MCP A11 nie zawierają parametru `config`; profil runtime jest
+  wybierany wyłącznie przez administratora.
+- [ ] Tavily i SearXNG fixtures zwracają niezmienione, poprawne `source_record@1` typu
+  `market_case`, z URL, datą gdy dostarczona, tierem, raw ref, query ID i provenance.
+- [ ] `auto_budgeted` używa gotowego SearXNG do discovery i Tavily do kontrolowanego uzupełnienia;
+  tryby pojedynczego providera nie uruchamiają drugiego adaptera.
+- [ ] Zero results daje `ok`; disabled, missing key/endpoint, timeout, DNS, 429, 5xx, invalid JSON,
+  zły content type i zbyt duża odpowiedź dają właściwe `partial`, `unavailable` albo `failed`.
+- [ ] Cache hit nie zużywa kolejnego budżetu; limity wspólne, per-provider i rate limit są
+  egzekwowane. Retry respektuje `Retry-After` i nie przekracza konfiguracji.
+- [ ] Redirect poza origin lub na inną ścieżkę operacji jest blokowany; SearXNG może użyć wyłącznie
+  jawnie zatwierdzonego endpointu, bez credentials w URL i bez losowej publicznej instancji.
+- [ ] Wyniki z innego tasku, topicu, ResearchPlan, A02 ref, route, query albo provider mode nie mogą
+  zostać użyte przy finalizacji A11.
+
+#### C. Finalizacja MarketCaseCandidateSources
+
+- [ ] Każdy candidate jest identyczny z rekordem w zapisanym `web_case_tool_result@1`; mutacja
+  tytułu, daty, URL, tieru, provenance albo null metadata jest odrzucana.
+- [ ] Każdy candidate ma dokładnie jedną adnotację, a role, case identity, evidence type, source
+  assessment, materiality, market fact i coverage cytują obserwacje title/snippet/date/URL.
+- [ ] Fakt rynkowy pozostaje oddzielony od interpretacji dydaktycznej, która mapuje się do
+  zatwierdzonego topicu lub claimu. Agent nie tworzy publikacji naukowej ani DOI.
+- [ ] Tier-3 bez potwierdzenia pozostaje `weak_signal`; wyższy tier lub poprawna korelacja są
+  odnotowane osobno. Anegdota nie może wejść jako documented case.
+- [ ] Materiality wymaga obserwowalnej skali, realnej konsekwencji i potwierdzenia tier 1/2;
+  scientific quality pozostaje `not_assessed`, a DOI `absent`.
+- [ ] Starszy case ma jawny historical/unknown regime context i nie może zostać oznaczony jako
+  current regime bez podstawy.
+- [ ] Coverage liczy wyłącznie case'y przechodzące materiality; remaining units, provider issues i
+  stop reason są wyliczone zgodnie z rzeczywistym wynikiem.
+- [ ] `completed` z luką lub provider issue, fałszywy `candidate_limit`, niepoprawny revision target
+  oraz zmiana pola poza findings reviewera są odrzucane.
+- [ ] Finalizacja zapisuje wersjonowany artefakt, zwraca `ok` przy pełnym coverage lub `degraded`
+  przy użytecznej puli z jawnymi brakami, bez fałszywego statusu sukcesu.
+
+#### D. Review G02-A10
+
+- [ ] `research_market_cases_review_task` tworzy jeden `review_task@1` o profilu `market_cases`,
+  producencie `g02-a11-market-cases` i dokładnie jednym artefakcie.
+- [ ] Kryteria MC-01–MC-06, wymagania dowodowe, prohibited behaviors i severity rules są kompletne,
+  zgodne między agentem, skillem reviewera, runtime i dokumentacją.
+- [ ] G02-A10 zatwierdza poprawny artefakt, kieruje naprawialne błędy do REVISE, a scope mismatch,
+  zmieniony record, fabrykację, anegdotę lub ekstrakcję przed bramką do BLOCKED.
+- [ ] Kolejna rewizja zwiększa `artifact_version`, zachowuje nieobjęte pola i używa poprzedniej
+  decyzji oraz producer revision response zgodnie z kontraktem reviewera.
+
+#### E. Ekstrakcja po Human Source Selection Gate
+
+- [ ] Brak zapisanego `human_source_selection@1`, status inny niż `approved`, brak finalnego
+  potwierdzenia albo source ID poza `approved_for_download` blokuje request przed Tavily.
+- [ ] Selection i market candidates muszą mieć ten sam task; candidate index ref musi być czytelny,
+  source ID ma rozwiązać się dokładnie raz w indeksie i puli, a URL pochodzi wyłącznie z zapisanego
+  rekordu i musi być credential-free HTTPS.
+- [ ] Duplikat decyzji source ID, source wykluczony albo nie-market-case są odrzucane.
+- [ ] Tavily extraction zwraca dokładnie zatwierdzony URL, ogranicza rozmiar, zapisuje hash, raw ref,
+  request ID, truncation i `content_boundary: untrusted_external_research`.
+- [ ] Pełna treść nie występuje inline w `web_case_extract_result@1`; prompt-injection flags i zakaz
+  forwardowania tekstu downstream są zachowane.
+- [ ] G02-A07 otrzymuje wyłącznie zatwierdzony descriptor i tworzy kompaktową evidence card z
+  odrębnym faktem oraz interpretacją. Odrzucone case'y nie są ekstrahowane.
+
+#### F. Live API i bezpieczeństwo sekretów
+
+- [ ] Opt-in live Tavily search zwraca realne, datowane i identyfikowalne case'y z allowlisted
+  domen, poprawnym provenance i bez raw page extraction podczas discovery.
+- [ ] Opt-in live Tavily extraction działa tylko po finalnej bramce i zachowuje dokładny URL oraz
+  bounded untrusted artifact. Koszt i liczba wywołań mieszczą się w konfiguracji.
+- [ ] Opt-in live skonfigurowanego SearXNG używa JSON API tej jednej instancji; brak instancji daje
+  jawny status i nie uruchamia wyszukiwania publicznego.
+- [ ] Skan repo, logów, cache, raw responses, MCP output i artefaktów nie znajduje wartości
+  `TAVILY_API_KEY`, prywatnego e-maila ani innych sekretów.
+- [ ] Network failure, rate limit i częściowa dostępność providerów zachowują audytowalny wynik i
+  nie uruchamiają WebSearch, WebFetch, shell HTTP ani przeglądarki zastępczej.
+
+#### G. Forward Claude i Codex
+
+- [ ] Claude wykonuje prepare, buduje wyłącznie zatwierdzone trasy, korzysta z MCP, zachowuje rekordy
+  providerów i tworzy ugruntowane adnotacje bez bezpośredniego web access. — `⏳ KOŃCOWY`
+- [ ] Ten sam scenariusz przechodzi na Codex z identycznymi kontraktami, scope, provider issues,
+  materiality i coverage. — `⏳ KOŃCOWY`
+- [ ] Oba hosty rozróżniają realny case, weak signal i anegdotę, nie przypisują publication date
+  jako event date bez podstawy oraz nie oceniają scientific quality. — `⏳ KOŃCOWY`
+- [ ] Provider degradation daje `degraded`, brak operacji MCP daje jawny external dependency status,
+  a żaden host nie używa własnego browse jako fallback. — `⏳ KOŃCOWY`
+- [ ] Prompt injection w snippet lub zatwierdzonej stronie pozostaje danymi i nie zmienia workflow,
+  konfiguracji, decyzji bramki ani treści innych artefaktów. — `⏳ KOŃCOWY`
+
+#### H. Packaging i integracja A02–A05
+
+- [ ] Inventory zawiera 11 agentów i 20 skilli; oba bundle zawierają agenta A11 zgodnie z polityką
+  hosta, dwa skille z właściwymi adapterami, cztery nowe kontrakty i oba moduły runtime.
+- [ ] MCP raportuje wersję `0.7.0` i dokładnie 27 operacji, w tym pięć A11; source, Claude i Codex
+  przechodzą `graph_check`.
+- [ ] Bundle nie zawierają mocków, testów, `.emagents`, cache, raw responses, runtime config,
+  `__pycache__`, `.pyc` ani sekretów. Build i dry-run instalacji nie mutują źródeł.
+- [ ] Graf wiąże A11 z `market_case_research_input@1`, `candidate_sources@1`, profilem
+  `market_cases` oraz pozycją po A04 i przed A05; scheduler może pozostać sekwencyjny.
+- [ ] Reviewed A02, A03, A04 i A11 trafiają do A05 bez cross-stream deduplikacji przed A05; pełny
+  przepływ i SEARCH_MORE zostaną sprawdzone po implementacji A05. — `⏳ KOŃCOWY`
+- [ ] Wyniki TEST 6 należy dopisać jako nową rundę na górze `08_Log_wynikow_TEST.md`, bez zmiany
+  historycznej Rundy 7; zaznaczyć tylko scenariusze faktycznie wykonane i zaliczone.
 
 ### DEV 7, G02-A05 Candidate Source Index
 
@@ -829,15 +986,15 @@ Dzisiejsze testy DEV nie zastępują live smoke ani forward testu agenta na rzec
 
 ### Wspólny TEST batcha po DEV 7, osobne środowisko
 
-- [ ] Pełna regresja A01, A02 i A10 oraz wszystkie nowe testy kontraktowe i offline.
-- [ ] Live smoke OpenAlex, Semantic Scholar, arXiv, Tavily i skonfigurowanej instancji SearXNG;
+- [ ] Pełna regresja A01, A02 i A10 oraz wszystkie nowe testy kontraktowe i offline.  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
+- [ ] Live smoke OpenAlex, Semantic Scholar, arXiv, Tavily i skonfigurowanej instancji SearXNG;  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   niedostępny darmowy provider ma dawać kontrolowany fallback albo jawny status częściowy.
-- [ ] Przepływ A01 → A02 → A03 → A04 → A11 discovery → A05 z review każdego producenta.
-- [ ] Gated A11 extraction uruchamia się wyłącznie dla zatwierdzonych case'ów i zachowuje
+- [ ] Przepływ A01 → A02 → A03 → A04 → A11 discovery → A05 z review każdego producenta.  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
+- [ ] Gated A11 extraction uruchamia się wyłącznie dla zatwierdzonych case'ów i zachowuje  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   identyfikowalność do A08/A09; odrzucone case'y nie są pobierane.
-- [ ] Forward tests A01, A02, A03, A04, A11, A05 i A10 na Claude oraz Codex.
-- [ ] Failure paths: brak providera, 429/5xx, częściowe wyniki, zero results, SEARCH_MORE, rewizja,
+- [ ] Forward tests A01, A02, A03, A04, A11, A05 i A10 na Claude oraz Codex.  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
+- [ ] Failure paths: brak providera, 429/5xx, częściowe wyniki, zero results, SEARCH_MORE, rewizja,  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   resume, niezgodna wersja planu i konflikt deduplikacji.
-- [ ] Build obu hostów, `graph_check`, skan sekretów, brak runtime artifacts i zgodność inventory.
-- [ ] Wyniki zapisać jako nową rundę na górze `08_Log_wynikow_TEST.md`; checkboxy zaznaczyć wyłącznie
+- [ ] Build obu hostów, `graph_check`, skan sekretów, brak runtime artifacts i zgodność inventory.  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
+- [ ] Wyniki zapisać jako nową rundę na górze `08_Log_wynikow_TEST.md`; checkboxy zaznaczyć wyłącznie  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   dla faktycznie wykonanych scenariuszy.

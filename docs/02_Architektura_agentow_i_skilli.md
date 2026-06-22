@@ -15,7 +15,7 @@ flowchart TD
 
     EXP --> CS["G02-A03 Canonical Sources Agents"]
     EXP --> RD["G02-A04 Recent Developments Agents"]
-    EXP --> MC["G02-A11 Market Cases Agent\nTavily seam planned"]
+    EXP --> MC["G02-A11 Market Cases Agent\nTavily + controlled SearXNG"]
     CS --> RV3["G02-A10 Output Reviewer\nprofile: canonical_sources"]
     RD --> RV4["G02-A10 Output Reviewer\nprofile: recent_developments"]
     MC --> RVMC["G02-A10 Output Reviewer\nprofile: market_cases"]
@@ -33,7 +33,7 @@ flowchart TD
     RV5 -->|APPROVED| HG1["Human Source Selection Gate"]
     HG1 -->|SEARCH_MORE| DR
     HG1 -->|APPROVED DOCUMENT| PR["G02-A06 Paper Retrieval Agent"]
-    HG1 -->|APPROVED MARKET CASE| WEX["Deterministic Tavily extraction\nplanned A11 seam"]
+    HG1 -->|APPROVED MARKET CASE| WEX["Deterministic Tavily extraction\nfinal selection required"]
 
     PR --> RV6["G02-A10 Output Reviewer\nprofile: retrieved_corpus"]
     RV6 -->|REVISE| PR
@@ -565,8 +565,8 @@ otrzymuje numeru i zachowuje dotychczasową nazwę.
 | `g02-a07-extract-paper-evidence` | Ukierunkowane wydobycie evidence cards z dokumentu. |
 | `g02-a08-assess-claim-evidence` | Wielowymiarowa ocena claimu. |
 | `g02-a09-synthesize-research-findings` | ResearchState, EvidenceMap i handoff. |
-| `g02-a11-find-market-cases` | Docelowo: web discovery realnych, datowanych case'ów przez deterministyczny seam Tavily. |
-| `g02-a11-extract-case-evidence` | Docelowo: ekstrakcja kompaktowej evidence card z case'a zatwierdzonego przez człowieka. |
+| `g02-a11-find-market-cases` | Web discovery realnych, datowanych case'ów przez kontrolowany seam Tavily/SearXNG. |
+| `g02-a11-extract-case-evidence` | Ekstrakcja kompaktowej evidence card z case'a zatwierdzonego przez człowieka. |
 | `g02-review-research-output` | Uniwersalna procedura review względem profile. |
 | `g02-orchestrate-research` | Rozmowa, routing, reviewer loops i human gates. |
 
@@ -578,7 +578,7 @@ otrzymuje numeru i zachowuje dotychczasową nazwę.
 | G02-A02 Domain | `g02-expand-research-query`, `g02-search-scholarly-metadata` | `g02-expand-citation-graph` |
 | G02-A03 Canonical Sources | `g02-expand-citation-graph`, `g02-classify-source-role`, `g02-search-scholarly-metadata` | `g02-normalize-source-metadata` |
 | G02-A04 Recent Developments | `g02-expand-research-query`, `g02-search-scholarly-metadata`, `g02-classify-source-role` | `g02-expand-citation-graph` |
-| G02-A11 Market Cases | `g02-expand-research-query`, `g02-a11-find-market-cases`, `g02-classify-source-role` | brak na start; runtime Tavily planowany |
+| G02-A11 Market Cases | `g02-expand-research-query`, `g02-a11-find-market-cases`, `g02-classify-source-role` | brak; ekstrakcja należy warunkowo do A07 po bramce człowieka |
 | G02-A05 Candidate Source Index | `g02-normalize-source-metadata`, `g02-a05-deduplicate-source-records`, `g02-classify-source-role`, `g02-a05-rank-source-candidates`, `g02-a05-annotate-source-candidates`, `g02-assess-source-coverage` | brak na start |
 | G02-A06 Paper Retrieval | `g02-a06-resolve-open-access`, `g02-a06-retrieve-open-access-document`, `g02-a06-validate-retrieved-document` | brak na start |
 | G02-A07 Paper Review | `g02-a07-extract-paper-evidence`; `g02-a11-extract-case-evidence` warunkowo dla zatwierdzonego market case | ukierunkowane ponowne wydobycie |
@@ -630,7 +630,7 @@ Orkiestrator parsuje odpowiedź, pokazuje podsumowanie i prosi o finalne potwier
 
 `SEARCH_MORE` musi zawierać claim, topic albo brakującą rolę. Orkiestrator kieruje żądanie do
 G02-A02 Domain, G02-A03 Canonical Sources, G02-A04 Recent Developments albo G02-A11 Market Cases
-zgodnie z typem luki. A11 może być celem dopiero po implementacji jego seam Tavily.
+zgodnie z typem luki. A11 korzysta wyłącznie z kontrolowanych operacji Tavily/SearXNG.
 Po rozszerzeniu G02-A05 Candidate Source Index jest
 budowany ponownie, reviewer ocenia nową wersję, a człowiek otrzymuje zaktualizowany dokument.
 
@@ -707,12 +707,12 @@ sekwencja węzłów, `review_profile`, `retry_matrix`, `complexity_class`, `mode
 wymusza, że skill-orkiestrator odwołuje się do manifestu (łapie rozjazd, gdy ktoś skopiuje
 przepływ do promptu).
 
-## 15. G02-A11 Market Cases (web case studies, zatwierdzony projekt)
+## 15. G02-A11 Market Cases (web case studies, zaimplementowany pionowy wycinek)
 
-Definicja agenta, skilli, mocki oraz wpis w grafie tworzą obecnie scaffold. Operacje Tavily,
-semantyczna walidacja tras web i wykonanie po bramce człowieka zostaną dodane w pionowym wycinku
-A11 po A03 i A04, przed agregującym A05. Poniższe podpunkty opisują zachowanie docelowe, nie
-bieżącą gotowość runtime.
+G02-A11 ma zamrożony scoped input, wariant wyjścia `candidate_sources@1`, walidację semantyczną,
+operacje Tavily i SearXNG, profil review, mocki oraz testy do wykonania w osobnym środowisku.
+Ekstrakcja pełnej strony jest odrębną operacją po Human Source Selection Gate. Bieżący runner nadal
+wykonuje logiczny fan-out sekwencyjnie.
 
 ### 15.1. Cel i miejsce w grafie
 
@@ -729,7 +729,7 @@ To rozszerza listę fizycznych agentów z par. 2 o jedenasty plik `agents/g02-a1
 
 ### 15.2. Deterministyczny seam web i provider
 
-Po implementacji skille discovery i ekstrakcji nie wołają web bezpośrednio. Operacje MCP `research_web_case_search`
+Skille discovery i ekstrakcji nie wołają web bezpośrednio. Operacje MCP `research_web_case_search`
 i `research_web_case_extract` (moduł `shared/scripts/g02/web_cases.py` według wzorca `providers.py`)
 wykonują request, normalizują odpowiedź do `source_record@1` z `record_type: market_case`,
 przypisują `source_tier` z domeny wyniku i zachowują surową odpowiedź oraz provenance. Provider
@@ -738,7 +738,7 @@ Klucz API i parametry pochodzą ze zmiennych środowiskowych, nigdy z kontekstu 
 pełnej treści następuje dopiero po bramce człowieka, na zatwierdzonych case'ach, co oszczędza
 kredyty Tavily i jest spójne z zasadą braku ciężkiego poboru przed bramką (A06).
 
-Drugim adapterem discovery będzie kontrolowana, samodzielnie utrzymywana instancja SearXNG przez
+Drugim adapterem discovery jest kontrolowana, samodzielnie utrzymywana instancja SearXNG przez
 jej API JSON. Zapewnia ona ścieżkę bez klucza i opłat per request, lecz wymaga własnej instancji lub
 zaufanej instancji administracyjnej oraz ponosi koszt infrastruktury. System nie wybiera losowych
 publicznych instancji i nie przekazuje agentowi ogólnej przeglądarki. Konfiguracja dopuszcza tryby
@@ -749,8 +749,16 @@ ten sam provider-neutral wynik z query, czasem, pozycją, URL, snippetem, provid
 Instancja SearXNG jest ustalana przez administratora przy instalacji, a nie przez intake lub model.
 Endpoint musi używać HTTPS, z wyjątkiem jawnie skonfigurowanego loopback podczas DEV. Runtime
 blokuje credentials w URL, zmianę origin przez redirect, adresy prywatne poza dozwolonym
-loopbackiem, nieobsługiwany content type i nadmierną odpowiedź. Obowiązują budżet tras, rate limit,
-cache, timeout, allowlista kategorii, preferencje domen tier 1/2 oraz pełny zapis provenance.
+loopbackiem, nieobsługiwany content type i nadmierną odpowiedź. Obowiązują wspólny budżet per task
+i per provider, rate limit, cache, timeout, allowlista kategorii, tier policy oraz pełny zapis
+provenance. Cache hit nie zużywa drugiego zapytania.
+
+`research_market_cases_prepare` materializuje `market_case_research_input@1` z zatwierdzonego
+ResearchPlan i dokładnego reviewed ref A02. Wejście zawiera topic, identyfikatory claimów,
+deterministycznie wyprowadzone market-case needs, coverage, limity, tier policy, provider mode i
+zredagowane capabilities. Nie zawiera całego intake, rekordów naukowych A02, sekretów ani endpointu
+SearXNG. `research_web_case_search` zwraca `web_case_tool_result@1`, a finalizacja wiąże każdą
+operację z taskiem, topikiem, planem i A02 ref.
 
 Konfiguracja produkcyjna wymaga wspólnego kroku pierwszego uruchomienia. W tym samym formularzu
 system prosi o kontaktowy e-mail, `OPENALEX_API_KEY` i `TAVILY_API_KEY`. Klucz
@@ -775,7 +783,12 @@ Case'y zatwierdzone przez człowieka przechodzą lekki wariant G02-A07 Paper Rev
 `g02-a11-extract-case-evidence`: ekstrakcja strony do evidence card (co się stało, mechanizm,
 źródło, tier), z oddzieleniem faktu rynkowego od interpretacji dydaktycznej. Dalej karty trafiają
 do G02-A08 i pełnej syntezy G02-A09 jak inne dowody, co zachowuje identyfikowalność
-need, claim, market_case, evidence card, rekomendacja.
+need, claim, market_case, evidence card, rekomendacja. Operacja ekstrakcji wymaga zapisanego
+`human_source_selection@1` o statusie `approved`, `final_confirmation: true` oraz source ID w
+`approved_for_download`. Runtime hydratuje również wskazany CandidateSourceIndex i wymaga dokładnie
+jednego wpisu dla source ID. Zwraca `web_case_extract_result@1` z refem ograniczonego artefaktu
+`untrusted_external_research`, hashem treści, flagami prompt injection i zakazem przekazywania
+pełnej strony downstream.
 
 ### 15.5. Spójność tabel i komponentów
 

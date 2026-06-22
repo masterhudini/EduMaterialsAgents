@@ -15,13 +15,16 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   boundary (`research_planner_input@1`).
 - `research_plan.schema.json` — bounded, versioned G02-A01 output (`research_plan@1`, version 1.1
   preserves the unchanged approved research scope used by downstream discovery).
-- `literature_provider_config.schema.json` defines the secret-free G02 provider profile.
+- `literature_provider_config.schema.json` defines the secret-free G02 provider profile. Version
+  1.1 adds non-secret Tavily/SearXNG mode, endpoint policy, budgets, cache, rate and tier settings;
+  credentials remain environment-only.
 - `domain_research_input.schema.json` is the isolated G02-A02 input for one approved topic.
 - `query_plan.schema.json` defines bounded, provider-neutral search routes (`query_plan@1`, contract
-  version 1.2 within major 1), including an approved semantic basis for every generated term and
-  an optional A11 web-route block.
+  version 1.3 within major 1), including semantic bases and controlled Tavily, SearXNG or
+  `auto_budgeted` A11 routes.
 - `source_record.schema.json` is the normalized provider record shared by discovery agents. Version
-  1.1 adds the optional, backward-compatible `market_case` block used by the planned Tavily seam.
+  1.2 keeps the optional `market_case` block and separates provider publication/result date from
+  semantically supported event date, preventing deterministic normalization from conflating them.
 - `literature_tool_result.schema.json` records one deterministic provider operation and provenance;
   version 1.1 also binds every search result to the exact scoped discovery input identity.
 - `domain_candidate_sources.schema.json` is the reviewed G02-A02 output
@@ -31,9 +34,18 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
 - `recent_research_input.schema.json` is the isolated G02-A04 input. Its inclusive calendar window
   is projected from the ResearchPlan copy of intake `recency_window_years` and one reviewed A02
   artifact (`recent_research_input@1`).
+- `market_case_research_input.schema.json` is the minimal G02-A11 input projected from one approved
+  topic and reviewed A02 identity. It contains traceable needs, tier policy, limits and redacted
+  provider capabilities, without the whole intake or scholarly candidate records.
+- `web_case_tool_result.schema.json` records one scoped A11 discovery operation, underlying
+  provider runs, public budget counters, normalized records and provenance.
 - `candidate_sources.schema.json` defines the reviewed discovery-stream artifact
-  (`candidate_sources@1`). Version 1.2 freezes canonical and recent variants: unchanged provider
-  records, stream-specific annotations, operation log, coverage, issues and stop reason.
+  (`candidate_sources@1`). Version 1.3 freezes canonical, recent and market-case variants with
+  unchanged provider records and separate stream annotations.
+- `human_source_selection.schema.json` freezes the human authorization dependency required by A11
+  extraction. A05 remains responsible for producing and confirming this artifact.
+- `web_case_extract_result.schema.json` returns only a bounded untrusted-content descriptor, hash,
+  provenance and safety flags after the gate; full page text is not returned inline.
 - `review_task.schema.json` — one universal reviewer invocation (`review_task@1`) with one
   artifact, an explicit profile and observable review criteria.
 - `review_decision.schema.json` — auditable universal reviewer result (`review_decision@1`).

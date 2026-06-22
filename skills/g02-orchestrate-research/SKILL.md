@@ -43,12 +43,12 @@ extend its fields inside the orchestrator.
    provider-neutral `query_plan@1`. Execute each authorized route through
    `research_metadata_search`; the agent never sends HTTP itself. Finalize only through
    `research_domain_finalize` and build review through `research_domain_review_task`.
-4. From the reviewed A02 ref, run A03 through `research_canonical_prepare`, finalize and review
-   operations, and run A04 through `research_recent_prepare`, finalize and review operations.
-   Both use the shared metadata and citation operations with their own scoped inputs. They are
-   conceptually independent but the current scheduler remains serial. G02-A11 Market Cases joins
-   them before A05; until its web seam is implemented, surface A11 as
-   `external_dependency_blocked` and do not browse in its place.
+4. From the reviewed A02 ref, run A03 through `research_canonical_prepare`, A04 through
+   `research_recent_prepare`, and A11 through `research_market_cases_prepare`, with their matching
+   finalize and review-task operations. A11 executes only `research_web_case_search` with its
+   prepared provider mode. The three discovery streams are logically independent but the current
+   scheduler remains serial. Preserve all three reviewed refs for A05; never browse when the A11
+   operation reports an unavailable provider.
 5. After every producer artifact, construct one `review_task@1` with the artifact, node profile,
    producer input, output contract, acceptance criteria and revision history. Prepare it through
    `research_review_prepare`, invoke `g02-a10-output-reviewer`, then submit the decision through
@@ -65,7 +65,9 @@ extend its fields inside the orchestrator.
    confirmation. Route SEARCH_MORE to the relevant discovery agent, rebuild and re-review the index.
    Retrieval receives only confirmed `HumanApprovedSourceSet`.
 9. Fan out G02-A07 evidence review per validated scholarly document and per human-approved market
-   case when supported. Web extraction is permitted only after the source gate. Then run G02-A08
+   case. Call `research_web_case_extract` only with the final selection ref, reviewed market-case
+   candidate ref and an `approved_for_download` source ID. Web extraction is permitted only after
+   the source gate. Then run G02-A08
    Claim Verification per independent claim or tight claim group. Preserve artifact isolation and
    join only reviewed results.
 10. After reviewed synthesis, run the Human Research Gate. Present verified, mixed, unsupported and

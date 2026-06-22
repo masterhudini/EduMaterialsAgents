@@ -24,6 +24,117 @@ scenariusze, wyniki i werdykty historycznych rund pozostają niezmienne.
 
 ## Wpisy
 
+### Runda 7 — 2026-06-22 — Pełne domknięcie TEST 1–5 (A01–A04) + live API; baseline „ostatni pełny przebieg"
+
+Środowisko: klon repo `ema-wsl` (WSL2), branch `main` (po merge `e75244b` z A03/A04), Python 3.14.4,
+`pytest` 9.1.1 z `.venv`. Sieć wychodząca dostępna. Sekrety wyłącznie w env: `OPENALEX_API_KEY`
+(używany bez nawiasów), `EMAGENTS_RESEARCH_CONTACT_EMAIL`. Semantic Scholar keyless. Wartości
+sekretów nie były zapisywane do plików repo ani logów.
+
+**Cel rundy:** jednorazowo, kompletnie domknąć całą warstwę wykonywalną (deterministyczna + live API
++ packaging) dla A01–A04 i zaznaczyć w `07` wszystko, co faktycznie przeszło, aby kolejne rundy
+testowały już tylko nowe/zmienione funkcjonalności. Forward testy (host executor) i testy całościowe
+(cały przepływ A01→…→A05, A11/A05/Tavily/SearXNG) świadomie odroczone do końcowego testu
+integracyjnego batcha i oznaczone w `07` markerem `⏳ KOŃCOWY`.
+
+**Werdykt zbiorczy: PASS na całej warstwie deterministycznej (A01–A04), live API (OpenAlex/arXiv
+stabilnie; Semantic Scholar keyless = jawny `unavailable`/`failed`, kontraktowo poprawnie) oraz
+packagingu A03/A04. Trzy findingi (poniżej). Forward + integracja: odroczone.**
+
+#### Liczby
+
+- Pakiet `tests/` (pytest, pełny): **76/76 PASS** (w tym `test_g02_canonical.py` 16 i
+  `test_g02_recent.py` 18 — pełna deterministyka A03/A04).
+- TEST 1 reviewer (harness `review.py`): **40/40 PASS**.
+- TEST 2 planner: harness `planner.py` **32/32** + backfill (kontrakty/limity/rewizja/MCP/flow) **49/49 PASS**.
+- TEST 3 domain: harness offline **47/47** + backfill (config precedence, byte-limit, QueryPlan,
+  disabled provider, corrupt cache, status matrix, prepare rejections, **zbudowane poprawne wyjście
+  A02** + finalize/rewizja/odrzucenia) **34/34 PASS**.
+- TEST 3 live smoke (OpenAlex/arXiv records; S2 keyless explicit): OpenAlex+arXiv **PASS**;
+  S2 keyless → `unavailable`/`failed` z jawnym issue (kontraktowo poprawne, patrz finding 3).
+- TEST 4C/5C live (canonical citation/metadata + recent window): **12/12 PASS**.
+- Packaging A03/A04 + `graph_check`: build obu hostów, `graph_check` source/Claude/Codex `ok: true`,
+  MCP `0.6.0` / **22 operacje**.
+
+#### TEST 4, G02-A03 Canonical Sources
+
+- A/B (deterministyka) — **PASS** przez zatwierdzony `tests/test_g02_canonical.py` (16 testów):
+  prepare scopuje reviewed domain + wyklucza sekrety, odrzuca mismatch upstream; citation expand
+  zachowuje relację i rekord; wszystkie wspierane trasy (OpenAlex `cited_by`, S2
+  `references`/`cited_by`/`recommendations`) normalizują się do `source_record@1`; arXiv i nieznana
+  relacja → `unavailable`; nieautoryzowany seed → `failed`; `metadata_search` przyjmuje
+  `canonical_input`; walidator odrzuca zmodyfikowany rekord, słabą podstawę, tool result spoza scope,
+  fałszywy `domain_authoritative`, brak edge/false signal/nadmiarowy access; `completed` z gapem
+  odrzucone; rewizja zachowuje untargeted; `build_canonical_review_task` → profil `canonical_sources`,
+  `CS-01`–`CS-06`; `execute_canonical` bez executora → `failed`.
+- C (live API) — **PASS** (live `live_a03_a04.py`): `prepare_canonical` ready; live OpenAlex
+  complementary metadata z `canonical_input` → rekordy `source_record@1`; cache hit na powtórzeniu;
+  redakcja klucza i e-maila w artefaktach **0/0**. Citation expand: S2 po realnym DOI seeda zwrócił
+  jawny `failed` (HTTP 404) — explicit status, brak pozornego success. Patrz findingi 2 i 3.
+- D (forward Claude/Codex) — **`⏳ KOŃCOWY`** (host executor, test integracyjny).
+- E (packaging) — **PASS**: oba bundle zawierają `canonical.py`, `citations.py`, kontrakt
+  `canonical_research_input@1`, agenta A03 i wymagane skille; `graph_check` 3 hosty `ok`; brak
+  mocków/testów/`.emagents`/cache/`__pycache__`/`.pyc`; 0 sekretów. `install_plugin --dry-run` bez
+  mutacji źródeł.
+
+#### TEST 5, G02-A04 Recent Developments
+
+- A/B (deterministyka) — **PASS** przez zatwierdzony `tests/test_g02_recent.py` (18 testów):
+  planner zachowuje `recency_window_years` intake→plan; `prepare_recent` materializuje okno
+  (5 lat, rok 2026 → **2022–2026**), skip dla topicu bez roli `current`, odrzuca mismatch domain;
+  `recent_query_plan` + `metadata_search` scoped, pula `recent_metadata`; citation expand pula
+  `recent_expansion`; MCP prepare/finalize/review parity; walidator odrzuca rekord spoza okna,
+  zmodyfikowany rekord, tool result spoza scope, fałszywy maturity/peer status/quality, poszerzenie
+  okna; `preprint` nie może być `core_update`; nieznany typ → `unknown`; `build_recent_review_task`
+  → profil `recent_developments`, `RD-01`–`RD-06`; `execute_recent` bez executora → `failed`.
+- C (live API) — **PASS** (live): `prepare_recent` ready, okno 2022–2026; live OpenAlex recent →
+  2 rekordy z latami **[2023, 2022] w oknie**; live arXiv recent → `partial` (język); cache hit;
+  redakcja **0/0**. S2 keyless → jawny status (finding 3).
+- D (forward Claude/Codex) — **`⏳ KOŃCOWY`**.
+- E (packaging) — **PASS**: oba bundle zawierają `recent.py`, kontrakt `recent_research_input@1`,
+  agenta A04; MCP `0.6.0`/22; `graph_check` 3 hosty; higiena bundla czysta.
+
+#### Findingi (do decyzji/poprawki dev)
+
+1. **Disabled provider → `failed`, nie `unavailable`** (TEST 3, bullet „Provider disabled zwraca
+   `unavailable`…"). Gdy provider jest wyłączony, `validate_query_plan` odrzuca trasę preferującą go
+   (`invalid_provider_route: preferred providers must be configured and ready`), więc
+   `search_metadata` zwraca `failed`/`invalid_query_plan` **zanim** dotrze do gałęzi `unavailable`
+   (providers.py ~942). Substancja zachowana: **żaden request nie jest wykonywany**, wynik jest
+   jednoznaczny. Ale status różni się od dokumentacji. Gałąź `unavailable` dla disabled providera jest
+   w praktyce nieosiągalna. **Do decyzji:** poprawić dok na `failed`/`invalid_provider_route`, albo
+   zmienić kolejność tak, by disabled provider dawał `unavailable`. Checkbox pozostawiony odznaczony.
+2. **Live OpenAlex `cited_by` wymaga realnego seed id.** Seed w `mocks/g02/domain_candidate_sources.json`
+   ma prawdziwy DOI (`10.1214/17-sts668`), ale placeholder `openalex_id` (`WMOCK0001`), więc live
+   OpenAlex `cited_by` nie zwróci realnych rekordów (kontrolowane `failed`, bez fałszywego success).
+   To ograniczenie danych mocka, nie kodu — deterministyczna normalizacja `cited_by` jest w pełni
+   pokryta pytestem. Bullet „Live OpenAlex `cited_by` … zwraca 1–2 rekordy" pozostawiony odznaczony
+   z notką; do wykonania w teście integracyjnym z realnym seedem.
+3. **Semantic Scholar keyless live jest niedeterministyczny** (rate-limit). Pod limitem zwraca jawny
+   `unavailable`/`failed` z issue — **kontraktowo poprawne** (TEST „bez klucza/429 = jawny status,
+   bez pozornego success"). Aby live S2 zwracał rekordy, potrzebny `SEMANTIC_SCHOLAR_API_KEY`
+   (opcjonalny). Bullety o jawnym statusie S2 — zaliczone; bullety wymagające rekordów S2 — zależne
+   od klucza, oznaczone w `07`.
+
+#### Odroczone do końcowego testu integracyjnego (`⏳ KOŃCOWY`)
+
+- Forward testy zachowania agentów A01, A02, A03, A04 i uniwersalnego reviewera A10 na realnym host
+  executorze (Claude oraz Codex). Powód: wymagają uruchomienia promptów agentów end-to-end przez
+  izolowany executor hosta; rejestr stanowi, że brak takiego executora = jawny brak wykonania.
+- Cały przepływ A01 → A02 → A03 → A04 → A11 discovery → A05 i sekcja „Wspólny TEST batcha po DEV 7".
+  Powód: A11 (Tavily/SearXNG) i A05 są jeszcze DEV/scaffold.
+
+#### Mapa „co zmienić w 07" po tej rundzie
+
+- Dodano legendę markerów (`[x]` / `❌ FAIL` / `⏳ KOŃCOWY`) na początku rejestru.
+- Zaznaczono wszystkie wykonane i zaliczone scenariusze deterministyczne TEST 2 i TEST 3 (backfill),
+  oraz live i packaging TEST 4 i TEST 5; sekcje A/B TEST 4/5 zaznaczone na podstawie zatwierdzonego
+  `tests/test_g02_canonical.py` i `tests/test_g02_recent.py`.
+- Oznaczono `⏳ KOŃCOWY` przy forward testach (TEST 2/3/4D/5D) i sekcji wspólnego testu batcha.
+- Oznaczono `❌ FAIL`/notą trzy findingi (disabled-provider status; live OpenAlex `cited_by` mock seed;
+  S2 keyless rekordy zależne od klucza).
+- Warunki zamknięcia zadań i akceptacje DEV pozostają w gestii właściciela.
+
 ### Decyzja DEV po Rundzie 6 — 2026-06-22 — bramka następnego batcha
 
 Właściciel zaakceptował zakres Rundy 6 jako wystarczającą bramkę wejściową do developmentu G02-A03,
