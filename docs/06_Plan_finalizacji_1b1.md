@@ -147,12 +147,15 @@ Komponenty:
 - `skills/g02-a05-rank-source-candidates/`,
 - `skills/g02-a05-annotate-source-candidates/`,
 - `skills/g02-assess-source-coverage/`,
+- `candidate_index_input@1`,
 - `candidate_source_index@1`,
 - `human_source_selection@1`,
 - `human_approved_source_set@1`.
 
-Etap obejmuje generator `candidate_source_review.md`, parser decyzji, final confirmation,
-`SEARCH_MORE`, coverage exceptions i Human Source Selection Gate.
+Zaimplementowana część A05 obejmuje reviewed-only scoped input, generator
+`candidate_source_review.md`, deduplikację, ranking, coverage, opis artykułów z abstraktu lub
+metadanych oraz opis market case z adnotacji A11. Kontrakty decyzji i ekstrakcja A11 obsługują
+final confirmation; pełna pętla `SEARCH_MORE` przez orkiestrator pozostaje do wspólnego TEST.
 
 ### 4.7. G02-A06 Paper Retrieval
 

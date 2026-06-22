@@ -66,15 +66,17 @@ Pliki w tym katalogu są częścią repozytorium i stanowią kontekst projektowy
 ### Status implementacji warstwy treści
 
 Warstwa definicji zawiera 11 agentów i 20 skilli, w tym jeden uniwersalny reviewer, orkiestrator
-oraz zaimplementowany A11 Market Cases z dwoma skillami. A11 ma scoped input, deterministyczne
-operacje Tavily/SearXNG, wariant `candidate_sources@1`, profil review i gated extraction.
+oraz zaimplementowane A11 Market Cases i A05 Candidate Source Index. A11 ma scoped input,
+deterministyczne operacje Tavily/SearXNG, wariant `candidate_sources@1`, profil review i gated
+extraction. A05 ma reviewed-only scoped input, konserwatywną deduplikację, jawny ranking,
+candidate coverage oraz generator czytelnego `candidate_source_review.md`.
 
-Deterministyczne seams reviewera oraz G02-A01, A02, A03, A04 i A11 są wdrożone. G02-A02 posiada
+Deterministyczne seams reviewera oraz G02-A01, A02, A03, A04, A11 i A05 są wdrożone. G02-A02 posiada
 konfigurację providerów, adaptery OpenAlex, Semantic Scholar i arXiv, cache, retry, rate limiting,
 normalizację oraz zapis surowej proweniencji. `g02_flow.py run-codex` uruchamia fizyczne definicje
 agentów jako izolowane procesy `codex exec`; tryb `run` pozostaje harness-em no-op do testowania
-wiringu i nie jest testem zachowania agentów. A05, downloader, indeks tekstu PDF, dalsze scoped
-inputs i scheduler fan-out/fan-in pozostają kolejnymi etapami.
+wiringu i nie jest testem zachowania agentów. Downloader, indeks tekstu PDF, dalsze scoped inputs i
+scheduler fan-out/fan-in pozostają kolejnymi etapami.
 
 ### Zamknięta decyzja nadrzędna
 

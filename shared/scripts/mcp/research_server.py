@@ -15,6 +15,8 @@ research_canonical_finalize, research_canonical_review_task,
 research_recent_prepare, research_recent_finalize, research_recent_review_task,
 research_market_cases_prepare, research_web_case_search,
 research_market_cases_finalize, research_market_cases_review_task,
+research_candidate_index_prepare, research_candidate_index_finalize,
+research_candidate_index_review_task,
 research_web_case_extract,
 research_review_prepare, research_review_finalize,
 research_finalize, research_run_stub, research_run_codex.
@@ -34,6 +36,7 @@ from g02 import canonical  # noqa: E402
 from g02 import citations  # noqa: E402
 from g02 import recent  # noqa: E402
 from g02 import market_cases  # noqa: E402
+from g02 import candidate_index  # noqa: E402
 from g02 import web_cases  # noqa: E402
 from g02 import planner  # noqa: E402
 from g02 import provider_config  # noqa: E402
@@ -42,7 +45,7 @@ from g02 import review as reviewer  # noqa: E402
 from core import artifacts, graphs, handoff  # noqa: E402
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "edu-materials-research", "version": "0.7.0"}
+SERVER_INFO = {"name": "edu-materials-research", "version": "0.8.0"}
 
 
 # ---- tool implementations (return JSON-serializable values) --------------
@@ -296,6 +299,43 @@ def _market_cases_review_task(args: dict):
         prepared["market_case_input"], args["artifact"], review_id=args["review_id"],
         attempt=args.get("attempt", 1),
         previous_decision_ref=args.get("previous_decision_ref"),
+        producer_revision_response=args.get("producer_revision_response"),
+    )
+
+
+def _candidate_index_prepare(args: dict):
+    return candidate_index.prepare_candidate_index(
+        args["research_plan_ref"], args["reviewed_upstreams"],
+        selection_profile=args.get("selection_profile"),
+        previous_index_ref=args.get("previous_index_ref"),
+        search_extension_refs=args.get("search_extension_refs"),
+    )
+
+
+def _candidate_index_finalize(args: dict):
+    prepared = candidate_index.prepare_candidate_index(
+        args["research_plan_ref"], args["reviewed_upstreams"],
+        selection_profile=args.get("selection_profile"),
+        previous_index_ref=args.get("previous_index_ref"),
+        search_extension_refs=args.get("search_extension_refs"),
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return candidate_index.finalize_candidate_index(
+        prepared["candidate_index_input"], artifact_version=args.get("artifact_version", "1.0.0")
+    )
+
+
+def _candidate_index_review_task(args: dict):
+    prepared = candidate_index.prepare_candidate_index(
+        args["research_plan_ref"], args["reviewed_upstreams"],
+        selection_profile=args.get("selection_profile"),
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return candidate_index.build_candidate_index_review_task(
+        prepared["candidate_index_input"], args["artifact"], review_id=args["review_id"],
+        attempt=args.get("attempt", 1), previous_decision_ref=args.get("previous_decision_ref"),
         producer_revision_response=args.get("producer_revision_response"),
     )
 
@@ -780,6 +820,59 @@ TOOLS = [
         },
     },
     {
+        "name": "research_candidate_index_prepare",
+        "description": "Hydrate the exact ResearchPlan plus APPROVED A02, A03, A04 and A11 "
+                       "artifacts, verify each review binding and project candidate_index_input@1.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "reviewed_upstreams": {"type": "array", "items": {"type": "object"}},
+                "selection_profile": {"type": "object"},
+                "previous_index_ref": {"type": "string"},
+                "search_extension_refs": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["research_plan_ref", "reviewed_upstreams"],
+        },
+    },
+    {
+        "name": "research_candidate_index_finalize",
+        "description": "Deterministically deduplicate and rank reviewed candidates, create "
+                       "basis-labelled content descriptions and persist CandidateSourceIndex "
+                       "plus candidate_source_review.md for the human gate.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "reviewed_upstreams": {"type": "array", "items": {"type": "object"}},
+                "selection_profile": {"type": "object"},
+                "previous_index_ref": {"type": "string"},
+                "search_extension_refs": {"type": "array", "items": {"type": "string"}},
+                "artifact_version": {"type": "string"},
+            },
+            "required": ["research_plan_ref", "reviewed_upstreams"],
+        },
+    },
+    {
+        "name": "research_candidate_index_review_task",
+        "description": "Freeze CI-01 through CI-08 and build one candidate_index review_task@1 "
+                       "for a persisted G02-A05 index descriptor.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "reviewed_upstreams": {"type": "array", "items": {"type": "object"}},
+                "selection_profile": {"type": "object"},
+                "artifact": {"type": "object"},
+                "review_id": {"type": "string"},
+                "attempt": {"type": "integer"},
+                "previous_decision_ref": {"type": "string"},
+                "producer_revision_response": {"type": "object"},
+            },
+            "required": ["research_plan_ref", "reviewed_upstreams", "artifact", "review_id"],
+        },
+    },
+    {
         "name": "research_review_prepare",
         "description": "Validate one review_task@1, enforce one artifact and hydrate only that "
                        "artifact for the isolated universal reviewer. Invalid review basis or "
@@ -918,6 +1011,9 @@ DISPATCH = {
     "research_web_case_search": _web_case_search,
     "research_market_cases_finalize": _market_cases_finalize,
     "research_market_cases_review_task": _market_cases_review_task,
+    "research_candidate_index_prepare": _candidate_index_prepare,
+    "research_candidate_index_finalize": _candidate_index_finalize,
+    "research_candidate_index_review_task": _candidate_index_review_task,
     "research_web_case_extract": _web_case_extract,
     "research_review_prepare": _review_prepare,
     "research_review_finalize": _review_finalize,

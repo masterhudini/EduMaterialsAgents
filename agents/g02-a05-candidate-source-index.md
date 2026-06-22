@@ -13,10 +13,10 @@ user make an informed source decision before any retrieval occurs.
 
 ## Contract
 
-**Input:** approved `ResearchPlan`, reviewed `DomainCandidateSources`,
-`CanonicalCandidateSources`, `RecentCandidateSources` and `MarketCaseCandidateSources` when that
-stream is available, selection profile, display and reserve limits, output language and prior
-search extensions when present.
+**Input:** `candidate_index_input@1`, prepared only from the exact approved `ResearchPlan` and
+upstream artifacts whose A10 decisions are `APPROVED`. The scoped input contains source records,
+their reviewed annotations and mappings, selection limits, output language and prior search
+extensions, not whole producer outputs or review transcripts.
 
 **Output artifacts:**
 
@@ -36,7 +36,9 @@ Return both descriptors in `envelope@1.produced`.
 
 ## Workflow
 
-1. Validate that all available upstream pools match the same task and reviewed plan version.
+1. Call `research_candidate_index_prepare` with the exact plan ref and paired upstream artifact and
+   review-decision refs. Stop if any supplied review is not approved or does not bind the exact
+   artifact version.
 2. Normalize all provider records and preserve their raw provenance, record type and stream of
    origin. Keep market-case source tier separate from scientific-quality signals.
 3. Deduplicate conservatively, retaining version relations, merge logs and ambiguous groups.
@@ -44,10 +46,14 @@ Return both descriptors in `envelope@1.produced`.
 5. Build candidate-stage `CoverageMatrix`; identify mandatory role and claim gaps before ranking.
 6. Rank candidates with visible component scores. Apply display, reserve and per-topic limits while
    preserving coverage contribution and qualifying or critical candidates.
-7. Annotate displayed and library candidates from available metadata, abstract or contents only.
+7. Annotate displayed and library candidates from available metadata or abstract only. For market
+   cases, use the separate reviewed A11 market fact and didactic mechanism. Every card must expose
+   `description_basis`, `basis_excerpt` and limitations. A metadata-only card must say that it does
+   not summarize publication contents.
 8. Generate `candidate_source_review.md` in `output_language` with instructions, coverage overview,
    grouped candidate cards, access limitations, reserve, known gaps and a copyable response template.
-9. Store both artifacts with cross-references and return their descriptors.
+9. Call `research_candidate_index_finalize` to create and cross-reference both artifacts. Then use
+   `research_candidate_index_review_task` to freeze the `candidate_index` review profile.
 
 ## Acceptance Criteria
 

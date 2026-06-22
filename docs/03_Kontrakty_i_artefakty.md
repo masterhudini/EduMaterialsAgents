@@ -550,33 +550,69 @@ treść nie występuje inline i nie może być przekazana downstream.
 
 ## 5. CandidateSourceIndex
 
+Wejściem A05 jest `candidate_index_input@1`. Runtime hydratuje dokładny ResearchPlan oraz pary
+`artifact_ref` + `review_decision_ref` dla A02, A03, A04 i A11. Każda decyzja musi mieć
+`decision: APPROVED` i odpowiadać taskowi, producentowi, profilowi, refowi oraz wersji artefaktu.
+Scoped input zachowuje rekordy, reviewed adnotacje, topic, coverage i role, bez całych query planów,
+operation logs i treści stron.
+
 ```yaml
 CandidateSourceIndex:
   schema_version: candidate_source_index@1
+  artifact_version:
   task_id:
   research_plan_ref:
+  research_plan_artifact_version:
+  reviewed_upstreams: []
+  selection_profile: {}
 
-  candidates: []
-  reserve_candidates: []
+  sources:
+    - source_id:
+      record_type: scholarly | market_case
+      record: {}
+      origin_streams: []
+      topic_ids: []
+      claim_ids: []
+      role_assignments: []
+      coverage_unit_ids: []
+      duplicate_source_ids: []
+      provenance_records: []
+      ranking:
+        score:
+        rank:
+        components: {}
+        recommended_action: DOWNLOAD | LIBRARY | CITATION | RESERVE
+      human_annotation:
+        content_summary:
+        description_basis: abstract | metadata | market_case_annotation
+        selection_relevance:
+        limitations: []
+        basis_excerpt:
+      access_summary: {}
+      signal_summary: {}
+
+  displayed_source_ids: []
+  reserve_source_ids: []
+  merge_log: []
+  ambiguous_duplicate_groups: []
 
   coverage_matrix: []
 
   search_summary:
-    queries_run: []
-    sources_queried: []
-    raw_records_found:
-    records_after_deduplication:
-    displayed_candidates:
-    reserve_candidates:
-    unresolved_search_gaps: []
+    input_record_count:
+    deduplicated_source_count:
+    stream_record_counts: {}
+    upstream_issues: []
+    search_extension_refs: []
 
   annotation_policy:
-    descriptions_generated_from:
-      - abstract
-    bibliographic_metadata_from_llm: false
+    allowed_bases: [abstract, metadata, market_case_annotation]
+    full_text_reviewed: false
+    scientific_quality_assessed: false
+    market_source_tier_is_scientific_quality: false
 
   human_review_document_ref:
-  reviewer_profile: candidate_index
+  review_profile_ref: candidate_index
 ```
 
 ## 6. Dokument dla człowieka
@@ -605,8 +641,9 @@ Table: research need, required roles, found, currently selected, gap.
 - Source role:
 - Related claims:
 - Why it may be relevant:
-- LLM summary:
-- Summary basis: abstract
+- Content summary:
+- Description basis: abstract / metadata / market_case_annotation
+- Basis excerpt:
 - Canonical signals:
 - Recency signals:
 - Access: Open Access / closed / unknown
