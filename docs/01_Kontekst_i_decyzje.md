@@ -335,7 +335,7 @@ pełna semantyka kolejnych producentów oraz scheduler fan-out/fan-in są rozwij
 
 Repozytorium zawiera dziesięciu agentów wykonawczych, jednego fizycznego reviewera, 20 skilli,
 manifest Research Graph oraz zatwierdzony kontrakt wejściowy. Dziesiątym producentem jest scaffold
-G02-A11 Market Cases; jego operacje Tavily pozostają zaplanowane po pionowym wycinku A03-A05. Manifest wskazuje
+G02-A11 Market Cases; jego operacje Tavily/SearXNG i ekstrakcja po bramce są zaimplementowane przed A05. Manifest wskazuje
 `g02-a10-output-reviewer` jako wspólnego reviewera i przypisuje profil każdemu producentowi.
 G02-A05 Candidate Source Index zastąpił Source Selection, G02-A08 Claim Verification znajduje
 się po G02-A07 Paper Review, a oba human gates są zapisane jako kroki orkiestratora.

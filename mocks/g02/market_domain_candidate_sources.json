@@ -1,0 +1,15 @@
+{
+  "schema_version": "domain_candidate_sources@1",
+  "artifact_version": "1.0.0",
+  "task_id": "RESEARCH_MARKET_MOCK_001",
+  "topic_id": "TOPIC_DERIVATIVES_OPTIONS",
+  "research_plan_ref": "artifact://g02/research-plans/RESEARCH_MARKET_MOCK_001.1.0.0.json",
+  "query_plan": {},
+  "candidates": [],
+  "query_log": [],
+  "coverage_map": [],
+  "stop_reason": "partial_coverage",
+  "remaining_coverage_units": ["COV_OPTIONS_APPLIED_USE", "COV_OPTIONS_RISK_FAILURE"],
+  "provider_issues": [],
+  "review_profile_ref": "domain_candidates"
+}

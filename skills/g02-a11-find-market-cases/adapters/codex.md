@@ -1,8 +1,7 @@
 ## Host Adapter: Codex
 
-- Call MCP `research_provider_status`, then `research_web_case_search` for each approved web route.
-- Treat the typed web-case operation result as the provider boundary and preserve its artifact ref,
-  operation ID, cursor, cache status, observed source tier and issues. Its concrete result contract
-  is added with the A11 runtime seam; do not reuse `literature_tool_result@1` implicitly.
+- Call MCP `research_market_cases_prepare`, then `research_web_case_search` for each approved route.
+- Treat `web_case_tool_result@1` as the provider boundary and preserve its artifact ref, exact scope,
+  operation ID, provider runs, cursor, cache status, public budget, observed source tier and issues.
 - If MCP is unavailable, return `external_dependency_blocked`; do not browse as a substitute.
-- Do not invoke extraction during discovery; extraction is deferred to the post-gate G02-A07 step.
+- Do not invoke extraction during discovery; it requires final human approval and stored refs.

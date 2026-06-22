@@ -1,6 +1,6 @@
 {
   "title": "Provider-neutral research discovery query plan",
-  "x-version": "1.2",
+  "x-version": "1.3",
   "x-major": 1,
   "type": "object",
   "required": ["schema_version", "artifact_version", "task_id", "topic_id", "routes", "excluded_terms"],
@@ -52,11 +52,11 @@
           "coverage_unit_ids": {"type": "array", "items": {"type": "string"}},
           "preferred_providers": {
             "type": "array",
-            "items": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv", "tavily"]}
+            "items": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv", "tavily", "searxng", "auto_budgeted"]}
           },
           "web": {
             "type": "object",
-            "description": "Optional. Present only for web case routes (preferred provider tavily) consumed by G02-A11.",
+            "description": "Present only for G02-A11 web case routes and consumed by the controlled Tavily/SearXNG operation.",
             "required": ["include_domains", "exclude_domains", "source_tier_floor"],
             "properties": {
               "include_domains": {"type": "array", "items": {"type": "string"}},

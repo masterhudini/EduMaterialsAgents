@@ -30,5 +30,54 @@
     "openalex_min_interval_seconds": 0.1,
     "semantic_scholar_min_interval_seconds": 1.0,
     "arxiv_min_interval_seconds": 3.0
+  },
+  "web": {
+    "enabled": true,
+    "mode": "auto_budgeted",
+    "providers": {
+      "tavily": {"enabled": true},
+      "searxng": {
+        "enabled": false,
+        "endpoint": null,
+        "allow_http_loopback_dev": false,
+        "categories": ["general", "news"]
+      }
+    },
+    "request": {
+      "timeout_seconds": 15,
+      "max_retries": 2,
+      "backoff_seconds": 1.0,
+      "max_response_bytes": 2097152
+    },
+    "limits": {
+      "max_queries_per_task": 12,
+      "max_tavily_queries_per_task": 6,
+      "max_searxng_queries_per_task": 10,
+      "max_results_per_query": 12,
+      "auto_searxng_results_per_route": 5,
+      "max_extractions_per_task": 6,
+      "max_extracted_characters": 60000
+    },
+    "cache": {"enabled": true, "ttl_seconds": 21600},
+    "paths": {
+      "cache_subdir": "cache/g02/web",
+      "raw_artifact_subdir": "g02/web-provider-raw",
+      "extract_artifact_subdir": "g02/web-case-content"
+    },
+    "rate_limits": {
+      "tavily_min_interval_seconds": 1.0,
+      "searxng_min_interval_seconds": 1.0
+    },
+    "source_tiers": {
+      "tier_1_domains": [
+        "sec.gov", "cftc.gov", "fca.org.uk", "esma.europa.eu", "knf.gov.pl",
+        "amf-france.org", "justice.gov", "europa.eu"
+      ],
+      "tier_2_domains": [
+        "reuters.com", "ft.com", "bloomberg.com", "wsj.com", "risk.net"
+      ],
+      "tier_3_domains": ["example.com"],
+      "excluded_domains": []
+    }
   }
 }

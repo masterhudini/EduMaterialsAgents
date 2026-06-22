@@ -16,6 +16,7 @@ Secrets and contact data never belong in JSON configuration. Use environment var
 - `EMAGENTS_RESEARCH_CONTACT_EMAIL`, required when OpenAlex or arXiv is enabled;
 - `OPENALEX_API_KEY`, required when OpenAlex is enabled and never logged;
 - `SEMANTIC_SCHOLAR_API_KEY`, optional, recommended and never logged.
+- `TAVILY_API_KEY`, required for Tavily search and extraction and never logged.
 
 Provider references:
 
@@ -47,20 +48,26 @@ LLM context, artifacts, cache, logs or repository files. First-run validation mu
 secret-free readiness, support retry and credential replacement, and distinguish missing
 credentials from failed network connectivity.
 
-## Planned A11 Tavily configuration
+## A11 web provider configuration
 
-The A11 scaffold does not yet expose Tavily operations. Its runtime slice will read the credential
-from `TAVILY_API_KEY`, keep endpoints fixed in code and expose only a secret-free readiness status.
-Do not add that key to `g02.providers.example.json`, prompts, fixtures or artifacts. Non-secret
-search depth, result limits, tier-domain policy and extraction limits will be added to an explicit
-versioned config together with `research_web_case_search` and `research_web_case_extract`; until
-then, absence of those MCP operations is expected.
+The `web` block is active and versioned inside `literature_provider_config@1`. Tavily endpoints are
+fixed in code and its key is read only from `TAVILY_API_KEY`. SearXNG is keyless but must be enabled
+with one exact administrator-controlled endpoint. HTTPS is required except for an explicitly
+enabled loopback DEV endpoint. Credentials in URLs, private or reserved literal addresses,
+cross-origin redirects, non-JSON responses and oversized payloads are blocked.
 
-The same provider-neutral search operation will support a controlled keyless SearXNG adapter.
-SearXNG is a self-hosted metasearch service, so it avoids a per-request API credential but still
-requires an operator-managed instance and infrastructure. The runtime will not select arbitrary
-public instances. Its non-secret administrative configuration will pin one exact origin, require
-JSON output, enforce query budgets, cache, timeout, rate limiting, response-size limits and redirect
-checks, and allow plain HTTP only for an explicitly configured loopback DEV instance. Planned modes
-are `tavily`, `searxng` and `auto_budgeted`; free discovery does not grant the agent unrestricted
-browser access. Official API reference: <https://docs.searxng.org/dev/search_api.html>.
+Modes are `tavily`, `searxng` and `auto_budgeted`. The last mode uses bounded SearXNG discovery when
+ready and Tavily for supplementation or priority routes. Limits are shared per task and persisted
+under the configured web cache. Identical cache hits do not consume another query. Source tiers are
+administrator domain lists; A11 routes may select only from their union. The model cannot provide an
+endpoint, alter the mode or add a domain.
+
+Public A11 MCP calls do not accept a configuration path. They resolve the administrator-selected
+profile from `EMAGENTS_RESEARCH_CONFIG` or the standard runtime location; a test harness may inject
+an explicit path only through the internal Python seam.
+
+`research_web_case_extract` is Tavily-only. It accepts stored selection and candidate refs plus a
+source ID, hydrates the referenced candidate index, verifies final `approved_for_download`
+authorization and resolves the exact stored HTTPS URL. The result contains a bounded
+untrusted-content artifact ref and safety flags. Official SearXNG
+API reference: <https://docs.searxng.org/dev/search_api.html>.

@@ -5,6 +5,10 @@ engine and shape checks. Forward tests of agents and skills, host checks and opt
 smoke tests belong to the separate TEST environment and follow the authoritative checklist in
 `docs/07_Rejestr_DEV_TEST_1b1.md`.
 
+`test_g02_market_cases.py` contains offline A11 contract, scoped-input, Tavily/SearXNG,
+materiality, review, safety and gated-extraction scenarios. It is authored for the separate TEST
+environment; the A11 DEV session runs only the short static checks allowed by the checklist.
+
 ## Run
 
 ```bash
@@ -32,3 +36,5 @@ Windows:
 - TEST 3 modules for provider configuration, QueryPlan generated-term bases, offline provider
   fixtures, Domain finalization, MCP parity and secret-redaction scans.
 - opt-in live tests for OpenAlex, Semantic Scholar and arXiv; they must remain skipped by default.
+- opt-in live tests for Tavily search/extraction and the administrator-configured SearXNG instance;
+  they must remain skipped by default.

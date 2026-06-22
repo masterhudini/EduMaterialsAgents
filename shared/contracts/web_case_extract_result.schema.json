@@ -1,0 +1,61 @@
+{
+  "title": "Post-gate Tavily extraction descriptor for one approved market case",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "operation_id", "operation_type", "provider", "status", "started_at",
+    "completed_at", "request", "content_artifact", "provenance", "safety", "issues"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["web_case_extract_result@1"]},
+    "operation_id": {"type": "string"},
+    "operation_type": {"type": "string", "enum": ["web_case_extract"]},
+    "provider": {"type": "string", "enum": ["tavily"]},
+    "status": {"type": "string", "enum": ["ok", "partial", "unavailable", "failed"]},
+    "started_at": {"type": "string"},
+    "completed_at": {"type": "string"},
+    "request": {
+      "type": "object",
+      "required": ["task_id", "source_id", "source_url", "selection_ref", "candidate_sources_ref"],
+      "properties": {
+        "task_id": {"type": "string"},
+        "source_id": {"type": "string"},
+        "source_url": {"type": "string"},
+        "selection_ref": {"type": "string"},
+        "candidate_sources_ref": {"type": "string"}
+      }
+    },
+    "content_artifact": {
+      "type": ["object", "null"],
+      "required": ["ref", "content_sha256", "character_count", "truncated", "content_boundary"],
+      "properties": {
+        "ref": {"type": "string"},
+        "content_sha256": {"type": "string"},
+        "character_count": {"type": "integer"},
+        "truncated": {"type": "boolean"},
+        "content_boundary": {"type": "string", "enum": ["untrusted_external_research"]}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["raw_response_refs", "provider_request_ids", "cache_hit", "config_profile"],
+      "properties": {
+        "raw_response_refs": {"type": "array", "items": {"type": "string"}},
+        "provider_request_ids": {"type": "array", "items": {"type": "string"}},
+        "cache_hit": {"type": "boolean"},
+        "config_profile": {"type": "string"}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "required": ["external_content_untrusted", "prompt_injection_patterns_detected", "full_text_forwarding_prohibited"],
+      "properties": {
+        "external_content_untrusted": {"type": "boolean"},
+        "prompt_injection_patterns_detected": {"type": "array", "items": {"type": "string"}},
+        "full_text_forwarding_prohibited": {"type": "boolean"}
+      }
+    },
+    "issues": {"type": "array", "items": {"type": "object"}}
+  }
+}

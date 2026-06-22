@@ -103,10 +103,16 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
             "skills/g02-classify-source-role/SKILL.md",
             "shared/contracts/canonical_research_input.schema.json",
             "shared/contracts/recent_research_input.schema.json",
+            "shared/contracts/market_case_research_input.schema.json",
+            "shared/contracts/web_case_tool_result.schema.json",
+            "shared/contracts/web_case_extract_result.schema.json",
+            "shared/contracts/human_source_selection.schema.json",
             "shared/contracts/candidate_sources.schema.json",
             "shared/scripts/g02/canonical.py",
             "shared/scripts/g02/citations.py",
             "shared/scripts/g02/recent.py",
+            "shared/scripts/g02/market_cases.py",
+            "shared/scripts/g02/web_cases.py",
         ):
             assert (plugin / relative).is_file(), f"{host}: missing A03 file {relative}"
         assert not (plugin / "mocks").exists()

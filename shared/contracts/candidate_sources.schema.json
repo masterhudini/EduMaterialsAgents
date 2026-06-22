@@ -1,6 +1,6 @@
 {
   "title": "Reviewed canonical, recent or market-case candidate stream",
-  "x-version": "1.2",
+  "x-version": "1.3",
   "x-major": 1,
   "type": "object",
   "required": [
@@ -216,18 +216,119 @@
         }
       }
     },
+    "market_case_annotations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id", "role_assignments", "case_identity", "evidence_type",
+          "source_assessment", "materiality_assessment", "market_fact",
+          "didactic_interpretation", "documentation_status", "regime_context",
+          "coverage_unit_ids", "quality_status", "doi_status"
+        ],
+        "properties": {
+          "source_id": {"type": "string"},
+          "role_assignments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["role", "confidence", "observed_signals", "access_basis", "topic_ids", "claim_ids", "coverage_unit_ids"],
+              "properties": {
+                "role": {"type": "string", "enum": ["applied_case", "qualifying_or_critical"]},
+                "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+                "observed_signals": {"type": "array", "items": {"type": "string"}},
+                "access_basis": {"type": "string", "enum": ["title", "search_snippet", "provider_date"]},
+                "topic_ids": {"type": "array", "items": {"type": "string"}},
+                "claim_ids": {"type": "array", "items": {"type": "string"}},
+                "coverage_unit_ids": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          },
+          "case_identity": {
+            "type": "object",
+            "required": ["institution_or_event", "event_label", "event_date", "observed_basis"],
+            "properties": {
+              "institution_or_event": {"type": "string"},
+              "event_label": {"type": "string"},
+              "event_date": {"type": "string"},
+              "observed_basis": {"type": "array", "items": {"type": "object"}}
+            }
+          },
+          "evidence_type": {
+            "type": "object",
+            "required": ["value", "basis"],
+            "properties": {
+              "value": {"type": "string", "enum": ["applied_use", "structured_construction", "control_failure", "regulatory_action", "litigation"]},
+              "basis": {"type": "array", "items": {"type": "object"}}
+            }
+          },
+          "source_assessment": {
+            "type": "object",
+            "required": ["source_tier", "weakly_sourced", "corroborating_source_ids", "tier_basis"],
+            "properties": {
+              "source_tier": {"type": "string", "enum": ["tier_1_authoritative", "tier_2_reputable_media", "tier_3_signal_only"]},
+              "weakly_sourced": {"type": "boolean"},
+              "corroborating_source_ids": {"type": "array", "items": {"type": "string"}},
+              "tier_basis": {"type": "string"}
+            }
+          },
+          "materiality_assessment": {
+            "type": "object",
+            "required": ["scale_observed", "real_consequence_observed", "higher_tier_confirmation", "passes_threshold", "basis"],
+            "properties": {
+              "scale_observed": {"type": "boolean"},
+              "real_consequence_observed": {"type": "boolean"},
+              "higher_tier_confirmation": {"type": "boolean"},
+              "passes_threshold": {"type": "boolean"},
+              "basis": {"type": "array", "items": {"type": "object"}}
+            }
+          },
+          "market_fact": {
+            "type": "object",
+            "required": ["statement", "basis"],
+            "properties": {
+              "statement": {"type": "string"},
+              "basis": {"type": "array", "items": {"type": "object"}}
+            }
+          },
+          "didactic_interpretation": {
+            "type": "object",
+            "required": ["mechanism", "topic_ids", "claim_ids"],
+            "properties": {
+              "mechanism": {"type": "string"},
+              "topic_ids": {"type": "array", "items": {"type": "string"}},
+              "claim_ids": {"type": "array", "items": {"type": "string"}}
+            }
+          },
+          "documentation_status": {"type": "string", "enum": ["documented", "weak_signal", "anecdote"]},
+          "regime_context": {
+            "type": "object",
+            "required": ["status", "note", "basis"],
+            "properties": {
+              "status": {"type": "string", "enum": ["current_regime", "historical_regime", "unknown"]},
+              "note": {"type": "string"},
+              "basis": {"type": "string"}
+            }
+          },
+          "coverage_unit_ids": {"type": "array", "items": {"type": "string"}},
+          "quality_status": {"type": "string", "enum": ["not_assessed"]},
+          "doi_status": {"type": "string", "enum": ["absent"]}
+        }
+      }
+    },
     "operation_log": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["operation_id", "operation_type", "provider", "status", "result_count", "literature_tool_result_ref"],
+        "required": ["operation_id", "operation_type", "provider", "status", "result_count"],
         "properties": {
           "operation_id": {"type": "string"},
-          "operation_type": {"type": "string", "enum": ["metadata_search", "citation_expand"]},
-          "provider": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv"]},
+          "operation_type": {"type": "string", "enum": ["metadata_search", "citation_expand", "web_case_search"]},
+          "provider": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv", "tavily", "searxng", "auto_budgeted"]},
           "status": {"type": "string", "enum": ["ok", "partial", "unavailable", "failed"]},
           "result_count": {"type": "integer"},
           "literature_tool_result_ref": {"type": "string"},
+          "web_case_tool_result_ref": {"type": "string"},
           "route_id": {"type": "string"},
           "query_id": {"type": "string"},
           "seed_source_id": {"type": "string"},
@@ -243,7 +344,7 @@
         "properties": {
           "source_id": {"type": "string"},
           "coverage_unit_ids": {"type": "array", "items": {"type": "string"}},
-          "basis": {"type": "string", "enum": ["metadata", "title", "abstract", "citation_relation", "domain_authority"]}
+          "basis": {"type": "string", "enum": ["metadata", "title", "abstract", "citation_relation", "domain_authority", "search_snippet", "provider_date", "combined_observations"]}
         }
       }
     },
@@ -255,7 +356,7 @@
         "required": ["operation_id", "provider", "status", "issues"],
         "properties": {
           "operation_id": {"type": "string"},
-          "provider": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv"]},
+          "provider": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv", "tavily", "searxng", "auto_budgeted"]},
           "status": {"type": "string", "enum": ["partial", "unavailable", "failed"]},
           "issues": {"type": "array", "items": {"type": "object"}}
         }

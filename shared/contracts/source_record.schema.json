@@ -1,6 +1,6 @@
 {
   "title": "Preliminary provider-backed research source record",
-  "x-version": "1.1",
+  "x-version": "1.2",
   "x-major": 1,
   "type": "object",
   "required": [
@@ -22,10 +22,14 @@
     "web_case": {
       "type": "object",
       "description": "Present only when record_type is market_case. Provider-observed fields and null placeholders are deterministic; semantic case annotations belong to the A11 candidate artifact.",
-      "required": ["institution", "event_label", "event_date", "source_tier", "evidence_type", "weakly_sourced"],
+      "required": ["institution", "event_label", "provider_date", "event_date", "source_tier", "evidence_type", "weakly_sourced"],
       "properties": {
         "institution": {"type": ["string", "null"]},
         "event_label": {"type": ["string", "null"]},
+        "provider_date": {
+          "type": ["string", "null"],
+          "description": "Publication or result date supplied by the web provider; it is not an event date without separate evidence."
+        },
         "event_date": {"type": ["string", "null"]},
         "source_tier": {"type": "string", "enum": ["tier_1_authoritative", "tier_2_reputable_media", "tier_3_signal_only"]},
         "evidence_type": {"type": ["string", "null"], "enum": ["applied_use", "structured_construction", "control_failure", "regulatory_action", "litigation", null]},

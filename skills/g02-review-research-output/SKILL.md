@@ -43,6 +43,8 @@ Use these standard profile identifiers and minimum concerns:
 - `domain_candidates`: scoped queries, real-index provenance and topic mapping;
 - `canonical_sources`: explicit canonicality basis and honest access limitations;
 - `recent_developments`: recency, maturity and separation of core updates from trends;
+- `market_cases`: exact web-operation scope, unchanged records, dated case identity, source tier,
+  materiality, fact/interpretation separation, regime context and extraction deferral;
 - `candidate_index`: normalization, deduplication, ranking, coverage and human-readable review;
 - `retrieved_corpus`: human authorization, stable identity, file integrity and explicit errors;
 - `paper_evidence`: evidence location, method, findings, limitations and claim relation;

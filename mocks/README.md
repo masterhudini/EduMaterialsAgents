@@ -23,6 +23,13 @@ Namespaced per graph:
   unchanged provider records, citation expansion, finalization, review and revision paths.
 - `g02/recent_query_plan.json` and the recent OpenAlex/Semantic Scholar responses exercise A04
   date scoping, metadata discovery, preprint handling, maturity, review and revision paths.
+- `g02/market_research_plan.json` and `g02/market_domain_candidate_sources.json` provide the exact
+  A01/A02 identity used for A11 preparation without changing the Bayesian regression mocks.
+- `g02/web_case_query_plan.json` freezes core, complementary and failure routes. The non-secret
+  `g02/web_provider_config.json` pins a mock administrator SearXNG origin.
+- `g02/provider_responses/tavily.json`, `searxng.json` and `tavily_extract.json` exercise common
+  market-case normalization and post-gate extraction. `g02/market_case_source_record.json` remains
+  a standalone normalized-record example.
 
 Later: `g01/…` and `g03/…` mocks as those graphs come online. Each mock is validated by
 the owning graph's front door on load, so a stale mock fails fast against its contract.
