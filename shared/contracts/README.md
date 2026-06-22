@@ -17,8 +17,10 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
 - `literature_provider_config.schema.json` defines the secret-free G02 provider profile.
 - `domain_research_input.schema.json` is the isolated G02-A02 input for one approved topic.
 - `query_plan.schema.json` defines bounded, provider-neutral search routes (`query_plan@1`, contract
-  version 1.1 within major 1), including an approved semantic basis for every generated term.
-- `source_record.schema.json` is the normalized provider record shared by discovery agents.
+  version 1.2 within major 1), including an approved semantic basis for every generated term and
+  an optional A11 web-route block.
+- `source_record.schema.json` is the normalized provider record shared by discovery agents. Version
+  1.1 adds the optional, backward-compatible `market_case` block used by the planned Tavily seam.
 - `literature_tool_result.schema.json` records one deterministic provider operation and provenance.
 - `domain_candidate_sources.schema.json` is the reviewed G02-A02 output
   (`domain_candidate_sources@1`).

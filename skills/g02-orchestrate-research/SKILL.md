@@ -34,9 +34,10 @@ extend its fields inside the orchestrator.
    `research_metadata_search`; the agent never sends HTTP itself. Finalize only through
    `research_domain_finalize` and build review through `research_domain_review_task`.
 4. Invoke each later producer and persist its artifacts. Conceptually independent G02-A03 Canonical
-   Sources and G02-A04 Recent Developments runs may execute concurrently when runtime support and
-   manifest semantics allow it; both consume the approved G02-A02 Domain result and join before
-   G02-A05 Candidate Source Index.
+   Sources, G02-A04 Recent Developments and G02-A11 Market Cases runs may execute concurrently when
+   their runtime seams and manifest semantics allow it. They consume the approved G02-A02 Domain
+   result and join before G02-A05 Candidate Source Index. Until the Tavily seam is implemented,
+   surface A11 as `external_dependency_blocked`; do not browse in its place.
 5. After every producer artifact, construct one `review_task@1` with the artifact, node profile,
    producer input, output contract, acceptance criteria and revision history. Prepare it through
    `research_review_prepare`, invoke `g02-a10-output-reviewer`, then submit the decision through
@@ -52,8 +53,10 @@ extend its fields inside the orchestrator.
 8. Parse the answer into `HumanSourceSelection`, show the interpretation and require final
    confirmation. Route SEARCH_MORE to the relevant discovery agent, rebuild and re-review the index.
    Retrieval receives only confirmed `HumanApprovedSourceSet`.
-9. Fan out G02-A07 Paper Review per validated document when supported, then G02-A08 Claim Verification per independent
-   claim or tight claim group. Preserve artifact isolation and join only reviewed results.
+9. Fan out G02-A07 evidence review per validated scholarly document and per human-approved market
+   case when supported. Web extraction is permitted only after the source gate. Then run G02-A08
+   Claim Verification per independent claim or tight claim group. Preserve artifact isolation and
+   join only reviewed results.
 10. After reviewed synthesis, run the Human Research Gate. Present verified, mixed, unsupported and
    insufficient claims, required updates, optional improvements, unresolved questions, confidence
    and accepted coverage exceptions in `output_language`.

@@ -1,15 +1,16 @@
 ---
 name: g02-a07-paper-review
 description: >-
-  Full-text evidence extraction agent invoked for one validated document at a time. Reads targeted
-  PDF sections through the text index, returns PaperReview and traceable evidence cards, and never
-  makes the final claim verdict.
+  Evidence extraction agent invoked for one human-approved source at a time. Reads targeted PDF
+  sections through the text index or, for an approved market case, consumes the deterministic web
+  extraction artifact. Returns traceable evidence cards and never makes the final claim verdict.
 ---
 
 # G02-A07 Paper Review
 
-This is the agent authorized to read a downloaded document. Use claim-directed retrieval of pages
-and sections to control tokens while reading all portions needed to interpret the assigned evidence.
+This is the agent authorized to read a downloaded document or a web case approved at the source
+gate. Use claim-directed retrieval to control tokens while reading all portions needed to interpret
+the assigned evidence.
 
 ## Contract
 
@@ -21,13 +22,16 @@ evidence IDs and document locations. Return descriptors through `envelope@1`.
 
 ## Required Skills
 
-- `g02-a07-extract-paper-evidence`, required.
+- `g02-a07-extract-paper-evidence`, required for scholarly documents.
+- `g02-a11-extract-case-evidence`, required only for an approved `market_case` after the A11
+  deterministic extraction seam is implemented.
 
 ## Workflow
 
-1. Confirm document identity, validated local ref and assigned scope.
-2. Use the deterministic PDF text and section index. Inspect the document map, then retrieve
-   relevant windows for each assigned claim, methods and limitations.
+1. Confirm source identity, human approval, validated local or page-artifact ref and assigned scope.
+2. For a scholarly document, use the deterministic PDF text and section index. For a market case,
+   call the deterministic web extraction operation only after approval and consume its persisted
+   page artifact. Inspect only relevant windows for each assigned claim, methods and limitations.
 3. Read surrounding context needed to distinguish this paper's result from cited background,
    assumptions or speculative discussion. Inspect the whole document progressively when the scope
    cannot be resolved from targeted sections.

@@ -25,9 +25,8 @@ Konsekwencje:
 - manifest potrzebuje rozróżnienia logical node od physical agent reference,
 - każdy logical review node wskazuje `g02-a10-output-reviewer`,
 - review profile określa producer, acceptance criteria i revision policy,
-- `graph_check.py` weryfikuje kontrakty reviewera i profile producentów; w source i bundlu
-  Claude sprawdza także physical reviewer reference, a w bundlu Codex respektuje
-  `includeAgents: false`,
+- `graph_check.py` weryfikuje kontrakty reviewera, profile producentów i physical agent references
+  w source oraz obu bundlach, zgodnie z bieżącym `includeAgents: true`,
 - plugin rejestruje jeden komponent reviewer.
 
 Ta decyzja nie wymaga ponownego zatwierdzenia. Powinna zostać odzwierciedlona w repo.
@@ -221,9 +220,9 @@ rejestrowania jednego physical reviewer pod wieloma logical nodes.
 Poniższe punkty pozostają poza treścią agentów i skilli, ale mogą wpływać na integrację:
 
 - `graph_check.py` sprawdza rejestrację komponentów wysyłanych do danego hosta, kontrakty
-  reviewera i obecność profili. Source i Claude wymagają physical agent references. Codex
-  pomija wyłącznie obecność plików agentów zgodnie z `includeAgents: false`. Checker nie
-  weryfikuje jeszcze pełnej zgodności edges, sequence i orchestrator workflow.
+  reviewera i obecność profili. Source, Claude i Codex wymagają physical agent references, ponieważ
+  oba bundle wysyłają agentów. Checker nie weryfikuje jeszcze pełnej zgodności edges, sequence i
+  orchestrator workflow.
 - Test `test_graph_check_ok_with_no_manifests` przechodzi przy zerowej liczbie manifestów.
   Po dodaniu Research Graph potrzebne są testy faktycznej zawartości manifestu.
 - Minimalny validator JSON Schema obsługuje ograniczony podzbiór specyfikacji. Nowe kontrakty
@@ -261,7 +260,7 @@ agentów i skilli. Ich celem jest zapewnienie powtarzalnego środowiska testoweg
 
 Wprowadzone elementy:
 
-- `plugin.manifest.json` deklaruje komplet 18 skilli i 10 agentów;
+- `plugin.manifest.json` deklaruje komplet 20 skilli i 11 agentów, w tym scaffold A11;
 - build porównuje manifest z katalogami źródłowymi i przerywa pracę przy pominiętym komponencie;
 - build wymaga adapterów Claude i Codex, waliduje neutralny frontmatter, nazwę skilla oraz kodowanie
   UTF-8, a do bundle dołącza tylko adapter wybranego hosta;

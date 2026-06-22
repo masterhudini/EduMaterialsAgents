@@ -9,6 +9,7 @@
   "input_contract": "research_graph_input@1",
   "exit_artifact": "user_approved_research_bundle@1",
   "nodes": [
+<<<<<<< Updated upstream
     {"name": "g02-a01-planner", "kind": "agent", "input_contract": "research_planner_input@1", "output_contract": "research_plan@1", "review_profile": "research_plan", "produces": ["research_plan@1"]},
     {"name": "g02-a02-domain", "kind": "agent", "input_contract": "domain_research_input@1", "output_contract": "domain_candidate_sources@1", "review_profile": "domain_candidates", "produces": ["domain_candidate_sources@1"]},
     {"name": "g02-a03-canonical-sources", "kind": "agent", "review_profile": "canonical_sources", "produces": ["CanonicalCandidateSources"]},
@@ -20,12 +21,27 @@
     {"name": "g02-a08-claim-verification", "kind": "agent", "review_profile": "claim_assessment", "produces": ["ClaimAssessmentState"]},
     {"name": "g02-a09-synthesizer", "kind": "agent", "review_profile": "research_synthesis", "produces": ["ResearchState", "EvidenceMap", "UserResearchValidationPacket", "SolutionInputCandidate"]},
     {"name": "user-research-gate", "kind": "user-gate"}
+=======
+    {"name": "g02-a01-planner", "kind": "agent", "complexity_class": "research_planning", "input_contract": "research_planner_input@1", "output_contract": "research_plan@1", "review_profile": "research_plan", "produces": ["research_plan@1"]},
+    {"name": "g02-a02-domain", "kind": "agent", "complexity_class": "research_search", "input_contract": "domain_research_input@1", "output_contract": "domain_candidate_sources@1", "review_profile": "domain_candidates", "produces": ["domain_candidate_sources@1"]},
+    {"name": "g02-a03-canonical-sources", "kind": "agent", "complexity_class": "research_search", "review_profile": "canonical_sources", "output_contract": "candidate_sources@1", "produces": ["CanonicalCandidateSources"]},
+    {"name": "g02-a04-recent-developments", "kind": "agent", "complexity_class": "research_search", "review_profile": "recent_developments", "output_contract": "candidate_sources@1", "produces": ["RecentCandidateSources"]},
+    {"name": "g02-a11-market-cases", "kind": "agent", "complexity_class": "research_search", "review_profile": "market_cases", "output_contract": "candidate_sources@1", "produces": ["MarketCaseCandidateSources"]},
+    {"name": "g02-a05-candidate-source-index", "kind": "agent", "complexity_class": "synthesis_decision", "review_profile": "candidate_index", "output_contract": "candidate_source_index@1", "produces": ["CandidateSourceIndex"]},
+    {"name": "user-source-selection-gate", "kind": "user-gate", "required_decisions": [{"id": "source_actions", "type": "per_source_action", "actions": ["DOWNLOAD", "LIBRARY", "CITATION", "RESERVE", "EXCLUDE", "SEARCH_MORE"]}]},
+    {"name": "g02-a06-paper-retrieval", "kind": "agent", "complexity_class": "deterministic_technical", "review_profile": "retrieved_corpus", "output_contract": "retrieved_corpus@1", "produces": ["RetrievedCorpus"]},
+    {"name": "g02-a07-paper-review", "kind": "agent", "complexity_class": "evidence_high_impact", "review_profile": "paper_evidence", "output_contract": "paper_review@1", "produces": ["PaperReview", "PaperEvidenceCards"]},
+    {"name": "g02-a08-claim-verification", "kind": "agent", "complexity_class": "evidence_high_impact", "review_profile": "claim_assessment", "output_contract": "claim_assessment@1", "produces": ["ClaimAssessmentState"]},
+    {"name": "g02-a09-synthesizer", "kind": "agent", "complexity_class": "synthesis_decision", "review_profile": "research_synthesis", "output_contract": "research_state@1", "produces": ["ResearchState", "EvidenceMap", "UserResearchValidationPacket", "SolutionInputCandidate"]},
+    {"name": "user-research-gate", "kind": "user-gate", "required_decisions": [{"id": "approve_required_updates", "type": "approve"}, {"id": "approve_optional_improvements", "type": "approve"}, {"id": "unresolved_claim_handling", "type": "choice"}]}
+>>>>>>> Stashed changes
   ],
   "sequence": [
     "g02-a01-planner",
     "g02-a02-domain",
     "g02-a03-canonical-sources",
     "g02-a04-recent-developments",
+    "g02-a11-market-cases",
     "g02-a05-candidate-source-index",
     "user-source-selection-gate",
     "g02-a06-paper-retrieval",

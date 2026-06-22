@@ -1,0 +1,28 @@
+{
+  "query": "rogue trader unauthorized derivatives options loss bank investigation report",
+  "response_time": 1.42,
+  "request_id": "tavily-req-mock-0007",
+  "results": [
+    {
+      "title": "Societe Generale reports EUR 4.9 billion loss from unauthorized trading",
+      "url": "https://www.reuters.com/article/sgeneral-kerviel-archive",
+      "content": "Societe Generale said on January 24, 2008 that a single futures trader had built massive unauthorized positions in European equity index derivatives, concealed through fictitious offsetting trades, leading to a loss of about 4.9 billion euros once the positions were unwound.",
+      "score": 0.94,
+      "published_date": "2008-01-24"
+    },
+    {
+      "title": "AMF sanction decision concerning Societe Generale internal controls",
+      "url": "https://www.amf-france.org/en",
+      "content": "The French market regulator reviewed the internal control weaknesses that allowed the unauthorized positions to remain undetected.",
+      "score": 0.81,
+      "published_date": "2008-07-04"
+    },
+    {
+      "title": "What every options trader can learn from the Kerviel affair",
+      "url": "https://some-trading-blog.example.com/kerviel-lessons",
+      "content": "A blogger's reflection on lessons for retail options traders.",
+      "score": 0.55,
+      "published_date": "2019-03-11"
+    }
+  ]
+}

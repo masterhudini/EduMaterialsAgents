@@ -57,7 +57,9 @@
       "skills/g02-review-research-output",
       "skills/g02-search-scholarly-metadata",
       "skills/g02-a09-synthesize-research-findings",
-      "skills/g02-a06-validate-retrieved-document"
+      "skills/g02-a06-validate-retrieved-document",
+      "skills/g02-a11-find-market-cases",
+      "skills/g02-a11-extract-case-evidence"
     ],
     "agents": [
       "agents/g02-a05-candidate-source-index.md",
@@ -69,7 +71,8 @@
       "agents/g02-a07-paper-review.md",
       "agents/g02-a01-planner.md",
       "agents/g02-a04-recent-developments.md",
-      "agents/g02-a09-synthesizer.md"
+      "agents/g02-a09-synthesizer.md",
+      "agents/g02-a11-market-cases.md"
     ],
     "commands": [
       "commands/research.md"

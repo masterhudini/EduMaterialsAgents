@@ -65,8 +65,9 @@ Pliki w tym katalogu są częścią repozytorium i stanowią kontekst projektowy
 
 ### Status implementacji warstwy treści
 
-Warstwa definicji zawiera 10 kompletnych agentów i 18 skilli, w tym jeden uniwersalny reviewer
-oraz orkiestrator. W plikach agentów i skilli nie pozostają stuby wykonawcze.
+Warstwa definicji zawiera 11 agentów i 20 skilli, w tym jeden uniwersalny reviewer, orkiestrator
+oraz scaffold A11 Market Cases z dwoma skillami. Definicje A11 opisują docelowy kontrakt pracy;
+deterministyczny seam Tavily pozostaje zaplanowany razem z pionowym wycinkiem A11.
 
 Deterministyczne seams reviewera, G02-A01 Plannera i G02-A02 Domain są wdrożone. G02-A02 posiada
 konfigurację providerów, adaptery OpenAlex, Semantic Scholar i arXiv, cache, retry, rate limiting,

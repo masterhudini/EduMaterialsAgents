@@ -328,7 +328,7 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
   zmienia kontraktu.
 - [ ] Agent nie korzysta z WebSearch, WebFetch, API literaturowych ani narzędzi kolejnych agentów.
 - [ ] Brak host executora i wyjątek executora zwracają `failed` bez planu.
-- [ ] Bieżący wspólny MCP raportuje wersję `0.4.0` i dokładnie czternaście operacji, w tym trzy
+- [ ] Bieżący wspólny MCP raportuje wersję `0.4.0` i dokładnie piętnaście operacji, w tym trzy
   operacje Plannera oraz pięć operacji G02-A02; osobny wynik TEST 2 wskazuje wyłącznie zachowanie A01.
 - [ ] Trzy operacje MCP Plannera odpowiadają wynikom bezpośrednich funkcji Python dla first run,
   degraded plan, failure i revision.
@@ -502,8 +502,8 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
 - [ ] Agent nie używa WebSearch, WebFetch, shell HTTP, downloadera PDF ani bezpośrednich klientów API.
 - [ ] Forward testy A01 i A02 przechodzą osobno na Claude i Codex. Brak rzeczywistego izolowanego
   executora hosta daje jawny failure i nie może zostać zaliczony jako test zachowania agenta.
-- [ ] MCP raportuje wersję `0.4.0` i dokładnie czternaście operacji, w tym pięć operacji G02-A02 i
-  dziewięć wcześniejszych.
+- [ ] MCP raportuje wersję `0.4.0` i dokładnie piętnaście operacji, w tym pięć operacji G02-A02 i
+  dziesięć pozostałych.
 - [ ] Pięć operacji MCP G02-A02 odpowiada wynikom bezpośrednich funkcji Python dla success,
   zero-result, partial, failure i revision.
 - [ ] Manifest, agent, skille, kontrakty i MCP używają wyłącznie identyfikatorów G02-A02 oraz
@@ -523,3 +523,38 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
 - [ ] TEST 3 zakończony w osobnym katalogu i środowisku.
 - [ ] Wynik TEST 3 zapisany w `08_Log_wynikow_TEST.md`.
 - [ ] Commit zestawu 3 wykonany po akceptacji wyników.
+
+### Usterki z TEST (zestawy 2 i 3, szczegóły w 08, Runda 5)
+
+- [x] `plugin.manifest.json` zawiera agenta `g02-a11-market-cases` oraz skille
+  `g02-a11-extract-case-evidence` i `g02-a11-find-market-cases`. Inwentarz źródła i manifestu jest
+  zgodny: 11 agentów oraz 20 skilli. A11 pozostaje scaffoldem do późniejszego pionowego wycinka.
+- [x] `tests/test_research_graph.py` wyznacza producer-agentów z `g02.graph.json`, zamiast utrzymywać
+  drugą, zakodowaną na sztywno liczbę. Graf ma obecnie 10 producer-agentów.
+- [x] Rejestr, README, implementacja i `test_mcp_server.py` są zgodne: MCP `0.4.0` udostępnia 15
+  operacji, w tym `research_run_codex`. Planowane operacje Tavily nie są jeszcze do tej liczby
+  wliczane.
+
+Status TEST 2 i TEST 3: warstwa deterministyczna A01 i A02 przeszła reprezentatywny podzbiór
+(A01 20/20, A02 27/27). Blokujący błąd builda został usunięty i lokalny build/dry-run przechodzi;
+pełny packaging w osobnym środowisku pozostaje do wykonania jutro. Live API smoke i forward testy
+hosta nadal wymagają odpowiednio sieci oraz rzeczywistego executora. Pojedyncze checkboxy nie są
+zaznaczane do pełnego przebiegu.
+
+### Bramka jutrzejszego retestu A01-A02
+
+- [ ] Użyć świeżej kopii repo i osobnego środowiska z zależnościami z `requirements-dev.txt`;
+  brak `pytest` w bieżącym systemowym Pythonie nie jest wynikiem testu repo.
+- [ ] Build/dry-run raportuje dokładnie `Validated 20 skills and 11 agents`; oba bundle zawierają
+  A11 jako scaffold, a `graph_check` przechodzi dla source, Claude i Codex.
+- [ ] MCP `0.4.0` raportuje dokładnie 15 zaimplementowanych operacji. Brak
+  `research_web_case_search` i `research_web_case_extract` jest oczekiwany do czasu DEV A11.
+- [ ] Wykonać pełne TEST 2 i TEST 3 według scenariuszy powyżej, osobno oznaczając: deterministyczne,
+  forward Claude, forward Codex, live API i packaging.
+- [ ] Live A02 ma dostęp HTTPS do `api.openalex.org`, `api.semanticscholar.org` i
+  `export.arxiv.org`, a środowisko zawiera `EMAGENTS_RESEARCH_CONTACT_EMAIL`,
+  `OPENALEX_API_KEY` oraz opcjonalnie `SEMANTIC_SCHOLAR_API_KEY`. Wartości sekretów nie mogą
+  pojawić się w logu, artefakcie ani statusie providera.
+- [ ] Nie zaliczać A11, Tavily ani ekstrakcji web w jutrzejszym teście A01-A02. Ich fixture'y mają
+  przechodzić wyłącznie walidację shape i packaging; testy semantyczne oraz live należą do batcha
+  A11 po A03-A05.

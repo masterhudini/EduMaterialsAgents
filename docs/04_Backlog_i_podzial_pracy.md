@@ -735,4 +735,85 @@ Definicje agentów i skilli istnieją. Dalsza praca przebiega pionowymi wycinkam
 11. Orchestrator, scoped inputs, revision loops i resume.
 12. KH implementuje `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]` i wykonywany jest pełny test
     end-to-end bez no-op node runnera.
+13. G02-A11 Market Cases, web discovery przez Tavily i lekka ekstrakcja po bramce człowieka.
 
+## 21. Faza E, G02-A11 Market Cases (web case studies)
+
+**Status:** scaffold definicji przygotowany, runtime planowany. Agent, dwa skille, mocki i
+wstecznie kompatybilne rozszerzenia kontraktów są zarejestrowane, aby repo i build zachowały
+spójność. Implementacja operacji Tavily, walidator semantyczny tras web i testy zachowania A11
+nastąpią po zamknięciu testów G02-A01 i G02-A02 oraz dev G02-A03, G02-A04 i G02-A05. Do tego czasu
+A11 nie jest zaliczony jako działający pionowy wycinek.
+
+### E1. Treść agenta i skilli
+
+**Owner:** CONTENT
+
+- `agents/g02-a11-market-cases.md`, agent web discovery równoległy do A03 i A04, w fan-out po A02.
+- `skills/g02-a11-find-market-cases/`, discovery przez `research_web_case_search`.
+- `skills/g02-a11-extract-case-evidence/`, lekka ekstrakcja wariantu A07 po bramce człowieka.
+- rozszerzenie `g02-classify-source-role` o rolę `applied_case`.
+- profil review `market_cases` z kryteriami MC-01 do MC-06.
+
+### E2. Deterministyczne narzędzie web
+
+**Owner:** TOOLS
+
+- operacja MCP `research_web_case_search` i `research_web_case_extract` w `research_server.py`,
+- moduł `shared/scripts/g02/web_cases.py` według wzorca `providers.py`, z abstrakcją providera i
+  Tavily jako pierwszym adapterem (`tavily_search`, `tavily_extract`),
+- klucz API i parametry ze zmiennych środowiskowych i konfiguracji jawnej, nigdy w kontekście LLM,
+- mapowanie odpowiedzi do `source_record@1` z `record_type: market_case`, przypisanie `source_tier`
+  z domeny wyniku, zachowanie surowej odpowiedzi i provenance,
+- ekstrakcja `research_web_case_extract` tylko dla case'ów zatwierdzonych przez człowieka, aby
+  ograniczać zużycie kredytów Tavily; bieżące limity planu należy potwierdzić przed testem live.
+
+### E3. Kontrakty
+
+**Owner:** KH z konsultacją CONTENT
+
+- `source_record@1` rozszerzony o `record_type`, blok `web_case` i `access_level: web_page`
+  (wstecznie kompatybilnie, pola opcjonalne),
+- `query_plan@1` rozszerzony o providera `tavily` i opcjonalny blok `web` na trasie,
+- nazwany artefakt `MarketCaseCandidateSources` (bez osobnego pliku schematu, parytet z A03 i A04),
+- manifest `g02.graph.json` z węzłem `g02-a11-market-cases` w sekwencji przed A05.
+
+### E4. Tiering źródeł i próg materialności
+
+**Owner:** CONTENT
+
+Hierarchia: tier 1 regulatorzy, raporty śledcze, dokumenty sądowe, raporty roczne; tier 2 uznane
+media finansowe; tier 3 blogi i materiały marketingowe tylko jako sygnał z flagą `weakly_sourced`.
+Próg materialności: skala zdarzenia, realna konsekwencja i potwierdzenie w źródle wyższego tieru.
+
+### E5. Plan testów A11 i wspólny test czterech węzłów
+
+**Owner:** JOINT
+
+Warstwa narzędzia: testy `research_web_case_search` na `mocks/g02/provider_responses/tavily.json`,
+sprawdzające normalizację do `source_record@1`, przypisanie `source_tier`, provenance, propagację
+błędów providera (`partial`, `unavailable`, `failed`) bez tworzenia metadanych oraz brak klucza API
+w artefakcie i logu.
+
+Warstwa agenta i skilla: test na fixture topic z claimem o opcjach
+(`mocks/g02/web_case_query_plan.json`, deterministyczny rekord providera
+`mocks/g02/market_case_source_record.json`) sprawdza budowę trasy webowej i zachowanie rekordu bez
+mutacji. Osobno sprawdza semantyczną adnotację A11: mapowanie do coverage i claimu, przypisanie roli
+`applied_case`, evidence type i materiality z jawną podstawą w snippetach, flagę `weakly_sourced`
+dla tier 3 oraz odrzucenie anegdoty bez źródła wyższego tieru przez próg materialności.
+
+Warstwa review i synchronizacji: test podaje `MarketCaseCandidateSources` do G02-A10 z profilem
+`market_cases`, sprawdza `APPROVED`, `REVISE` i `BLOCKED` na wadliwych artefaktach (brak daty, brak
+mapowania do claimu, zmyślone metadane). Drugi test potwierdza, że G02-A05 agreguje, deduplikuje i
+rankinguje case'y razem ze strumieniami canonical i recent w jednym `candidate_source_review.md`.
+
+Warstwa orkiestracji i end-to-end: `graph_check.py` potwierdza A11 w fan-out i w sekwencji przed
+A05 oraz zgodność `g02_flow.py` i promptu orkiestratora z manifestem. Scenariusz na injectable
+no-op executors przechodzi pełną ścieżkę discovery, indeks, Human Source Selection Gate, ekstrakcję
+tylko dla zatwierdzonych case'ów, lekką A07, pełną A09 i Human Research Gate. Test potwierdza
+identyfikowalność need, claim, market_case, evidence card, rekomendacja, brak ekstrakcji przed
+bramką oraz powrót `SEARCH_MORE` do A11 z przebudową indeksu.
+
+**Definition of done:** A11 produkuje audytowalne case'y mapowane do claimów, przechodzi przez te
+same bramki co źródła z API, a wspólny test czterech węzłów discovery (A03, A04, A11 i agregacja
+A05) jest zielony.

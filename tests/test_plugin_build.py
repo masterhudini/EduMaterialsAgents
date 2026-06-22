@@ -39,8 +39,8 @@ def test_manifest_declares_every_source_component():
     assert set(components["skills"]) == skills
     assert set(components["agents"]) == agents
     assert set(components["commands"]) == commands
-    assert len(skills) == 18
-    assert len(agents) == 10
+    assert len(skills) == 20
+    assert len(agents) == 11
 
 
 def test_every_skill_has_required_host_adapters():
@@ -82,7 +82,7 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
     for host in ("claude", "codex"):
         plugin = tmp_path / host / "plugins" / "edu-materials-agents"
         rendered = sorted((plugin / "skills").glob("*/SKILL.md"))
-        assert len(rendered) == 18
+        assert len(rendered) == 20
         assert not list((plugin / "skills").glob("*/adapters"))
         mcp = json.loads((plugin / ".mcp.json").read_text(encoding="utf-8"))
         assert mcp["mcpServers"]["edu-materials-research"]["command"] == sys.executable
@@ -100,9 +100,13 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
 
     claude_plugin = tmp_path / "claude" / "plugins" / "edu-materials-agents"
     codex_plugin = tmp_path / "codex" / "plugins" / "edu-materials-agents"
-    assert len(list((claude_plugin / "agents").glob("*.md"))) == 10
+    assert len(list((claude_plugin / "agents").glob("*.md"))) == 11
     assert len(list((claude_plugin / "commands").glob("*.md"))) == 1
+<<<<<<< Updated upstream
     assert not (codex_plugin / "agents").exists()
+=======
+    assert len(list((codex_plugin / "agents").glob("*.md"))) == 11
+>>>>>>> Stashed changes
     assert not (codex_plugin / "commands").exists()
     assert source_before == digest_tree(ROOT / "skills")
 
@@ -115,5 +119,5 @@ def test_dry_run_validates_in_temporary_directory_without_touching_dist():
         capture_output=True,
         text=True,
     )
-    assert "Validated 18 skills and 10 agents." in completed.stdout
+    assert "Validated 20 skills and 11 agents." in completed.stdout
     assert before == digest_tree(ROOT / "dist")

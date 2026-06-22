@@ -28,10 +28,12 @@ registration must all agree with it. `core/graph_check.py` enforces no drift.
 
 ## Research Graph status
 
-`g02.graph.json` istnieje. Zawiera dziewięciu producentów, dwa human gates, jednego
+`g02.graph.json` istnieje. Zawiera dziesięciu producentów, dwa human gates, jednego
 fizycznego `g02-a10-output-reviewer` oraz profile logicznych etapów review. Obowiązująca
-kolejność to planner, domain, równoległe canonical i recent, candidate index, source-selection
-gate, retrieval, paper review, claim verification, synthesis i final research gate.
+kolejność to planner, domain, równoległe canonical, recent i market cases, candidate index,
+source-selection gate, retrieval lub zatwierdzona ekstrakcja web, evidence review, claim
+verification, synthesis i final research gate. A11 jest obecnie scaffoldem definicji; seam Tavily
+zostanie dodany w jego pionowym wycinku po A03-A05.
 
 Węzły G02-A01 i G02-A02 mają zamrożone kontrakty wejścia i wyjścia. G02-A01 używa
 `research_planner_input@1` oraz `research_plan@1`, a G02-A02 używa
@@ -44,10 +46,9 @@ tworzy `review_task@1` na podstawie `review_profile`, uruchamia wspólnego revie
 finalizacji orkiestratora.
 
 `core/graph_check.py` kontroluje kontrakty graniczne grafu, oba kontrakty reviewera, zadeklarowane
-kontrakty wejścia i wyjścia producentów oraz obecność `review_profile` na każdym producer node. W
-source i bundlu Claude wymaga także fizycznego pliku reviewera i wszystkich agentów.
-W bundlu Codex pomija wyłącznie obecność plików agentów, ponieważ `includeAgents: false` jest
-zamierzoną polityką hosta; pozostałe kontrole pozostają aktywne.
+kontrakty wejścia i wyjścia producentów oraz obecność `review_profile` na każdym producer node.
+Source oraz bundle Claude i Codex wymagają fizycznego pliku reviewera i wszystkich agentów,
+zgodnie z bieżącą polityką `includeAgents: true` obu hostów.
 
 Przyszłe grafy wskazane przez projekt: `g01.graph.json` dla Intake Graph i `g03.graph.json` dla
 Solution Graph.

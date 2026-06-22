@@ -50,7 +50,7 @@ dist/codex/
   plugins/edu-materials-agents/
     .codex-plugin/plugin.json
     .mcp.json
-    skills/ shared/
+    skills/ agents/ shared/
 ```
 
 `dist/` is git-ignored and can be regenerated at any time:
@@ -77,8 +77,10 @@ under `.emagents/` (override with `EMAGENTS_HOME`); the dir is git-ignored.
 The implemented deterministic Research Graph seams currently cover the boundary front door,
 G02-A01 Planner, G02-A02 Domain, provider configuration and metadata search, the universal reviewer
 and the final handoff. OpenAlex, Semantic Scholar and arXiv adapters apply bounded requests, retry,
-rate limits, cache, normalization and raw-response provenance. The MCP server exposes fourteen
-operations at version `0.4.0`. Remaining operations are added with their owning agents.
+rate limits, cache, normalization and raw-response provenance. The MCP server exposes fifteen
+operations at version `0.4.0`. A11 Market Cases and its two skills are shipped as a design scaffold;
+the Tavily search and post-gate extraction operations remain scheduled with the A11 runtime slice.
+Remaining operations are added with their owning agents.
 
 Before the first G02-A02 run, copy `shared/config/g02.providers.example.json` to
 `.emagents/config/g02-providers.json`, set `EMAGENTS_RESEARCH_CONTACT_EMAIL` and provide the
@@ -120,7 +122,8 @@ Then, in Claude Code:
 /plugin                              # shows edu-materials-agents (marketplace: edu-materials)
 ```
 
-Verify the component inventory (expect 10 agents + 18 skills, including g02-orchestrate-research):
+Verify the component inventory (expect 11 agents + 20 skills, including the A11 scaffold and
+g02-orchestrate-research):
 
 ```bash
 claude plugin details edu-materials-agents
@@ -139,8 +142,14 @@ On Windows use `.\install.ps1 --codex`. Replacement of an existing Codex plugin 
 the previous directory is retained as a timestamped backup after a successful installation.
 
 Then start a new Codex thread. The plugin appears as `edu-materials-agents` in the default
+<<<<<<< Updated upstream
 `Local Plugins` marketplace. Codex receives the shared skill/runtime and MCP tools; Codex-specific
 subagent orchestration is a separate adapter layer from Claude's agent `.md` files.
+=======
+`Local Plugins` marketplace. Codex receives the shared agents, skills, runtime and MCP tools. The Codex
+CLI plugin manifest does not currently register plugin `commands/` as slash commands, so
+`/research` is Claude-only in current Codex CLI builds.
+>>>>>>> Stashed changes
 
 ## Run
 

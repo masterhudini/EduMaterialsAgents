@@ -57,8 +57,11 @@ def test_nodes_receive_mocked_context():
     g02_flow.run(in_ref, node_runner=spy)
 
     names = [n for n, _, _ in seen]
-    # all 9 producer agents ran (reviewer + the 2 user gates are not agent nodes)
-    assert len(seen) == 9
+    manifest = graphs.load("g02")
+    expected_agents = [node["name"] for node in graphs.nodes(manifest)
+                       if node.get("kind") == "agent"]
+    # Every producer from the manifest ran; reviewer and user gates are control steps.
+    assert names == expected_agents
     assert "g02-a01-planner" in names and "g02-a09-synthesizer" in names
     # every node received the SAME mocked context (task_id + claim cards visible)
     assert all(task_id == "RESEARCH_001" and n_claims == 1 for _, task_id, n_claims in seen)
@@ -69,7 +72,9 @@ def test_node_input_map_exposes_per_agent_context():
     seed = json.loads(SEED.read_text())
     manifest = graphs.load("g02")
     inputs = g02_flow.node_input_map(seed, manifest)
-    assert len(inputs) == 9                       # 9 agent nodes (gates/reviewer excluded)
+    expected_agents = {node["name"] for node in graphs.nodes(manifest)
+                       if node.get("kind") == "agent"}
+    assert set(inputs) == expected_agents
     assert inputs["g02-a01-planner"]["task_id"] == "RESEARCH_001"
     assert inputs["g02-a08-claim-verification"]["claim_cards"][0]["claim_id"] == "CLM_001"
 

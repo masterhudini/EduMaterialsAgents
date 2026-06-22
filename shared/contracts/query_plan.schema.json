@@ -1,6 +1,6 @@
 {
-  "title": "Provider-neutral scholarly query plan",
-  "x-version": "1.1",
+  "title": "Provider-neutral research discovery query plan",
+  "x-version": "1.2",
   "x-major": 1,
   "type": "object",
   "required": ["schema_version", "artifact_version", "task_id", "topic_id", "routes", "excluded_terms"],
@@ -52,7 +52,18 @@
           "coverage_unit_ids": {"type": "array", "items": {"type": "string"}},
           "preferred_providers": {
             "type": "array",
-            "items": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv"]}
+            "items": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv", "tavily"]}
+          },
+          "web": {
+            "type": "object",
+            "description": "Optional. Present only for web case routes (preferred provider tavily) consumed by G02-A11.",
+            "required": ["include_domains", "exclude_domains", "source_tier_floor"],
+            "properties": {
+              "include_domains": {"type": "array", "items": {"type": "string"}},
+              "exclude_domains": {"type": "array", "items": {"type": "string"}},
+              "source_tier_floor": {"type": "string", "enum": ["tier_1_authoritative", "tier_2_reputable_media", "tier_3_signal_only"]},
+              "preferred_tier": {"type": "string", "enum": ["tier_1_authoritative", "tier_2_reputable_media", "tier_3_signal_only"]}
+            }
           },
           "filters": {
             "type": "object",

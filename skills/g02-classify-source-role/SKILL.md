@@ -16,7 +16,10 @@ and mapped topics or claims.
 1. Determine what information was actually observed: metadata, abstract, contents, preview or
    full text. Restrict classification strength accordingly.
 2. Evaluate roles independently: canonical, foundational, current, rising, survey, didactic,
-   methodological, claim-specific, qualifying or critical, optional.
+   methodological, claim-specific, qualifying or critical, applied_case, optional. Assign
+   `applied_case` to a real, dated market case (a documented institutional event, applied use or
+   failure) that illustrates a claim or topic; keep its source tier and evidence type separate from
+   scientific quality.
 3. Cite signals for each role, such as publication history, citation relation, work type, scope,
    recency or abstract content. Keep citation count as one signal.
 4. Separate source role from scientific quality, stance and Open Access status.

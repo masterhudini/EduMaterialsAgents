@@ -1,0 +1,73 @@
+{
+  "schema_version": "source_record@1",
+  "source_id": "SRC_WEBCASE_SOCGEN_KERVIEL_2008",
+  "record_type": "market_case",
+  "identifiers": {
+    "doi": null,
+    "openalex_id": null,
+    "semantic_scholar_id": null,
+    "arxiv_id": null,
+    "isbn": null
+  },
+  "bibliographic": {
+    "title": "Societe Generale reports EUR 4.9 billion loss from unauthorized derivatives trading",
+    "authors": [],
+    "year": 2008,
+    "venue": "Reuters",
+    "publisher": "Reuters",
+    "language": "en",
+    "work_type": "news"
+  },
+  "content_available": {
+    "abstract": "Coverage of the January 2008 disclosure that a single trader, Jerome Kerviel, built large unauthorized directional positions in equity index futures and options, concealed through offsetting fictitious trades, producing one of the largest trading losses recorded by a bank.",
+    "abstract_source": "search_snippet",
+    "table_of_contents_available": false
+  },
+  "classification": {
+    "related_topics": ["TOPIC_DERIVATIVES_OPTIONS"],
+    "related_claims": [],
+    "source_roles": [],
+    "category": "market_case"
+  },
+  "signals": {
+    "cited_by_count": null,
+    "citation_percentile": null,
+    "recent_citation_velocity": null,
+    "internal_graph_centrality": null,
+    "recommendation_signal": null,
+    "canonical_score": null,
+    "rising_score": null
+  },
+  "access": {
+    "oa_status": "web_public",
+    "access_level": "web_page",
+    "candidate_pdf_urls": [],
+    "publisher_url": "https://www.reuters.com/article/sgeneral-kerviel-archive",
+    "library_access_required": false
+  },
+  "web_case": {
+    "institution": null,
+    "event_label": "Societe Generale reports EUR 4.9 billion loss from unauthorized trading",
+    "event_date": "2008-01-24",
+    "source_tier": "tier_2_reputable_media",
+    "evidence_type": null,
+    "corroborating_source_urls": [],
+    "weakly_sourced": false,
+    "materiality_note": null,
+    "regime_context_note": null,
+    "raw_page_ref": null
+  },
+  "provenance": {
+    "source_apis": ["tavily"],
+    "provider_record_ids": {"tavily": "tavily-result-0007"},
+    "retrieved_at": "2026-06-21T10:15:00Z",
+    "query_ids": ["QUERY_OPTIONS_FAILURE_CASE"],
+    "raw_response_refs": ["artifact://g02/web_cases/tavily_result_0007.json"],
+    "merged_from_records": []
+  },
+  "inclusion": {
+    "reason_included": ["matched the approved failure-case query route"],
+    "coverage_units": ["COV_OPTIONS_RISK_FAILURE"],
+    "pool": "presented"
+  }
+}
