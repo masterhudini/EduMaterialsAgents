@@ -382,6 +382,14 @@ konfiguracji runtime, a do logu trafia wyłącznie nazwa użytego profilu konfig
 Wykonywalnymi źródłami prawdy są `shared/contracts/source_record.schema.json`,
 `shared/contracts/literature_tool_result.schema.json` oraz `shared/scripts/g02/providers.py`.
 
+Scaffold A11 rozszerza `query_plan@1` o opcjonalny blok trasy `web` i providera `tavily`, a
+`source_record@1` o opcjonalne `record_type: market_case`, blok `web_case` oraz
+`access_level: web_page`. Są to dodatki w major version 1. Bieżący `query_planning.py`,
+`providers.py` i `literature_tool_result@1` nadal obsługują wyłącznie wyszukiwanie naukowe A02.
+Osobny wynik operacji web, walidacja semantyczna trasy oraz reguła ekstrakcji wyłącznie po Human
+Source Selection Gate zostaną zamrożone z runtime A11. Do tego czasu kontrakty scaffoldu nie
+oznaczają dostępności `research_web_case_search` ani `research_web_case_extract`.
+
 ## 5. CandidateSourceIndex
 
 ```yaml
@@ -962,4 +970,3 @@ artefakty są niezmienne. Korekta tworzy nową rewizję artefaktu, zachowując l
 - Domyślny `output_language` to `English`.
 - Cytowania prezentowane człowiekowi mogą używać APA 7, ale identyfikatory DOI i metadane
   strukturalne są źródłem prawdy.
-

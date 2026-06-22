@@ -15,24 +15,30 @@ flowchart TD
 
     EXP --> CS["G02-A03 Canonical Sources Agents"]
     EXP --> RD["G02-A04 Recent Developments Agents"]
+    EXP --> MC["G02-A11 Market Cases Agent\nTavily seam planned"]
     CS --> RV3["G02-A10 Output Reviewer\nprofile: canonical_sources"]
     RD --> RV4["G02-A10 Output Reviewer\nprofile: recent_developments"]
+    MC --> RVMC["G02-A10 Output Reviewer\nprofile: market_cases"]
     RV3 -->|REVISE| CS
     RV4 -->|REVISE| RD
+    RVMC -->|REVISE| MC
 
     RV3 -->|APPROVED| IDX["G02-A05 Candidate Source Index Agent"]
     RV4 -->|APPROVED| IDX
+    RVMC -->|APPROVED| IDX
     RV2 -->|APPROVED| IDX
 
     IDX --> RV5["G02-A10 Output Reviewer\nprofile: candidate_index"]
     RV5 -->|REVISE| IDX
     RV5 -->|APPROVED| HG1["Human Source Selection Gate"]
     HG1 -->|SEARCH_MORE| DR
-    HG1 -->|APPROVED| PR["G02-A06 Paper Retrieval Agent"]
+    HG1 -->|APPROVED DOCUMENT| PR["G02-A06 Paper Retrieval Agent"]
+    HG1 -->|APPROVED MARKET CASE| WEX["Deterministic Tavily extraction\nplanned A11 seam"]
 
     PR --> RV6["G02-A10 Output Reviewer\nprofile: retrieved_corpus"]
     RV6 -->|REVISE| PR
     RV6 -->|APPROVED| PRA["G02-A07 Paper Review Agents\none per document"]
+    WEX --> PRA
 
     PRA --> RV7["G02-A10 Output Reviewer\nprofile: paper_evidence"]
     RV7 -->|REVISE| PRA
@@ -56,7 +62,7 @@ fizycznej definicji agenta.
 
 ## 2. Fizyczne definicje agentów
 
-Moduł zawiera dziesięć plików agentów, płasko w `agents/` dla auto-discovery. Każdy techniczny
+Moduł zawiera jedenaście plików agentów, płasko w `agents/` dla auto-discovery. Każdy techniczny
 identyfikator składa się z kodu grafu `g02`, stałego kodu fizycznego agenta i krótkiej roli:
 
 1. `g02-a01-planner.md`
@@ -69,8 +75,9 @@ identyfikator składa się z kodu grafu `g02`, stałego kodu fizycznego agenta i
 8. `g02-a08-claim-verification.md`
 9. `g02-a09-synthesizer.md`
 10. `g02-a10-output-reviewer.md`
+11. `g02-a11-market-cases.md`
 
-Kody `a01`–`a10` są niezmienne i nie zależą od kolejności wykonania. Usuniętego kodu nie wolno
+Kody `a01`–`a11` są niezmienne i nie zależą od kolejności wykonania. Usuniętego kodu nie wolno
 przydzielać ponownie. Para `gNN-aNN` jest globalnie jednoznaczna, a numeracja agentów może
 rozpoczynać się od `a01` osobno w każdym grafie.
 
@@ -497,6 +504,7 @@ profilem etapu.
 | `domain_candidates` | Kandydaci mapują się do topic, zapytania są w zakresie, metadane pochodzą z indeksów. |
 | `canonical_sources` | Kanoniczność ma podstawę, access level jest jawny, zamknięta treść nie jest interpretowana. |
 | `recent_developments` | Recency i maturity są jawne, hype jest oddzielony od dojrzałej aktualizacji. |
+| `market_cases` | Instytucja lub zdarzenie, data, tier źródła, mapowanie do claimu/topic, rozdzielenie faktu od interpretacji i jawne ograniczenia reżimu. |
 | `candidate_index` | Deduplikacja, role, ranking, pokrycie, opisy oparte na abstraktach, dokument dla człowieka. |
 | `retrieved_corpus` | Tylko zatwierdzone źródła, stabilne ID, integralne pliki, jawne błędy i unavailable. |
 | `paper_evidence` | Evidence location, metoda, findings, ograniczenia, relacja z claimem i access level. |
@@ -516,7 +524,7 @@ otrzymuje numeru i zachowuje dotychczasową nazwę.
 | `g02-expand-research-query` | Kontrolowane synonimy, terms, topics i wyłączenia. |
 | `g02-search-scholarly-metadata` | Wyszukiwanie realnych rekordów bibliograficznych. |
 | `g02-expand-citation-graph` | Rozszerzenie od seed sources i relacji cytowań. |
-| `g02-classify-source-role` | Canonical, recent, survey, didactic, claim-specific, optional. |
+| `g02-classify-source-role` | Canonical, recent, survey, didactic, claim-specific, applied_case, optional. |
 | `g02-normalize-source-metadata` | Ujednolicenie DOI, autorów, roku, typu i identyfikatorów. |
 | `g02-a05-deduplicate-source-records` | Łączenie rekordów z wielu indeksów. |
 | `g02-a05-rank-source-candidates` | Osobne sygnały canonical i rising oraz priorytet coverage. |
@@ -528,6 +536,8 @@ otrzymuje numeru i zachowuje dotychczasową nazwę.
 | `g02-a07-extract-paper-evidence` | Ukierunkowane wydobycie evidence cards z dokumentu. |
 | `g02-a08-assess-claim-evidence` | Wielowymiarowa ocena claimu. |
 | `g02-a09-synthesize-research-findings` | ResearchState, EvidenceMap i handoff. |
+| `g02-a11-find-market-cases` | Docelowo: web discovery realnych, datowanych case'ów przez deterministyczny seam Tavily. |
+| `g02-a11-extract-case-evidence` | Docelowo: ekstrakcja kompaktowej evidence card z case'a zatwierdzonego przez człowieka. |
 | `g02-review-research-output` | Uniwersalna procedura review względem profile. |
 | `g02-orchestrate-research` | Rozmowa, routing, reviewer loops i human gates. |
 
@@ -539,9 +549,10 @@ otrzymuje numeru i zachowuje dotychczasową nazwę.
 | G02-A02 Domain | `g02-expand-research-query`, `g02-search-scholarly-metadata` | `g02-expand-citation-graph` |
 | G02-A03 Canonical Sources | `g02-expand-citation-graph`, `g02-classify-source-role`, `g02-search-scholarly-metadata` | `g02-normalize-source-metadata` |
 | G02-A04 Recent Developments | `g02-expand-research-query`, `g02-search-scholarly-metadata`, `g02-classify-source-role` | `g02-expand-citation-graph` |
+| G02-A11 Market Cases | `g02-expand-research-query`, `g02-a11-find-market-cases`, `g02-classify-source-role` | brak na start; runtime Tavily planowany |
 | G02-A05 Candidate Source Index | `g02-normalize-source-metadata`, `g02-a05-deduplicate-source-records`, `g02-classify-source-role`, `g02-a05-rank-source-candidates`, `g02-a05-annotate-source-candidates`, `g02-assess-source-coverage` | brak na start |
 | G02-A06 Paper Retrieval | `g02-a06-resolve-open-access`, `g02-a06-retrieve-open-access-document`, `g02-a06-validate-retrieved-document` | brak na start |
-| G02-A07 Paper Review | `g02-a07-extract-paper-evidence` | ukierunkowane ponowne wydobycie |
+| G02-A07 Paper Review | `g02-a07-extract-paper-evidence`; `g02-a11-extract-case-evidence` warunkowo dla zatwierdzonego market case | ukierunkowane ponowne wydobycie |
 | G02-A08 Claim Verification | `g02-a08-assess-claim-evidence`, `g02-assess-source-coverage` | brak na start |
 | G02-A09 Synthesizer | `g02-a09-synthesize-research-findings`, `g02-assess-source-coverage` | brak na start |
 | G02-A10 Output Reviewer | `g02-review-research-output` | read-only użycie odpowiedniego skilla sprawdzającego, jeśli review profile tego wymaga |
@@ -589,7 +600,8 @@ Orkiestrator parsuje odpowiedź, pokazuje podsumowanie i prosi o finalne potwier
 ### 10.3. Powrót do wyszukiwania
 
 `SEARCH_MORE` musi zawierać claim, topic albo brakującą rolę. Orkiestrator kieruje żądanie do
-G02-A02 Domain, G02-A03 Canonical Sources lub G02-A04 Recent Developments zgodnie z typem luki.
+G02-A02 Domain, G02-A03 Canonical Sources, G02-A04 Recent Developments albo G02-A11 Market Cases
+zgodnie z typem luki. A11 może być celem dopiero po implementacji jego seam Tavily.
 Po rozszerzeniu G02-A05 Candidate Source Index jest
 budowany ponownie, reviewer ocenia nową wersję, a człowiek otrzymuje zaktualizowany dokument.
 
@@ -612,7 +624,7 @@ Człowiek zatwierdza, odrzuca lub kieruje syntezę do korekty. Finalny pakiet za
 ## 12. Współbieżność
 
 - G02-A02 Domain działa równolegle per topic.
-- Canonical i Recent działają równolegle po zatwierdzeniu bazowej puli.
+- Canonical, Recent i Market Cases działają równolegle po zatwierdzeniu bazowej puli.
 - G02-A07 Paper Review działa równolegle per dokument.
 - G02-A08 Claim Verification może działać równolegle per niezależny claim lub ciasny claim group.
 - Reviewer ocenia każdy artefakt oddzielnie.
@@ -644,7 +656,6 @@ Przykładowe sytuacje blocked:
 - wszystkie wymagane źródła zewnętrzne niedostępne,
 - potrzeba decyzji człowieka, której agent nie może bezpiecznie założyć.
 
-
 ## 14. Model wykonania i parytet hostów
 
 Wykonanie jest **per host**, rdzeń pozostaje agnostyczny:
@@ -662,3 +673,65 @@ sekwencja węzłów, `review_profile`, `retry_matrix`, `complexity_class`, `mode
 `required_decisions`. Obie ścieżki z niego czerpią; żadna nie hardkoduje polityki. `graph_check`
 wymusza, że skill-orkiestrator odwołuje się do manifestu (łapie rozjazd, gdy ktoś skopiuje
 przepływ do promptu).
+
+## 15. G02-A11 Market Cases (web case studies, zatwierdzony projekt)
+
+Definicja agenta, skilli, mocki oraz wpis w grafie tworzą obecnie scaffold. Operacje Tavily,
+semantyczna walidacja tras web i wykonanie po bramce człowieka zostaną dodane w pionowym wycinku
+A11 po A03-A05. Poniższe podpunkty opisują zachowanie docelowe, nie bieżącą gotowość runtime.
+
+### 15.1. Cel i miejsce w grafie
+
+`g02-a11-market-cases` to równoległy strumień discovery uruchamiany w fan-out po zatwierdzonej
+puli bazowej G02-A02, obok G02-A03 Canonical Sources i G02-A04 Recent Developments. Zamiast
+indeksów bibliograficznych przeszukuje web pod realne, datowane przypadki rynkowe ilustrujące
+zatwierdzony claim lub topic (zastosowania, konstrukcje opcyjne i głośne porażki w praktyce
+instytucji). Kod `a11` jest niezmienny i nie recyklowany. Wynik `MarketCaseCandidateSources`
+wpływa do G02-A05 Candidate Source Index i przechodzi tę samą bramkę Human Source Selection Gate,
+co kandydaci z API. Case'y nie są osobną, nieaudytowalną klasą dowodów.
+
+To rozszerza listę fizycznych agentów z par. 2 o jedenasty plik `agents/g02-a11-market-cases.md`.
+
+### 15.2. Deterministyczny seam web i provider
+
+Po implementacji skille discovery i ekstrakcji nie wołają web bezpośrednio. Operacje MCP `research_web_case_search`
+i `research_web_case_extract` (moduł `shared/scripts/g02/web_cases.py` według wzorca `providers.py`)
+wykonują request, normalizują odpowiedź do `source_record@1` z `record_type: market_case`,
+przypisują `source_tier` z domeny wyniku i zachowują surową odpowiedź oraz provenance. Provider
+jest abstrakcją z Tavily jako pierwszym i domyślnym adapterem (`tavily_search`, `tavily_extract`).
+Klucz API i parametry pochodzą ze zmiennych środowiskowych, nigdy z kontekstu LLM. Ekstrakcja
+pełnej treści następuje dopiero po bramce człowieka, na zatwierdzonych case'ach, co oszczędza
+kredyty Tavily i jest spójne z zasadą braku ciężkiego poboru przed bramką (A06).
+
+### 15.3. Tiering źródeł i próg materialności
+
+Hierarchia wiarygodności jest kodowana jako preferencja domen i kryterium rankingu, bez
+wykluczania niższych poziomów. Tier 1: regulatorzy i nadzór (SEC, CFTC, FCA, ESMA, KNF), raporty
+śledcze, dokumenty sądowe, raporty roczne. Tier 2: uznane media finansowe i branżowe. Tier 3:
+blogi i materiały marketingowe, wyłącznie jako sygnał z flagą `weakly_sourced`. Próg materialności
+(skala zdarzenia, realna konsekwencja, potwierdzenie w źródle wyższego tieru) odsiewa anegdoty i
+ciekawostki, zanim case wejdzie do prezentowanej puli.
+
+### 15.4. Weryfikacja i synteza
+
+Case'y zatwierdzone przez człowieka przechodzą lekki wariant G02-A07 Paper Review przez skill
+`g02-a11-extract-case-evidence`: ekstrakcja strony do evidence card (co się stało, mechanizm,
+źródło, tier), z oddzieleniem faktu rynkowego od interpretacji dydaktycznej. Dalej karty trafiają
+do G02-A08 i pełnej syntezy G02-A09 jak inne dowody, co zachowuje identyfikowalność
+need, claim, market_case, evidence card, rekomendacja.
+
+### 15.5. Spójność tabel i komponentów
+
+Profil `market_cases` w par. 7 stosuje kryteria MC-01 do MC-06 (instytucja,
+zdarzenie, data, źródło wyższego tieru lub flaga `weakly_sourced`; mapowanie do claimu lub topic z
+mechanizmem dydaktycznym; fakt oddzielony od interpretacji; udokumentowane zdarzenie kontra
+anegdota; jawny kontekst rynkowy i reżim; brak metadanych tworzonych przez LLM).
+
+Katalog w par. 8 zawiera `g02-a11-find-market-cases` (web discovery realnych, datowanych
+case'ów przez `research_web_case_search`) i `g02-a11-extract-case-evidence` (lekka ekstrakcja
+evidence card z zatwierdzonego case'a, wariant A07). `g02-classify-source-role` zyskuje rolę
+`applied_case`.
+
+Macierz w par. 9 zawiera G02-A11 Market Cases z wymaganymi skillami
+`g02-expand-research-query`, `g02-a11-find-market-cases`, `g02-classify-source-role` i bez skilli
+opcjonalnych na start.

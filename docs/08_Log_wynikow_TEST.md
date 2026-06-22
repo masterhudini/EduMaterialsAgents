@@ -24,6 +24,84 @@ scenariusze, wyniki i werdykty historycznych rund pozostają niezmienne.
 
 ## Wpisy
 
+### Runda 5 — 2026-06-21 — Zadania 2 i 3: G02-A01 Planner i G02-A02 Domain
+
+Środowisko: kopia repo (`EduMaterialsAgents-testing2`), Python 3.10, build i checki w katalogu
+lokalnym. Brak sieci wychodzącej (proxy 403). Sanity check ucięć: 0 plików uciętych.
+
+**Werdykt zbiorczy: warstwa deterministyczna A01 i A02 PASS; trzy usterki repo; część scenariuszy
+zablokowana środowiskowo (live API, host executor, packaging przez build).**
+
+#### Co wykonano i wynik (offline, deterministycznie)
+
+- G02-A01 Planner, `planner.py` + mocki: 20/20 PASS. Scoping wejścia do `research_planner_input@1`
+  bez mutacji i bez pól producenta; `needs_input` przy braku `task_id` i pustym `output_language`;
+  `mocks/g02/research_plan.json` przechodzi walidator semantyczny względem sparowanego inputu;
+  finalizacja zapisuje `artifact://g02/research-plans/...`, `status: ok`, jeden deskryptor
+  `research_plan@1` z `artifact_version`, bez mutacji obiektu planu; odrzucenie pól zagnieżdżonych
+  producenta (`source_records`), zmiany `task_id`, pustej listy topiców; `build_research_plan_review_task`
+  tworzy `review_task@1` z producentem `g02-a01-planner`, profilem `research_plan` i kryteriami
+  `RP-01`–`RP-06`; zły deskryptor i brak executora oraz wyjątek executora dają `failed`.
+- G02-A02 Domain, konfiguracja i bezpieczeństwo, `provider_config.py`: 12/12 PASS. Poprawny config z
+  e-mailem kontaktowym i `OPENALEX_API_KEY` przechodzi; brak e-maila i brak klucza OpenAlex przy
+  aktywnym OpenAlex odrzucone; wyłączenie OpenAlex pozwala uruchomić resztę; arXiv interval < 3 s,
+  ujemny limit, ścieżka absolutna i traversal odrzucone; `provider_status` zwraca trzy capabilities
+  (`enabled`/`ready`/`authentication`) bez wartości sekretów; wyłączony provider ma `enabled:false,
+  ready:false`; allowlista blokuje HTTP i obcy host.
+- G02-A02 Domain, QueryPlan, providerzy offline i artefakt, `query_planning.py`, `providers.py`,
+  `domain.py`: 15/15 PASS. Fixture'y OpenAlex, Semantic Scholar i arXiv normalizują się do ważnego
+  `source_record@1` (z DOI dla OpenAlex); brak ID albo `paperId` nie tworzy rekordu;
+  `prepare_domain` zwraca `domain_research_input@1` bez kluczy API; `mocks/g02/query_plan.json`
+  przechodzi walidator względem scoped inputu, a nieznana relacja i duplikat `route_id` są odrzucane;
+  `build_domain_review_task` tworzy `review_task@1` z profilem `domain_candidates`, kryteriami
+  `DR-01`–`DR-06` i producentem `g02-a02-domain`; klucz OpenAlex nieobecny w przygotowanym inpucie.
+- MCP: serwer raportuje `0.4.0`; osiem operacji zadań 2 i 3 jest wystawionych i wywoływalnych;
+  `research_provider_status` nie ujawnia wartości klucza (test z realną wartością klucza w statusie
+  przechodzi).
+- Regresja `tests/`: rdzeń (`test_core_runtime`, `test_mcp_server`) przechodzi; 5 faili pochodzi z
+  dwóch usterek repo opisanych niżej, nie z zachowania reviewera/plannera/domain.
+
+#### Usterki repo (do naprawy)
+
+1. `plugin.manifest.json` nie zawiera 11. agenta `g02-a11-market-cases` ani jego dwóch skilli
+   (`g02-a11-extract-case-evidence`, `g02-a11-find-market-cases`), które istnieją na dysku i w
+   `g02.graph.json`. `validate_manifest` w `build-plugin.py` przerywa build:
+   `manifest components.skills differs from source; missing=[...a11...]`. Inwentarz na dysku to 11
+   agentów i 20 skilli, a manifest deklaruje 10 i 18. Skutek: build pada, a z nim trzy testy
+   packagingu (`test_build_renders_all_skills_without_mutating_sources`, `test_dry_run...`,
+   `test_manifest_declares_every_source_component`). Naprawa: dodać agenta i dwa skille a11 do
+   manifestu, albo wycofać a11 ze źródła, zależnie od intencji.
+2. `tests/test_research_graph.py` zakłada na sztywno 9 producer-agentów (`len(...) == 9`), a graf po
+   dodaniu `g02-a11-market-cases` ma ich 10. Dwa failujące testy (`test_node_input_map_exposes_per_agent_context`,
+   `test_nodes_receive_mocked_context`). Naprawa: zaktualizować oczekiwaną liczbę i mock kontekstu,
+   albo dokończyć/wycofać integrację a11.
+3. Rozjazd dokumentacji: rejestr `07` (TEST 2 i TEST 3) mówi o „dokładnie czternastu operacjach” MCP,
+   a implementacja oraz `test_mcp_server.py` wystawiają 15 (dodatkowo `research_run_codex`). To
+   opóźnienie dokumentacji, nie błąd kodu. Naprawa: zaktualizować liczbę w rejestrze do 15 albo
+   uzasadnić wyłączenie `research_run_codex` z liczenia.
+
+#### Zablokowane środowiskowo (nie z powodu braku kluczy)
+
+- TEST 3 „live API smoke”: środowisko testowe nie ma sieci wychodzącej (proxy zwraca 403 dla
+  `api.openalex.org`). Klucze nie odblokują tego tutaj. Do wykonania potrzebne środowisko z dostępem
+  HTTPS do `api.openalex.org`, `api.semanticscholar.org`, `export.arxiv.org` oraz `OPENALEX_API_KEY`,
+  `EMAGENTS_RESEARCH_CONTACT_EMAIL` (i opcjonalnie `SEMANTIC_SCHOLAR_API_KEY`).
+- Forward testy zachowania agentów A01 i A02: wymagają rzeczywistego izolowanego executora hosta
+  (Claude/Codex LLM). Rejestr sam stanowi, że brak takiego executora to jawny failure, nie zaliczenie.
+- Wszystkie scenariusze packaging/bundle zadań 2 i 3: zablokowane usterką nr 1 (build nie przechodzi).
+- Providerzy na poziomie transportu (retry/backoff, `Retry-After`, paginacja, cache hit, limit
+  bajtów): pokryta normalizacja i allowlista; pełne ścieżki transportu nie były wyczerpująco
+  ćwiczone w tej rundzie (wymagają wstrzykniętego transportu z symulacją kodów HTTP). Status: częściowe.
+
+#### Mapa "co zmienić w 07" po tej rundzie
+
+- Nie zaznaczono pojedynczych scenariuszy TEST 2 i TEST 3: wykonano reprezentatywny podzbiór warstwy
+  deterministycznej, nie każdy enumerowany scenariusz, więc checkboxy pozostają puste do pełnego przebiegu.
+- Warunki zamknięcia zadań 2 i 3 pozostają odznaczone.
+- Dodano blok „Usterki z TEST (zestawy 2 i 3)” z trzema pozycjami do naprawy.
+
+---
+
 ### Runda 4 — 2026-06-21 — G02-A10 Output Reviewer, pełny TEST 1A–1E (po migracji namespace g02)
 
 Środowisko: kopia repo (`EduMaterialsAgents-testing1E`), Python 3.10, build i checki w katalogu

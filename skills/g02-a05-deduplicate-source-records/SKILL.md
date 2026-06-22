@@ -1,6 +1,6 @@
 ---
 name: g02-a05-deduplicate-source-records
-description: Merge duplicate scholarly SourceRecords across providers using stable identifiers and conservative bibliographic matching. Use when combining domain, canonical and recent candidate pools while preserving all provenance and avoiding false merges.
+description: Merge duplicate scholarly and market-case SourceRecords across providers using stable identifiers, canonical URLs and conservative matching. Use when combining domain, canonical, recent and market-case candidate pools while preserving all provenance and avoiding false merges.
 ---
 
 # Deduplicate Source Records
@@ -16,6 +16,8 @@ possible-duplicate groups and a deterministic merge log.
    plus edition rules.
 2. For records without stable crosswalks, compare normalized title, author overlap, year, venue and
    work type. Use conservative thresholds and never merge on title similarity alone.
+   For market cases, compare canonicalized source URL and provider IDs first; keep separate pages
+   that corroborate the same event and link them as corroboration rather than merging their claims.
 3. Keep editions, translations, preprint-to-version-of-record relations and book chapters as
    distinct records unless the contract explicitly defines an equivalence relation.
 4. Merge field values by provenance priority, preserving conflicts and every provider ID, query ID

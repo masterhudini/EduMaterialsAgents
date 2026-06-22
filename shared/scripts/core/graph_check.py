@@ -3,9 +3,9 @@
 For every ``shared/graphs/*.graph.json`` it verifies that nodes mapping to a shipped component
 actually EXIST on disk (an agent file / a skill dir), and that ``kind: "subgraph"`` nodes
 reference an existing manifest. A graph declaring a universal reviewer must reference one
-physical agent when the host ships agents, valid review contracts and a review profile on every
-producer agent node. Codex bundles intentionally omit Claude agent files, so their graph check
-keeps the semantic and contract checks while skipping agent-file presence checks.
+physical agent, valid review contracts and a review profile on every producer agent node. Both
+current host bundles ship the shared agent definitions, so source, Claude and Codex checks require
+the same physical agent inventory.
 Components are discovered from the filesystem
 (``agents/**/<name>.md``, ``skills/**/SKILL.md``) — the same auto-discovery Claude Code uses —
 so the check does NOT depend on the plugin manifest listing them (manifests use auto-discovery
@@ -92,7 +92,7 @@ def check_manifest(
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     root = plugin_root or ROOT
     resolved_host = resolve_host(root, host)
-    require_agent_files = resolved_host != "codex"
+    require_agent_files = True
     registered = registered_component_names(root)
     errors: list[str] = []
     for field in ("input_contract", "exit_artifact"):

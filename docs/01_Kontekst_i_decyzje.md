@@ -191,7 +191,7 @@ Output requirements, Boundaries, Failure handling i Resume.
 `[LOCKED PROJECT DECISION: COMPONENT-NAMESPACE-GNN-ANN]`
 
 Docelowe grafy używają kodów `g01` dla Intake Graph, `g02` dla Research Graph i `g03` dla
-Solution Graph. Research Graph posiada dziesięciu fizycznych agentów `g02-a01`–`g02-a10`.
+Solution Graph. Research Graph posiada jedenastu fizycznych agentów `g02-a01`–`g02-a11`.
 Techniczna nazwa agenta ma postać `gNN-aNN-<role>` i nie powtarza słowa `research`.
 
 Skill przypisany wyłącznie do jednego fizycznego agenta ma nazwę
@@ -322,8 +322,9 @@ ograniczonymi input bundles. Kolejne narzędzia Research Graph są dodawane wraz
 
 ## 9. Konsekwencje dla aktualnego repozytorium
 
-Repozytorium zawiera dziewięciu agentów wykonawczych, jednego fizycznego reviewera, 18 skilli,
-manifest Research Graph oraz zatwierdzony kontrakt wejściowy. Manifest wskazuje
+Repozytorium zawiera dziesięciu agentów wykonawczych, jednego fizycznego reviewera, 20 skilli,
+manifest Research Graph oraz zatwierdzony kontrakt wejściowy. Dziesiątym producentem jest scaffold
+G02-A11 Market Cases; jego operacje Tavily pozostają zaplanowane po pionowym wycinku A03-A05. Manifest wskazuje
 `g02-a10-output-reviewer` jako wspólnego reviewera i przypisuje profil każdemu producentowi.
 G02-A05 Candidate Source Index zastąpił Source Selection, G02-A08 Claim Verification znajduje
 się po G02-A07 Paper Review, a oba human gates są zapisane jako kroki orkiestratora.
@@ -338,4 +339,3 @@ input bundles kolejnych etapów, reviewer loops, fan-out i fan-in, pełne human 
 wykonywanego grafu.
 
 Mechanika state, envelope, gate, revision i artifact refs pozostaje wspólnym runtime.
-

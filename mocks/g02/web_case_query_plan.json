@@ -1,0 +1,73 @@
+{
+  "schema_version": "query_plan@1",
+  "artifact_version": "1.0.0",
+  "task_id": "RESEARCH_MOCK_001",
+  "topic_id": "TOPIC_DERIVATIVES_OPTIONS",
+  "routes": [
+    {
+      "route_id": "ROUTE_OPTIONS_APPLIED_CASE",
+      "query_id": "QUERY_OPTIONS_APPLIED_CASE",
+      "purpose": "core",
+      "canonical_query": "corporate use of options for hedging case study bank",
+      "origin_terms": ["options", "hedging", "derivatives desk"],
+      "generated_terms": ["risk management", "structured product"],
+      "generated_term_bases": [
+        {
+          "term": "risk management",
+          "source_origin_terms": ["hedging"],
+          "expansion_area": "corporate hedging programs",
+          "relation": "established_technical_phrase"
+        },
+        {
+          "term": "structured product",
+          "source_origin_terms": ["options"],
+          "expansion_area": "option-based structured products",
+          "relation": "established_technical_phrase"
+        }
+      ],
+      "coverage_unit_ids": ["COV_OPTIONS_APPLIED_USE"],
+      "preferred_providers": ["tavily"],
+      "filters": {"year_from": null, "year_to": null, "languages": ["en"], "work_types": ["news", "report", "regulatory_filing", "court_document"]},
+      "web": {
+        "include_domains": ["sec.gov", "cftc.gov", "fca.org.uk", "esma.europa.eu", "ft.com", "reuters.com", "bloomberg.com", "risk.net"],
+        "exclude_domains": [],
+        "source_tier_floor": "tier_3_signal_only",
+        "preferred_tier": "tier_1_authoritative"
+      },
+      "limit": 12
+    },
+    {
+      "route_id": "ROUTE_OPTIONS_FAILURE_CASE",
+      "query_id": "QUERY_OPTIONS_FAILURE_CASE",
+      "purpose": "qualifying_or_critical",
+      "canonical_query": "rogue trader unauthorized derivatives options loss bank investigation report",
+      "origin_terms": ["options", "derivatives loss", "control failure"],
+      "generated_terms": ["unauthorized trading", "internal control breakdown"],
+      "generated_term_bases": [
+        {
+          "term": "unauthorized trading",
+          "source_origin_terms": ["control failure"],
+          "expansion_area": "rogue trading incidents",
+          "relation": "established_technical_phrase"
+        },
+        {
+          "term": "internal control breakdown",
+          "source_origin_terms": ["control failure"],
+          "expansion_area": "operational risk failures",
+          "relation": "established_technical_phrase"
+        }
+      ],
+      "coverage_unit_ids": ["COV_OPTIONS_RISK_FAILURE"],
+      "preferred_providers": ["tavily"],
+      "filters": {"year_from": null, "year_to": null, "languages": ["en"], "work_types": ["news", "report", "regulatory_filing", "court_document"]},
+      "web": {
+        "include_domains": ["sec.gov", "cftc.gov", "fca.org.uk", "esma.europa.eu", "ft.com", "reuters.com", "bloomberg.com", "wsj.com"],
+        "exclude_domains": [],
+        "source_tier_floor": "tier_2_reputable_media",
+        "preferred_tier": "tier_1_authoritative"
+      },
+      "limit": 12
+    }
+  ],
+  "excluded_terms": ["generic options pricing tutorials without a real institution or event"]
+}

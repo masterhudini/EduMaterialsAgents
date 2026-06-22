@@ -25,3 +25,12 @@ Provider references:
 
 All configured subdirectories must remain relative to `<project>/.emagents/`. Provider endpoints
 are fixed in code to official HTTPS origins and cannot be replaced through configuration.
+
+## Planned A11 Tavily configuration
+
+The A11 scaffold does not yet expose Tavily operations. Its runtime slice will read the credential
+from `TAVILY_API_KEY`, keep endpoints fixed in code and expose only a secret-free readiness status.
+Do not add that key to `g02.providers.example.json`, prompts, fixtures or artifacts. Non-secret
+search depth, result limits, tier-domain policy and extraction limits will be added to an explicit
+versioned config together with `research_web_case_search` and `research_web_case_extract`; until
+then, absence of those MCP operations is expected.

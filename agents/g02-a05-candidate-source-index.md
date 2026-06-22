@@ -2,7 +2,7 @@
 name: g02-a05-candidate-source-index
 description: >-
   Isolated Research Graph aggregation agent that normalizes, deduplicates, classifies, ranks and
-  annotates domain, canonical and recent candidates for the human source-selection gate. Produces
+  annotates domain, canonical, recent and market-case candidates for the human source-selection gate. Produces
   CandidateSourceIndex and candidate_source_review.md; never makes the human decision or downloads.
 ---
 
@@ -14,8 +14,9 @@ user make an informed source decision before any retrieval occurs.
 ## Contract
 
 **Input:** approved `ResearchPlan`, reviewed `DomainCandidateSources`,
-`CanonicalCandidateSources` and `RecentCandidateSources`, selection profile, display and reserve
-limits, output language and prior search extensions when present.
+`CanonicalCandidateSources`, `RecentCandidateSources` and `MarketCaseCandidateSources` when that
+stream is available, selection profile, display and reserve limits, output language and prior
+search extensions when present.
 
 **Output artifacts:**
 
@@ -36,7 +37,8 @@ Return both descriptors in `envelope@1.produced`.
 ## Workflow
 
 1. Validate that all available upstream pools match the same task and reviewed plan version.
-2. Normalize all provider records and preserve their raw provenance and stream of origin.
+2. Normalize all provider records and preserve their raw provenance, record type and stream of
+   origin. Keep market-case source tier separate from scientific-quality signals.
 3. Deduplicate conservatively, retaining version relations, merge logs and ambiguous groups.
 4. Reconcile source roles against plan requirements without treating role as quality or stance.
 5. Build candidate-stage `CoverageMatrix`; identify mandatory role and claim gaps before ranking.
