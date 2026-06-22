@@ -143,12 +143,18 @@ the previous directory is retained as a timestamped backup after a successful in
 
 Then start a new Codex thread. The plugin appears as `edu-materials-agents` in the default
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 `Local Plugins` marketplace. Codex receives the shared skill/runtime and MCP tools; Codex-specific
 subagent orchestration is a separate adapter layer from Claude's agent `.md` files.
 =======
 `Local Plugins` marketplace. Codex receives the shared agents, skills, runtime and MCP tools. The Codex
 CLI plugin manifest does not currently register plugin `commands/` as slash commands, so
 `/research` is Claude-only in current Codex CLI builds.
+>>>>>>> Stashed changes
+=======
+`Local Plugins` marketplace. Codex receives the shared agents, skills, runtime and MCP tools. The
+Codex runner reads the same agent `.md` definitions as Claude and invokes each node through an
+isolated `codex exec`; only the host execution adapter differs.
 >>>>>>> Stashed changes
 
 ## Run
@@ -166,6 +172,21 @@ python shared/scripts/g02/g02_flow.py run mocks/g02/research_graph_input.json
 python shared/scripts/g02/g02_flow.py inputs mocks/g02/research_graph_input.json --node g02-a01-planner
 ```
 
+<<<<<<< Updated upstream
+=======
+Or drive the real graph through **Codex workers** (each node is an isolated `codex exec`, no API
+key — Codex subscription login; terminal user gates). Local/dev only:
+
+```bash
+python shared/scripts/g02/g02_flow.py run-codex mocks/g02/research_graph_input.json
+# single isolated node (cheaper smoke):
+python shared/scripts/g02/runners/codex.py g02-a01-planner mocks/g02/research_graph_input.json
+```
+
+The engine is host-agnostic; execution is the per-host runner (Claude Task subagents vs Codex
+`codex exec`). Gates support auto / terminal (`--gates prompt`) / async pause-resume.
+
+>>>>>>> Stashed changes
 ## Develop & test
 
 ```bash

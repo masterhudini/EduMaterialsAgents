@@ -1,6 +1,6 @@
 {
   "graph_id": "g02",
-  "description": "Research Graph. Verifies approved claims and finds current literature for a lecture refresh, then freezes a UserApprovedResearchBundle. SINGLE SOURCE OF TRUTH for the node sequence — g02_flow.py and the orchestrator prompt must agree with this manifest. Authoritative design: docs/02_Architektura_agentow_i_skilli.md. Reviewers are runs of ONE physical agent (g02-a10-output-reviewer) with a per-node review_profile; the two user gates are orchestrator steps, not agents. The standalone deterministic harness may use injectable no-op executors for wiring tests until the runtime adapter is implemented.",
+  "description": "G02 Research Graph. Verifies approved claims and finds current literature for a lecture refresh, then freezes a UserApprovedResearchBundle. SINGLE SOURCE OF TRUTH for the node order — g02_flow.py and the orchestrator skill must agree with this manifest. Authoritative design: docs/02_Architektura_agentow_i_skilli.md. Reviews are runs of ONE physical agent (g02-a10-output-reviewer) with a per-node review_profile; the two user gates are orchestrator steps, not agents. g02_flow.py supports an injectable no-op runner for deterministic wiring tests and a Codex runner for isolated codex exec workers. The current runtime executes sequence serially; discovery nodes marked as a logical fan-out in the design become concurrent only after explicit dependency and scheduler support is added.",
   "orchestrator": "g02-orchestrate-research",
   "reviewer": "g02-a10-output-reviewer",
   "review_task_contract": "review_task@1",
@@ -34,6 +34,9 @@
     {"name": "g02-a08-claim-verification", "kind": "agent", "complexity_class": "evidence_high_impact", "review_profile": "claim_assessment", "output_contract": "claim_assessment@1", "produces": ["ClaimAssessmentState"]},
     {"name": "g02-a09-synthesizer", "kind": "agent", "complexity_class": "synthesis_decision", "review_profile": "research_synthesis", "output_contract": "research_state@1", "produces": ["ResearchState", "EvidenceMap", "UserResearchValidationPacket", "SolutionInputCandidate"]},
     {"name": "user-research-gate", "kind": "user-gate", "required_decisions": [{"id": "approve_required_updates", "type": "approve"}, {"id": "approve_optional_improvements", "type": "approve"}, {"id": "unresolved_claim_handling", "type": "choice"}]}
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   ],
   "sequence": [

@@ -11,7 +11,7 @@ flowchart TD
 
     DR --> RV2["G02-A10 Output Reviewer\nprofile: domain_candidates"]
     RV2 -->|REVISE| DR
-    RV2 -->|APPROVED| EXP["Parallel expansion"]
+    RV2 -->|APPROVED| EXP["Discovery expansion\nlogical fan-out"]
 
     EXP --> CS["G02-A03 Canonical Sources Agents"]
     EXP --> RD["G02-A04 Recent Developments Agents"]
@@ -291,7 +291,8 @@ prace metodologiczne.
 
 ### 5.4. G02-A04 Recent Developments Agent
 
-Uruchamiany równolegle z G02-A03 Canonical Sources po G02-A02 Domain.
+Logicznie niezależny od G02-A03 Canonical Sources po G02-A02 Domain. Docelowy scheduler może
+uruchamiać oba węzły równolegle; bieżący `g02_flow.py` zachowuje kolejność manifestu.
 
 **Cel:** znaleźć aktualne, dojrzałe zmiany istotne dla zatwierdzonego topic lub claimu.
 
@@ -604,10 +605,14 @@ Człowiek zatwierdza, odrzuca lub kieruje syntezę do korekty. Finalny pakiet za
 
 ## 12. Współbieżność
 
-- G02-A02 Domain działa równolegle per topic.
-- Canonical, Recent i Market Cases działają równolegle po zatwierdzeniu bazowej puli.
-- G02-A07 Paper Review działa równolegle per dokument.
-- G02-A08 Claim Verification może działać równolegle per niezależny claim lub ciasny claim group.
+`g02_flow.py` wykonuje obecnie `sequence` z manifestu sekwencyjnie. Architektura wskazuje poniższe
+grupy jako logicznie niezależne i kwalifikujące się do przyszłego fan-out/fan-in po dodaniu jawnych
+zależności oraz schedulera:
+
+- G02-A02 Domain per topic.
+- Canonical, Recent i Market Cases po zatwierdzeniu bazowej puli.
+- G02-A07 Paper Review per dokument lub zatwierdzony market case.
+- G02-A08 Claim Verification per niezależny claim lub ciasny claim group.
 - Reviewer ocenia każdy artefakt oddzielnie.
 - Fan-in następuje dopiero po zatwierdzeniu wszystkich wymaganych wyników albo oznaczeniu
   jawnych wyjątków.
@@ -645,8 +650,8 @@ Wykonanie jest **per host**, rdzeń pozostaje agnostyczny:
 
 - **Claude:** orkiestrator-skill prowadzi izolowanych subagentów przez Task tool (model „w cenie"
   subskrypcji); deterministyczne szwy przez MCP.
-- **Codex:** silnik `research_flow.run` prowadzi graf, a każdy węzeł to izolowany `codex exec`
-  (`research_flow.py run-codex`), na loginie ChatGPT (bez API key).
+- **Codex:** silnik `g02_flow.run` prowadzi graf, a każdy węzeł to izolowany `codex exec`
+  (`shared/scripts/g02/g02_flow.py run-codex`), na loginie ChatGPT (bez API key).
 
 Ujednolicenie do jednej ścieżki odrzucono: Task nie jest wołalny z Pythona, a wołanie API LLM
 dla Claude wymagałoby klucza i kosztu poza subskrypcją.
@@ -665,8 +670,9 @@ A11 po A03-A05. Poniższe podpunkty opisują zachowanie docelowe, nie bieżącą
 
 ### 15.1. Cel i miejsce w grafie
 
-`g02-a11-market-cases` to równoległy strumień discovery uruchamiany w fan-out po zatwierdzonej
-puli bazowej G02-A02, obok G02-A03 Canonical Sources i G02-A04 Recent Developments. Zamiast
+`g02-a11-market-cases` to logicznie niezależny strumień discovery po zatwierdzonej puli bazowej
+G02-A02, obok G02-A03 Canonical Sources i G02-A04 Recent Developments. Bieżący runner wykonuje te
+węzły sekwencyjnie; docelowy scheduler może uruchomić je jako fan-out. Zamiast
 indeksów bibliograficznych przeszukuje web pod realne, datowane przypadki rynkowe ilustrujące
 zatwierdzony claim lub topic (zastosowania, konstrukcje opcyjne i głośne porażki w praktyce
 instytucji). Kod `a11` jest niezmienny i nie recyklowany. Wynik `MarketCaseCandidateSources`
@@ -718,4 +724,7 @@ evidence card z zatwierdzonego case'a, wariant A07). `g02-classify-source-role` 
 Macierz w par. 9 zawiera G02-A11 Market Cases z wymaganymi skillami
 `g02-expand-research-query`, `g02-a11-find-market-cases`, `g02-classify-source-role` i bez skilli
 opcjonalnych na start.
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes

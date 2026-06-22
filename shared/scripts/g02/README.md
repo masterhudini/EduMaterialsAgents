@@ -11,7 +11,7 @@ Authoritative design references: `docs/02_Architektura_agentow_i_skilli.md` and
 
 | Module | Responsibility |
 |---|---|
-| `g02_flow.py` | Deterministic orchestration of the node sequence (planner → parallel work → selection → retrieval → review → synthesis → user gate) + event-log calls. Must agree with the manifest. |
+| `g02_flow.py` | Deterministic orchestration of the manifest node sequence (planner → discovery → selection → retrieval → review → synthesis → user gate), injectable node runners, revision loops and event-log calls. The current scheduler is serial. |
 | `planner.py` | Scope and validate G02-A01 input, validate and store `research_plan@1`, constrain revisions, build the frozen `research_plan` review task and standardize planner envelopes. |
 | `domain.py` | Scope one approved topic for G02-A02, validate and store `domain_candidate_sources@1`, audit provider-result refs, constrain revisions and build the frozen `domain_candidates` review task. |
 | `provider_config.py` | Load and validate the secret-free provider profile, environment credentials, runtime paths and startup capabilities. |

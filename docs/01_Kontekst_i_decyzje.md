@@ -127,8 +127,9 @@ wydobytych dowodów pełnotekstowych.
 ### 4.3. Wyszukiwanie bazowe i rozszerzenia
 
 G02-A02 Domain tworzy pulę bazową dla każdego zatwierdzonego topic. Po zatwierdzeniu wyniku
-G02-A03 Canonical Sources i G02-A04 Recent Developments rozszerzają tę pulę równolegle,
-korzystając z różnych profili wyszukiwania.
+G02-A03 Canonical Sources i G02-A04 Recent Developments rozszerzają tę pulę jako logicznie
+niezależne strumienie korzystające z różnych profili wyszukiwania. Bieżący runner wykonuje je
+sekwencyjnie; równoległość wymaga przyszłego schedulera fan-out/fan-in.
 
 ### 4.4. G02A05CandidateSourceIndexAgent
 
@@ -314,11 +315,12 @@ TK powinien zatwierdzić wielowymiarową ocenę claimów podczas przeglądu 1b1 
 `g02-a08-claim-verification` i skilla `g02-a08-assess-claim-evidence`. Model rozdziela status dowodowy,
 aktualność, jakość dydaktyczną, kontrowersyjność, confidence i rekomendowaną akcję.
 
-### `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]`
+### `[RESOLVED: CODEX-RESEARCH-RUNTIME-ADAPTER]`
 
-Instalator generuje host-specific warianty skilli i powierzchnię MCP obejmującą narzędzia do
-G02-A02. Pełne wykonanie w Codex nadal wymaga systemowego adaptera uruchamiającego node agents z
-ograniczonymi input bundles. Kolejne narzędzia Research Graph są dodawane wraz z ich agentami.
+Instalator generuje host-specific warianty skilli i paczkę wspólnych agentów. Operacja MCP
+`research_run_codex` prowadzi `g02_flow.py`, a runner uruchamia każdy node jako izolowany
+`codex exec` korzystający z definicji `agents/g02-aNN-*.md`. Scoped inputs etapów po G02-A02,
+pełna semantyka kolejnych producentów oraz scheduler fan-out/fan-in są rozwijane osobno.
 
 ## 9. Konsekwencje dla aktualnego repozytorium
 
@@ -334,8 +336,8 @@ przygotowanie i finalizację oraz powierzchnię MCP. G02-A01 posiada `research_p
 `research_plan@1`, scoping, walidację, zapis, profil review i obsługę rewizji. G02-A02 posiada
 `domain_research_input@1`, `query_plan@1`, `source_record@1`, `literature_tool_result@1` oraz
 `domain_candidate_sources@1`, a także trzy pierwsze adaptery discovery. Nadal wymagane są kontrakty
-pozostałych producentów, kolejne operacje literaturowe, rzeczywiste wykonanie node agents, scoped
-input bundles kolejnych etapów, reviewer loops, fan-out i fan-in, pełne human gates oraz resume
-wykonywanego grafu.
+pozostałych producentów, kolejne operacje literaturowe, scoped input bundles kolejnych etapów,
+fan-out i fan-in oraz pełne testy zachowania agentów i human gates. Wykonanie node agents, reviewer
+loops, terminal gates oraz pause/resume są dostępne w obecnym runtime G02.
 
 Mechanika state, envelope, gate, revision i artifact refs pozostaje wspólnym runtime.
