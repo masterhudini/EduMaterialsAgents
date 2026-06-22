@@ -25,7 +25,7 @@
   "interface": {
     "displayName": "Edu Materials Agents",
     "shortDescription": "Improve lecture materials through reviewed research agent graphs.",
-    "longDescription": "Runs reviewed agent graphs for educational material improvement. G02 discovery includes scholarly metadata, canonical and recent streams, plus controlled Tavily and administrator-pinned SearXNG market-case research with post-gate extraction.",
+    "longDescription": "Runs reviewed agent graphs for educational material improvement. G02 discovery includes scholarly and market-case streams. After a two-step human gate, A06 retrieves legal OA files through record links, Unpaywall, optional CORE and DOAB/OAPEN, validates PDFs and stores gated market-case files in one corpus folder.",
     "developerName": "khudasze",
     "capabilities": [
       "Interactive",

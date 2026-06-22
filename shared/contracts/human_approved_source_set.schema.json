@@ -1,0 +1,43 @@
+{
+  "title": "Final source set authorized by the Human Source Selection Gate",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "source_selection_ref",
+    "candidate_source_index_ref", "approved_sources", "library_queue", "citation_only",
+    "reserve", "excluded", "coverage_at_approval", "accepted_coverage_exceptions",
+    "final_confirmation"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["human_approved_source_set@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "source_selection_ref": {"type": "string"},
+    "candidate_source_index_ref": {"type": "string"},
+    "approved_sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "action", "record_type", "source_record", "related_topics", "related_claims", "source_roles", "market_candidate_sources_ref"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "action": {"type": "string", "enum": ["DOWNLOAD"]},
+          "record_type": {"type": "string", "enum": ["scholarly", "market_case"]},
+          "source_record": {"type": "object"},
+          "related_topics": {"type": "array", "items": {"type": "string"}},
+          "related_claims": {"type": "array", "items": {"type": "string"}},
+          "source_roles": {"type": "array", "items": {"type": "string"}},
+          "market_candidate_sources_ref": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "library_queue": {"type": "array", "items": {"type": "string"}},
+    "citation_only": {"type": "array", "items": {"type": "string"}},
+    "reserve": {"type": "array", "items": {"type": "string"}},
+    "excluded": {"type": "array", "items": {"type": "object"}},
+    "coverage_at_approval": {"type": "array", "items": {"type": "object"}},
+    "accepted_coverage_exceptions": {"type": "array", "items": {"type": "object"}},
+    "final_confirmation": {"type": "boolean", "enum": [true]}
+  }
+}

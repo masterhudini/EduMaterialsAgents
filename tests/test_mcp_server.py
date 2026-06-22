@@ -28,7 +28,7 @@ def test_initialize_and_tools_list():
     init = srv.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                        "params": {"protocolVersion": "2024-11-05"}})
     assert init["result"]["serverInfo"]["name"] == "edu-materials-research"
-    assert init["result"]["serverInfo"]["version"] == "0.8.0"
+    assert init["result"]["serverInfo"]["version"] == "0.9.0"
     assert init["result"]["protocolVersion"] == "2024-11-05"
     assert "prompts" in init["result"]["capabilities"]
 
@@ -48,6 +48,11 @@ def test_initialize_and_tools_list():
                      "research_market_cases_finalize", "research_market_cases_review_task",
                      "research_candidate_index_prepare", "research_candidate_index_finalize",
                      "research_candidate_index_review_task",
+                     "research_source_selection_prepare", "research_source_selection_validate",
+                     "research_source_selection_finalize", "research_retrieval_prepare",
+                     "research_oa_resolve", "research_document_retrieve",
+                     "research_document_validate", "research_retrieval_finalize",
+                     "research_retrieval_review_task",
                      "research_web_case_extract",
                      "research_review_prepare", "research_review_finalize",
                      "research_finalize", "research_run_stub", "research_run_codex"}

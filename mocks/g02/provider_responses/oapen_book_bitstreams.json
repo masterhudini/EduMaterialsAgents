@@ -1,0 +1,18 @@
+[
+  {
+    "uuid": "oapen-bitstream-001",
+    "name": "open-finance-handbook.pdf",
+    "bundleName": "ORIGINAL",
+    "mimeType": "application/pdf",
+    "sizeBytes": 2048,
+    "retrieveLink": "/rest/bitstreams/oapen-bitstream-001/retrieve"
+  },
+  {
+    "uuid": "oapen-thumb-001",
+    "name": "cover.jpg",
+    "bundleName": "THUMBNAIL",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 256,
+    "retrieveLink": "/rest/bitstreams/oapen-thumb-001/retrieve"
+  }
+]

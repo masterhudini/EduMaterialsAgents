@@ -576,6 +576,7 @@ def build_candidate_index(candidate_input: dict, *, artifact_version: str = "1.0
         "schema_version": OUTPUT_CONTRACT, "artifact_version": artifact_version,
         "task_id": candidate_input["task_id"], "research_plan_ref": candidate_input["research_plan_ref"],
         "research_plan_artifact_version": candidate_input["research_plan_artifact_version"],
+        "output_language": candidate_input["output_language"],
         "reviewed_upstreams": deepcopy(candidate_input["reviewed_upstreams"]),
         "selection_profile": deepcopy(profile), "sources": sources,
         "displayed_source_ids": displayed, "reserve_source_ids": reserve,

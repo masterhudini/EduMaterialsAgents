@@ -1176,9 +1176,10 @@ się bez pokazania sparsowanego podsumowania i osobnego finalnego potwierdzenia.
 
 ### Bramka gotowości do DEV 8, G02-A06 Paper Retrieval
 
-**Werdykt:** repo jest gotowe do rozpoczęcia projektowania pionowego wycinka A06. Nie jest jeszcze
-gotowe do uruchomienia pobierania end-to-end. Poniższe odznaczone pozycje stanowią zakres DEV A06,
-a nie pracę wykonaną w bieżącej rundzie.
+**Werdykt (historyczny, runda A05):** repo było gotowe do rozpoczęcia projektowania pionowego
+wycinka A06. Poniższe pozycje stanowiły zakres DEV A06 i zostały zrealizowane w rundzie DEV 8;
+aktualny status i pełna checklista TEST znajdują się w sekcji „DEV 8, G02-A06 Paper Retrieval
+(zrealizowane)" poniżej.
 
 #### Gotowe wejścia i decyzje projektowe
 
@@ -1186,44 +1187,72 @@ a nie pracę wykonaną w bieżącej rundzie.
   `candidate_source_review.md` przed bramką człowieka.
 - [x] Istnieje `human_source_selection@1` z akcjami, SEARCH_MORE, coverage exceptions i
   `final_confirmation`; A11 extraction już egzekwuje zatwierdzenie dokładnego market source ID.
-- [x] Agent A06, trzy wymagane skille, pozycja grafu po user gate i wpisy manifestu istnieją jako
-  scaffold projektowy.
+- [x] Agent A06, trzy wymagane skille, pozycja grafu po user gate i wpisy manifestu istnieją.
 - [x] Zasady prawne i bezpieczeństwa są zamrożone: tylko DOWNLOAD, legalne OA, brak institutional
   login, bounded redirects/size/retry, walidacja identity i brak scientific interpretation.
-- [ ] Akceptacja właściciela pionowego wycinka A05 przed rozpoczęciem DEV A06.
+- [x] Akceptacja właściciela pionowego wycinka A05 przed rozpoczęciem DEV A06.
 
-#### Pierwsze obowiązkowe elementy przyszłego DEV A06
+## DEV 8, G02-A06 Paper Retrieval (zrealizowane)
 
-- [ ] Zamrozić brakujący kontrakt `human_approved_source_set@1` oraz deterministyczny parser/generator
-  z `human_source_selection@1`. Musi on wymagać drugiego finalnego potwierdzenia i rozłącznych akcji.
-- [ ] Dodać wykonawczą bramkę orkiestratora, która rzeczywiście pokazuje dokument, przyjmuje template
-  lub zwykły język, prezentuje sparsowane podsumowanie i dopiero potem zapisuje zatwierdzenie.
-- [ ] Rozszerzyć scaffold `retrieved_corpus@1` o task, approved set ref, validated documents,
-  unavailable, failed, library/citation/reserve, attempts, checksums, wersje, licencje i summary.
-- [ ] Zamrozić scoped input A06 oraz kontrakty pośrednie `open_access_resolution@1`,
-  `retrieved_file_candidate@1` i `validated_document@1`.
-- [ ] Zaimplementować deterministyczne OA resolvers, downloader, walidator dokumentu, storage,
-  deduplikację checksum, resume, provider config i redakcję sekretów.
-- [ ] Dodać operacje MCP A06, profil review `retrieved_corpus`, kryteria RT-01–RT-07, mocki PDF/HTML,
-  testy offline, live OA, failure matrix, packaging i forward Claude/Codex.
-- [ ] Zaktualizować node A06 o `input_contract`, wersje MCP oraz dokumentację 00–08 dopiero w ramach
-  zaakceptowanego DEV A06.
+**Werdykt:** pionowy wycinek A06 jest zaimplementowany na poziomie DEV i zintegrowany z resztą
+grafu (A05 → user-source-selection-gate → A06, gated A11 extraction dla market case). Pełne testy
+funkcjonalne, live OA API i forward Claude/Codex pozostają do wykonania w osobnym środowisku i są
+spisane niżej jako batch TEST. W DEV nie uruchamiano `pytest`, venv, live API ani buildów.
 
-#### Plan późniejszego TEST end-to-end po A06
+#### Zrealizowane elementy DEV A06
 
-- [ ] Uruchomić discovery A02/A03/A04/A11, reviewed A05 i rzeczywistą bramkę użytkownika. Przed
-  final confirmation potwierdzić zero requestów download i zero plików w corpus.
-- [ ] Zatwierdzić jeden OA article jako DOWNLOAD, jeden closed source jako LIBRARY, jeden jako
-  CITATION, jeden RESERVE, jeden EXCLUDE i jeden market case do gated A11 extraction.
-- [ ] Potwierdzić, że A06 pobiera wyłącznie OA article z DOWNLOAD, A11 ekstrahuje wyłącznie
-  zatwierdzony market case, a pozostałe akcje nie powodują requestów.
-- [ ] Dla pobranego dokumentu sprawdzić URL chain, content type, `%PDF` signature, size, checksum,
-  source identity, wersję, licencję, page count gdy dostępny i stabilny local artifact ref.
-- [ ] Osobno podać HTML login page, zły PDF, identity mismatch, redirect poza policy, oversized file,
-  timeout, 429/5xx, duplicate bytes i brak OA. Każdy przypadek ma właściwy unavailable/failed status.
-- [ ] Powtórzyć run z resume. Poprawny checksum nie jest pobierany ponownie, a retry obejmuje tylko
-  unresolved source IDs. Wynik ma pełny nowy RetrievedCorpus i zachowaną historię prób.
-- [ ] Wykonać scenariusz na Claude i Codex, build obu bundle, `graph_check`, skan sekretów i zapisać
-  wyniki jako nową rundę w `docs/08_Log_wynikow_TEST.md`.
+- [x] Zamrożony kontrakt `human_approved_source_set@1` oraz deterministyczny parser/generator z
+  `human_source_selection@1`. Wymaga drugiego finalnego potwierdzenia i rozłącznych akcji; market
+  case niesie `market_candidate_sources_ref` do reviewed artefaktu A11.
+- [x] Wykonawcza bramka orkiestratora (`g02_flow`, `source_selection`): pokazuje dokument, przyjmuje
+  template lub zwykły język, prezentuje sparsowane podsumowanie i dopiero potem zapisuje zatwierdzenie.
+- [x] `retrieved_corpus@1` (x-version 1.1) z task, approved set ref, validated documents, market
+  cases, unavailable, failed, skipped library/citation/reserve/excluded, attempt log, checksums,
+  wersje, licencje, run directory ref, policy i retrieval summary.
+- [x] Zamrożony scoped input `retrieval_input@1` oraz kontrakty pośrednie `open_access_resolution@1`,
+  `retrieved_file_candidate@1`, `validated_document@1` i `web_case_extract_result@1`.
+- [x] Deterministyczne OA resolvers (record/arXiv, Unpaywall po DOI, opcjonalny CORE po DOI,
+  DOAB jako katalog, OAPEN jako źródło bitstreamu PDF), downloader z kontrolą HTTPS, prywatnego DNS,
+  redirectów, timeoutu, retry i limitu bajtów, walidator dokumentu (content-type, `%PDF`, identity,
+  page count), storage corpus, deduplikacja po checksumie, resume, provider config i redakcja sekretów
+  (`CORE_API_KEY`, kontakt Unpaywall tylko ze środowiska).
+- [x] Dziewięć operacji MCP A06 (`research_source_selection_prepare/validate/finalize`,
+  `research_retrieval_prepare`, `research_oa_resolve`, `research_document_retrieve`,
+  `research_document_validate`, `research_retrieval_finalize`, `research_retrieval_review_task`)
+  oraz `research_web_case_extract`; publiczne schema nie przyjmują config path ani sekretów od modelu.
+- [x] Profil review `retrieved_corpus` i kryteria RT-01–RT-08 (RT-08 dotyczy gated market-case
+  files z `content_boundary: untrusted_external_research`).
+- [x] Mocki: `retrieval_provider_config.json`, `sample_article.pdf`, `html_login_instead_of_pdf.html`,
+  `market_case_source_record.json` oraz odpowiedzi `unpaywall`, `core_works`, `doab_search`,
+  `oapen_search` i komplet book search/metadata/bitstreams dla DOAB/OAPEN.
+- [x] Testy offline `tests/test_g02_retrieval.py` (przeznaczone do uruchomienia w środowisku TEST).
+- [x] Node A06 w grafie ma `input_contract: retrieval_input@1`, `review_profile: retrieved_corpus`
+  i `produces`; manifest wymienia agenta i trzy skille; sekcja `retrieval` w przykładowej konfiguracji
+  providerów; dokumentacja 02/03/04 opisuje A06.
 
-Do czasu jawnej zgody właściciela nie rozpoczynać implementacji A06.
+#### Batch TEST A06 do osobnego środowiska
+
+- [ ] Pełny offline `pytest`, w tym `tests/test_g02_retrieval.py`; brak regresji w A01–A05, A10, A11.  — `⏳ KOŃCOWY`
+- [ ] Walidacja zmienionych JSON Schema A06 i przykładowej konfiguracji providerów z sekcją `retrieval`.  — `⏳ KOŃCOWY`
+- [ ] `prepare` odrzuca brak finalnego potwierdzenia, niezgodny task/candidate index, przekroczony limit  — `⏳ KOŃCOWY`
+  dokumentów oraz wyłączony profil retrieval; produkuje minimalny `retrieval_input@1` bez sekretów.
+- [ ] Resolvery: record/arXiv, Unpaywall po DOI, CORE po DOI (z `CORE_API_KEY`), DOAB jako katalog  — `⏳ KOŃCOWY`
+  bez file URL, OAPEN dostarcza ORIGINAL PDF bitstream; identity basis po DOI/ISBN/title.
+- [ ] Downloader: kontrola HTTPS i portu 443, odrzucenie prywatnego/loopback DNS, limit redirectów,  — `⏳ KOŃCOWY`
+  timeout, retry na 408/429/5xx, limit bajtów; plik tymczasowy nigdy nie jest zaakceptowanym dokumentem.
+- [ ] Walidacja: poprawny `%PDF` accepted, HTML login page i zły content-type rejected, identity  — `⏳ KOŃCOWY`
+  mismatch rejected, duplikat po checksumie oznaczony jako `duplicate` bez drugiej kopii bajtów.
+- [ ] `finalize` tworzy jeden folder runtime z `documents/<id>.pdf`, `market-cases/<id>.market-case.json`  — `⏳ KOŃCOWY`
+  i `retrieved_corpus.json`; każde zatwierdzone źródło występuje dokładnie raz w wyniku.
+- [ ] Gated A11 extraction tylko dla zatwierdzonego market source ID; plik zachowuje  — `⏳ KOŃCOWY`
+  `content_boundary: untrusted_external_research`, flagi prompt injection i ref do reviewed A11.
+- [ ] LIBRARY, CITATION, RESERVE i EXCLUDE nie uruchamiają żadnej operacji sieciowej.  — `⏳ KOŃCOWY`
+- [ ] MCP inventory zawiera 9 operacji A06 bez publicznego parametru `config`; review task ma RT-01–RT-08.  — `⏳ KOŃCOWY`
+- [ ] Live OA smoke (opt-in): Unpaywall z kontaktem ze środowiska, CORE z kluczem, DOAB/OAPEN; brak  — `⏳ KOŃCOWY`
+  dostępu daje kontrolowany `unavailable`/`library_required`, nie udawany sukces.
+- [ ] Integracja end-to-end: A02/A03/A04/A11 discovery → reviewed A05 → bramka użytkownika → A06.  — `⏳ KOŃCOWY`
+  Przed final confirmation zero requestów download i zero plików w corpus.
+- [ ] Resume: poprawny checksum nie jest pobierany ponownie, retry obejmuje tylko unresolved IDs,  — `⏳ KOŃCOWY`
+  wynik to pełny nowy `RetrievedCorpus` z zachowaną historią prób.
+- [ ] Forward A06 na Claude i Codex, build obu bundle, `graph_check`, skan sekretów, brak runtime  — `⏳ KOŃCOWY`
+  artifacts; wyniki zapisać jako nową rundę na górze `docs/08_Log_wynikow_TEST.md`.

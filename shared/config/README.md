@@ -17,12 +17,17 @@ Secrets and contact data never belong in JSON configuration. Use environment var
 - `OPENALEX_API_KEY`, required when OpenAlex is enabled and never logged;
 - `SEMANTIC_SCHOLAR_API_KEY`, optional, recommended and never logged.
 - `TAVILY_API_KEY`, required for Tavily search and extraction and never logged.
+- `CORE_API_KEY`, required only when the optional CORE resolver is enabled and never logged.
 
 Provider references:
 
 - OpenAlex authentication: <https://docs.openalex.org/guides/authentication>
 - Semantic Scholar API tutorial: <https://www.semanticscholar.org/product/api/tutorial>
 - arXiv API user manual: <https://info.arxiv.org/help/api/user-manual.html>
+- Unpaywall API: <https://unpaywall.org/products/api>
+- CORE API v3: <https://api.core.ac.uk/docs/v3>
+- DOAB OAI and DSpace API: <https://directory.doabooks.org/oai/request?verb=Identify>
+- OAPEN OAI and DSpace API: <https://library.oapen.org/oai/request?verb=Identify>
 
 All configured subdirectories must remain relative to `<project>/.emagents/`. Provider endpoints
 are fixed in code to official HTTPS origins and cannot be replaced through configuration.
@@ -71,3 +76,19 @@ source ID, hydrates the referenced candidate index, verifies final `approved_for
 authorization and resolves the exact stored HTTPS URL. The result contains a bounded
 untrusted-content artifact ref and safety flags. Official SearXNG
 API reference: <https://docs.searxng.org/dev/search_api.html>.
+
+## A06 retrieval provider configuration
+
+The optional `retrieval` block controls legal OA resolution and bounded file retrieval. Public MCP
+operations never accept a configuration path. Resolver order is approved record links and arXiv,
+then Unpaywall, optional CORE, DOAB and OAPEN. Unpaywall uses the configured contact email. CORE is
+disabled in the bundled example until `CORE_API_KEY` is present. DOAB is treated as a book catalog;
+a landing page alone is not accepted as a document. OAPEN DSpace 6 metadata and ORIGINAL PDF
+bitstreams may provide a downloadable OA book.
+
+The downloader accepts credential-free HTTPS only, blocks private and reserved literal or resolved
+addresses, strips CORE authorization on redirects, limits redirects, time, retries and bytes, and
+streams into a constrained `corpus://` temporary ref. A file is promoted only after SHA-256,
+content-type, `%PDF-` signature and resolver-backed identity checks. Market cases are not downloaded
+by this path. They use gated `research_web_case_extract` and are copied to the same A06 run folder as
+JSON with `content_boundary: untrusted_external_research`.

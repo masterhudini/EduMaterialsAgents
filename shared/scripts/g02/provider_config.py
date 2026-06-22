@@ -25,8 +25,10 @@ CONTACT_ENV = "EMAGENTS_RESEARCH_CONTACT_EMAIL"
 OPENALEX_KEY_ENV = "OPENALEX_API_KEY"
 SEMANTIC_SCHOLAR_KEY_ENV = "SEMANTIC_SCHOLAR_API_KEY"
 TAVILY_KEY_ENV = "TAVILY_API_KEY"
+CORE_KEY_ENV = "CORE_API_KEY"
 PROVIDERS = ("openalex", "semantic_scholar", "arxiv")
 WEB_PROVIDERS = ("tavily", "searxng")
+RETRIEVAL_PROVIDERS = ("record", "unpaywall", "core", "doab", "oapen")
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 SOURCE_ROOT = Path(__file__).resolve().parents[2]
@@ -48,6 +50,9 @@ class ProviderRuntimeConfig:
     web_cache_dir: Path | None
     web_raw_artifact_subdir: str | None
     web_extract_artifact_subdir: str | None
+    retrieval_temp_dir: Path | None
+    retrieval_accepted_dir: Path | None
+    retrieval_market_case_dir: Path | None
     contact_email: str | None
     _api_keys: Mapping[str, str | None]
 
@@ -124,6 +129,43 @@ class ProviderRuntimeConfig:
             "searxng_endpoint_configured": self.searxng_endpoint() is not None,
         }
 
+    def retrieval_enabled(self) -> bool:
+        section = self.data.get("retrieval")
+        return isinstance(section, Mapping) and section.get("enabled") is True
+
+    def retrieval_provider_enabled(self, provider: str) -> bool:
+        if provider not in RETRIEVAL_PROVIDERS:
+            raise KeyError(f"unsupported retrieval provider {provider!r}")
+        section = self.data.get("retrieval")
+        providers = section.get("providers") if isinstance(section, Mapping) else None
+        item = providers.get(provider) if isinstance(providers, Mapping) else None
+        return self.retrieval_enabled() and isinstance(item, Mapping) \
+            and item.get("enabled") is True
+
+    def retrieval_api_key(self, provider: str) -> str | None:
+        return self._api_keys.get(provider) if provider == "core" else None
+
+    def public_retrieval_status(self) -> dict:
+        capabilities = []
+        for provider in RETRIEVAL_PROVIDERS:
+            enabled = self.retrieval_provider_enabled(provider) \
+                if self.retrieval_enabled() else False
+            key_required = provider == "core"
+            contact_required = provider == "unpaywall"
+            ready = enabled \
+                and (not key_required or self.retrieval_api_key(provider) is not None) \
+                and (not contact_required or self.contact_email is not None)
+            capabilities.append({
+                "provider": provider, "enabled": enabled, "ready": ready,
+                "authentication": (
+                    "configured_key" if key_required and ready else
+                    "required_key_missing" if key_required else
+                    "configured_email" if contact_required and ready else
+                    "required_email_missing" if contact_required else "none"
+                ),
+            })
+        return {"enabled": self.retrieval_enabled(), "capabilities": capabilities}
+
     def public_status(self) -> dict:
         capabilities = []
         for provider in PROVIDERS:
@@ -161,6 +203,7 @@ class ProviderRuntimeConfig:
             },
         }
         status["web"] = self.public_web_status()
+        status["retrieval"] = self.public_retrieval_status()
         return status
 
 
@@ -301,7 +344,7 @@ def validate_config(payload: object, *, env: Mapping[str, str] | None = None,
     _reject_unknown_keys(
         payload,
         {"schema_version", "profile", "providers", "request", "limits", "cache",
-         "paths", "rate_limits", "web"},
+         "paths", "rate_limits", "web", "retrieval"},
         "provider config",
         errors,
     )
@@ -567,6 +610,85 @@ def validate_config(payload: object, *, env: Mapping[str, str] | None = None,
                     errors.append(f"web.source_tiers domain appears in multiple lists: {sorted(overlap)}")
                 seen_domains.update(normalized)
 
+    retrieval = payload.get("retrieval")
+    if retrieval is not None and not isinstance(retrieval, dict):
+        errors.append("retrieval must be an object")
+    if isinstance(retrieval, dict):
+        _reject_unknown_keys(
+            retrieval, {"enabled", "providers", "request", "limits", "rate_limits", "paths"},
+            "retrieval", errors,
+        )
+        if not isinstance(retrieval.get("enabled"), bool):
+            errors.append("retrieval.enabled must be boolean")
+        retrieval_providers = retrieval.get("providers")
+        if not isinstance(retrieval_providers, dict):
+            errors.append("retrieval.providers must be an object")
+        else:
+            _reject_unknown_keys(
+                retrieval_providers, set(RETRIEVAL_PROVIDERS), "retrieval.providers", errors
+            )
+            for provider in RETRIEVAL_PROVIDERS:
+                item = retrieval_providers.get(provider)
+                if not isinstance(item, dict) or not isinstance(item.get("enabled"), bool):
+                    errors.append(f"retrieval.providers.{provider}.enabled must be boolean")
+                else:
+                    _reject_unknown_keys(item, {"enabled"},
+                                         f"retrieval.providers.{provider}", errors)
+        retrieval_request = retrieval.get("request")
+        request_fields = {
+            "timeout_seconds", "max_retries", "backoff_seconds", "max_metadata_response_bytes",
+            "max_document_bytes", "max_redirects",
+        }
+        if not isinstance(retrieval_request, dict):
+            errors.append("retrieval.request must be an object")
+        else:
+            _reject_unknown_keys(retrieval_request, request_fields, "retrieval.request", errors)
+            _positive_number(retrieval_request.get("timeout_seconds"),
+                             "retrieval.request.timeout_seconds", errors)
+            _positive_integer(retrieval_request.get("max_retries"),
+                              "retrieval.request.max_retries", errors, allow_zero=True)
+            _positive_number(retrieval_request.get("backoff_seconds"),
+                             "retrieval.request.backoff_seconds", errors, allow_zero=True)
+            for field in ("max_metadata_response_bytes", "max_document_bytes", "max_redirects"):
+                _positive_integer(retrieval_request.get(field), f"retrieval.request.{field}", errors)
+            if isinstance(retrieval_request.get("max_document_bytes"), int) \
+                    and retrieval_request["max_document_bytes"] > 209715200:
+                errors.append("retrieval.request.max_document_bytes cannot exceed 200 MiB")
+            if isinstance(retrieval_request.get("max_redirects"), int) \
+                    and retrieval_request["max_redirects"] > 10:
+                errors.append("retrieval.request.max_redirects cannot exceed 10")
+        retrieval_limits = retrieval.get("limits")
+        if not isinstance(retrieval_limits, dict):
+            errors.append("retrieval.limits must be an object")
+        else:
+            _reject_unknown_keys(retrieval_limits, {"max_documents_per_task"},
+                                 "retrieval.limits", errors)
+            _positive_integer(retrieval_limits.get("max_documents_per_task"),
+                              "retrieval.limits.max_documents_per_task", errors)
+        retrieval_rates = retrieval.get("rate_limits")
+        retrieval_rate_fields = {
+            f"{provider}_min_interval_seconds" for provider in RETRIEVAL_PROVIDERS
+        }
+        if not isinstance(retrieval_rates, dict):
+            errors.append("retrieval.rate_limits must be an object")
+        else:
+            _reject_unknown_keys(retrieval_rates, retrieval_rate_fields,
+                                 "retrieval.rate_limits", errors)
+            for field in retrieval_rate_fields:
+                _positive_number(retrieval_rates.get(field), f"retrieval.rate_limits.{field}",
+                                 errors, allow_zero=True)
+        retrieval_paths = retrieval.get("paths")
+        if not isinstance(retrieval_paths, dict):
+            errors.append("retrieval.paths must be an object")
+        else:
+            retrieval_path_fields = {"temp_subdir", "accepted_subdir", "market_case_subdir"}
+            _reject_unknown_keys(retrieval_paths, retrieval_path_fields,
+                                 "retrieval.paths", errors)
+            for field in retrieval_path_fields:
+                resolved_paths[f"retrieval_{field}"] = _safe_subdir(
+                    home, retrieval_paths.get(field), f"retrieval.paths.{field}", errors
+                )
+
     return {"ok": not errors, "errors": errors, "resolved_paths": resolved_paths}
 
 
@@ -587,9 +709,13 @@ def load_config(config_path: str | Path | None = None, *,
     corpus_dir = validation["resolved_paths"]["corpus_subdir"]
     assert isinstance(cache_dir, Path) and isinstance(corpus_dir, Path)
     web_cache_dir = validation["resolved_paths"].get("web_cache_subdir")
+    retrieval_temp_dir = validation["resolved_paths"].get("retrieval_temp_subdir")
+    retrieval_accepted_dir = validation["resolved_paths"].get("retrieval_accepted_subdir")
+    retrieval_market_case_dir = validation["resolved_paths"].get("retrieval_market_case_subdir")
     if create_dirs:
         for directory in (home / "config", home / "artifacts", home / "logs",
-                          cache_dir, corpus_dir, web_cache_dir):
+                          cache_dir, corpus_dir, web_cache_dir, retrieval_temp_dir,
+                          retrieval_accepted_dir, retrieval_market_case_dir):
             if directory is None:
                 continue
             directory.mkdir(parents=True, exist_ok=True)
@@ -600,6 +726,7 @@ def load_config(config_path: str | Path | None = None, *,
         "semantic_scholar": environment.get(SEMANTIC_SCHOLAR_KEY_ENV, "").strip() or None,
         "arxiv": None,
         "tavily": environment.get(TAVILY_KEY_ENV, "").strip() or None,
+        "core": environment.get(CORE_KEY_ENV, "").strip() or None,
     })
     return ProviderRuntimeConfig(
         data=MappingProxyType(deepcopy(payload)),
@@ -613,6 +740,11 @@ def load_config(config_path: str | Path | None = None, *,
             "raw_artifact_subdir", "")).strip("/\\") or None),
         web_extract_artifact_subdir=(str(payload.get("web", {}).get("paths", {}).get(
             "extract_artifact_subdir", "")).strip("/\\") or None),
+        retrieval_temp_dir=retrieval_temp_dir if isinstance(retrieval_temp_dir, Path) else None,
+        retrieval_accepted_dir=(retrieval_accepted_dir
+                                if isinstance(retrieval_accepted_dir, Path) else None),
+        retrieval_market_case_dir=(retrieval_market_case_dir
+                                   if isinstance(retrieval_market_case_dir, Path) else None),
         contact_email=contact,
         _api_keys=api_keys,
     )

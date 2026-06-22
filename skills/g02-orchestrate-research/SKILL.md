@@ -60,20 +60,25 @@ extend its fields inside the orchestrator.
    - exhausted revision budget: escalate through the conversation without silently approving.
 7. After G02-A05 Candidate Source Index, run the Human Source Selection Gate. Present or link
    `candidate_source_review.md`, explain coverage and the actions DOWNLOAD, LIBRARY, CITATION,
-   RESERVE, EXCLUDE and SEARCH_MORE, then provide a copyable response format.
-8. Parse the answer into `HumanSourceSelection`, show the interpretation and require final
-   confirmation. Route SEARCH_MORE to the relevant discovery agent, rebuild and re-review the index.
-   Retrieval receives only confirmed `HumanApprovedSourceSet`.
-9. Fan out G02-A07 evidence review per validated scholarly document and per human-approved market
-   case. Call `research_web_case_extract` only with the final selection ref, reviewed market-case
-   candidate ref and an `approved_for_download` source ID. Web extraction is permitted only after
-   the source gate. Then run G02-A08
+   RESERVE, EXCLUDE and SEARCH_MORE through `research_source_selection_prepare`.
+8. Map the template or natural-language answer to `human_source_selection@1`, validate it through
+   `research_source_selection_validate`, show the returned summary and ask for a separate final
+   confirmation. Only after confirmation call `research_source_selection_finalize`. Route
+   SEARCH_MORE to the relevant discovery agent, rebuild and re-review the index. Retrieval receives
+   only the produced `human_approved_source_set@1` ref.
+9. Run A06 through `research_retrieval_prepare`. For scholarly DOWNLOAD sources call
+   `research_oa_resolve`, `research_document_retrieve` and `research_document_validate`. For market
+   cases call `research_web_case_extract` with the final selection ref, reviewed A11 ref and exact
+   approved source ID. Finalize both kinds of files through `research_retrieval_finalize` and review
+   the corpus through `research_retrieval_review_task` before A07.
+10. Fan out G02-A07 evidence review per validated scholarly document and per human-approved market
+   case file. Then run G02-A08
    Claim Verification per independent claim or tight claim group. Preserve artifact isolation and
    join only reviewed results.
-10. After reviewed synthesis, run the Human Research Gate. Present verified, mixed, unsupported and
+11. After reviewed synthesis, run the Human Research Gate. Present verified, mixed, unsupported and
    insufficient claims, required updates, optional improvements, unresolved questions, confidence
    and accepted coverage exceptions in `output_language`.
-11. Apply requested corrections through the proper producer and reviewer loop. After approval,
+12. Apply requested corrections through the proper producer and reviewer loop. After approval,
     validate, freeze and emit `user_approved_research_bundle@1`.
 
 ## Output requirements

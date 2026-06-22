@@ -15,20 +15,24 @@ signals, access status and issues.
 
 1. Require stable source identity and action `DOWNLOAD`; route `LIBRARY` and `CITATION` without
    automated retrieval.
-2. Query configured deterministic resolvers in the approved semantic order, ordinarily Unpaywall,
-   OpenAlex OA locations, arXiv, CORE and DOAB or OAPEN where applicable.
+2. Call `research_oa_resolve`. Use approved record PDF links and arXiv first, then Unpaywall by
+   exact DOI, optional CORE by exact DOI and DOAB/OAPEN by exact DOI, ISBN or title for OA books.
 3. Preserve every checked route and result. Prefer a lawful stable full-text location whose work
    identity and version can be established.
 4. Record version of record, accepted manuscript, submitted manuscript, preprint or unknown; do not
    equate versions silently.
 5. Record license only when returned by a provider or trusted host metadata.
 6. Return `unavailable` or `library_required` when no authorized OA location is verified.
+7. Treat DOAB as catalog discovery. Accept a book file only from a verified OAPEN bitstream or
+   another explicit legal file URL; a catalog landing page alone is not a downloadable document.
 
 ## Output requirements
 
 - Include source ID, provider, landing and file URL, version, license, checked time and identity basis.
 - Keep resolver metadata separate from successful file validation.
 - Preserve redirects or host changes for retrieval validation.
+- Keep CORE authentication in `CORE_API_KEY` and Unpaywall contact in the existing research contact
+  environment variable. Neither value enters scoped input, prompts or artifacts.
 
 ## Boundaries
 

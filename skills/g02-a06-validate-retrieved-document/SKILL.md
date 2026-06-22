@@ -15,8 +15,10 @@ ref, checksum and version metadata.
 
 1. Check non-empty size, configured maximum, response type and actual file signature. Reject HTML
    error or login pages returned as PDF.
-2. Parse only enough metadata or first-page text to compare title, authors, DOI or provider identity.
-3. Confirm expected source or report an identity mismatch. Do not accept a merely related paper.
+2. Call `research_document_validate`. Use exact resolver identity basis such as DOI, ISBN, arXiv ID
+   or approved provider-record URL, plus bounded file observations where available.
+3. Confirm expected source or report an identity mismatch. A merely related paper or a resolver
+   result without an exact identity basis is rejected.
 4. Compare checksum against the corpus; link an exact duplicate to the existing artifact instead of
    storing another copy.
 5. Record page count and encryption or parsing status when the configured parser can establish them.

@@ -77,7 +77,7 @@ under `.emagents/` (override with `EMAGENTS_HOME`); the dir is git-ignored.
 
 The implemented deterministic Research Graph seams cover the boundary front door, G02-A01
 Planner, G02-A02 Domain, G02-A03 Canonical Sources, G02-A04 Recent Developments, G02-A11 Market
-Cases, G02-A05 Candidate Source Index, the universal reviewer and the final handoff. OpenAlex,
+Cases, G02-A05 Candidate Source Index, G02-A06 Paper Retrieval, the universal reviewer and the final handoff. OpenAlex,
 Semantic Scholar and arXiv adapters
 apply bounded metadata and citation requests. A11 adds Tavily as the primary web provider and an
 administrator-pinned SearXNG JSON adapter, with strict query budgets, endpoint and redirect checks,
@@ -85,9 +85,12 @@ cache, timeout, rate limits, source tiers and provenance. Full-page Tavily extra
 persisted final `human_source_selection@1`; discovery cannot invoke it. A05 accepts only upstream
 artifacts bound to `APPROVED` A10 decisions. It creates a deduplicated index and a readable source
 choice document whose scholarly descriptions are labelled as abstract-based or metadata-only and
-whose market-case descriptions use reviewed A11 facts and didactic mechanisms. The MCP server
-exposes thirty operations at version `0.8.0`. Remaining producer operations are added with their
-owning agents.
+whose market-case descriptions use reviewed A11 facts and didactic mechanisms. A two-step source
+gate freezes `human_approved_source_set@1`. A06 resolves scholarly DOWNLOAD sources through approved
+record links, Unpaywall, optional CORE and DOAB/OAPEN, validates PDF identity and integrity, and
+places validated PDFs plus gated A11 market-case JSON files in one `corpus://` run folder. The MCP
+server exposes thirty-nine operations at version `0.9.0`. Remaining producer operations are added
+with their owning agents.
 
 Before the first G02-A02 or A11 run, copy `shared/config/g02.providers.example.json` to
 `.emagents/config/g02-providers.json`, set `EMAGENTS_RESEARCH_CONTACT_EMAIL` and provide the

@@ -397,11 +397,37 @@ def test_post_gate_extraction_returns_bounded_untrusted_artifact():
     )
     candidate_ref = envelope["produced"][0]["path"]
     source_id = output["candidates"][0]["source_id"]
+    review_document_ref = artifacts.store_text(
+        "g02/index/mock-review.md", "DOWNLOAD: SRC_...\nFINAL_CONFIRMATION: yes\n"
+    )
+    record = output["candidates"][0]
     index_ref = artifacts.store("g02/index/mock.json", {
+        "schema_version": "candidate_source_index@1", "artifact_version": "1.0.0",
+        "task_id": output["task_id"], "research_plan_ref": output["research_plan_ref"],
+        "research_plan_artifact_version": "1.0.0", "output_language": "English",
+        "reviewed_upstreams": [], "selection_profile": {},
         "sources": [{
-            "source_id": source_id, "role": "applied_case",
-            "title": output["candidates"][0]["bibliographic"]["title"],
+            "source_id": source_id, "record_type": "market_case", "record": record,
+            "origin_streams": ["market_cases"], "topic_ids": [TOPIC_ID],
+            "claim_ids": ["CLM_OPTIONS_CONTROL_RISK"],
+            "role_assignments": [{"role": "applied_case"}],
+            "coverage_unit_ids": ["COV_OPTIONS_RISK_FAILURE"],
+            "duplicate_source_ids": [], "provenance_records": [],
+            "ranking": {"score": 1.0, "rank": 1, "components": {},
+                        "recommended_action": "DOWNLOAD", "rationale": ["test fixture"]},
+            "human_annotation": {"content_summary": "Reviewed market case.",
+                                 "description_basis": "market_case_annotation",
+                                 "selection_relevance": "Options control failure.",
+                                 "limitations": ["Page not extracted before the gate."],
+                                 "basis_excerpt": "EUR 4.9 billion loss"},
+            "access_summary": record["access"],
+            "signal_summary": {"scientific_quality": "not_assessed"},
         }],
+        "displayed_source_ids": [source_id], "reserve_source_ids": [],
+        "merge_log": [], "ambiguous_duplicate_groups": [], "coverage_matrix": [],
+        "search_summary": {}, "annotation_policy": {},
+        "human_review_document_ref": review_document_ref,
+        "review_profile_ref": "candidate_index",
     })
     selection_ref = artifacts.store("g02/source-selection/approved.json", {
         "schema_version": "human_source_selection@1", "artifact_version": "1.0.0",

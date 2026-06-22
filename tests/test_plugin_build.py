@@ -107,12 +107,21 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
             "shared/contracts/web_case_tool_result.schema.json",
             "shared/contracts/web_case_extract_result.schema.json",
             "shared/contracts/human_source_selection.schema.json",
+            "shared/contracts/human_approved_source_set.schema.json",
+            "shared/contracts/retrieval_input.schema.json",
+            "shared/contracts/open_access_resolution.schema.json",
+            "shared/contracts/retrieved_file_candidate.schema.json",
+            "shared/contracts/validated_document.schema.json",
+            "shared/contracts/retrieved_corpus.schema.json",
             "shared/contracts/candidate_sources.schema.json",
             "shared/scripts/g02/canonical.py",
             "shared/scripts/g02/citations.py",
             "shared/scripts/g02/recent.py",
             "shared/scripts/g02/market_cases.py",
             "shared/scripts/g02/web_cases.py",
+            "shared/scripts/g02/source_selection.py",
+            "shared/scripts/g02/oa_retrieval.py",
+            "shared/scripts/g02/retrieval.py",
         ):
             assert (plugin / relative).is_file(), f"{host}: missing A03 file {relative}"
         assert not (plugin / "mocks").exists()

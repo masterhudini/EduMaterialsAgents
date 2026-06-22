@@ -1,6 +1,6 @@
 {
   "title": "Non-secret configuration for scholarly metadata providers",
-  "x-version": "1.1",
+  "x-version": "1.2",
   "x-major": 1,
   "type": "object",
   "required": ["schema_version", "profile", "providers", "request", "limits", "cache", "paths", "rate_limits"],
@@ -81,6 +81,28 @@
         "paths": {"type": "object"},
         "rate_limits": {"type": "object"},
         "source_tiers": {"type": "object"}
+      }
+    },
+    "retrieval": {
+      "type": "object",
+      "required": ["enabled", "providers", "request", "limits", "rate_limits", "paths"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "providers": {
+          "type": "object",
+          "required": ["record", "unpaywall", "core", "doab", "oapen"],
+          "properties": {
+            "record": {"type": "object"},
+            "unpaywall": {"type": "object"},
+            "core": {"type": "object"},
+            "doab": {"type": "object"},
+            "oapen": {"type": "object"}
+          }
+        },
+        "request": {"type": "object"},
+        "limits": {"type": "object"},
+        "rate_limits": {"type": "object"},
+        "paths": {"type": "object"}
       }
     }
   }

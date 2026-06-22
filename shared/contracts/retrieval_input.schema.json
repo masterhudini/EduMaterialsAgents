@@ -1,0 +1,26 @@
+{
+  "title": "Scoped and finally authorized input for G02-A06",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "task_id", "approved_source_set_ref", "approved_source_set_artifact_version",
+    "source_selection_ref", "candidate_source_index_ref", "approved_sources", "skipped_actions",
+    "retrieval_policy", "provider_capabilities", "output_language", "previous_corpus_ref"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["retrieval_input@1"]},
+    "task_id": {"type": "string"},
+    "approved_source_set_ref": {"type": "string"},
+    "approved_source_set_artifact_version": {"type": "string"},
+    "source_selection_ref": {"type": "string"},
+    "candidate_source_index_ref": {"type": "string"},
+    "approved_sources": {"type": "array", "items": {"type": "object"}},
+    "skipped_actions": {"type": "object"},
+    "retrieval_policy": {"type": "object"},
+    "provider_capabilities": {"type": "array", "items": {"type": "object"}},
+    "output_language": {"type": "string"},
+    "previous_corpus_ref": {"type": ["string", "null"]},
+    "previous_documents": {"type": "array", "items": {"type": "object"}}
+  }
+}
