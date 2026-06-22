@@ -1,41 +1,30 @@
 {
-  "title": "RetrievedCorpus \u2014 retrieved/registered documents (design 02 \u00a75.6).",
-  "x-version": "1.0",
+  "title": "G02-A06 validated scholarly documents and gated market-case files",
+  "x-version": "1.1",
   "x-major": 1,
   "type": "object",
   "required": [
-    "documents"
+    "schema_version", "artifact_version", "task_id", "approved_source_set_ref",
+    "approved_source_set_artifact_version", "candidate_source_index_ref", "run_directory_ref",
+    "documents", "market_cases", "unavailable", "failed", "skipped_actions", "attempt_log",
+    "retrieval_summary", "policy", "review_profile_ref"
   ],
   "properties": {
-    "documents": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "source_id",
-          "status"
-        ],
-        "properties": {
-          "source_id": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "available",
-              "unavailable",
-              "library",
-              "failed"
-            ]
-          },
-          "path": {
-            "type": "string"
-          },
-          "file_type": {
-            "type": "string"
-          }
-        }
-      }
-    }
+    "schema_version": {"type": "string", "enum": ["retrieved_corpus@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "approved_source_set_ref": {"type": "string"},
+    "approved_source_set_artifact_version": {"type": "string"},
+    "candidate_source_index_ref": {"type": "string"},
+    "run_directory_ref": {"type": "string"},
+    "documents": {"type": "array", "items": {"type": "object"}},
+    "market_cases": {"type": "array", "items": {"type": "object"}},
+    "unavailable": {"type": "array", "items": {"type": "object"}},
+    "failed": {"type": "array", "items": {"type": "object"}},
+    "skipped_actions": {"type": "object"},
+    "attempt_log": {"type": "array", "items": {"type": "object"}},
+    "retrieval_summary": {"type": "object"},
+    "policy": {"type": "object"},
+    "review_profile_ref": {"type": "string", "enum": ["retrieved_corpus"]}
   }
 }

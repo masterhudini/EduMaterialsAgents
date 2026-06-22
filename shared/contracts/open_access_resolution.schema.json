@@ -1,0 +1,39 @@
+{
+  "title": "Auditable legal Open Access resolution for one approved source",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "operation_id", "task_id", "source_id", "record_type", "status",
+    "checked_providers", "candidates", "selected_candidate", "issues", "resolved_at"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["open_access_resolution@1"]},
+    "operation_id": {"type": "string"},
+    "task_id": {"type": "string"},
+    "source_id": {"type": "string"},
+    "record_type": {"type": "string", "enum": ["scholarly", "market_case"]},
+    "status": {"type": "string", "enum": ["resolved", "market_extract", "unavailable", "library_required", "failed"]},
+    "checked_providers": {"type": "array", "items": {"type": "object"}},
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["provider", "landing_url", "file_url", "version_type", "license", "identity_basis", "access_basis", "priority"],
+        "properties": {
+          "provider": {"type": "string", "enum": ["record", "unpaywall", "core", "doab", "oapen", "tavily"]},
+          "landing_url": {"type": ["string", "null"]},
+          "file_url": {"type": ["string", "null"]},
+          "version_type": {"type": "string", "enum": ["version_of_record", "accepted_manuscript", "submitted_manuscript", "preprint", "published_book", "unknown"]},
+          "license": {"type": ["string", "null"]},
+          "identity_basis": {"type": "array", "items": {"type": "string"}},
+          "access_basis": {"type": "string"},
+          "priority": {"type": "integer"}
+        }
+      }
+    },
+    "selected_candidate": {"type": ["object", "null"]},
+    "issues": {"type": "array", "items": {"type": "object"}},
+    "resolved_at": {"type": "string"}
+  }
+}

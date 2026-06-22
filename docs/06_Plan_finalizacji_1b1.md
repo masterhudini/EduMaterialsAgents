@@ -16,6 +16,17 @@ Aktualny podetap: `3. G02-A02 Domain`, zakończony dewelopersko.
 Kolejny etap nie rozpoczyna się przed ukończeniem implementacji bieżącego zestawu, przeglądem
 zmian i zatwierdzeniem przez właściciela repozytorium.
 
+### 1a. Otwarte decyzje odroczone do końca G02
+
+> **DECYZJA ODROCZONA — CORE API key / tryb retrieval (podjąć dopiero gdy cały moduł G02 jest gotowy).**
+> Obecnie w `shared/config/g02.providers.example.json` provider `core` ma `"enabled": false`, a
+> `CORE_API_KEY` jest opcjonalny (czytany wyłącznie ze środowiska, nigdy z JSON). Do rozstrzygnięcia
+> na finalizacji G02: (1) czy `core` ma być domyślnie włączony, (2) czy `CORE_API_KEY` ma być
+> wymagany w DEV/TEST jako warunek gotowości retrieval, czy pozostać opcjonalnym fallbackiem obok
+> record/Unpaywall/DOAB/OAPEN. Wpływa na `provider_config.public_retrieval_status` (`ready` dla
+> `core`), przykładową konfigurację oraz checklistę live OA smoke w `docs/07`. Do czasu decyzji:
+> domyślnie wyłączony, opcjonalny.
+
 ## 2. Tryb pracy i rozdzielenie testów
 
 Finalizacja komponentów oraz ich testowanie są prowadzone w dwóch osobnych fazach.

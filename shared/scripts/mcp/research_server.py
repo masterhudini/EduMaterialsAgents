@@ -17,6 +17,10 @@ research_market_cases_prepare, research_web_case_search,
 research_market_cases_finalize, research_market_cases_review_task,
 research_candidate_index_prepare, research_candidate_index_finalize,
 research_candidate_index_review_task,
+research_source_selection_prepare, research_source_selection_validate,
+research_source_selection_finalize, research_retrieval_prepare,
+research_oa_resolve, research_document_retrieve, research_document_validate,
+research_retrieval_finalize, research_retrieval_review_task,
 research_web_case_extract,
 research_review_prepare, research_review_finalize,
 research_finalize, research_run_stub, research_run_codex.
@@ -37,6 +41,9 @@ from g02 import citations  # noqa: E402
 from g02 import recent  # noqa: E402
 from g02 import market_cases  # noqa: E402
 from g02 import candidate_index  # noqa: E402
+from g02 import source_selection  # noqa: E402
+from g02 import retrieval  # noqa: E402
+from g02 import oa_retrieval  # noqa: E402
 from g02 import web_cases  # noqa: E402
 from g02 import planner  # noqa: E402
 from g02 import provider_config  # noqa: E402
@@ -45,7 +52,7 @@ from g02 import review as reviewer  # noqa: E402
 from core import artifacts, graphs, handoff  # noqa: E402
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "edu-materials-research", "version": "0.8.0"}
+SERVER_INFO = {"name": "edu-materials-research", "version": "0.9.0"}
 
 
 # ---- tool implementations (return JSON-serializable values) --------------
@@ -336,6 +343,74 @@ def _candidate_index_review_task(args: dict):
     return candidate_index.build_candidate_index_review_task(
         prepared["candidate_index_input"], args["artifact"], review_id=args["review_id"],
         attempt=args.get("attempt", 1), previous_decision_ref=args.get("previous_decision_ref"),
+        producer_revision_response=args.get("producer_revision_response"),
+    )
+
+
+def _source_selection_prepare(args: dict):
+    return source_selection.prepare_source_selection(args["candidate_source_index_ref"])
+
+
+def _source_selection_validate(args: dict):
+    return source_selection.validate_source_selection(
+        args["candidate_source_index_ref"], selection=args.get("selection"),
+        response_text=args.get("response_text"),
+    )
+
+
+def _source_selection_finalize(args: dict):
+    return source_selection.finalize_source_selection(
+        args["candidate_source_index_ref"], args["selection"],
+        args["confirmation_token"],
+    )
+
+
+def _retrieval_prepare(args: dict):
+    return retrieval.prepare_retrieval(
+        args["approved_source_set_ref"],
+        previous_corpus_ref=args.get("previous_corpus_ref"),
+    )
+
+
+def _oa_resolve(args: dict):
+    return oa_retrieval.resolve_open_access(
+        args["retrieval_input"], args["source_id"]
+    )
+
+
+def _document_retrieve(args: dict):
+    return oa_retrieval.retrieve_document(
+        args["retrieval_input"], args["resolution_ref"]
+    )
+
+
+def _document_validate(args: dict):
+    return oa_retrieval.validate_document(
+        args["retrieval_input"], args["retrieved_file_ref"],
+    )
+
+
+def _retrieval_finalize(args: dict):
+    prepared = retrieval.prepare_retrieval(
+        args["approved_source_set_ref"],
+        previous_corpus_ref=args.get("previous_corpus_ref"),
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return retrieval.finalize_retrieval(
+        prepared["retrieval_input"], args["result_refs"],
+        artifact_version=args.get("artifact_version", "1.0.0"),
+    )
+
+
+def _retrieval_review_task(args: dict):
+    prepared = retrieval.prepare_retrieval(args["approved_source_set_ref"])
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return retrieval.build_retrieval_review_task(
+        prepared["retrieval_input"], args["artifact"], review_id=args["review_id"],
+        attempt=args.get("attempt", 1),
+        previous_decision_ref=args.get("previous_decision_ref"),
         producer_revision_response=args.get("producer_revision_response"),
     )
 
@@ -873,6 +948,135 @@ TOOLS = [
         },
     },
     {
+        "name": "research_source_selection_prepare",
+        "description": "Load the reviewed CandidateSourceIndex and its Markdown document, then "
+                       "return content cards, gaps, exact IDs and the user-facing action template.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"candidate_source_index_ref": {"type": "string"}},
+            "required": ["candidate_source_index_ref"],
+        },
+    },
+    {
+        "name": "research_source_selection_validate",
+        "description": "Parse the copyable response template or validate a host-mapped natural "
+                       "language decision, enforce IDs, actions and coverage, and return the exact "
+                       "summary plus a confirmation token. This operation never authorizes retrieval.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "candidate_source_index_ref": {"type": "string"},
+                "selection": {"type": "object"},
+                "response_text": {"type": "string"},
+            },
+            "required": ["candidate_source_index_ref"],
+        },
+    },
+    {
+        "name": "research_source_selection_finalize",
+        "description": "After the user sees and separately confirms the parsed summary, validate "
+                       "the confirmation token and persist human_source_selection@1 plus the exact "
+                       "human_approved_source_set@1 consumed by A06.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "candidate_source_index_ref": {"type": "string"},
+                "selection": {"type": "object"},
+                "confirmation_token": {"type": "string"},
+            },
+            "required": ["candidate_source_index_ref", "selection", "confirmation_token"],
+        },
+    },
+    {
+        "name": "research_retrieval_prepare",
+        "description": "Hydrate one finally confirmed HumanApprovedSourceSet and project the "
+                       "minimal retrieval_input@1 with DOWNLOAD records, skipped actions, legal OA "
+                       "policy and secret-free provider capabilities.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "approved_source_set_ref": {"type": "string"},
+                "previous_corpus_ref": {"type": "string"},
+            },
+            "required": ["approved_source_set_ref"],
+        },
+    },
+    {
+        "name": "research_oa_resolve",
+        "description": "Resolve one approved source through record links, Unpaywall, optional CORE, "
+                       "DOAB and OAPEN. Market cases are routed to gated A11 extraction. Returns an "
+                       "auditable open_access_resolution@1 without downloading a document.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "retrieval_input": {"type": "object"},
+                "source_id": {"type": "string"},
+            },
+            "required": ["retrieval_input", "source_id"],
+        },
+    },
+    {
+        "name": "research_document_retrieve",
+        "description": "Download one scholarly document from the selected legal OA resolution "
+                       "under HTTPS, redirect, timeout, retry and byte limits into a temporary "
+                       "corpus ref. It does not accept the file into RetrievedCorpus.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "retrieval_input": {"type": "object"},
+                "resolution_ref": {"type": "string"},
+            },
+            "required": ["retrieval_input", "resolution_ref"],
+        },
+    },
+    {
+        "name": "research_document_validate",
+        "description": "Validate the temporary file's checksum, content type, PDF signature and "
+                       "resolver-backed source identity, then promote an accepted file under a "
+                       "stable corpus ref or record a duplicate/rejection.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "retrieval_input": {"type": "object"},
+                "retrieved_file_ref": {"type": "string"},
+            },
+            "required": ["retrieval_input", "retrieved_file_ref"],
+        },
+    },
+    {
+        "name": "research_retrieval_finalize",
+        "description": "Re-prepare exact authorization, partition validated scholarly files and "
+                       "gated A11 market-case extraction results, copy both into one run folder and "
+                       "persist retrieved_corpus@1 with failures and skipped actions.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "approved_source_set_ref": {"type": "string"},
+                "result_refs": {"type": "array", "items": {"type": "string"}},
+                "previous_corpus_ref": {"type": "string"},
+                "artifact_version": {"type": "string"},
+            },
+            "required": ["approved_source_set_ref", "result_refs"],
+        },
+    },
+    {
+        "name": "research_retrieval_review_task",
+        "description": "Validate files and authorization, freeze RT-01 through RT-08 and build "
+                       "one retrieved_corpus review_task@1 for G02-A10.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "approved_source_set_ref": {"type": "string"},
+                "artifact": {"type": "object"},
+                "review_id": {"type": "string"},
+                "attempt": {"type": "integer"},
+                "previous_decision_ref": {"type": "string"},
+                "producer_revision_response": {"type": "object"},
+            },
+            "required": ["approved_source_set_ref", "artifact", "review_id"],
+        },
+    },
+    {
         "name": "research_review_prepare",
         "description": "Validate one review_task@1, enforce one artifact and hydrate only that "
                        "artifact for the isolated universal reviewer. Invalid review basis or "
@@ -1014,6 +1218,15 @@ DISPATCH = {
     "research_candidate_index_prepare": _candidate_index_prepare,
     "research_candidate_index_finalize": _candidate_index_finalize,
     "research_candidate_index_review_task": _candidate_index_review_task,
+    "research_source_selection_prepare": _source_selection_prepare,
+    "research_source_selection_validate": _source_selection_validate,
+    "research_source_selection_finalize": _source_selection_finalize,
+    "research_retrieval_prepare": _retrieval_prepare,
+    "research_oa_resolve": _oa_resolve,
+    "research_document_retrieve": _document_retrieve,
+    "research_document_validate": _document_validate,
+    "research_retrieval_finalize": _retrieval_finalize,
+    "research_retrieval_review_task": _retrieval_review_task,
     "research_web_case_extract": _web_case_extract,
     "research_review_prepare": _review_prepare,
     "research_review_finalize": _review_finalize,

@@ -1,0 +1,29 @@
+{
+  "title": "Temporary bounded download awaiting document validation",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "operation_id", "task_id", "source_id", "status", "resolution_ref",
+    "temporary_ref", "final_url", "url_chain", "content_type", "byte_count", "sha256",
+    "signature", "attempts", "issues", "retrieved_at"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["retrieved_file_candidate@1"]},
+    "operation_id": {"type": "string"},
+    "task_id": {"type": "string"},
+    "source_id": {"type": "string"},
+    "status": {"type": "string", "enum": ["downloaded", "reused", "unavailable", "failed"]},
+    "resolution_ref": {"type": "string"},
+    "temporary_ref": {"type": ["string", "null"]},
+    "final_url": {"type": ["string", "null"]},
+    "url_chain": {"type": "array", "items": {"type": "string"}},
+    "content_type": {"type": ["string", "null"]},
+    "byte_count": {"type": "integer"},
+    "sha256": {"type": ["string", "null"]},
+    "signature": {"type": ["string", "null"]},
+    "attempts": {"type": "array", "items": {"type": "object"}},
+    "issues": {"type": "array", "items": {"type": "object"}},
+    "retrieved_at": {"type": "string"}
+  }
+}

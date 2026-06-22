@@ -1,0 +1,58 @@
+{
+  "schema_version": "literature_provider_config@1",
+  "profile": "retrieval-test",
+  "providers": {
+    "openalex": {"enabled": true},
+    "semantic_scholar": {"enabled": false},
+    "arxiv": {"enabled": false}
+  },
+  "request": {
+    "timeout_seconds": 2,
+    "max_retries": 0,
+    "backoff_seconds": 0.0,
+    "max_response_bytes": 1048576
+  },
+  "limits": {"per_page": 5, "max_pages_per_call": 1, "max_records_per_query": 5},
+  "cache": {"enabled": false, "ttl_seconds": 0},
+  "paths": {
+    "cache_subdir": "cache/g02/providers",
+    "corpus_subdir": "corpus/g02",
+    "raw_artifact_subdir": "g02/provider-raw"
+  },
+  "rate_limits": {
+    "openalex_min_interval_seconds": 0.0,
+    "semantic_scholar_min_interval_seconds": 0.0,
+    "arxiv_min_interval_seconds": 3.0
+  },
+  "retrieval": {
+    "enabled": true,
+    "providers": {
+      "record": {"enabled": true},
+      "unpaywall": {"enabled": true},
+      "core": {"enabled": true},
+      "doab": {"enabled": true},
+      "oapen": {"enabled": true}
+    },
+    "request": {
+      "timeout_seconds": 2,
+      "max_retries": 0,
+      "backoff_seconds": 0.0,
+      "max_metadata_response_bytes": 1048576,
+      "max_document_bytes": 1048576,
+      "max_redirects": 2
+    },
+    "limits": {"max_documents_per_task": 6},
+    "rate_limits": {
+      "record_min_interval_seconds": 0.0,
+      "unpaywall_min_interval_seconds": 0.0,
+      "core_min_interval_seconds": 0.0,
+      "doab_min_interval_seconds": 0.0,
+      "oapen_min_interval_seconds": 0.0
+    },
+    "paths": {
+      "temp_subdir": "corpus/g02/temp",
+      "accepted_subdir": "corpus/g02/runs",
+      "market_case_subdir": "corpus/g02/market-cases"
+    }
+  }
+}

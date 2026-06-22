@@ -48,7 +48,8 @@ Use these standard profile identifiers and minimum concerns:
 - `candidate_index`: approved upstream bindings, conservative deduplication, visible ranking,
   role-aware coverage and human-readable descriptions whose abstract, metadata or A11 basis and
   access limits are explicit;
-- `retrieved_corpus`: human authorization, stable identity, file integrity and explicit errors;
+- `retrieved_corpus`: final human authorization, lawful OA provenance, stable identity, PDF
+  integrity, gated market-case files, skipped actions and explicit failures;
 - `paper_evidence`: evidence location, method, findings, limitations and claim relation;
 - `claim_assessment`: evidence dimensions, counterevidence, confidence and coverage;
 - `research_synthesis`: evidence-linked recommendations, unresolved items and compact handoff.

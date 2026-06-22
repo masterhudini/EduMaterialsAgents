@@ -26,6 +26,7 @@ from core import state as st  # noqa: E402
 from core import validate_state as vs  # noqa: E402
 from g02.runners.stub import stub_node_runner  # noqa: E402
 from g02 import planner  # noqa: E402
+from g02 import source_selection  # noqa: E402
 
 GRAPH_ID = "g02"
 INPUT_CONTRACT = "research_graph_input@1"
@@ -253,6 +254,24 @@ def terminal_gate_handler(payload: dict) -> dict:
     return json.loads(_sys.stdin.readline())
 
 
+def _produced_artifact_ref(stored_ref: str, artifact_type: str, contract_ref: str,
+                           *, base=None) -> str | None:
+    """Resolve a typed artifact from a node's persisted artifact or envelope."""
+    try:
+        value = artifacts.hydrate(stored_ref, base=base)
+    except (OSError, ValueError, KeyError, IndexError):
+        return None
+    if isinstance(value, dict) and value.get("schema_version") == contract_ref:
+        return stored_ref
+    for descriptor in value.get("produced", []) if isinstance(value, dict) else []:
+        if not isinstance(descriptor, dict) or descriptor.get("type") != artifact_type:
+            continue
+        ref = descriptor.get("path") or descriptor.get("ref")
+        if isinstance(ref, str) and ref.startswith(artifacts.SCHEME):
+            return ref
+    return None
+
+
 def run(
     input_ref=None,
     *,
@@ -447,6 +466,13 @@ def run(
 
         elif kind == "user-gate":
             gname = node["name"]
+            source_index_ref = None
+            if gname == "user-source-selection-gate":
+                stored = produced_refs.get("g02-a05-candidate-source-index")
+                if isinstance(stored, str):
+                    source_index_ref = _produced_artifact_ref(
+                        stored, "candidate_source_index", "candidate_source_index@1", base=base
+                    )
             if gname not in gate_decisions:
                 payload = {
                     "graph": GRAPH_ID,
@@ -454,6 +480,12 @@ def run(
                     "required_decisions": node.get("required_decisions", []),
                     "context": {"artifacts": dict(produced_refs)},
                 }
+                if source_index_ref:
+                    prepared_gate = source_selection.prepare_source_selection(
+                        source_index_ref, base=base
+                    )
+                    if prepared_gate.get("ready"):
+                        payload["source_selection"] = prepared_gate["gate_prompt"]
 
                 if gate_handler is not None:
                     # Synchronous surface, e.g. terminal.
@@ -471,6 +503,31 @@ def run(
                 else:
                     # Default: auto-approve for wiring/harness.
                     gate_decisions[gname] = {"auto": True}
+
+            if gname == "user-source-selection-gate" and source_index_ref:
+                decision = gate_decisions[gname]
+                approved_ref = decision.get("human_approved_source_set_ref") \
+                    if isinstance(decision, dict) else None
+                if isinstance(decision, dict) and not approved_ref \
+                        and isinstance(decision.get("selection"), dict) \
+                        and isinstance(decision.get("confirmation_token"), str):
+                    finalized = source_selection.finalize_source_selection(
+                        source_index_ref, decision["selection"], decision["confirmation_token"],
+                        base=base,
+                    )
+                    approved_ref = next((
+                        item.get("path") for item in finalized.get("produced", [])
+                        if item.get("type") == "human_approved_source_set"
+                    ), None)
+                if isinstance(approved_ref, str):
+                    approved_set = artifacts.hydrate(approved_ref, base=base)
+                    validation = contracts.validate(
+                        approved_set, "human_approved_source_set@1"
+                    )
+                    if not validation["ok"]:
+                        raise ValueError("invalid human approved source set: "
+                                         + "; ".join(validation["errors"]))
+                    produced_refs[gname] = approved_ref
 
             log.append(
                 gname,

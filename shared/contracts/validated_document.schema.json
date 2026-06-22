@@ -1,0 +1,34 @@
+{
+  "title": "Validated document ready for RetrievedCorpus",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "task_id", "source_id", "status", "local_ref", "file_type", "byte_count",
+    "sha256", "content_type_valid", "signature_valid", "identity_valid", "identity_basis",
+    "version_type", "license", "page_count", "duplicate_of_source_id", "resolution_ref",
+    "retrieved_file_ref", "issues", "validated_at"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["validated_document@1"]},
+    "task_id": {"type": "string"},
+    "source_id": {"type": "string"},
+    "status": {"type": "string", "enum": ["accepted", "duplicate", "rejected"]},
+    "local_ref": {"type": ["string", "null"]},
+    "file_type": {"type": ["string", "null"], "enum": ["pdf", null]},
+    "byte_count": {"type": "integer"},
+    "sha256": {"type": ["string", "null"]},
+    "content_type_valid": {"type": "boolean"},
+    "signature_valid": {"type": "boolean"},
+    "identity_valid": {"type": "boolean"},
+    "identity_basis": {"type": "array", "items": {"type": "string"}},
+    "version_type": {"type": "string"},
+    "license": {"type": ["string", "null"]},
+    "page_count": {"type": ["integer", "null"]},
+    "duplicate_of_source_id": {"type": ["string", "null"]},
+    "resolution_ref": {"type": "string"},
+    "retrieved_file_ref": {"type": "string"},
+    "issues": {"type": "array", "items": {"type": "object"}},
+    "validated_at": {"type": "string"}
+  }
+}

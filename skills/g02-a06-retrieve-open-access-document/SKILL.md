@@ -14,10 +14,12 @@ attempt log and source identity. This result is not accepted into the corpus bef
 ## Workflow
 
 1. Verify that source ID is in `HumanApprovedSourceSet.approved_sources` with action `DOWNLOAD`.
-2. Use the resolved file location through the configured deterministic downloader.
+2. Call `research_document_retrieve` with the exact `retrieval_input@1` and persisted
+   `open_access_resolution@1` ref.
 3. Enforce timeout, bounded redirects, maximum size, allowed scheme and host policy. Never send
    credentials to an unapproved redirect target.
-4. Stream to a temporary artifact, calculate checksum and preserve response content type and URL chain.
+4. Stream to a constrained `corpus://` temporary ref, calculate SHA-256 and preserve response
+   content type and the complete HTTPS URL chain.
 5. Retry only transient failures within provider policy. Do not retry permanent access denial as if transient.
 6. Pass the candidate to document validation before promoting it to the corpus.
 

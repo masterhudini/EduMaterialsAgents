@@ -1,11 +1,11 @@
 {
   "title": "G02-A05 deduplicated candidate index for the Human Source Selection Gate",
-  "x-version": "1.1",
+  "x-version": "1.2",
   "x-major": 1,
   "type": "object",
   "required": [
     "schema_version", "artifact_version", "task_id", "research_plan_ref",
-    "research_plan_artifact_version", "reviewed_upstreams", "selection_profile", "sources",
+    "research_plan_artifact_version", "output_language", "reviewed_upstreams", "selection_profile", "sources",
     "displayed_source_ids", "reserve_source_ids", "merge_log", "ambiguous_duplicate_groups",
     "coverage_matrix", "search_summary", "annotation_policy", "human_review_document_ref",
     "review_profile_ref"
@@ -16,6 +16,7 @@
     "task_id": {"type": "string"},
     "research_plan_ref": {"type": "string"},
     "research_plan_artifact_version": {"type": "string"},
+    "output_language": {"type": "string"},
     "reviewed_upstreams": {"type": "array", "items": {"type": "object"}},
     "selection_profile": {"type": "object"},
     "sources": {

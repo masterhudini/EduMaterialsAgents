@@ -1,0 +1,13 @@
+{
+  "totalHits": 1,
+  "results": [
+    {
+      "id": 987654,
+      "doi": "10.1214/17-sts668",
+      "title": "A Conceptual Introduction to Hamiltonian Monte Carlo",
+      "downloadUrl": "https://api.core.ac.uk/v3/works/987654/download",
+      "sourceFulltextUrls": ["https://core.ac.uk/works/987654"],
+      "license": "CC BY 4.0"
+    }
+  ]
+}

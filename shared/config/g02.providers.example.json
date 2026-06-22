@@ -79,5 +79,36 @@
       "tier_3_domains": ["example.com"],
       "excluded_domains": []
     }
+  },
+  "retrieval": {
+    "enabled": true,
+    "providers": {
+      "record": {"enabled": true},
+      "unpaywall": {"enabled": true},
+      "core": {"enabled": false},
+      "doab": {"enabled": true},
+      "oapen": {"enabled": true}
+    },
+    "request": {
+      "timeout_seconds": 30,
+      "max_retries": 2,
+      "backoff_seconds": 1.0,
+      "max_metadata_response_bytes": 4194304,
+      "max_document_bytes": 52428800,
+      "max_redirects": 5
+    },
+    "limits": {"max_documents_per_task": 20},
+    "rate_limits": {
+      "record_min_interval_seconds": 0.0,
+      "unpaywall_min_interval_seconds": 0.1,
+      "core_min_interval_seconds": 1.0,
+      "doab_min_interval_seconds": 1.0,
+      "oapen_min_interval_seconds": 1.0
+    },
+    "paths": {
+      "temp_subdir": "corpus/g02/temp",
+      "accepted_subdir": "corpus/g02/runs",
+      "market_case_subdir": "corpus/g02/market-cases"
+    }
   }
 }
