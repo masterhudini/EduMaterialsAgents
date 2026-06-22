@@ -3,7 +3,7 @@
 Run the Codex worker runtime from the installed plugin bundle:
 
 ```bash
-python3 "{{CODEX_PLUGIN_ROOT}}/shared/scripts/research/research_flow.py" run-codex <path-or-artifact-ref-to-research_graph_input> --gates auto
+python3 "{{CODEX_PLUGIN_ROOT}}/shared/scripts/g02/g02_flow.py" run-codex <path-or-artifact-ref-to-research_graph_input> --gates auto
 ```
 
 Use the command argument as `<path-or-artifact-ref-to-research_graph_input>`. Prefer an absolute

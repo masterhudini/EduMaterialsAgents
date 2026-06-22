@@ -9,7 +9,7 @@ Local/dev only: relies on the Codex ChatGPT login (cached tokens — treat as a 
 CI/headless/SaaS, where an API key is the right path. Pure stdlib.
 
 POC usage:
-    python3 shared/scripts/research/runners/codex.py [node-name] [context.json]
+    python3 shared/scripts/g02/runners/codex.py [node-name] [context.json]
 """
 from __future__ import annotations
 
@@ -128,8 +128,10 @@ if __name__ == "__main__":
     from g02 import g02_flow as rf
     from core import event_log, graphs
 
-    node_name = sys.argv[1] if len(sys.argv) > 1 else "research-planner"
-    ctx_path = sys.argv[2] if len(sys.argv) > 2 else str(ROOT / "mocks/research/research_graph_input.json")
+    node_name = sys.argv[1] if len(sys.argv) > 1 else "g02-a01-planner"
+    ctx_path = sys.argv[2] if len(sys.argv) > 2 else str(
+        ROOT / "mocks/g02/research_graph_input.json"
+    )
 
     rgi = rf.load_context(ctx_path)
     node = next((n for n in graphs.nodes(graphs.load(GRAPH_ID)) if n["name"] == node_name), None)

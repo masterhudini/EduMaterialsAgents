@@ -1,5 +1,10 @@
 ## Host Adapter: Codex
 
+- Use the installed Research Graph MCP or equivalent node-agent adapter for validation, scoped input,
+  agent execution, artifact persistence and final handoff.
+- Do not simulate physical node agents by copying their work into the orchestrator context.
+- While `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]` remains unresolved, validate the boundary input,
+  then return `external_dependency_blocked` with the missing capability named explicitly.
 - For semantic requests such as "zrob research", "zrób research" or "run the research graph", use
   the MCP tool `research_run_codex` when available:
 
@@ -14,7 +19,7 @@
   as an isolated `codex exec` call. Entry point (headless/local, subscription login, no API key):
 
   ```bash
-  python3 "<plugin-root>/shared/scripts/research/research_flow.py" run-codex <context> [--gates prompt|auto]
+  python3 "<plugin-root>/shared/scripts/g02/g02_flow.py" run-codex <context> [--gates prompt|auto]
   ```
 
   This loads + validates the boundary input, runs every node via `codex exec`, applies the reviewer

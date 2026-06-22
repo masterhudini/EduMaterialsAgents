@@ -22,7 +22,8 @@ Oznaczenia nie są ostatecznym przydziałem osób. Mają ułatwić późniejszy 
 - Jeden fizyczny `G02A10OutputReviewerAgent`.
 - G02-A08 Claim Verification działa po G02-A07 Paper Review.
 - G02-A02 Domain tworzy pulę bazową.
-- G02-A03 Canonical Sources i G02-A04 Recent Developments rozszerzają pulę równolegle.
+- G02-A03 Canonical Sources i G02-A04 Recent Developments są niezależnymi strumieniami discovery;
+  docelowy scheduler uruchamia je równolegle.
 - G02-A05 Candidate Source Index przygotowuje rekomendacje, a człowiek zatwierdza źródła.
 - Human Source Selection Gate występuje przed pobraniem.
 - Człowiek otrzymuje Markdown i jasną instrukcję odpowiedzi.
@@ -385,8 +386,9 @@ optional trend.
 
 **Owner:** KH
 
-Canonical i Recent otrzymują zatwierdzoną pulę Domain i działają równolegle. Fan-in oczekuje
-obu wyników albo jawnego degraded result.
+Canonical i Recent otrzymują zatwierdzoną pulę Domain. Bieżący runner wykonuje je sekwencyjnie;
+zadanie integracyjne dodaje równoległy scheduler, którego fan-in oczekuje obu wyników albo jawnego
+degraded result.
 
 ## 10. Faza H, G02-A05 Candidate Source Index i bramka człowieka
 

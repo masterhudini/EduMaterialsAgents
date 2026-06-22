@@ -192,7 +192,7 @@ key — Codex subscription login; terminal user gates). Local/dev only:
 ```bash
 python shared/scripts/g02/g02_flow.py run-codex mocks/g02/research_graph_input.json
 # single isolated node (cheaper smoke):
-python shared/scripts/research/runners/codex.py g02-a01-planner
+python shared/scripts/g02/runners/codex.py g02-a01-planner mocks/g02/research_graph_input.json
 ```
 
 The engine is host-agnostic; execution is the per-host runner (Claude Task subagents vs Codex

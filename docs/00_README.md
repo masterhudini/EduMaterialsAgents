@@ -71,9 +71,10 @@ deterministyczny seam Tavily pozostaje zaplanowany razem z pionowym wycinkiem A1
 
 Deterministyczne seams reviewera, G02-A01 Plannera i G02-A02 Domain są wdrożone. G02-A02 posiada
 konfigurację providerów, adaptery OpenAlex, Semantic Scholar i arXiv, cache, retry, rate limiting,
-normalizację oraz zapis surowej proweniencji. Downloader, indeks tekstu PDF oraz rzeczywiste
-wywoływanie agentów przez `g02_flow.py` pozostają kolejnymi etapami. Obecny tryb `run` w Pythonie
-jest harness-em no-op dla całego grafu, a nie testem zachowania agentów.
+normalizację oraz zapis surowej proweniencji. `g02_flow.py run-codex` uruchamia fizyczne definicje
+agentów jako izolowane procesy `codex exec`; tryb `run` pozostaje harness-em no-op do testowania
+wiringu i nie jest testem zachowania agentów. Downloader, indeks tekstu PDF, pełne scoped inputs
+etapów po A02 i scheduler fan-out/fan-in pozostają kolejnymi etapami.
 
 ### Zamknięta decyzja nadrzędna
 
@@ -89,8 +90,9 @@ logiczne etapy kontroli korzystają z tej definicji i przekazują jej specyficzn
   `shared/contracts/research_graph_input.schema.json`.
 - `[TK-DECISION: CLAIM-ASSESSMENT-MODEL]`, decyzja zostanie podjęta z TK podczas przeglądu 1b1
   agenta `g02-a08-claim-verification` i skilla `g02-a08-assess-claim-evidence`.
-- `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]`, warianty skilli dla Codex i narzędzia MCP do G02-A02
-  są generowane, ale wykonanie prawdziwych node agents nadal wymaga adaptera runtime hosta.
+- `[RESOLVED: CODEX-RESEARCH-RUNTIME-ADAPTER]`, warianty skilli, paczka agentów, MCP
+  `research_run_codex` oraz runner izolowanych `codex exec` są wdrożone. Pełny test zachowania
+  wszystkich producentów pozostaje osobnym etapem TEST.
 
 `[LOCKED PROJECT DECISION: SINGLE-REVIEWER]` oraz rozwiązany kontrakt wejściowy nie wymagają
 dalszych decyzji.

@@ -67,23 +67,23 @@ Możliwe rozstrzygnięcie TK:
 - `APPROVE_WITH_MAPPING`, model pozostaje i dodajemy etykietę kompatybilności,
 - `REVISE`, potrzebna jest zmiana wymiarów uzgadniana wspólnie.
 
-### `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]`
+### `[RESOLVED: CODEX-RESEARCH-RUNTIME-ADAPTER]`
 
-Host-specific skille są generowane dla Claude Code i Codex. Wariant Codex nie może jeszcze
-wykonać prawdziwego grafu, dopóki warstwa systemowa nie dostarczy:
+Host-specific skille i wspólne pliki agentów są generowane dla Claude Code i Codex. Operacja MCP
+`research_run_codex` oraz `shared/scripts/g02/g02_flow.py run-codex` prowadzą graf, uruchamiając
+każdy node jako izolowany `codex exec`. Z pierwotnego TODO pozostają dalsze pionowe wycinki:
 
 - rozszerzenia powierzchni MCP o operacje producentów po G02-A02 i kolejnych providerów,
-- sposobu uruchamiania fizycznych node agents z ograniczonym input bundle,
-- mapowania artifact refs i envelope między hostem a wspólnym runtime,
-- testu end-to-end wykonywanego bez no-op node runnera.
+- pełne scoped input bundles dla producentów po G02-A02,
+- scheduler fan-out/fan-in,
+- test end-to-end zachowania wszystkich producentów bez no-op node runnera.
 
-Do czasu implementacji adapter Codex ma zakończyć działanie jawnym
-`external_dependency_blocked`, zamiast symulować agentów w promptach.
+Brak CLI Codex lub logowania nadal prowadzi do jawnego `external_dependency_blocked`; runtime nie
+symuluje agentów we wspólnym kontekście orkiestratora.
 
-Repo udostępnia obecnie MCP `0.4.0` z czternastoma operacjami dla wejścia grafu, G02-A01,
+Repo udostępnia obecnie MCP `0.4.0` z piętnastoma operacjami dla wejścia grafu, G02-A01,
 G02-A02, statusu providerów, wyszukiwania metadanych, uniwersalnego reviewera, finalizacji i
-harnessu. TODO nie obejmuje ponownej implementacji tych operacji; pozostaje adapter realnych node
-agents oraz narzędzia następnych zestawów.
+harnessu, w tym `research_run_codex`. Kolejne zestawy dodają własne narzędzia deterministyczne.
 
 MCP stanowi granicę wywołania. OpenAlex, Semantic Scholar i arXiv są obsługiwane przez lokalne
 adaptery deterministyczne, które stosują limity, retry, rate limiting, cache i zapis proweniencji.
@@ -188,8 +188,7 @@ Reviewer decision jest artefaktem w `envelope.produced[]`. Nie zastępuje status
 Do dalszej integracji:
 
 - rozszerzyć `shared/contracts/` o zatwierdzone kontrakty pośrednie,
-- zastąpić no-op execution w `shared/scripts/g02/g02_flow.py` rzeczywistym uruchamianiem
-  agentów i ograniczaniem input bundles,
+- rozszerzyć realne wykonanie Codex o pełne scoped input bundles producentów po G02-A02,
 - dodać fan-out/fan-in dla niezależnych wyszukiwań i G02-A07 Paper Review,
 - podłączyć deterministyczne narzędzia literaturowe i konfigurację sekretów,
 - rozszerzyć testy o contracts, shape checks, revision loops i human gates,
@@ -198,7 +197,8 @@ Do dalszej integracji:
 Deterministyczna powierzchnia reviewera udostępnia `research_review_prepare` i
 `research_review_finalize`. Pierwsza operacja waliduje `review_task@1`, ogranicza dostęp do
 jednego artefaktu oraz zwraca jego shape validation i historię rewizji. Druga waliduje i
-utrwala `review_decision@1`. Wywołanie fizycznego node agenta nadal należy do adaptera runtime.
+utrwala `review_decision@1`. Fizyczne node agents uruchamia host adapter: Task w Claude albo
+izolowany `codex exec` w Codex.
 
 ## 10. Mechanika pozostająca bez zmian
 

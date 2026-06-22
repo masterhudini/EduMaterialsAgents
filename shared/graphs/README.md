@@ -30,10 +30,11 @@ registration must all agree with it. `core/graph_check.py` enforces no drift.
 
 `g02.graph.json` istnieje. Zawiera dziesięciu producentów, dwa human gates, jednego
 fizycznego `g02-a10-output-reviewer` oraz profile logicznych etapów review. Obowiązująca
-kolejność to planner, domain, równoległe canonical, recent i market cases, candidate index,
-source-selection gate, retrieval lub zatwierdzona ekstrakcja web, evidence review, claim
-verification, synthesis i final research gate. A11 jest obecnie scaffoldem definicji; seam Tavily
-zostanie dodany w jego pionowym wycinku po A03-A05.
+kolejność to planner, domain, canonical, recent, market cases, candidate index, source-selection
+gate, retrieval, evidence review, claim verification, synthesis i final research gate. Canonical,
+recent i market cases są logicznym fan-outem projektu, ale bieżący `g02_flow.py` wykonuje manifest
+sekwencyjnie. A11 jest scaffoldem definicji; seam Tavily zostanie dodany w jego pionowym wycinku po
+A03-A05.
 
 Węzły G02-A01 i G02-A02 mają zamrożone kontrakty wejścia i wyjścia. G02-A01 używa
 `research_planner_input@1` oraz `research_plan@1`, a G02-A02 używa
@@ -42,8 +43,8 @@ są dodawane razem z ich numerowanymi zestawami.
 
 Reviewer nie jest kopiowany jako osobny fizyczny node dla każdego producenta. Orkiestrator
 tworzy `review_task@1` na podstawie `review_profile`, uruchamia wspólnego reviewera i konsumuje
-`review_decision@1`. Pełne edges, fan-out i fan-in oraz revision policies zostaną zamrożone przy
-finalizacji orkiestratora.
+`review_decision@1`. Polityki rewizji są zamrożone w `retry_matrix`; jawne zależności, edges oraz
+scheduler fan-out/fan-in pozostają do dodania przy rozszerzeniu orkiestratora.
 
 `core/graph_check.py` kontroluje kontrakty graniczne grafu, oba kontrakty reviewera, zadeklarowane
 kontrakty wejścia i wyjścia producentów oraz obecność `review_profile` na każdym producer node.
