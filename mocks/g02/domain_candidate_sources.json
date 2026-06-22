@@ -1,0 +1,89 @@
+{
+  "schema_version": "domain_candidate_sources@1",
+  "artifact_version": "1.0.0",
+  "task_id": "RESEARCH_MOCK_001",
+  "topic_id": "TOPIC_BAYESIAN_COMPUTATION",
+  "research_plan_ref": "artifact://g02/research-plans/RESEARCH_MOCK_001.1.0.0.json",
+  "query_plan": {
+    "schema_version": "query_plan@1",
+    "artifact_version": "1.0.0",
+    "task_id": "RESEARCH_MOCK_001",
+    "topic_id": "TOPIC_BAYESIAN_COMPUTATION",
+    "routes": [],
+    "excluded_terms": ["generic Bayesian applications without computational analysis"]
+  },
+  "candidates": [
+    {
+      "schema_version": "source_record@1",
+      "source_id": "SRC_OPENALEX_4FBB7A48C33F038E",
+      "identifiers": {
+        "doi": "10.1214/17-sts668",
+        "openalex_id": "WMOCK0001",
+        "semantic_scholar_id": null,
+        "arxiv_id": null,
+        "isbn": null
+      },
+      "bibliographic": {
+        "title": "A Conceptual Introduction to Hamiltonian Monte Carlo",
+        "authors": ["Michael Betancourt"],
+        "year": 2017,
+        "venue": "arXiv",
+        "publisher": "Cornell University",
+        "language": "en",
+        "work_type": "article"
+      },
+      "content_available": {
+        "abstract": "Hamiltonian Monte Carlo supports efficient posterior sampling",
+        "abstract_source": "openalex",
+        "table_of_contents_available": false
+      },
+      "classification": {
+        "related_topics": ["TOPIC_BAYESIAN_COMPUTATION"],
+        "related_claims": [],
+        "source_roles": [],
+        "category": null
+      },
+      "signals": {
+        "cited_by_count": 1200,
+        "citation_percentile": null,
+        "recent_citation_velocity": null,
+        "internal_graph_centrality": null,
+        "recommendation_signal": null,
+        "canonical_score": null,
+        "rising_score": null
+      },
+      "access": {
+        "oa_status": "green",
+        "access_level": "abstract",
+        "candidate_pdf_urls": ["https://arxiv.org/pdf/1701.02434"],
+        "publisher_url": "https://doi.org/10.1214/17-STS668",
+        "library_access_required": false
+      },
+      "provenance": {
+        "source_apis": ["openalex"],
+        "provider_record_ids": {"openalex": "WMOCK0001"},
+        "retrieved_at": "2026-06-22T10:00:00Z",
+        "query_ids": ["QUERY_BAYESIAN_CORE"],
+        "raw_response_refs": ["artifact://g02/provider-raw/OP_MOCK_DOMAIN.page-1.json"],
+        "merged_from_records": []
+      },
+      "inclusion": {
+        "reason_included": ["returned_by_approved_query"],
+        "coverage_units": [],
+        "pool": "domain_raw"
+      }
+    }
+  ],
+  "query_log": [],
+  "coverage_map": [
+    {
+      "source_id": "SRC_OPENALEX_4FBB7A48C33F038E",
+      "coverage_unit_ids": ["COV_BAYESIAN_COST_CONDITIONS", "COV_POSTERIOR_METHODS"],
+      "basis": "abstract"
+    }
+  ],
+  "stop_reason": "partial_coverage",
+  "remaining_coverage_units": ["COV_BAYESIAN_COST_CONDITIONS", "COV_POSTERIOR_METHODS"],
+  "provider_issues": [],
+  "review_profile_ref": "domain_candidates"
+}

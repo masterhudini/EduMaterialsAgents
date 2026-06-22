@@ -1,0 +1,22 @@
+{
+  "offset": 0,
+  "next": null,
+  "data": [
+    {
+      "citingPaper": {
+        "paperId": "S2RECENT0001",
+        "title": "Scalable Hamiltonian Monte Carlo in Modern Probabilistic Programs",
+        "abstract": "A recent methodological study of scalable Hamiltonian Monte Carlo implementations.",
+        "year": 2025,
+        "authors": [{"authorId": "RECENTAUTHOR1", "name": "Recent Author"}],
+        "venue": "arXiv",
+        "externalIds": {"ArXiv": "2501.00001"},
+        "citationCount": 9,
+        "publicationTypes": ["Preprint"],
+        "isOpenAccess": true,
+        "openAccessPdf": {"url": "https://arxiv.org/pdf/2501.00001"},
+        "url": "https://www.semanticscholar.org/paper/S2RECENT0001"
+      }
+    }
+  ]
+}

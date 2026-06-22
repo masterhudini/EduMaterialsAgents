@@ -28,6 +28,7 @@ def test_initialize_and_tools_list():
     init = srv.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                        "params": {"protocolVersion": "2024-11-05"}})
     assert init["result"]["serverInfo"]["name"] == "edu-materials-research"
+    assert init["result"]["serverInfo"]["version"] == "0.6.0"
     assert init["result"]["protocolVersion"] == "2024-11-05"
     assert "prompts" in init["result"]["capabilities"]
 
@@ -39,6 +40,10 @@ def test_initialize_and_tools_list():
                      "research_provider_status", "research_domain_prepare",
                      "research_metadata_search", "research_domain_finalize",
                      "research_domain_review_task",
+                     "research_canonical_prepare", "research_citation_expand",
+                     "research_canonical_finalize", "research_canonical_review_task",
+                     "research_recent_prepare", "research_recent_finalize",
+                     "research_recent_review_task",
                      "research_review_prepare", "research_review_finalize",
                      "research_finalize", "research_run_stub", "research_run_codex"}
     run_codex = next(t for t in tools["result"]["tools"] if t["name"] == "research_run_codex")

@@ -1,0 +1,22 @@
+{
+  "offset": 0,
+  "next": null,
+  "data": [
+    {
+      "citingPaper": {
+        "paperId": "S2MOCK0003",
+        "title": "A Conceptual Introduction to Hamiltonian Monte Carlo",
+        "abstract": "A conceptual treatment of Hamiltonian Monte Carlo and posterior geometry.",
+        "year": 2017,
+        "authors": [{"authorId": "MOCKAUTHOR3", "name": "Michael Betancourt"}],
+        "venue": "arXiv",
+        "externalIds": {"DOI": "10.1214/17-STS668", "ArXiv": "1701.02434"},
+        "citationCount": 1200,
+        "publicationTypes": ["JournalArticle"],
+        "isOpenAccess": true,
+        "openAccessPdf": {"url": "https://arxiv.org/pdf/1701.02434"},
+        "url": "https://www.semanticscholar.org/paper/S2MOCK0003"
+      }
+    }
+  ]
+}

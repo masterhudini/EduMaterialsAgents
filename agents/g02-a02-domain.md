@@ -39,8 +39,8 @@ Return the artifact descriptor through `envelope@1.produced`.
 - `g02-expand-research-query`, required.
 - `g02-search-scholarly-metadata`, required.
 
-`g02-expand-citation-graph` is not used in this finalized slice. Citation expansion becomes
-available with G02-A03 after its deterministic operation is implemented.
+`g02-expand-citation-graph` is not used by A02. It belongs to the implemented G02-A03 slice and
+operates only on provider-resolvable seeds from the reviewed A02 artifact.
 
 ## Deterministic tools
 

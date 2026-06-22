@@ -1,7 +1,10 @@
 ## Host Adapter: Claude Code
 
-- Run inside the authorized discovery node after `research_domain_prepare`.
+- Run inside the authorized discovery node after `research_domain_prepare` or
+  `research_recent_prepare`.
 - Produce only `query_plan@1`, including one approved `generated_term_bases` entry for every
   generated term; do not expose WebSearch, WebFetch or provider tools during planning.
 - Preserve origin terms, exclusions, filters, coverage and provider capabilities exactly.
+- For A04, preserve the prepared calendar window in every route and keep a preprint route when
+  approved.
 - Hand the plan to `research_metadata_search` through the calling agent.

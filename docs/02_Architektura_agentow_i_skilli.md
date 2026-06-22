@@ -286,7 +286,7 @@ zwróconych przez providerów.
 
 ### 5.3. G02-A03 Canonical Sources Agent
 
-Uruchamiany po bazowym G02-A02 Domain, osobno dla topic lub domeny.
+Uruchamiany po zatwierdzonym G02-A02 Domain, osobno dla jednego topicu.
 
 **Cel:** uzupełnić pulę o źródła fundamentalne, monografie, podręczniki, przeglądy i ważne
 prace metodologiczne.
@@ -306,7 +306,22 @@ prace metodologiczne.
 - nie pobiera dokumentów,
 - nie wykonuje pełnego review.
 
-**Wyjście:** `CanonicalCandidateSources`.
+**Wejście:** `canonical_research_input@1` utworzone przez `research_canonical_prepare`. Scoped input
+zawiera zatwierdzony topic, reviewed `domain_candidate_sources@1`, wyłącznie zweryfikowane seedy
+providerów, nierozwiązane seedy planu, role, coverage, limit jednego hopu i pozbawione sekretów
+capabilities providerów.
+
+**Wyjście:** `candidate_sources@1` z `stream: canonical`, zapisane przez
+`research_canonical_finalize` i przekazane do review przez `research_canonical_review_task`.
+
+Ekspansja grafu jest wykonywana wyłącznie przez `research_citation_expand`: OpenAlex obsługuje
+`cited_by`, Semantic Scholar `references`, `cited_by` oraz `recommendations`, a arXiv pozostaje
+providerem wyszukiwania metadanych. Wyszukiwanie uzupełniające korzysta ze wspólnego
+`research_metadata_search`. Rekordy providerów są kopiowane bez zmian, natomiast role,
+canonicality basis, relacje cytowań, access statement i coverage trafiają do osobnych
+`canonical_annotations`. Każdy `literature_tool_result@1` zawiera `request.scope`; finalizacja
+akceptuje wynik tylko wtedy, gdy task, topic, ResearchPlan i reviewed A02 ref dokładnie odpowiadają
+wejściu A03. Profil review zamraża kryteria `CS-01` do `CS-06`.
 
 ### 5.4. G02-A04 Recent Developments Agent
 
@@ -330,7 +345,20 @@ uruchamiać oba węzły równolegle; bieżący `g02_flow.py` zachowuje kolejnoś
 - nie generuje treści slajdów,
 - nie pobiera dokumentów.
 
-**Wyjście:** `RecentCandidateSources`.
+**Wejście:** `recent_research_input@1` z `research_recent_prepare`. Okno kalendarzowe jest
+deterministycznie wyliczane z kopii intake `approved_research_scope.recency_window_years` w
+`research_plan@1` i ograniczane zatwierdzonymi datami topicu. Input zawiera reviewed A02,
+zweryfikowane seedy, role, coverage, limity i pozbawione sekretów capabilities.
+
+**Wyjście:** recent variant `candidate_sources@1`, zapisane przez `research_recent_finalize` i
+przekazane do review przez `research_recent_review_task`.
+
+Wszystkie trasy metadanych używają wspólnego `research_metadata_search` i dokładnie zamrożonego
+okna. Opcjonalny `research_citation_expand` zachowuje jeden hop i oznacza wyniki jako
+`recent_expansion`. Rekordy providerów pozostają niezmienione; `recent_annotations` rozdzielają
+role, recency basis, konserwatywny publication status, maturity, update class, relacje, coverage i
+`quality_status: not_assessed`. Wyniki narzędzi są związane przez `request.scope` z dokładnym task,
+topic, ResearchPlan i reviewed A02 ref. Profil review zamraża `RD-01` do `RD-06`.
 
 ### 5.5. G02-A05 Candidate Source Index Agent
 
@@ -683,7 +711,8 @@ przepływ do promptu).
 
 Definicja agenta, skilli, mocki oraz wpis w grafie tworzą obecnie scaffold. Operacje Tavily,
 semantyczna walidacja tras web i wykonanie po bramce człowieka zostaną dodane w pionowym wycinku
-A11 po A03-A05. Poniższe podpunkty opisują zachowanie docelowe, nie bieżącą gotowość runtime.
+A11 po A03 i A04, przed agregującym A05. Poniższe podpunkty opisują zachowanie docelowe, nie
+bieżącą gotowość runtime.
 
 ### 15.1. Cel i miejsce w grafie
 
@@ -708,6 +737,28 @@ jest abstrakcją z Tavily jako pierwszym i domyślnym adapterem (`tavily_search`
 Klucz API i parametry pochodzą ze zmiennych środowiskowych, nigdy z kontekstu LLM. Ekstrakcja
 pełnej treści następuje dopiero po bramce człowieka, na zatwierdzonych case'ach, co oszczędza
 kredyty Tavily i jest spójne z zasadą braku ciężkiego poboru przed bramką (A06).
+
+Drugim adapterem discovery będzie kontrolowana, samodzielnie utrzymywana instancja SearXNG przez
+jej API JSON. Zapewnia ona ścieżkę bez klucza i opłat per request, lecz wymaga własnej instancji lub
+zaufanej instancji administracyjnej oraz ponosi koszt infrastruktury. System nie wybiera losowych
+publicznych instancji i nie przekazuje agentowi ogólnej przeglądarki. Konfiguracja dopuszcza tryby
+`tavily`, `searxng` i `auto_budgeted`. W `auto_budgeted` SearXNG wykonuje ograniczone discovery, a
+Tavily uzupełnia braki wysokiego priorytetu i obsługuje ekstrakcję po bramce. Oba adaptery zwracają
+ten sam provider-neutral wynik z query, czasem, pozycją, URL, snippetem, providerem i provenance.
+
+Instancja SearXNG jest ustalana przez administratora przy instalacji, a nie przez intake lub model.
+Endpoint musi używać HTTPS, z wyjątkiem jawnie skonfigurowanego loopback podczas DEV. Runtime
+blokuje credentials w URL, zmianę origin przez redirect, adresy prywatne poza dozwolonym
+loopbackiem, nieobsługiwany content type i nadmierną odpowiedź. Obowiązują budżet tras, rate limit,
+cache, timeout, allowlista kategorii, preferencje domen tier 1/2 oraz pełny zapis provenance.
+
+Konfiguracja produkcyjna wymaga wspólnego kroku pierwszego uruchomienia. W tym samym formularzu
+system prosi o kontaktowy e-mail, `OPENALEX_API_KEY` i `TAVILY_API_KEY`. Klucz
+`SEMANTIC_SCHOLAR_API_KEY` jest prezentowany jako opcjonalny i użytkownik może jawnie go pominąć;
+arXiv nie wymaga klucza. Tavily jest konfigurowany od razu, także wtedy, gdy operacje A11 nie są
+jeszcze aktywne. Sekrety zapisuje magazyn poświadczeń hosta. Nie trafiają one do intake grafu,
+konfiguracji JSON, kontekstu LLM, artefaktów, cache ani logów. Obecny ręczny setup zmiennych
+środowiskowych pozostaje wyłącznie ścieżką DEV/TEST do czasu implementacji tego onboardingu.
 
 ### 15.3. Tiering źródeł i próg materialności
 

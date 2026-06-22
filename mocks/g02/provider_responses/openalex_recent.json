@@ -1,0 +1,44 @@
+{
+  "meta": {"count": 2, "db_response_time_ms": 12, "page": null, "per_page": 2, "next_cursor": null},
+  "results": [
+    {
+      "id": "https://openalex.org/WRECENT0001",
+      "doi": "https://doi.org/10.1000/recent-review-2025",
+      "title": "Recent Advances in Scalable Bayesian Computation",
+      "display_name": "Recent Advances in Scalable Bayesian Computation",
+      "authorships": [{"author": {"display_name": "Ada Researcher"}}],
+      "publication_year": 2025,
+      "primary_location": {
+        "landing_page_url": "https://doi.org/10.1000/recent-review-2025",
+        "pdf_url": null,
+        "source": {"display_name": "Annual Review of Statistics", "host_organization_name": "Mock Publisher"}
+      },
+      "language": "en",
+      "type": "review",
+      "cited_by_count": 84,
+      "abstract_inverted_index": {"Reviews": [0], "scalable": [1], "Bayesian": [2], "computation": [3], "and": [4], "posterior": [5], "sampling": [6], "methods": [7]},
+      "open_access": {"is_oa": true, "oa_status": "gold"},
+      "best_oa_location": {"pdf_url": "https://example.org/recent-review.pdf"}
+    },
+    {
+      "id": "https://openalex.org/WRECENT0002",
+      "doi": "https://doi.org/10.1000/recent-method-2024",
+      "title": "Adaptive Posterior Sampling at Scale",
+      "display_name": "Adaptive Posterior Sampling at Scale",
+      "authorships": [{"author": {"display_name": "Jan Methodologist"}}],
+      "publication_year": 2024,
+      "primary_location": {
+        "landing_page_url": "https://doi.org/10.1000/recent-method-2024",
+        "pdf_url": null,
+        "source": {"display_name": "Journal of Bayesian Computation", "host_organization_name": "Mock Society"}
+      },
+      "language": "en",
+      "type": "article",
+      "cited_by_count": 37,
+      "abstract_inverted_index": {"Introduces": [0], "adaptive": [1], "posterior": [2], "sampling": [3], "for": [4], "large": [5], "models": [6], "with": [7], "diagnostics": [8]},
+      "open_access": {"is_oa": false, "oa_status": "closed"},
+      "best_oa_location": {"pdf_url": null}
+    }
+  ],
+  "group_by": []
+}

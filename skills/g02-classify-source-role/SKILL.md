@@ -7,9 +7,9 @@ description: Assign evidence-based functional roles to scholarly source candidat
 
 ## Contract
 
-Consume a `SourceRecord`, topic requirements and available metadata or abstract. Produce one or
-more role assignments from the approved vocabulary, each with signals, confidence, access basis
-and mapped topics or claims.
+Consume an unchanged `source_record@1`, topic requirements and available metadata or abstract.
+Produce one or more separate role assignments from the approved vocabulary, each with signals,
+confidence, access basis and mapped topics, claims or coverage units.
 
 ## Workflow
 
@@ -25,6 +25,10 @@ and mapped topics or claims.
 4. Separate source role from scientific quality, stance and Open Access status.
 5. Assign multiple compatible roles when supported and record confidence for each.
 6. Leave a required role unassigned when evidence is insufficient; surface the coverage gap.
+7. For G02-A03, write assignments only into `canonical_annotations`; never place inferred roles in
+   the provider record's `classification.source_roles`.
+8. For G02-A04, write assignments only into `recent_annotations`. Keep recency, maturity,
+   `core_update`/`optional_trend`/`watch` and `quality_status` as separate fields.
 
 ## Output requirements
 

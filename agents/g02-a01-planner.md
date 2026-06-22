@@ -27,7 +27,8 @@ domains are outside scope.
 **Output artifact:** one `ResearchPlan` (`research_plan@1`) containing versioned bounded topics,
 driver and upstream links, required source roles, provider-neutral search strategies, observable
 coverage requirements, stop rules, declared input issues and preserved global constraints. Return
-its descriptor through `envelope@1.produced`.
+the unchanged `approved_research_scope`, including its recency policy, and its descriptor through
+`envelope@1.produced`.
 
 ## Required Skills
 
@@ -58,7 +59,9 @@ produced artifact.
 5. Define required source roles, provider-neutral core terms, bounded expansion areas, exclusions,
    allowed dates, languages, work types and approved seed-source IDs. Make every expansion area
    specific enough that A02 can trace a generated synonym, acronym, spelling variant or established
-   technical phrase back to it without reopening the intake.
+   technical phrase back to it without reopening the intake. When recent discovery and preprints
+   are approved, every topic requiring `current` sources must preserve `preprint` as an allowed
+   work type.
 6. Define observable coverage units and a stop rule within configured limits. Every stop rule must
    require a complementary search route before saturation.
 7. Account for every approved driver. A driver that cannot be planned must appear in both

@@ -1,0 +1,22 @@
+{
+  "offset": 0,
+  "next": null,
+  "data": [
+    {
+      "citedPaper": {
+        "paperId": "S2MOCK0002",
+        "title": "MCMC Using Hamiltonian Dynamics",
+        "abstract": "A methodological account of Hamiltonian dynamics for Markov chain Monte Carlo.",
+        "year": 2011,
+        "authors": [{"authorId": "MOCKAUTHOR2", "name": "Radford M. Neal"}],
+        "venue": "Handbook of Markov Chain Monte Carlo",
+        "externalIds": {"DOI": "10.1201/b10905-6"},
+        "citationCount": 4200,
+        "publicationTypes": ["BookChapter"],
+        "isOpenAccess": false,
+        "openAccessPdf": null,
+        "url": "https://www.semanticscholar.org/paper/S2MOCK0002"
+      }
+    }
+  ]
+}

@@ -24,6 +24,155 @@ scenariusze, wyniki i werdykty historycznych rund pozostają niezmienne.
 
 ## Wpisy
 
+### Decyzja DEV po Rundzie 6 — 2026-06-22 — bramka następnego batcha
+
+Właściciel zaakceptował zakres Rundy 6 jako wystarczającą bramkę wejściową do developmentu G02-A03,
+G02-A04, G02-A11 i G02-A05. Warstwa deterministyczna, live API, packaging i `graph_check` są zielone.
+Niewykonane forward testy A01/A02/A10 zostają świadomie przeniesione do wspólnego testu
+integracyjnego nowego batcha.
+
+Rozstrzygnięto politykę hosta Codex: `plugin.manifest.json` zachowuje
+`hosts.codex.includeAgents = true`. Oba bundle zawierają wspólne definicje agentów, a różnice
+pozostają w adapterach wykonania. Historyczne wyniki Rund 4/5 poprawnie opisują konfigurację z czasu
+ich wykonania i pozostają bez zmian. Bieżący stan dokumentują Runda 6 oraz rejestr 07.
+
+### Runda 6 — 2026-06-22 — Pełny re-run TEST 1+2+3 z żywym dostępem do API
+
+Środowisko: klon repo `ema-wsl` (WSL2), branch `main`, Python 3.14.4, `pytest` 9.1.1 z `.venv`.
+**Sieć wychodząca dostępna** (inaczej niż Rundy 1–5): bezpośredni HTTPS do `api.openalex.org` (200),
+`api.semanticscholar.org` i `export.arxiv.org`. Sekrety wyłącznie w env: `OPENALEX_API_KEY` (klucz
+podany przez właściciela, używany bez nawiasów), `EMAGENTS_RESEARCH_CONTACT_EMAIL`. Semantic Scholar
+uruchamiany keyless (klucz opcjonalny). Wartości sekretów nie były zapisywane do plików repo ani logów.
+
+**Werdykt zbiorczy: PASS na całej warstwie wykonywalnej deterministycznie ORAZ na live API smoke.
+Jedna rozbieżność config↔dokumentacja (Codex pakuje agentów). Trzy usterki repo z Rundy 5 — naprawione.
+Forward testy zachowania agentów (host executor) nie wykonane w tej rundzie.**
+
+#### Liczby
+
+- Pakiet `tests/` (pytest): **39/39 PASS** (0.7 s).
+- TEST 1 G02-A10 reviewer, harness deterministyczny na `review.py`: **40/40 PASS**.
+- TEST 2 G02-A01 planner, harness na `planner.py` + sparowane mocki: **32/32 PASS**.
+- TEST 3 G02-A02 domain, harness offline na `provider_config.py`/`query_planning.py`/`providers.py`/`domain.py`: **47/47 PASS**.
+- TEST 3 live API smoke (OpenAlex + Semantic Scholar keyless + arXiv): **24/24 PASS**.
+- Packaging/build + `graph_check`: oba bundle zbudowane, `graph_check` source/Claude/Codex `ok: true`.
+
+#### TEST 1 — reviewer (deterministycznie) — PASS
+
+Walidacja `review_task@1`: poprawny task przechodzi; brak każdego wymaganego pola (`review_id`,
+`task_id`, `producer_agent`, `artifact`, `review_profile`, `acceptance_criteria`, `severity_rules`)
+odrzucony; deskryptor artefaktu bez `type`/`ref`/`schema_version`/`artifact_version` odrzucony; `ref`
+bez `artifact://` odrzucony; `attempt>1` bez `previous_decision_ref` odrzucony; duplikat i
+zarezerwowany criterion_id odrzucone. Walidacja `review_decision@1`: APPROVED/REVISE/BLOCKED poprawne
+przechodzą; APPROVED z findings, REVISE bez findings, REVISE z blockerem, BLOCKED bez blockera,
+nieznany verdict/severity, nieautoryzowany criterion_id, open+closed overlap — odrzucone. Mapowanie
+severity w obu kierunkach dla wszystkich wartości; nieznana wartość rzuca błąd. Narzędzia: `prepare_review`
+zwraca dokładnie jeden zhydratowany artefakt; brak `severity_rules` z audit identity → BLOCKED
+`review_profile_error`; brak audit identity → envelope `failed` bez decyzji; niedostępny artefakt →
+BLOCKED `external_dependency_blocked`; `finalize_review_decision` zapisuje decyzję w `envelope@1` ze
+ścieżką `artifact://`; `execute_review_task` bez executora → BLOCKED `external_dependency_blocked`,
+wyjątek executora → `failed`, poprawny envelope reviewera → ok, błędny envelope → `failed`. Prompt
+injection w treści artefaktu pozostaje danymi — profil i kryteria niezmienione.
+
+#### TEST 2 — planner (deterministycznie) — PASS
+
+`scope_planner_input` produkuje `research_planner_input@1`, odrzuca pola producenta, nie mutuje
+źródłowego `research_graph_input@1`, przechodzi kontrakt. `validate_planner_input`: poprawne wejście
+ok; pusty `task_id`, pusty `output_language`, brak driverów, duplikat drivera — odrzucone.
+`validate_research_plan`: `mocks/g02/research_plan.json` przechodzi semantyczny walidator względem
+scoped inputu i jest `complete`; odrzucone: pusty `topics`, zmiana `task_id`, zmiana `output_language`,
+zły format `TOPIC_*`, duplikat topic id, zakazane pole producenta (`source_records`), zmiana
+`global_constraints`. `finalize_research_plan`: `status: ok`, dokładnie jeden deskryptor
+`research_plan@1` z `artifact_version` i ścieżką `artifact://`, brak mutacji obiektu planu.
+`prepare_planner`: first run ready; `revision_items` bez `previous_plan_ref` → odrzucone.
+`build_research_plan_review_task`: poprawny `review_task@1`, producent `g02-a01-planner`, profil
+`research_plan`, kryteria `RP-01`–`RP-06`. `execute_planner`: brak executora → `failed`, wyjątek →
+`failed`, happy path z wstrzykniętym planem → ok z deskryptorem `research_plan@1`.
+
+#### TEST 3 — domain (offline) — PASS
+
+Konfiguracja i bezpieczeństwo (`provider_config.py`): poprawny config → 3 capabilities; OpenAlex ready
+z kluczem+e-mailem; status bez wartości sekretu; `configured_key`/`optional_key`/`configured_key`
+poprawnie raportowane; brak e-maila przy OpenAlex/arXiv → błąd startu; brak `OPENALEX_API_KEY` przy
+OpenAlex → błąd startu; wyłączenie OpenAlex pozwala uruchomić resztę bez klucza; zły `schema_version`,
+ujemny limit, timeout>120, arXiv interval<3, ścieżka absolutna i traversal — odrzucone; allowlista
+blokuje HTTP i obcy host, akceptuje oficjalny. QueryPlan: `mocks/g02/query_plan.json` waliduje się
+względem scoped inputu; odrzucone — nieznana relacja, duplikat `route_id`, pusty canonical query,
+work_type spoza zakresu, route limit ponad max, duplikat/nadmiarowy `generated_term_bases`. Adaptery
+offline (wstrzyknięty transport + fixtures): OpenAlex/Semantic Scholar/arXiv normalizują się do ważnego
+`source_record@1` (OpenAlex z DOI); brak `id` → brak rekordu. Transport: cache hit na identycznym 2.
+wywołaniu; retry na 429 → sukces; nieretryowalne 404 kończy próbę po jednym wywołaniu; `final_url`
+poza origin odrzucony. Builder: `build_domain_review_task` tworzy `review_task@1` z profilem
+`domain_candidates`, kryteriami `DR-01`–`DR-06`, producentem `g02-a02-domain`.
+
+#### TEST 3 — live API smoke — PASS (po raz pierwszy odblokowane siecią)
+
+Ścieżka realnego kodu `prepare_domain` → `search_metadata` per provider, limit 2 rekordów, osobny
+`EMAGENTS_HOME`. Wyniki na żywo:
+
+- **OpenAlex**: `status ok`, 2 rekordy (np. „Nested sampling for general Bayesian computation"),
+  `authentication: configured_key`, `source_record@1` poprawny, raw-response ref obecny, identyczne
+  2. wywołanie = cache hit.
+- **Semantic Scholar (keyless)**: `status partial` z `provider_filter_unverifiable` (język — zgodne z
+  kontraktem), 2 rekordy, `optional_key`, `source_record@1` poprawny, raw ref, cache hit.
+- **arXiv**: `status partial` (język), 2 rekordy (np. „Approximate Bayesian Computation with Path
+  Signatures"), `authentication: none`, interval ≥3 s zachowany, raw ref, cache hit.
+- **Redakcja**: pełny skan testowego `EMAGENTS_HOME` (artefakty, cache) i przechwyconego stdout/stderr —
+  **wartość `OPENALEX_API_KEY` nie pojawia się nigdzie**. E-mail kontaktowy występuje tylko jako
+  identyfikujący `mailto`/User-Agent wysyłany do providerów (zgodne z polityką polite-pool), nie jako
+  wyciek do artefaktu.
+
+#### Packaging / build / graph_check — PASS (z jedną rozbieżnością)
+
+- `scripts/build-plugin.py` buduje oba bundle (Claude i Codex) bez mutacji plików źródłowych
+  (`git status` czysty po buildzie).
+- `graph_check.check_all`: source `host=source ok=true`; bundle Claude `host=claude ok=true`; bundle
+  Codex `host=codex ok=true` (autodetekcja po markerach `.claude-plugin`/`.codex-plugin`).
+- Inwentarz: 11 agentów i 20 skilli; `plugin.manifest.json` zgodny ze źródłem (11/20).
+- Bundle higieniczne: **0** wystąpień klucza i e-maila; brak `mocks/`, `tests/`, `__pycache__`, `.pyc`,
+  `.emagents`/cache/raw oraz lokalnego `g02-providers.json`; obecny `g02.providers.example.json`.
+- MCP `research_server.py`: `SERVER_INFO.version = 0.4.0`, lista `TOOLS` = **dokładnie 15** operacji
+  (z `research_run_codex`). Zgodne z oczekiwaniem dok. po Rundzie 5.
+
+#### Usterki z Rundy 5 — status
+
+1. **NAPRAWIONA.** `plugin.manifest.json` zawiera `g02-a11-market-cases` i jego dwa skille; inwentarz
+   źródła i manifestu zgodny (11 agentów, 20 skilli). Testy packagingu przechodzą.
+2. **NAPRAWIONA.** `tests/test_research_graph.py` wyznacza liczbę producer-agentów z grafu; testy
+   `test_node_input_map_exposes_per_agent_context` i `test_nodes_receive_mocked_context` zielone.
+3. **NAPRAWIONA.** MCP `0.4.0` z 15 operacjami — spójne między implementacją, `test_mcp_server.py`
+   i (po aktualizacji) rejestrem.
+
+#### Nowa rozbieżność do decyzji dev (config ↔ dokumentacja)
+
+- **Bundle Codex zawiera teraz pełny katalog `agents/` z plikami 11 agentów.** Przyczyna:
+  `plugin.manifest.json` → `hosts.codex.includeAgents = true` (zmiana z commita „Major runtime for
+  codex and claude upgrade"). To **świadoma zmiana konfiguracji**, nie błąd builda (`graph_check`
+  Codex nadal `ok: true`). Jednak wprost przeczy scenariuszom TEST w `07` (linie 118, 120, 152, 177,
+  219, 341: „Bundle Codex bez plików agentów", „build Codex nadal nie pakuje agentów") oraz wynikom
+  Rund 4/5 w `08`. **Decyzja dev:** albo zaktualizować `07`/`08`, że Codex celowo pakuje agentów,
+  albo cofnąć `hosts.codex.includeAgents` do `false`. Do czasu decyzji odpowiednie checkboxy „Codex
+  bez agentów" w `07` pozostawiono odznaczone/oznaczone jako nieaktualne.
+
+#### Nie wykonane w tej rundzie
+
+- **Forward testy zachowania agentów A01/A02 (i reviewera) na realnym host executorze (Claude/Codex
+  LLM).** Wymagają uruchomienia samych promptów agentów end-to-end przez izolowany executor hosta;
+  rejestr `07` stanowi, że brak takiego executora to jawny brak wykonania, nie zaliczenie. Warstwa
+  deterministyczna pod tymi agentami jest w pełni zielona (powyżej). Do wykonania jako osobny krok.
+
+#### Mapa „co zmienić w 07" po tej rundzie
+
+- TEST 3 „live API smoke": zaznaczono scenariusze faktycznie wykonane (preflight kluczy bez druku,
+  OpenAlex z kluczem, Semantic Scholar keyless, arXiv ≥3 s, cache miss/hit, skan redakcji, rozróżnienie
+  statusów). Scenariusz celowego nieprowokowania 429 zachowany (limit 2 rekordów, brak pętli).
+- TEST 2 i TEST 3 (warstwa deterministyczna): zaznaczono scenariusze pokryte harnessami powyżej.
+- Forward testy (Claude/Codex) i scenariusze „Codex bez agentów" pozostają odznaczone (odpowiednio:
+  niewykonane / rozbieżność do decyzji).
+- Warunki zamknięcia zadań 2 i 3 pozostają odznaczone do czasu forward testów i decyzji o Codex/agentach.
+
+---
+
 ### Runda 5 — 2026-06-21 — Zadania 2 i 3: G02-A01 Planner i G02-A02 Domain
 
 Środowisko: kopia repo (`EduMaterialsAgents-testing2`), Python 3.10, build i checki w katalogu

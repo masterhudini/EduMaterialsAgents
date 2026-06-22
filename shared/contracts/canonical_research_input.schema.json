@@ -1,0 +1,73 @@
+{
+  "title": "Scoped input for one G02-A03 Canonical Sources run",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "research_plan_ref",
+    "research_plan_artifact_version",
+    "domain_candidates_ref",
+    "domain_candidates_artifact_version",
+    "topic",
+    "domain_candidates",
+    "verified_seed_ids",
+    "unresolved_plan_seed_ids",
+    "required_roles",
+    "target_coverage_units",
+    "search_limits",
+    "provider_capabilities",
+    "output_language"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["canonical_research_input@1"]},
+    "task_id": {"type": "string"},
+    "research_plan_ref": {"type": "string"},
+    "research_plan_artifact_version": {"type": "string"},
+    "domain_candidates_ref": {"type": "string"},
+    "domain_candidates_artifact_version": {"type": "string"},
+    "topic": {"type": "object"},
+    "domain_candidates": {"type": "array", "items": {"type": "object"}},
+    "verified_seed_ids": {"type": "array", "items": {"type": "string"}},
+    "unresolved_plan_seed_ids": {"type": "array", "items": {"type": "string"}},
+    "required_roles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["canonical", "foundational", "survey", "methodological", "didactic"]
+      }
+    },
+    "target_coverage_units": {"type": "array", "items": {"type": "string"}},
+    "search_limits": {
+      "type": "object",
+      "required": ["candidate_limit", "citation_depth", "per_seed_relation_limit", "allowed_relations"],
+      "properties": {
+        "candidate_limit": {"type": "integer"},
+        "citation_depth": {"type": "integer"},
+        "per_seed_relation_limit": {"type": "integer"},
+        "allowed_relations": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["references", "cited_by", "recommendations"]}
+        }
+      }
+    },
+    "provider_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["provider", "enabled", "ready", "authentication"],
+        "properties": {
+          "provider": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv"]},
+          "enabled": {"type": "boolean"},
+          "ready": {"type": "boolean"},
+          "authentication": {
+            "type": "string",
+            "enum": ["none", "optional_key", "required_key_missing", "configured_key"]
+          }
+        }
+      }
+    },
+    "output_language": {"type": "string"}
+  }
+}

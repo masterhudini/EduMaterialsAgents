@@ -43,11 +43,12 @@ extend its fields inside the orchestrator.
    provider-neutral `query_plan@1`. Execute each authorized route through
    `research_metadata_search`; the agent never sends HTTP itself. Finalize only through
    `research_domain_finalize` and build review through `research_domain_review_task`.
-4. Invoke each later producer and persist its artifacts. Conceptually independent G02-A03 Canonical
-   Sources, G02-A04 Recent Developments and G02-A11 Market Cases runs may execute concurrently when
-   their runtime seams and manifest semantics allow it. They consume the approved G02-A02 Domain
-   result and join before G02-A05 Candidate Source Index. Until the Tavily seam is implemented,
-   surface A11 as `external_dependency_blocked`; do not browse in its place.
+4. From the reviewed A02 ref, run A03 through `research_canonical_prepare`, finalize and review
+   operations, and run A04 through `research_recent_prepare`, finalize and review operations.
+   Both use the shared metadata and citation operations with their own scoped inputs. They are
+   conceptually independent but the current scheduler remains serial. G02-A11 Market Cases joins
+   them before A05; until its web seam is implemented, surface A11 as
+   `external_dependency_blocked` and do not browse in its place.
 5. After every producer artifact, construct one `review_task@1` with the artifact, node profile,
    producer input, output contract, acceptance criteria and revision history. Prepare it through
    `research_review_prepare`, invoke `g02-a10-output-reviewer`, then submit the decision through

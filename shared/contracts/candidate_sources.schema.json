@@ -1,46 +1,268 @@
 {
-  "title": "CandidateSources \u2014 domain/canonical/recent discovery output (design 02 \u00a75.2-5.4).",
-  "x-version": "1.0",
+  "title": "Reviewed canonical, recent or market-case candidate stream",
+  "x-version": "1.2",
   "x-major": 1,
   "type": "object",
   "required": [
-    "candidates"
+    "schema_version",
+    "artifact_version",
+    "stream",
+    "task_id",
+    "topic_id",
+    "research_plan_ref",
+    "upstream_refs",
+    "query_plan",
+    "candidates",
+    "operation_log",
+    "coverage_map",
+    "remaining_coverage_units",
+    "provider_issues",
+    "unresolved_seed_ids",
+    "stop_reason",
+    "review_profile_ref"
   ],
   "properties": {
-    "candidates": {
+    "schema_version": {"type": "string", "enum": ["candidate_sources@1"]},
+    "artifact_version": {"type": "string"},
+    "stream": {"type": "string", "enum": ["canonical", "recent", "market_cases"]},
+    "task_id": {"type": "string"},
+    "topic_id": {"type": "string"},
+    "research_plan_ref": {"type": "string"},
+    "recency_window": {
+      "type": "object",
+      "required": ["as_of_year", "window_years", "year_from", "year_to", "basis"],
+      "properties": {
+        "as_of_year": {"type": "integer"},
+        "window_years": {"type": "integer"},
+        "year_from": {"type": "integer"},
+        "year_to": {"type": "integer"},
+        "basis": {"type": "string", "enum": ["approved_research_scope"]}
+      }
+    },
+    "upstream_refs": {
+      "type": "object",
+      "required": ["domain_candidate_sources"],
+      "properties": {
+        "domain_candidate_sources": {"type": "string"}
+      }
+    },
+    "query_plan": {"type": "object"},
+    "candidates": {"type": "array", "items": {"type": "object"}},
+    "canonical_annotations": {
       "type": "array",
       "items": {
         "type": "object",
         "required": [
-          "source_id"
+          "source_id",
+          "role_assignments",
+          "canonicality_basis",
+          "citation_relations",
+          "access_statement",
+          "coverage_unit_ids"
         ],
         "properties": {
-          "source_id": {
-            "type": "string"
+          "source_id": {"type": "string"},
+          "role_assignments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["role", "confidence", "observed_signals", "access_basis", "topic_ids", "coverage_unit_ids"],
+              "properties": {
+                "role": {"type": "string", "enum": ["canonical", "foundational", "survey", "methodological", "didactic"]},
+                "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+                "observed_signals": {"type": "array", "items": {"type": "string"}},
+                "access_basis": {"type": "string", "enum": ["metadata", "abstract", "table_of_contents", "preview", "partial_text", "full_text"]},
+                "topic_ids": {"type": "array", "items": {"type": "string"}},
+                "coverage_unit_ids": {"type": "array", "items": {"type": "string"}}
+              }
+            }
           },
-          "title": {
-            "type": "string"
+          "canonicality_basis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["signal_type", "observed_value", "evidence_source", "explanation"],
+              "properties": {
+                "signal_type": {"type": "string", "enum": ["domain_authoritative", "citation_relation", "citation_count", "survey_scope", "publication_history", "methodological_anchor", "curriculum_use"]},
+                "observed_value": {"type": "string"},
+                "evidence_source": {"type": "string", "enum": ["metadata", "citation_relation", "abstract", "table_of_contents", "domain_authority"]},
+                "explanation": {"type": "string"}
+              }
+            }
           },
-          "year": {
-            "type": "integer"
+          "citation_relations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["seed_source_id", "relation", "distance", "provider", "operation_id"],
+              "properties": {
+                "seed_source_id": {"type": "string"},
+                "relation": {"type": "string", "enum": ["references", "cited_by", "recommendations"]},
+                "distance": {"type": "integer"},
+                "provider": {"type": "string", "enum": ["openalex", "semantic_scholar"]},
+                "operation_id": {"type": "string"}
+              }
+            }
           },
-          "role": {
-            "type": "string"
+          "access_statement": {
+            "type": "object",
+            "required": ["access_level", "library_access_required", "accessible_surrogate_source_ids", "note"],
+            "properties": {
+              "access_level": {"type": "string", "enum": ["metadata_only", "abstract", "table_of_contents", "preview", "partial_text", "full_text"]},
+              "library_access_required": {"type": "boolean"},
+              "accessible_surrogate_source_ids": {"type": "array", "items": {"type": "string"}},
+              "note": {"type": "string"}
+            }
           },
-          "topic_id": {
-            "type": "string"
-          },
-          "relevance": {
-            "type": "string"
-          },
-          "metadata": {
-            "type": "object"
-          }
+          "coverage_unit_ids": {"type": "array", "items": {"type": "string"}}
         }
       }
     },
-    "query_trace": {
-      "type": "array"
-    }
+    "recent_annotations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id",
+          "role_assignments",
+          "recency_basis",
+          "publication_status",
+          "maturity_assessment",
+          "update_classification",
+          "citation_relations",
+          "coverage_unit_ids",
+          "quality_status"
+        ],
+        "properties": {
+          "source_id": {"type": "string"},
+          "role_assignments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["role", "confidence", "observed_signals", "access_basis", "topic_ids", "claim_ids", "coverage_unit_ids"],
+              "properties": {
+                "role": {"type": "string", "enum": ["current", "rising", "methodological", "claim_specific", "qualifying_or_critical"]},
+                "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+                "observed_signals": {"type": "array", "items": {"type": "string"}},
+                "access_basis": {"type": "string", "enum": ["metadata", "abstract", "table_of_contents", "preview", "partial_text", "full_text"]},
+                "topic_ids": {"type": "array", "items": {"type": "string"}},
+                "claim_ids": {"type": "array", "items": {"type": "string"}},
+                "coverage_unit_ids": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          },
+          "recency_basis": {
+            "type": "object",
+            "required": ["publication_year", "window_year_from", "window_year_to", "within_window"],
+            "properties": {
+              "publication_year": {"type": "integer"},
+              "window_year_from": {"type": "integer"},
+              "window_year_to": {"type": "integer"},
+              "within_window": {"type": "boolean"}
+            }
+          },
+          "publication_status": {
+            "type": "object",
+            "required": ["preprint_status", "peer_review_status", "basis"],
+            "properties": {
+              "preprint_status": {"type": "string", "enum": ["preprint", "not_preprint", "unknown"]},
+              "peer_review_status": {"type": "string", "enum": ["preprint", "published_unknown", "unknown"]},
+              "basis": {"type": "string"}
+            }
+          },
+          "maturity_assessment": {
+            "type": "object",
+            "required": ["level", "observed_signals"],
+            "properties": {
+              "level": {"type": "string", "enum": ["emerging", "developing", "established", "unknown"]},
+              "observed_signals": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["signal_type", "observed_value", "evidence_source"],
+                  "properties": {
+                    "signal_type": {"type": "string", "enum": ["citation_count", "recent_citation_velocity", "review_work_type", "multi_provider_presence", "abstract_scope", "citation_relation", "publication_status"]},
+                    "observed_value": {"type": "string"},
+                    "evidence_source": {"type": "string", "enum": ["metadata", "abstract", "citation_relation"]}
+                  }
+                }
+              }
+            }
+          },
+          "update_classification": {
+            "type": "object",
+            "required": ["class", "basis"],
+            "properties": {
+              "class": {"type": "string", "enum": ["core_update", "optional_trend", "watch"]},
+              "basis": {"type": "array", "items": {"type": "string"}}
+            }
+          },
+          "citation_relations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["seed_source_id", "relation", "distance", "provider", "operation_id"],
+              "properties": {
+                "seed_source_id": {"type": "string"},
+                "relation": {"type": "string", "enum": ["references", "cited_by", "recommendations"]},
+                "distance": {"type": "integer"},
+                "provider": {"type": "string", "enum": ["openalex", "semantic_scholar"]},
+                "operation_id": {"type": "string"}
+              }
+            }
+          },
+          "coverage_unit_ids": {"type": "array", "items": {"type": "string"}},
+          "quality_status": {"type": "string", "enum": ["not_assessed"]}
+        }
+      }
+    },
+    "operation_log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["operation_id", "operation_type", "provider", "status", "result_count", "literature_tool_result_ref"],
+        "properties": {
+          "operation_id": {"type": "string"},
+          "operation_type": {"type": "string", "enum": ["metadata_search", "citation_expand"]},
+          "provider": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv"]},
+          "status": {"type": "string", "enum": ["ok", "partial", "unavailable", "failed"]},
+          "result_count": {"type": "integer"},
+          "literature_tool_result_ref": {"type": "string"},
+          "route_id": {"type": "string"},
+          "query_id": {"type": "string"},
+          "seed_source_id": {"type": "string"},
+          "relation": {"type": "string", "enum": ["references", "cited_by", "recommendations"]}
+        }
+      }
+    },
+    "coverage_map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "coverage_unit_ids", "basis"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "coverage_unit_ids": {"type": "array", "items": {"type": "string"}},
+          "basis": {"type": "string", "enum": ["metadata", "title", "abstract", "citation_relation", "domain_authority"]}
+        }
+      }
+    },
+    "remaining_coverage_units": {"type": "array", "items": {"type": "string"}},
+    "provider_issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["operation_id", "provider", "status", "issues"],
+        "properties": {
+          "operation_id": {"type": "string"},
+          "provider": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv"]},
+          "status": {"type": "string", "enum": ["partial", "unavailable", "failed"]},
+          "issues": {"type": "array", "items": {"type": "object"}}
+        }
+      }
+    },
+    "unresolved_seed_ids": {"type": "array", "items": {"type": "string"}},
+    "stop_reason": {"type": "string", "enum": ["completed", "candidate_limit", "saturation", "provider_unavailable", "partial_coverage", "unresolved_seed"]},
+    "review_profile_ref": {"type": "string", "enum": ["canonical_sources", "recent_developments", "market_cases"]}
   }
 }

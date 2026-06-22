@@ -1,0 +1,21 @@
+{
+  "recommendedPapers": [
+    {
+      "paperId": "S2MOCK0004",
+      "title": "The No-U-Turn Sampler: Adaptively Setting Path Lengths in Hamiltonian Monte Carlo",
+      "abstract": "An adaptive Hamiltonian Monte Carlo method that avoids a fixed trajectory length.",
+      "year": 2014,
+      "authors": [
+        {"authorId": "MOCKAUTHOR4", "name": "Matthew D. Hoffman"},
+        {"authorId": "MOCKAUTHOR5", "name": "Andrew Gelman"}
+      ],
+      "venue": "Journal of Machine Learning Research",
+      "externalIds": {"ArXiv": "1111.4246"},
+      "citationCount": 5100,
+      "publicationTypes": ["JournalArticle"],
+      "isOpenAccess": true,
+      "openAccessPdf": {"url": "https://arxiv.org/pdf/1111.4246"},
+      "url": "https://www.semanticscholar.org/paper/S2MOCK0004"
+    }
+  ]
+}
