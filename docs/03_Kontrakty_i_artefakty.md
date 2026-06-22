@@ -126,6 +126,11 @@ ResearchPlan:
   schema_version: research_plan@1
   artifact_version: 1.0.0
   task_id: RESEARCH_001
+  approved_research_scope:
+    include_recent_developments: true
+    include_canonical_sources: true
+    include_didactic_examples: true
+    recency_window_years: 5
   topics:
     - topic_id: TOPIC_001
       name:
@@ -209,7 +214,7 @@ DomainCandidateSources:
   candidates: []
   query_log: []
   coverage_map: []
-  stop_reason: completed | candidate_limit | saturation | provider_unavailable | partial_coverage
+  stop_reason: completed | candidate_limit | saturation | provider_unavailable | partial_coverage | unresolved_seed
   remaining_coverage_units: []
   provider_issues:
     - operation_id:
@@ -236,6 +241,123 @@ providerów, filtry i limit. Każdy termin wygenerowany ma dokładnie jeden wpis
 zduplikowaną albo wykraczającą poza zatwierdzony topic podstawę. Wymagane są trasy core,
 complementary, a przy odpowiedniej roli także qualifying_or_critical. Wykonywalnym źródłem prawdy jest
 `shared/contracts/query_plan.schema.json` wraz z `shared/scripts/g02/query_planning.py`.
+
+### 3.3. Wejście i wyjście G02-A03
+
+Wykonywalnymi źródłami prawdy są `canonical_research_input@1` i canonical variant
+`candidate_sources@1`. Prepare hydratuje dokładnie jeden zatwierdzony topic oraz odpowiadający mu,
+reviewed `domain_candidate_sources@1`.
+
+```yaml
+CanonicalResearchInput:
+  schema_version: canonical_research_input@1
+  task_id:
+  research_plan_ref:
+  research_plan_artifact_version:
+  domain_candidates_ref:
+  domain_candidates_artifact_version:
+  topic: {}
+  domain_candidates: []
+  verified_seed_ids: []
+  unresolved_plan_seed_ids: []
+  required_roles: [canonical, foundational, survey, methodological, didactic]
+  target_coverage_units: []
+  search_limits:
+    candidate_limit:
+    citation_depth: 1
+    per_seed_relation_limit:
+    allowed_relations: [references, cited_by, recommendations]
+  provider_capabilities: []
+  output_language:
+
+CanonicalCandidateSources:
+  schema_version: candidate_sources@1
+  artifact_version:
+  stream: canonical
+  task_id:
+  topic_id:
+  research_plan_ref:
+  upstream_refs:
+    domain_candidate_sources: artifact://...
+  query_plan: {}
+  candidates: []
+  canonical_annotations: []
+  operation_log: []
+  coverage_map: []
+  remaining_coverage_units: []
+  provider_issues: []
+  unresolved_seed_ids: []
+  stop_reason: completed | candidate_limit | saturation | provider_unavailable | partial_coverage
+  review_profile_ref: canonical_sources
+```
+
+`research_citation_expand` wykonuje wyłącznie jeden hop. OpenAlex obsługuje `cited_by`, Semantic
+Scholar obsługuje `references`, `cited_by` i `recommendations`, a arXiv nie jest traktowany jako
+provider grafu cytowań. Complementary metadata routes używają istniejącego
+`research_metadata_search` z `canonical_input`. Kandydaci są kopiowani bez zmian z reviewed pool
+albo z `literature_tool_result@1`; role, canonicality basis, relacje, dostęp i coverage pozostają w
+oddzielnych `canonical_annotations`.
+
+### 3.4. Wejście i wyjście G02-A04
+
+`research_plan@1` zachowuje niezmienione `approved_research_scope` z intake. Prepare A04 wylicza
+okno w latach kalendarzowych włącznie. Dla `recency_window_years: 5` i roku uruchomienia 2026
+oknem jest 2022–2026. Jawne ograniczenia `year_from` i `year_to` mogą je wyłącznie zawęzić.
+
+```yaml
+RecentResearchInput:
+  schema_version: recent_research_input@1
+  task_id:
+  research_plan_ref:
+  research_plan_artifact_version:
+  domain_candidates_ref:
+  domain_candidates_artifact_version:
+  topic: {}
+  domain_candidates: []
+  verified_seed_ids: []
+  recency_window:
+    as_of_year: 2026
+    window_years: 5
+    year_from: 2022
+    year_to: 2026
+    basis: approved_research_scope
+  required_roles: [current, rising, methodological, claim_specific, qualifying_or_critical]
+  target_coverage_units: []
+  search_limits:
+    candidate_limit:
+    citation_depth: 1
+    per_seed_relation_limit:
+    allowed_relations: [references, cited_by, recommendations]
+  provider_capabilities: []
+  output_language:
+
+RecentCandidateSources:
+  schema_version: candidate_sources@1
+  artifact_version:
+  stream: recent
+  task_id:
+  topic_id:
+  research_plan_ref:
+  upstream_refs:
+    domain_candidate_sources: artifact://...
+  recency_window: {}
+  query_plan: {}
+  candidates: []
+  recent_annotations: []
+  operation_log: []
+  coverage_map: []
+  remaining_coverage_units: []
+  provider_issues: []
+  unresolved_seed_ids: []
+  stop_reason: completed | candidate_limit | saturation | provider_unavailable | partial_coverage
+  review_profile_ref: recent_developments
+```
+
+Publication year musi mieścić się w zamrożonym oknie. `preprint` jest rozpoznawany wyłącznie z
+rekordu providera. Pozostała publikacja otrzymuje `published_unknown`, ponieważ sam venue albo
+work type nie dowodzi peer review. `core_update` wymaga poziomu `established`, co najmniej dwóch
+walidowalnych sygnałów, abstraktu i statusu innego niż preprint. Jakość naukowa pozostaje
+`not_assessed` do późniejszego review pełnotekstowego.
 
 ## 4. Rekord źródła
 
@@ -346,11 +468,17 @@ LiteratureToolResult:
 
   request:
     route_id:
-    query_id: null
-    canonical_query: null
+    query_id:
+    canonical_query:
     filters: {}
     cursor: null
     limit:
+    scope:
+      input_contract:
+      task_id:
+      topic_id:
+      research_plan_ref:
+      domain_candidates_ref: null
 
   records: []
   file_descriptors: []
@@ -385,7 +513,7 @@ Wykonywalnymi źródłami prawdy są `shared/contracts/source_record.schema.json
 Scaffold A11 rozszerza `query_plan@1` o opcjonalny blok trasy `web` i providera `tavily`, a
 `source_record@1` o opcjonalne `record_type: market_case`, blok `web_case` oraz
 `access_level: web_page`. Są to dodatki w major version 1. Bieżący `query_planning.py`,
-`providers.py` i `literature_tool_result@1` nadal obsługują wyłącznie wyszukiwanie naukowe A02.
+`providers.py` i `literature_tool_result@1` obsługują wyszukiwanie naukowe A02, A03 i A04.
 Osobny wynik operacji web, walidacja semantyczna trasy oraz reguła ekstrakcji wyłącznie po Human
 Source Selection Gate zostaną zamrożone z runtime A11. Do tego czasu kontrakty scaffoldu nie
 oznaczają dostępności `research_web_case_search` ani `research_web_case_extract`.

@@ -10,7 +10,10 @@ Methods: initialize, notifications/* (ignored), ping, tools/list, tools/call.
 Tools: research_front_door, research_node_input, research_planner_prepare,
 research_planner_finalize, research_plan_review_task, research_provider_status,
 research_domain_prepare, research_metadata_search, research_domain_finalize,
-research_domain_review_task, research_review_prepare, research_review_finalize,
+research_domain_review_task, research_canonical_prepare, research_citation_expand,
+research_canonical_finalize, research_canonical_review_task,
+research_recent_prepare, research_recent_finalize, research_recent_review_task,
+research_review_prepare, research_review_finalize,
 research_finalize, research_run_stub.
 """
 from __future__ import annotations
@@ -24,6 +27,9 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))  # -> share
 
 from g02 import g02_flow as rf  # noqa: E402
 from g02 import domain  # noqa: E402
+from g02 import canonical  # noqa: E402
+from g02 import citations  # noqa: E402
+from g02 import recent  # noqa: E402
 from g02 import planner  # noqa: E402
 from g02 import provider_config  # noqa: E402
 from g02 import providers  # noqa: E402
@@ -31,7 +37,7 @@ from g02 import review as reviewer  # noqa: E402
 from core import artifacts, graphs, handoff  # noqa: E402
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "edu-materials-research", "version": "0.4.0"}
+SERVER_INFO = {"name": "edu-materials-research", "version": "0.6.0"}
 
 
 # ---- tool implementations (return JSON-serializable values) --------------
@@ -130,9 +136,14 @@ def _domain_prepare(args: dict):
 
 
 def _metadata_search(args: dict):
+    inputs = [args.get(name) for name in ("domain_input", "canonical_input", "recent_input")
+              if args.get(name) is not None]
+    if len(inputs) != 1:
+        raise ValueError("exactly one of domain_input, canonical_input or recent_input is required")
+    discovery_input = inputs[0]
     return providers.search_metadata(
         args["query_plan"],
-        args["domain_input"],
+        discovery_input,
         route_id=args["route_id"],
         provider=args["provider"],
         cursor=args.get("cursor"),
@@ -168,6 +179,107 @@ def _domain_review_task(args: dict):
         return prepared["envelope"]
     return domain.build_domain_review_task(
         prepared["domain_input"],
+        args["artifact"],
+        review_id=args["review_id"],
+        attempt=args.get("attempt", 1),
+        previous_decision_ref=args.get("previous_decision_ref"),
+        producer_revision_response=args.get("producer_revision_response"),
+    )
+
+
+def _canonical_prepare(args: dict):
+    return canonical.prepare_canonical(
+        args["research_plan_ref"],
+        args["domain_candidates_ref"],
+        args["topic_id"],
+        config_path=args.get("config"),
+        previous_candidates_ref=args.get("previous_candidates_ref"),
+        revision_items=args.get("revision_items"),
+    )
+
+
+def _citation_expand(args: dict):
+    return citations.expand_citations(
+        args["discovery_input"],
+        seed_source_id=args["seed_source_id"],
+        provider=args["provider"],
+        relation=args["relation"],
+        cursor=args.get("cursor"),
+        limit=args.get("limit"),
+        config_path=args.get("config"),
+    )
+
+
+def _recent_prepare(args: dict):
+    return recent.prepare_recent(
+        args["research_plan_ref"], args["domain_candidates_ref"], args["topic_id"],
+        config_path=args.get("config"),
+        previous_candidates_ref=args.get("previous_candidates_ref"),
+        revision_items=args.get("revision_items"),
+    )
+
+
+def _recent_finalize(args: dict):
+    prepared = recent.prepare_recent(
+        args["research_plan_ref"], args["domain_candidates_ref"], args["topic_id"],
+        config_path=args.get("config"),
+        previous_candidates_ref=args.get("previous_candidates_ref"),
+        revision_items=args.get("revision_items"),
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return recent.finalize_recent_candidates(
+        prepared["recent_input"], args["output"],
+        previous_candidates=prepared["previous_candidates"],
+        revision_items=prepared["revision_items"],
+    )
+
+
+def _recent_review_task(args: dict):
+    prepared = recent.prepare_recent(
+        args["research_plan_ref"], args["domain_candidates_ref"], args["topic_id"],
+        config_path=args.get("config"),
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return recent.build_recent_review_task(
+        prepared["recent_input"], args["artifact"], review_id=args["review_id"],
+        attempt=args.get("attempt", 1),
+        previous_decision_ref=args.get("previous_decision_ref"),
+        producer_revision_response=args.get("producer_revision_response"),
+    )
+
+
+def _canonical_finalize(args: dict):
+    prepared = canonical.prepare_canonical(
+        args["research_plan_ref"],
+        args["domain_candidates_ref"],
+        args["topic_id"],
+        config_path=args.get("config"),
+        previous_candidates_ref=args.get("previous_candidates_ref"),
+        revision_items=args.get("revision_items"),
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return canonical.finalize_canonical_candidates(
+        prepared["canonical_input"],
+        args["output"],
+        previous_candidates=prepared["previous_candidates"],
+        revision_items=prepared["revision_items"],
+    )
+
+
+def _canonical_review_task(args: dict):
+    prepared = canonical.prepare_canonical(
+        args["research_plan_ref"],
+        args["domain_candidates_ref"],
+        args["topic_id"],
+        config_path=args.get("config"),
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return canonical.build_canonical_review_task(
+        prepared["canonical_input"],
         args["artifact"],
         review_id=args["review_id"],
         attempt=args.get("attempt", 1),
@@ -321,14 +433,17 @@ TOOLS = [
     },
     {
         "name": "research_metadata_search",
-        "description": "Execute exactly one authorized QueryPlan route against one configured "
-                       "scholarly metadata provider. The deterministic adapter applies limits, "
-                       "retry, caching, normalization, provenance and raw-response persistence.",
+        "description": "Execute exactly one authorized QueryPlan route for G02-A02, G02-A03 or "
+                       "G02-A04 against one configured scholarly provider. Supply exactly one "
+                       "of domain_input, canonical_input or recent_input. The deterministic "
+                       "adapter applies limits, retry, caching, normalization and provenance.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "query_plan": {"type": "object"},
                 "domain_input": {"type": "object"},
+                "canonical_input": {"type": "object"},
+                "recent_input": {"type": "object"},
                 "route_id": {"type": "string"},
                 "provider": {
                     "type": "string",
@@ -337,7 +452,7 @@ TOOLS = [
                 "cursor": {"type": "string"},
                 "config": {"type": "string"},
             },
-            "required": ["query_plan", "domain_input", "route_id", "provider"],
+            "required": ["query_plan", "route_id", "provider"],
         },
     },
     {
@@ -375,6 +490,147 @@ TOOLS = [
                 "config": {"type": "string"},
             },
             "required": ["research_plan_ref", "topic_id", "artifact", "review_id"],
+        },
+    },
+    {
+        "name": "research_canonical_prepare",
+        "description": "Hydrate one approved ResearchPlan topic and its reviewed G02-A02 "
+                       "DomainCandidateSources, then return canonical_research_input@1 with "
+                       "verified provider-resolvable seeds, canonical roles, target coverage, "
+                       "bounded citation limits and secret-free capabilities.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "domain_candidates_ref": {"type": "string"},
+                "topic_id": {"type": "string"},
+                "config": {"type": "string"},
+                "previous_candidates_ref": {"type": "string"},
+                "revision_items": {"type": "array", "items": {"type": "object"}},
+            },
+            "required": ["research_plan_ref", "domain_candidates_ref", "topic_id"],
+        },
+    },
+    {
+        "name": "research_citation_expand",
+        "description": "Execute one authorized one-hop citation relation for a verified A03 or "
+                       "A04 seed. OpenAlex supports cited_by; Semantic Scholar supports "
+                       "references, cited_by and recommendations. The result is persisted as "
+                       "literature_tool_result@1 with normalized source_record@1 values.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "discovery_input": {"type": "object"},
+                "seed_source_id": {"type": "string"},
+                "provider": {
+                    "type": "string",
+                    "enum": ["openalex", "semantic_scholar", "arxiv"],
+                },
+                "relation": {
+                    "type": "string",
+                    "enum": ["references", "cited_by", "recommendations"],
+                },
+                "cursor": {"type": "string"},
+                "limit": {"type": "integer"},
+                "config": {"type": "string"},
+            },
+            "required": ["discovery_input", "seed_source_id", "provider", "relation", "limit"],
+        },
+    },
+    {
+        "name": "research_canonical_finalize",
+        "description": "Validate G02-A03 output against its scoped canonical input, reviewed "
+                       "domain records and every persisted metadata or citation result, then "
+                       "store canonical candidate_sources@1 and return envelope@1.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "domain_candidates_ref": {"type": "string"},
+                "topic_id": {"type": "string"},
+                "output": {"type": "object"},
+                "config": {"type": "string"},
+                "previous_candidates_ref": {"type": "string"},
+                "revision_items": {"type": "array", "items": {"type": "object"}},
+            },
+            "required": ["research_plan_ref", "domain_candidates_ref", "topic_id", "output"],
+        },
+    },
+    {
+        "name": "research_canonical_review_task",
+        "description": "Freeze the canonical_sources review profile and build one "
+                       "review_task@1 for a persisted G02-A03 canonical artifact descriptor.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "domain_candidates_ref": {"type": "string"},
+                "topic_id": {"type": "string"},
+                "artifact": {"type": "object"},
+                "review_id": {"type": "string"},
+                "attempt": {"type": "integer"},
+                "previous_decision_ref": {"type": "string"},
+                "producer_revision_response": {"type": "object"},
+                "config": {"type": "string"},
+            },
+            "required": ["research_plan_ref", "domain_candidates_ref", "topic_id", "artifact", "review_id"],
+        },
+    },
+    {
+        "name": "research_recent_prepare",
+        "description": "Hydrate one approved current-source topic and reviewed A02 pool, derive "
+                       "the exact calendar window from intake recency_window_years, and return "
+                       "secret-free recent_research_input@1.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "domain_candidates_ref": {"type": "string"},
+                "topic_id": {"type": "string"},
+                "config": {"type": "string"},
+                "previous_candidates_ref": {"type": "string"},
+                "revision_items": {"type": "array", "items": {"type": "object"}},
+            },
+            "required": ["research_plan_ref", "domain_candidates_ref", "topic_id"],
+        },
+    },
+    {
+        "name": "research_recent_finalize",
+        "description": "Validate G02-A04 output against its intake-derived recency window, "
+                       "reviewed A02 records and persisted search operations, then store the "
+                       "recent candidate_sources@1 stream and return envelope@1.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "domain_candidates_ref": {"type": "string"},
+                "topic_id": {"type": "string"},
+                "output": {"type": "object"},
+                "config": {"type": "string"},
+                "previous_candidates_ref": {"type": "string"},
+                "revision_items": {"type": "array", "items": {"type": "object"}},
+            },
+            "required": ["research_plan_ref", "domain_candidates_ref", "topic_id", "output"],
+        },
+    },
+    {
+        "name": "research_recent_review_task",
+        "description": "Freeze RD-01 through RD-06 and build one recent_developments "
+                       "review_task@1 for a persisted G02-A04 artifact.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "domain_candidates_ref": {"type": "string"},
+                "topic_id": {"type": "string"},
+                "artifact": {"type": "object"},
+                "review_id": {"type": "string"},
+                "attempt": {"type": "integer"},
+                "previous_decision_ref": {"type": "string"},
+                "producer_revision_response": {"type": "object"},
+                "config": {"type": "string"},
+            },
+            "required": ["research_plan_ref", "domain_candidates_ref", "topic_id", "artifact", "review_id"],
         },
     },
     {
@@ -505,6 +761,13 @@ DISPATCH = {
     "research_metadata_search": _metadata_search,
     "research_domain_finalize": _domain_finalize,
     "research_domain_review_task": _domain_review_task,
+    "research_canonical_prepare": _canonical_prepare,
+    "research_citation_expand": _citation_expand,
+    "research_canonical_finalize": _canonical_finalize,
+    "research_canonical_review_task": _canonical_review_task,
+    "research_recent_prepare": _recent_prepare,
+    "research_recent_finalize": _recent_finalize,
+    "research_recent_review_task": _recent_review_task,
     "research_review_prepare": _review_prepare,
     "research_review_finalize": _review_finalize,
     "research_finalize": _finalize,

@@ -27,6 +27,8 @@ from g02 import provider_config, query_planning
 TOOL_RESULT_CONTRACT = "literature_tool_result@1"
 SOURCE_RECORD_CONTRACT = "source_record@1"
 DOMAIN_INPUT_CONTRACT = "domain_research_input@1"
+CANONICAL_INPUT_CONTRACT = "canonical_research_input@1"
+RECENT_INPUT_CONTRACT = "recent_research_input@1"
 RESEARCH_PLAN_CONTRACT = "research_plan@1"
 PROVIDERS = ("openalex", "semantic_scholar", "arxiv")
 ENDPOINTS = {
@@ -520,6 +522,8 @@ def _normalize_openalex(item: object, *, query_id: str, topic_id: str,
     record["access"]["oa_status"] = open_access.get("oa_status") or (
         "open" if open_access.get("is_oa") is True else "unknown"
     )
+    if open_access.get("is_oa") is False:
+        record["access"]["library_access_required"] = True
     best_oa = item.get("best_oa_location") if isinstance(item.get("best_oa_location"), dict) else {}
     pdf_urls = [url for url in (best_oa.get("pdf_url"), primary.get("pdf_url"))
                 if isinstance(url, str) and url.startswith("http")]
@@ -569,6 +573,7 @@ def _normalize_semantic_scholar(item: object, *, query_id: str, topic_id: str,
         record["access"]["oa_status"] = "open"
     elif item.get("isOpenAccess") is False:
         record["access"]["oa_status"] = "closed"
+        record["access"]["library_access_required"] = True
     if isinstance(pdf_url, str) and pdf_url.startswith("http"):
         record["access"]["oa_status"] = "open"
         record["access"]["candidate_pdf_urls"] = [pdf_url]
@@ -784,8 +789,23 @@ def _parse_page(provider: str, body_text: str, *, query_id: str, topic_id: str,
     return records, None if exhausted else str(next_offset), exhausted
 
 
+def _operation_scope(discovery_input: object) -> dict:
+    value = discovery_input if isinstance(discovery_input, dict) else {}
+    topic = value.get("topic") if isinstance(value.get("topic"), dict) else {}
+    return {
+        "input_contract": str(value.get("schema_version", "unknown")),
+        "task_id": value.get("task_id") if isinstance(value.get("task_id"), str) else None,
+        "topic_id": topic.get("topic_id") if isinstance(topic.get("topic_id"), str) else None,
+        "research_plan_ref": value.get("research_plan_ref")
+        if isinstance(value.get("research_plan_ref"), str) else None,
+        "domain_candidates_ref": value.get("domain_candidates_ref")
+        if isinstance(value.get("domain_candidates_ref"), str) else None,
+    }
+
+
 def _failed_result(provider: str, route: dict, *, started_at: str, status: str,
-                   issue: dict, config_profile: str = "unavailable") -> dict:
+                   issue: dict, operation_scope: dict,
+                   config_profile: str = "unavailable") -> dict:
     completed_at = _utc_now()
     return {
         "schema_version": TOOL_RESULT_CONTRACT,
@@ -802,6 +822,7 @@ def _failed_result(provider: str, route: dict, *, started_at: str, status: str,
             "filters": route.get("filters") if isinstance(route.get("filters"), dict) else {},
             "cursor": None,
             "limit": route.get("limit") if isinstance(route.get("limit"), int) else 0,
+            "scope": operation_scope,
         },
         "records": [],
         "file_descriptors": [],
@@ -833,18 +854,32 @@ def _store_result(result: dict, config: provider_config.ProviderRuntimeConfig, *
     return returned
 
 
-def _domain_basis_errors(domain_input: object,
-                         config: provider_config.ProviderRuntimeConfig, *, base=None) -> list[str]:
-    checked = contracts.validate(domain_input, DOMAIN_INPUT_CONTRACT)
+def _discovery_basis_errors(domain_input: object,
+                            config: provider_config.ProviderRuntimeConfig, *, base=None) -> list[str]:
+    version = domain_input.get("schema_version") if isinstance(domain_input, dict) else None
+    contract_ref = version if version in {CANONICAL_INPUT_CONTRACT, RECENT_INPUT_CONTRACT} \
+        else DOMAIN_INPUT_CONTRACT
+    checked = contracts.validate(domain_input, contract_ref)
     if not checked["ok"] or not isinstance(domain_input, dict):
-        return checked["errors"] or ["domain input must be an object"]
-    allowed_fields = {
+        return checked["errors"] or ["discovery input must be an object"]
+    allowed_fields = ({
         "schema_version", "task_id", "research_plan_ref", "research_plan_artifact_version",
         "topic", "provider_capabilities", "output_language",
-    }
+    } if contract_ref == DOMAIN_INPUT_CONTRACT else ({
+        "schema_version", "task_id", "research_plan_ref", "research_plan_artifact_version",
+        "domain_candidates_ref", "domain_candidates_artifact_version", "topic",
+        "domain_candidates", "verified_seed_ids", "unresolved_plan_seed_ids",
+        "required_roles", "target_coverage_units", "search_limits",
+        "provider_capabilities", "output_language",
+    } if contract_ref == CANONICAL_INPUT_CONTRACT else {
+        "schema_version", "task_id", "research_plan_ref", "research_plan_artifact_version",
+        "domain_candidates_ref", "domain_candidates_artifact_version", "topic",
+        "domain_candidates", "verified_seed_ids", "recency_window", "required_roles",
+        "target_coverage_units", "search_limits", "provider_capabilities", "output_language",
+    }))
     unknown_fields = sorted(set(domain_input) - allowed_fields)
     if unknown_fields:
-        return [f"domain input contains unsupported fields {unknown_fields}"]
+        return [f"discovery input contains unsupported fields {unknown_fields}"]
     ref = domain_input.get("research_plan_ref")
     if not isinstance(ref, str) or not ref.startswith(artifacts.SCHEME):
         return ["research_plan_ref must use artifact://"]
@@ -860,7 +895,7 @@ def _domain_basis_errors(domain_input: object,
     matches = [item for item in plan.get("topics", [])
                if isinstance(item, dict) and item.get("topic_id") == topic_id]
     errors = []
-    if len(matches) != 1 or matches[0] != topic:
+    if contract_ref != RECENT_INPUT_CONTRACT and (len(matches) != 1 or matches[0] != topic):
         errors.append("scoped topic differs from the approved ResearchPlan topic")
     for field, expected in (
         ("task_id", plan.get("task_id")),
@@ -872,6 +907,14 @@ def _domain_basis_errors(domain_input: object,
     current_capabilities = config.public_status()["capabilities"]
     if domain_input.get("provider_capabilities") != current_capabilities:
         errors.append("provider_capabilities differ from the active provider configuration")
+    if contract_ref == CANONICAL_INPUT_CONTRACT:
+        from g02 import canonical
+        basis = canonical.validate_canonical_basis(domain_input, base=base)
+        errors.extend(item["message"] for item in basis["issues"])
+    elif contract_ref == RECENT_INPUT_CONTRACT:
+        from g02 import recent
+        basis = recent.validate_recent_basis(domain_input, base=base)
+        errors.extend(item["message"] for item in basis["issues"])
     return errors
 
 
@@ -882,6 +925,7 @@ def search_metadata(query_plan: object, domain_input: object, *, route_id: str,
                     transport: Transport | None = None) -> dict:
     """Execute one authorized route/provider pull and return a persisted tool result."""
     started_at = _utc_now()
+    operation_scope = _operation_scope(domain_input)
     placeholder = {
         "route_id": route_id,
         "query_id": "UNKNOWN",
@@ -899,6 +943,7 @@ def search_metadata(query_plan: object, domain_input: object, *, route_id: str,
         return _failed_result(
             provider, placeholder, started_at=started_at, status="failed",
             issue=_issue("provider_configuration_error", str(exc)),
+            operation_scope=operation_scope,
         )
     try:
         route = query_planning.route_by_id(query_plan, route_id) \
@@ -906,14 +951,16 @@ def search_metadata(query_plan: object, domain_input: object, *, route_id: str,
     except KeyError as exc:
         result = _failed_result(
             provider, placeholder, started_at=started_at, status="failed",
-            issue=_issue("unknown_query_route", str(exc)), config_profile=config.profile,
+            issue=_issue("unknown_query_route", str(exc)), operation_scope=operation_scope,
+            config_profile=config.profile,
         )
         return _store_result(result, config, base=artifact_base)
-    basis_errors = _domain_basis_errors(domain_input, config, base=artifact_base)
+    basis_errors = _discovery_basis_errors(domain_input, config, base=artifact_base)
     if basis_errors:
         result = _failed_result(
             provider, route, started_at=started_at, status="failed",
-            issue=_issue("invalid_domain_input_basis", "; ".join(basis_errors)),
+            issue=_issue("invalid_discovery_input_basis", "; ".join(basis_errors)),
+            operation_scope=operation_scope,
             config_profile=config.profile,
         )
         return _store_result(result, config, base=artifact_base)
@@ -929,13 +976,15 @@ def search_metadata(query_plan: object, domain_input: object, *, route_id: str,
         )
         result = _failed_result(
             provider, route, started_at=started_at, status="failed",
-            issue=_issue("invalid_query_plan", message), config_profile=config.profile,
+            issue=_issue("invalid_query_plan", message), operation_scope=operation_scope,
+            config_profile=config.profile,
         )
         return _store_result(result, config, base=artifact_base)
     if provider not in route.get("preferred_providers", []):
         result = _failed_result(
             provider, route, started_at=started_at, status="failed",
             issue=_issue("provider_not_authorized_for_route", provider),
+            operation_scope=operation_scope,
             config_profile=config.profile,
         )
         return _store_result(result, config, base=artifact_base)
@@ -943,6 +992,7 @@ def search_metadata(query_plan: object, domain_input: object, *, route_id: str,
         result = _failed_result(
             provider, route, started_at=started_at, status="unavailable",
             issue=_issue("provider_disabled", f"{provider} is disabled"),
+            operation_scope=operation_scope,
             config_profile=config.profile,
         )
         return _store_result(result, config, base=artifact_base)
@@ -1002,6 +1052,12 @@ def search_metadata(query_plan: object, domain_input: object, *, route_id: str,
                 query_id=route["query_id"], topic_id=query_plan["topic_id"],
                 raw_ref=raw_ref, retrieved_at=retrieved_at, current_cursor=next_cursor,
             )
+            discovery_pool = {
+                CANONICAL_INPUT_CONTRACT: "canonical_metadata",
+                RECENT_INPUT_CONTRACT: "recent_metadata",
+            }.get(domain_input.get("schema_version"), "domain_raw")
+            for record in parsed:
+                record["inclusion"]["pool"] = discovery_pool
             records.extend(parsed[:remaining])
             pages_processed += 1
             if exhausted:
@@ -1042,6 +1098,7 @@ def search_metadata(query_plan: object, domain_input: object, *, route_id: str,
             "filters": route["filters"],
             "cursor": cursor,
             "limit": route_limit,
+            "scope": operation_scope,
         },
         "records": records[:route_limit],
         "file_descriptors": [],

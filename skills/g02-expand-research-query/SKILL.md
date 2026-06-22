@@ -1,13 +1,13 @@
 ---
 name: g02-expand-research-query
-description: Produce a bounded provider-neutral query_plan@1 from one approved ResearchPlan topic. Use inside authorized domain or recent-discovery agents before deterministic metadata search, preserving topic terms, exclusions, filters, coverage units and neutral complementary routes without calling any provider.
+description: Produce a bounded provider-neutral query_plan@1 from one approved domain_research_input@1 or recent_research_input@1 topic. Use inside A02 or A04 before deterministic metadata search, preserving terms, exclusions, coverage, provider readiness and exact date filters without calling a provider.
 ---
 
 # Expand Research Query
 
 ## Contract
 
-Consume one scoped topic from `domain_research_input@1`. Produce one `query_plan@1` with stable
+Consume one scoped topic from `domain_research_input@1` or `recent_research_input@1`. Produce one `query_plan@1` with stable
 route and query IDs, canonical queries, approved origin terms, generated terms with explicit bases,
 coverage-unit links, provider preferences, unchanged filters and per-route limits.
 
@@ -31,6 +31,8 @@ coverage-unit links, provider preferences, unchanged filters and per-route limit
 8. Select only ready providers listed in `provider_capabilities`. Provider-specific syntax is added
    later by deterministic adapters. Authorize arXiv only when `preprint` is included in the topic's
    approved work types.
+9. For A04, copy `recency_window.year_from` and `year_to` exactly into every route. Preserve at
+   least one preprint route when preprints are approved; never recalculate the window.
 
 ## Output requirements
 

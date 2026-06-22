@@ -1,6 +1,6 @@
 {
   "title": "Approved Research Graph boundary input",
-  "x-version": "1.0",
+  "x-version": "1.1",
   "x-major": 1,
   "type": "object",
   "required": [
@@ -45,7 +45,23 @@
         }
       }
     },
-    "approved_research_scope": {"type": "object"},
+    "approved_research_scope": {
+      "type": "object",
+      "required": [
+        "verify_claims",
+        "include_recent_developments",
+        "include_canonical_sources",
+        "include_didactic_examples",
+        "recency_window_years"
+      ],
+      "properties": {
+        "verify_claims": {"type": "object"},
+        "include_recent_developments": {"type": "boolean"},
+        "include_canonical_sources": {"type": "boolean"},
+        "include_didactic_examples": {"type": "boolean"},
+        "recency_window_years": {"type": "integer"}
+      }
+    },
     "research_drivers": {
       "type": "array",
       "items": {

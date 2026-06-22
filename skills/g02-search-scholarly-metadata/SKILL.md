@@ -7,7 +7,8 @@ description: Execute approved query_plan@1 routes through the deterministic rese
 
 ## Contract
 
-Consume a validated `query_plan@1`, one `route_id`, one authorized provider and an optional cursor.
+Consume a validated `query_plan@1`, one `route_id`, one authorized provider, an optional cursor and
+exactly one scoped `domain_input`, `canonical_input` or `recent_input`.
 Call `research_metadata_search`. Receive one `literature_tool_result@1` plus its persisted artifact
 reference. The result contains normalized `source_record@1` values, pagination state, raw-response
 references, cache status, provider request IDs and explicit issues.
@@ -19,12 +20,14 @@ references, cache status, provider request IDs and explicit issues.
    keys in the agent context.
 3. Preserve the returned result even when it contains zero records, partial status, rate limiting
    or provider failure.
-4. Continue from `pagination.next_cursor` only when the topic limit and saturation rule permit it.
-5. Copy normalized records unchanged. The provider layer alone maps external payloads into
+4. Require `request.scope` to match the supplied scoped input exactly. Never reuse a result from
+   another task, topic, ResearchPlan or reviewed A02 artifact.
+5. Continue from `pagination.next_cursor` only when the topic limit and saturation rule permit it.
+6. Copy normalized records unchanged. The provider layer alone maps external payloads into
    `source_record@1`.
-6. Put the operation ID, route, query, provider, status, record count and result artifact reference
-   into the Domain query log.
-7. For each `partial`, `unavailable` or `failed` result, copy the operation ID, provider, status and
+7. Put the operation ID, route, query, provider, status, record count and result artifact reference
+   into the owning Domain, Canonical or Recent operation log.
+8. For each `partial`, `unavailable` or `failed` result, copy the operation ID, provider, status and
    complete structured issue list into `provider_issues` without rewriting messages.
 
 ## Output requirements

@@ -2,6 +2,13 @@
   "schema_version": "research_plan@1",
   "artifact_version": "1.0.0",
   "task_id": "RESEARCH_MOCK_001",
+  "approved_research_scope": {
+    "verify_claims": {"priority": ["high", "medium"]},
+    "include_recent_developments": true,
+    "include_canonical_sources": true,
+    "include_didactic_examples": true,
+    "recency_window_years": 5
+  },
   "topics": [
     {
       "topic_id": "TOPIC_BAYESIAN_COMPUTATION",
@@ -34,7 +41,7 @@
         "year_from": null,
         "year_to": null,
         "languages": ["en"],
-        "work_types": ["article", "review", "book", "chapter"],
+        "work_types": ["article", "review", "book", "chapter", "preprint"],
         "seed_sources": ["SRC_EXISTING_001"]
       },
       "coverage_requirements": [
@@ -84,7 +91,7 @@
         "year_from": null,
         "year_to": null,
         "languages": ["en"],
-        "work_types": ["article", "review", "chapter"],
+        "work_types": ["article", "review", "chapter", "preprint"],
         "seed_sources": []
       },
       "coverage_requirements": [

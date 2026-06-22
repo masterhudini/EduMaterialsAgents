@@ -95,6 +95,22 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
         rendered = sorted((plugin / "skills").glob("*/SKILL.md"))
         assert len(rendered) == 20
         assert not list((plugin / "skills").glob("*/adapters"))
+        for relative in (
+            "agents/g02-a03-canonical-sources.md",
+            "agents/g02-a04-recent-developments.md",
+            "skills/g02-expand-citation-graph/SKILL.md",
+            "skills/g02-search-scholarly-metadata/SKILL.md",
+            "skills/g02-classify-source-role/SKILL.md",
+            "shared/contracts/canonical_research_input.schema.json",
+            "shared/contracts/recent_research_input.schema.json",
+            "shared/contracts/candidate_sources.schema.json",
+            "shared/scripts/g02/canonical.py",
+            "shared/scripts/g02/citations.py",
+            "shared/scripts/g02/recent.py",
+        ):
+            assert (plugin / relative).is_file(), f"{host}: missing A03 file {relative}"
+        assert not (plugin / "mocks").exists()
+        assert not (plugin / "tests").exists()
         mcp = json.loads((plugin / ".mcp.json").read_text(encoding="utf-8"))
         assert mcp["mcpServers"]["edu-materials-research"]["command"] == sys.executable
 

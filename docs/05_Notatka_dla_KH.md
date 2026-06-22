@@ -71,19 +71,19 @@ Możliwe rozstrzygnięcie TK:
 
 Host-specific skille i wspólne pliki agentów są generowane dla Claude Code i Codex. Operacja MCP
 `research_run_codex` oraz `shared/scripts/g02/g02_flow.py run-codex` prowadzą graf, uruchamiając
-każdy node jako izolowany `codex exec`. Z pierwotnego TODO pozostają dalsze pionowe wycinki:
+każdy node jako izolowany `codex exec`. Po implementacji A01–A04 pozostają dalsze pionowe wycinki:
 
-- rozszerzenia powierzchni MCP o operacje producentów po G02-A02 i kolejnych providerów,
-- pełne scoped input bundles dla producentów po G02-A02,
+- operacje i scoped input producentów od G02-A11 oraz G02-A05 wzwyż,
 - scheduler fan-out/fan-in,
 - test end-to-end zachowania wszystkich producentów bez no-op node runnera.
 
 Brak CLI Codex lub logowania nadal prowadzi do jawnego `external_dependency_blocked`; runtime nie
 symuluje agentów we wspólnym kontekście orkiestratora.
 
-Repo udostępnia obecnie MCP `0.4.0` z piętnastoma operacjami dla wejścia grafu, G02-A01,
-G02-A02, statusu providerów, wyszukiwania metadanych, uniwersalnego reviewera, finalizacji i
-harnessu, w tym `research_run_codex`. Kolejne zestawy dodają własne narzędzia deterministyczne.
+Repo udostępnia obecnie MCP `0.6.0` z dwudziestoma dwiema operacjami dla wejścia grafu, G02-A01,
+G02-A02, G02-A03, G02-A04, statusu providerów, wyszukiwania metadanych, ekspansji cytowań, uniwersalnego
+reviewera, finalizacji i harnessu, w tym `research_run_codex`. Kolejne zestawy dodają własne
+narzędzia deterministyczne.
 
 MCP stanowi granicę wywołania. OpenAlex, Semantic Scholar i arXiv są obsługiwane przez lokalne
 adaptery deterministyczne, które stosują limity, retry, rate limiting, cache i zapis proweniencji.

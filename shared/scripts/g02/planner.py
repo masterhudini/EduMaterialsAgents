@@ -256,6 +256,14 @@ def validate_planner_input(planner_input: object) -> dict:
             "approved_research_scope must be a non-empty object",
             "approved_research_scope",
         ))
+    elif scope.get("include_recent_developments") is True:
+        window = scope.get("recency_window_years")
+        if not isinstance(window, int) or isinstance(window, bool) or window < 1:
+            issues.append(_issue(
+                "blocker", "invalid_recency_window",
+                "recency_window_years must be a positive integer when recent discovery is enabled",
+                "approved_research_scope.recency_window_years",
+            ))
 
     domains = planner_input.get("approved_domains")
     domain_ids = _card_ids(domains, "domain_id")
@@ -551,6 +559,12 @@ def validate_research_plan(plan: object, planner_input: dict, *,
             "blocker", "output_language_changed",
             "plan output_language must preserve the approved value", "output_language",
         ))
+    if plan.get("approved_research_scope") != planner_input.get("approved_research_scope"):
+        issues.append(_issue(
+            "blocker", "approved_research_scope_changed",
+            "approved_research_scope must be copied unchanged from the planner input",
+            "approved_research_scope",
+        ))
     if plan.get("global_constraints") != planner_input.get("constraints"):
         issues.append(_issue(
             "blocker", "constraints_changed",
@@ -704,6 +718,18 @@ def validate_research_plan(plan: object, planner_input: dict, *,
             ))
 
         strategy = topic.get("search_strategy")
+        if isinstance(roles, dict) and roles.get("current") is True \
+                and planner_input.get("approved_research_scope", {}).get(
+                    "include_recent_developments"
+                ) is True \
+                and "preprint" in constraints.get("allowed_work_types", []) \
+                and isinstance(strategy, dict) \
+                and "preprint" not in strategy.get("work_types", []):
+            issues.append(_issue(
+                "major", "recent_topic_omits_preprint_route",
+                "a current-source topic must preserve the approved preprint route",
+                f"{location}.search_strategy.work_types",
+            ))
         if isinstance(strategy, dict):
             core_terms = _string_list(strategy.get("core_terms"))
             if not core_terms:

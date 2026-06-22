@@ -7,6 +7,8 @@ from core import contracts
 
 QUERY_PLAN_CONTRACT = "query_plan@1"
 DOMAIN_INPUT_CONTRACT = "domain_research_input@1"
+CANONICAL_INPUT_CONTRACT = "canonical_research_input@1"
+RECENT_INPUT_CONTRACT = "recent_research_input@1"
 PROVIDERS = {"openalex", "semantic_scholar", "arxiv"}
 MAX_ROUTES = 12
 MAX_TERMS_PER_ROUTE = 20
@@ -42,13 +44,22 @@ def _unknown_fields(value: object, allowed: set[str]) -> list[str]:
     return sorted(set(value) - allowed) if isinstance(value, dict) else []
 
 
+def _discovery_input_contract(discovery_input: object) -> str:
+    if isinstance(discovery_input, dict):
+        version = discovery_input.get("schema_version")
+        if version in {CANONICAL_INPUT_CONTRACT, RECENT_INPUT_CONTRACT}:
+            return version
+    return DOMAIN_INPUT_CONTRACT
+
+
 def validate_query_plan(query_plan: object, domain_input: object, *,
                         max_records_per_query: int | None = None) -> dict:
     """Check structure, scope preservation, route coverage and provider authorization."""
     issues: list[dict] = []
     for payload, contract_ref, code in (
         (query_plan, QUERY_PLAN_CONTRACT, "invalid_query_plan_contract"),
-        (domain_input, DOMAIN_INPUT_CONTRACT, "invalid_domain_input_contract"),
+        (domain_input, _discovery_input_contract(domain_input),
+         "invalid_discovery_input_contract"),
     ):
         try:
             shape = contracts.validate(payload, contract_ref)
@@ -74,7 +85,7 @@ def validate_query_plan(query_plan: object, domain_input: object, *,
         return {"ok": False, "issues": issues}
     if query_plan.get("task_id") != domain_input.get("task_id"):
         issues.append(_issue(
-            "task_id_mismatch", "query plan task_id must match domain input", "task_id"
+            "task_id_mismatch", "query plan task_id must match scoped discovery input", "task_id"
         ))
     if query_plan.get("topic_id") != topic.get("topic_id"):
         issues.append(_issue(

@@ -10,10 +10,11 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   isolated agent returns this shape: `{status, produced[], summary, issues[], metrics?,
   resume_token?}`. Reusable, domain-agnostic. Do not change without bumping `x-major`.
 - `research_graph_input.schema.json` — approved Research Graph boundary input
-  (`research_graph_input@1`).
+  (`research_graph_input@1`, version 1.1 requires explicit recent-discovery policy).
 - `research_planner_input.schema.json` — isolated G02-A01 input projected from the approved
   boundary (`research_planner_input@1`).
-- `research_plan.schema.json` — bounded, versioned G02-A01 output (`research_plan@1`).
+- `research_plan.schema.json` — bounded, versioned G02-A01 output (`research_plan@1`, version 1.1
+  preserves the unchanged approved research scope used by downstream discovery).
 - `literature_provider_config.schema.json` defines the secret-free G02 provider profile.
 - `domain_research_input.schema.json` is the isolated G02-A02 input for one approved topic.
 - `query_plan.schema.json` defines bounded, provider-neutral search routes (`query_plan@1`, contract
@@ -21,9 +22,18 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   an optional A11 web-route block.
 - `source_record.schema.json` is the normalized provider record shared by discovery agents. Version
   1.1 adds the optional, backward-compatible `market_case` block used by the planned Tavily seam.
-- `literature_tool_result.schema.json` records one deterministic provider operation and provenance.
+- `literature_tool_result.schema.json` records one deterministic provider operation and provenance;
+  version 1.1 also binds every search result to the exact scoped discovery input identity.
 - `domain_candidate_sources.schema.json` is the reviewed G02-A02 output
   (`domain_candidate_sources@1`).
+- `canonical_research_input.schema.json` is the isolated G02-A03 input projected from one approved
+  topic and one reviewed DomainCandidateSources artifact (`canonical_research_input@1`).
+- `recent_research_input.schema.json` is the isolated G02-A04 input. Its inclusive calendar window
+  is projected from the ResearchPlan copy of intake `recency_window_years` and one reviewed A02
+  artifact (`recent_research_input@1`).
+- `candidate_sources.schema.json` defines the reviewed discovery-stream artifact
+  (`candidate_sources@1`). Version 1.2 freezes canonical and recent variants: unchanged provider
+  records, stream-specific annotations, operation log, coverage, issues and stop reason.
 - `review_task.schema.json` — one universal reviewer invocation (`review_task@1`) with one
   artifact, an explicit profile and observable review criteria.
 - `review_decision.schema.json` — auditable universal reviewer result (`review_decision@1`).
@@ -40,7 +50,7 @@ Input bundles (cards, not full states) and output artifacts per node, e.g.:
 
 - `research_graph_input` — §8.2 (approved context, domains, scope, claim/concept/flow cards).
 - `claim_verification_state`,
-  `recent_developments_state`, `canonical_sources_state`, `selected_sources`,
+  `recent_developments_state`, `selected_sources`,
   `retrieved_corpus`, `paper_review`, `research_state`, `evidence_map`.
 - `user_research_validation_packet` / `user_approved_research_bundle` — §9.
 

@@ -28,8 +28,8 @@
   "nodes": [
     {"name": "g02-a01-planner", "kind": "agent", "complexity_class": "research_planning", "input_contract": "research_planner_input@1", "output_contract": "research_plan@1", "review_profile": "research_plan", "produces": ["research_plan@1"]},
     {"name": "g02-a02-domain", "kind": "agent", "complexity_class": "research_search", "input_contract": "domain_research_input@1", "output_contract": "domain_candidate_sources@1", "review_profile": "domain_candidates", "produces": ["domain_candidate_sources@1"]},
-    {"name": "g02-a03-canonical-sources", "kind": "agent", "complexity_class": "research_search", "review_profile": "canonical_sources", "output_contract": "candidate_sources@1", "produces": ["CanonicalCandidateSources"]},
-    {"name": "g02-a04-recent-developments", "kind": "agent", "complexity_class": "research_search", "review_profile": "recent_developments", "output_contract": "candidate_sources@1", "produces": ["RecentCandidateSources"]},
+    {"name": "g02-a03-canonical-sources", "kind": "agent", "complexity_class": "research_search", "input_contract": "canonical_research_input@1", "review_profile": "canonical_sources", "output_contract": "candidate_sources@1", "produces": ["candidate_sources@1"]},
+    {"name": "g02-a04-recent-developments", "kind": "agent", "complexity_class": "research_search", "input_contract": "recent_research_input@1", "review_profile": "recent_developments", "output_contract": "candidate_sources@1", "produces": ["candidate_sources@1"]},
     {"name": "g02-a11-market-cases", "kind": "agent", "complexity_class": "research_search", "review_profile": "market_cases", "output_contract": "candidate_sources@1", "produces": ["MarketCaseCandidateSources"]},
     {"name": "g02-a05-candidate-source-index", "kind": "agent", "complexity_class": "synthesis_decision", "review_profile": "candidate_index", "output_contract": "candidate_source_index@1", "produces": ["CandidateSourceIndex"]},
     {"name": "user-source-selection-gate", "kind": "user-gate", "required_decisions": [{"id": "source_actions", "type": "per_source_action", "actions": ["DOWNLOAD", "LIBRARY", "CITATION", "RESERVE", "EXCLUDE", "SEARCH_MORE"]}]},

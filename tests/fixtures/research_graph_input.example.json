@@ -15,7 +15,8 @@
     "verify_claims": {"priority": ["high", "medium"]},
     "include_recent_developments": true,
     "include_canonical_sources": true,
-    "include_didactic_examples": true
+    "include_didactic_examples": true,
+    "recency_window_years": 5
   },
   "research_drivers": [
     {

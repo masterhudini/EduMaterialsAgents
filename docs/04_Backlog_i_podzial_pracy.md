@@ -182,8 +182,7 @@ Minimalne artifact types:
 
 - `research_plan@1`,
 - `domain_candidate_sources@1`,
-- `canonical_candidate_sources@1`,
-- `recent_candidate_sources@1`,
+- `candidate_sources@1` z rozłącznymi wariantami `canonical`, `recent` i `market_cases`,
 - `candidate_source_index@1`,
 - `human_source_selection@1`,
 - `human_approved_source_set@1`,
@@ -339,7 +338,7 @@ dla zatwierdzonej trasy, zapisuje raw response i wynik znormalizowany oraz korzy
 
 **Owner:** CONTENT
 
-Może być współdzielony przez Domain i Canonical. Powinien używać zatwierdzonych seed sources i
+Może być współdzielony przez Domain, Canonical i Recent. Powinien używać zatwierdzonych seed sources i
 zwracać powód dodania każdego rekordu.
 
 ### F4. Agent `g02-a02-domain`
@@ -365,6 +364,8 @@ Uruchamiany per topic. Zwraca bazową pulę, search log i wstępne mapowanie do 
 
 **Owner:** CONTENT
 
+**Status:** wykonane i współdzielone przez pionowe wycinki G02-A03 oraz G02-A04.
+
 Rozdzielić role source od jakości i access status. Każde przypisanie ma evidence signal i
 confidence.
 
@@ -372,12 +373,20 @@ confidence.
 
 **Owner:** CONTENT
 
+**Status:** wykonane. Dostępne są scoped input, kontrolowana ekspansja jednego hopu,
+complementary metadata search, walidacja i zapis `candidate_sources@1`, frozen review task,
+failure paths, resume, mocki oraz testy offline.
+
 Uwzględnić monografie zamknięte, canonicality basis, access limitations, dostępne surrogates i
 zakaz interpretowania niedostępnej treści.
 
 ### G3. Agent `recent-developments`
 
 **Owner:** CONTENT
+
+**Status:** wykonane. Dostępne są intake-derived scoped input, dokładne okno kalendarzowe,
+współdzielone metadata i citation operations, konserwatywny publication status, maturity i update
+class, zapis recent `candidate_sources@1`, frozen review, resume, mocki oraz testy offline.
 
 Uwzględnić recency window, maturity, peer-review status, preprint flag oraz core update versus
 optional trend.
@@ -743,9 +752,10 @@ Definicje agentów i skilli istnieją. Dalsza praca przebiega pionowymi wycinkam
 
 **Status:** scaffold definicji przygotowany, runtime planowany. Agent, dwa skille, mocki i
 wstecznie kompatybilne rozszerzenia kontraktów są zarejestrowane, aby repo i build zachowały
-spójność. Implementacja operacji Tavily, walidator semantyczny tras web i testy zachowania A11
-nastąpią po zamknięciu testów G02-A01 i G02-A02 oraz dev G02-A03, G02-A04 i G02-A05. Do tego czasu
-A11 nie jest zaliczony jako działający pionowy wycinek.
+spójność. Implementacja operacji Tavily i SearXNG, walidator semantyczny tras web oraz testy
+zachowania A11 nastąpią po zamknięciu testów G02-A01 i G02-A02 oraz DEV G02-A03 i G02-A04. A11
+powstaje przed G02-A05, który agreguje jego wynik. Do tego czasu A11 nie jest zaliczony jako
+działający pionowy wycinek.
 
 ### E1. Treść agenta i skilli
 
@@ -763,12 +773,36 @@ A11 nie jest zaliczony jako działający pionowy wycinek.
 
 - operacja MCP `research_web_case_search` i `research_web_case_extract` w `research_server.py`,
 - moduł `shared/scripts/g02/web_cases.py` według wzorca `providers.py`, z abstrakcją providera i
-  Tavily jako pierwszym adapterem (`tavily_search`, `tavily_extract`),
+  Tavily jako pierwszym adapterem (`tavily_search`, `tavily_extract`) oraz SearXNG jako
+  kontrolowanym, bezkluczowym adapterem discovery przez JSON API,
 - klucz API i parametry ze zmiennych środowiskowych i konfiguracji jawnej, nigdy w kontekście LLM,
+- tryby `tavily`, `searxng` i `auto_budgeted`; SearXNG wyłącznie z instancji skonfigurowanej przez
+  administratora, bez losowych publicznych instancji i bez swobodnego web browse w promptach,
+- wspólny budżet zapytań, cache, timeout, rate limit, source-tier policy, kontrola origin/redirect,
+  limit odpowiedzi i provider-neutral provenance dla obu adapterów,
 - mapowanie odpowiedzi do `source_record@1` z `record_type: market_case`, przypisanie `source_tier`
   z domeny wyniku, zachowanie surowej odpowiedzi i provenance,
 - ekstrakcja `research_web_case_extract` tylko dla case'ów zatwierdzonych przez człowieka, aby
   ograniczać zużycie kredytów Tavily; bieżące limity planu należy potwierdzić przed testem live.
+
+### E2a. Wspólny onboarding poświadczeń przy pierwszym uruchomieniu
+
+**Owner:** KH + TOOLS
+
+- zaimplementować jeden krok pierwszego uruchomienia zbierający równocześnie kontaktowy e-mail,
+  `OPENALEX_API_KEY` i `TAVILY_API_KEY`;
+- pokazać `SEMANTIC_SCHOLAR_API_KEY` jako pole opcjonalne z jawną możliwością pominięcia oraz nie
+  pytać o klucz arXiv;
+- zapisać sekrety w magazynie poświadczeń hosta, poza repo, intake grafu, JSON, kontekstem LLM,
+  artefaktami, cache i logami;
+- zwracać wyłącznie zredagowany status gotowości, osobno rozpoznawać brak poświadczeń i brak sieci,
+  umożliwiać ponowienie walidacji oraz późniejszą wymianę kluczy;
+- zebrać Tavily podczas tego samego pierwszego uruchomienia nawet przed aktywacją runtime A11;
+- utrzymać ręczne zmienne środowiskowe jako kontrolowaną ścieżkę DEV/TEST.
+
+**Kryterium zakończenia:** test first run potwierdza wspólny krok dla e-maila, OpenAlex i Tavily,
+poprawne pominięcie Semantic Scholar, brak pytania o klucz arXiv, trwałość w magazynie hosta i brak
+wartości sekretów we wszystkich wyjściach oraz artefaktach.
 
 ### E3. Kontrakty
 
@@ -792,10 +826,13 @@ Próg materialności: skala zdarzenia, realna konsekwencja i potwierdzenie w źr
 
 **Owner:** JOINT
 
-Warstwa narzędzia: testy `research_web_case_search` na `mocks/g02/provider_responses/tavily.json`,
-sprawdzające normalizację do `source_record@1`, przypisanie `source_tier`, provenance, propagację
-błędów providera (`partial`, `unavailable`, `failed`) bez tworzenia metadanych oraz brak klucza API
-w artefakcie i logu.
+Warstwa narzędzia: testy `research_web_case_search` na
+`mocks/g02/provider_responses/tavily.json` i fixture odpowiedzi SearXNG sprawdzają wspólną
+normalizację do `source_record@1`, przypisanie `source_tier`, provenance, budżet `auto_budgeted`,
+fallback, propagację błędów providera (`partial`, `unavailable`, `failed`) bez tworzenia metadanych
+oraz brak klucza API w artefakcie i logu. Test bezpieczeństwa blokuje publiczną instancję spoza
+konfiguracji administracyjnej, redirect poza origin, prywatny adres poza dozwolonym loopbackiem i
+odpowiedź przekraczającą limit.
 
 Warstwa agenta i skilla: test na fixture topic z claimem o opcjach
 (`mocks/g02/web_case_query_plan.json`, deterministyczny rekord providera

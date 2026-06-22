@@ -1,12 +1,13 @@
 {
   "title": "Bounded Research Plan produced by G02-A01 Planner",
-  "x-version": "1.0",
+  "x-version": "1.1",
   "x-major": 1,
   "type": "object",
   "required": [
     "schema_version",
     "artifact_version",
     "task_id",
+    "approved_research_scope",
     "topics",
     "uncovered_driver_ids",
     "input_issues",
@@ -18,6 +19,7 @@
     "schema_version": {"type": "string", "enum": ["research_plan@1"]},
     "artifact_version": {"type": "string"},
     "task_id": {"type": "string"},
+    "approved_research_scope": {"type": "object"},
     "topics": {
       "type": "array",
       "items": {

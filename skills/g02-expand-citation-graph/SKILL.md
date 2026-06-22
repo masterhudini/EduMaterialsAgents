@@ -1,46 +1,51 @@
 ---
 name: g02-expand-citation-graph
-description: Expand approved seed sources through real citation and recommendation relations while preserving why each candidate was reached. Use for canonical discovery or complementary domain and recent searches after seed identity has been verified.
+description: Expand verified scholarly seeds from canonical_research_input@1 or recent_research_input@1 through research_citation_expand. Use for bounded A03 or A04 one-hop discovery while preserving seed, relation, provider and result provenance; never infer an edge or content without a returned provider result.
 ---
 
 # Expand Citation Graph
 
 ## Contract
 
-Consume verified seed `SourceRecord` values, topic coverage units, allowed directions and depth
-or result limits. Produce `CitationExpansion` with candidates, relation type, seed ID, distance,
-provider provenance and inclusion reason.
+Consume `canonical_research_input@1` or `recent_research_input@1` as `discovery_input`, one member
+of `verified_seed_ids`, an allowed relation, provider, cursor and bounded limit. Call
+`research_citation_expand`. Receive one persisted
+`literature_tool_result@1` with `operation_type: citation_expand` and normalized
+`source_record@1` values.
 
 ## Workflow
 
-1. Reject seeds without a provider-resolvable identifier. Never match a seed by title alone when
-   the match is ambiguous.
-2. Use configured deterministic citation tools for cited-by, references or recommendation edges
-   authorized by the strategy.
-3. Limit expansion by depth, result count, year and work type. Prefer one-hop evidence unless the
-   plan explicitly authorizes more.
-4. Keep the edge that introduced each record and map it to a topic or coverage unit.
-5. Record graph centrality or citation signals as discovery signals, not quality judgments.
-6. Send records through metadata normalization and later deduplication before inclusion.
+1. Reject a seed absent from `verified_seed_ids`; never recover identity by title similarity.
+2. Select only supported combinations: OpenAlex `cited_by`; Semantic Scholar `references`,
+   `cited_by` or `recommendations`. Treat arXiv citation expansion as unavailable.
+3. Keep depth at one and limit at or below `search_limits.per_seed_relation_limit`.
+4. Preserve the complete tool result, including zero records, pagination, cache state, request IDs,
+   raw-response refs and structured issues.
+5. Require `request.scope` to match the complete prepared input. Never reuse a result from another
+   task, topic, ResearchPlan or reviewed A02 artifact.
+6. Copy normalized records unchanged. Record the introducing seed, relation, distance one,
+   provider and operation ID in the producer annotation.
+7. Preserve `canonical_expansion` for A03 and `recent_expansion` for A04 as returned by the runtime.
+8. Continue a cursor only while candidate and operation budgets permit it.
 
 ## Output requirements
 
-- Each candidate includes seed, relation, distance, provider ID, query or operation ID and reason.
-- Preserve valid zero-edge results and partial provider errors.
-- Do not replace bibliographic fields already supported by stronger provenance.
+- Every edge resolves to the persisted operation that observed it.
+- Citation counts, graph position and recommendations remain discovery signals.
+- Preserve duplicate works as separate provider records until G02-A05 deduplication.
 
 ## Boundaries
 
-- Do not declare a source canonical solely because it is highly cited or graph-central.
-- Do not traverse closed full text or infer the semantic content of a citation.
-- Do not exceed approved graph depth or scope.
+- Do not declare canonicality, scientific quality or semantic agreement from an edge alone.
+- Do not traverse closed full text, exceed one hop, call direct HTTP or emulate an unavailable edge.
+- Do not expose API keys, contact data or raw response bodies.
 
 ## Failure handling
 
-Return degraded when some seeds or relations cannot be resolved. Return failed only when no seed
-can be resolved and no expansion artifact can be formed.
+Preserve `partial`, `unavailable` and `failed` results. Continue other authorized seed-relation
+pairs when possible. Return an external dependency issue when the MCP operation is unavailable.
 
 ## Resume
 
-Preserve completed seed-operation pairs. On revision, expand only new seeds or specifically
-requested relations.
+Reuse completed seed-provider-relation-operation tuples and persisted cursors. Expand only new or
+reviewer-targeted tuples.

@@ -120,7 +120,7 @@ Komponenty:
 - `agents/g02-a03-canonical-sources.md`,
 - `skills/g02-expand-citation-graph/`,
 - `skills/g02-classify-source-role/`,
-- `canonical_candidate_sources@1`,
+- `canonical_research_input@1` i canonical variant `candidate_sources@1`,
 - deterministyczne rozszerzanie references i citations.
 
 Wynik zachowuje podstawę kanoniczności, proweniencję i jawne ograniczenia dostępu.
@@ -131,7 +131,9 @@ Komponenty:
 
 - `agents/g02-a04-recent-developments.md`,
 - współdzielone skille query, metadata discovery, source role i citation expansion,
-- `recent_candidate_sources@1`,
+- `recent_research_input@1` i recent variant `candidate_sources@1`,
+- operacje `research_recent_prepare`, `research_recent_finalize` i
+  `research_recent_review_task`,
 - reguły okna czasowego, maturity i recency.
 
 ### 4.6. G02-A05 Candidate Source Index

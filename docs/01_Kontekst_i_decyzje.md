@@ -131,6 +131,15 @@ G02-A03 Canonical Sources i G02-A04 Recent Developments rozszerzają tę pulę j
 niezależne strumienie korzystające z różnych profili wyszukiwania. Bieżący runner wykonuje je
 sekwencyjnie; równoległość wymaga przyszłego schedulera fan-out/fan-in.
 
+Pionowy wycinek G02-A03 jest zaimplementowany. Przyjmuje `canonical_research_input@1`, wykonuje
+ograniczoną do jednego hopu ekspansję cytowań i uzupełniające wyszukiwanie metadanych, a następnie
+zapisuje canonical variant `candidate_sources@1` do uniwersalnego review.
+
+Pionowy wycinek G02-A04 jest zaimplementowany. `research_plan@1` zachowuje zatwierdzoną politykę
+recency z intake, a `recent_research_input@1` materializuje z niej dokładne okno kalendarzowe dla
+jednego topicu i reviewed A02. Wynik recent `candidate_sources@1` oddziela preprint status,
+maturity, update class i jakość naukową. Kolejnym pionowym wycinkiem jest G02-A11.
+
 ### 4.4. G02A05CandidateSourceIndexAgent
 
 Dawny `SourceSelectionAgent` zostaje zastąpiony przez `G02A05CandidateSourceIndexAgent`.

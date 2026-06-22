@@ -76,10 +76,10 @@ Runtime artifacts (drafts, logs, hydrated `artifact://` files) live in the **cur
 under `.emagents/` (override with `EMAGENTS_HOME`); the dir is git-ignored.
 
 The implemented deterministic Research Graph seams currently cover the boundary front door,
-G02-A01 Planner, G02-A02 Domain, provider configuration and metadata search, the universal reviewer
-and the final handoff. OpenAlex, Semantic Scholar and arXiv adapters apply bounded requests, retry,
-rate limits, cache, normalization and raw-response provenance. The MCP server exposes fifteen
-operations at version `0.4.0`. A11 Market Cases and its two skills are shipped as a design scaffold;
+G02-A01 Planner, G02-A02 Domain, G02-A03 Canonical Sources, G02-A04 Recent Developments, provider
+configuration, metadata and one-hop citation search, the universal reviewer and the final handoff. OpenAlex, Semantic Scholar
+and arXiv adapters apply bounded requests, retry, rate limits, cache, normalization and raw-response
+provenance. The MCP server exposes twenty-two operations at version `0.6.0`. A11 Market Cases and its two skills are shipped as a design scaffold;
 the Tavily search and post-gate extraction operations remain scheduled with the A11 runtime slice.
 Remaining operations are added with their owning agents.
 
@@ -143,8 +143,9 @@ On Windows use `.\install.ps1 --codex`. Replacement of an existing Codex plugin 
 the previous directory is retained as a timestamped backup after a successful installation.
 
 Then start a new Codex thread. The plugin appears as `edu-materials-agents` in the default
-`Local Plugins` marketplace. Codex receives the shared skill/runtime and MCP tools; Codex-specific
-subagent orchestration is a separate adapter layer from Claude's agent `.md` files.
+`Local Plugins` marketplace. Codex receives the shared agents, skills, runtime and MCP tools. The
+Codex runner reads the same agent `.md` definitions as Claude and invokes each node through an
+isolated `codex exec`; only the host execution adapter differs.
 
 ## Run
 
