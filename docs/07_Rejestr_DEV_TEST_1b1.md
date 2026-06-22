@@ -829,7 +829,8 @@ Dzisiejsze testy DEV nie zastępują live smoke ani forward testu agenta na rzec
   providerów, testy redakcji sekretów i build.
 - [x] Zsynchronizowano agenta, skille i adaptery Claude/Codex, pięć operacji MCP, graf, manifest,
   packaging, README oraz dokumenty 00–08. Pełne wykonanie testów pozostaje poza sesją DEV.
-- [ ] Akceptacja właściciela pionowego wycinka A11 przed rozpoczęciem DEV A05.
+- [x] Akceptacja właściciela pionowego wycinka A11 przed rozpoczęciem DEV A05, potwierdzona
+  2026-06-22.
 
 #### Minimalne kontrole DEV A11, 2026-06-22
 
@@ -918,6 +919,9 @@ DEV potwierdzają wyłącznie składnię i spójność statyczną, więc nie zaz
 
 #### E. Ekstrakcja po Human Source Selection Gate
 
+Ta sekcja sprawdza egzekwowanie już zapisanego `human_source_selection@1`. Rzeczywiste pokazanie
+dokumentu użytkownikowi, parser odpowiedzi i osobne finalne potwierdzenie są testowane w TEST 7F.
+
 - [ ] Brak zapisanego `human_source_selection@1`, status inny niż `approved`, brak finalnego
   potwierdzenia albo source ID poza `approved_for_download` blokuje request przed Tavily.
 - [ ] Selection i market candidates muszą mieć ten sam task; candidate index ref musi być czytelny,
@@ -961,8 +965,8 @@ DEV potwierdzają wyłącznie składnię i spójność statyczną, więc nie zaz
 
 - [ ] Inventory zawiera 11 agentów i 20 skilli; oba bundle zawierają agenta A11 zgodnie z polityką
   hosta, dwa skille z właściwymi adapterami, cztery nowe kontrakty i oba moduły runtime.
-- [ ] MCP raportuje wersję `0.7.0` i dokładnie 27 operacji, w tym pięć A11; source, Claude i Codex
-  przechodzą `graph_check`.
+- [ ] MCP raportuje bieżącą wersję `0.8.0` i dokładnie 30 operacji, w tym pięć A11 i trzy A05;
+  source, Claude i Codex przechodzą `graph_check`.
 - [ ] Bundle nie zawierają mocków, testów, `.emagents`, cache, raw responses, runtime config,
   `__pycache__`, `.pyc` ani sekretów. Build i dry-run instalacji nie mutują źródeł.
 - [ ] Graf wiąże A11 z `market_case_research_input@1`, `candidate_sources@1`, profilem
@@ -972,17 +976,188 @@ DEV potwierdzają wyłącznie składnię i spójność statyczną, więc nie zaz
 - [ ] Wyniki TEST 6 należy dopisać jako nową rundę na górze `08_Log_wynikow_TEST.md`, bez zmiany
   historycznej Rundy 7; zaznaczyć tylko scenariusze faktycznie wykonane i zaliczone.
 
+#### I. Konkretny protokół wykonania TEST 6
+
+1. Uruchomić najpierw offline `tests/test_g02_market_cases.py`, następnie pełną regresję. Zachować
+   liczbę PASS/FAIL, wersję Pythona, commit i konfigurację provider mode bez wartości sekretów.
+2. Wykonać macierz negatywną z sekcji A–E, korzystając z
+   `mocks/g02/market_research_plan.json`, `mocks/g02/market_domain_candidate_sources.json`,
+   `mocks/g02/market_case_source_record.json` oraz fixtures Tavily/SearXNG. Każda mutacja scope,
+   rekordu, tieru, faktu lub decyzji bramki ma zakończyć się oczekiwanym statusem i issue code.
+3. Wykonać osobno live discovery Tavily, live discovery skonfigurowanego SearXNG i gated Tavily
+   extraction. Discovery nie może zapisać treści strony. Extraction musi zostać sprawdzona raz bez
+   zatwierdzenia (brak requestu) i raz po zatwierdzeniu dokładnego source ID (jeden bounded request).
+4. Wykonać scenariusze forward Claude i Codex na tym samym planie i porównać task, topic, coverage,
+   source IDs, materiality, tier, fakt rynkowy, interpretację oraz status. Różnice stylistyczne są
+   dopuszczalne, różnice kontraktowe lub dowodowe oznaczają FAIL.
+5. Zbudować oba bundle, wykonać `graph_check` dla source i obu hostów, dry-run instalacji oraz skan
+   repo, runtime artifacts, cache i logów pod kątem sekretów i prywatnego e-maila.
+6. Zapisać w `docs/08_Log_wynikow_TEST.md` osobne wyniki dla offline, live, forward, bezpieczeństwa
+   i packagingu. BLOCKED nie może zostać przepisane jako PASS.
+
+Warunek zamknięcia TEST 6: A11 znajduje realny, udokumentowany case, zachowuje fakt oddzielnie od
+interpretacji, nie pobiera strony podczas discovery i pozwala na ekstrakcję wyłącznie po finalnej
+decyzji człowieka dotyczącej dokładnego source ID.
+
 ### DEV 7, G02-A05 Candidate Source Index
 
-- [ ] Zamrozić wejście agregujące reviewed A02, A03, A04 i A11 oraz wyjście
+- [x] Zamrożono `candidate_index_input@1`, który przyjmuje wyłącznie dokładny ResearchPlan i
+  artefakty A02, A03, A04 lub A11 związane z decyzją A10 `APPROVED`, oraz wyjście
   `candidate_source_index@1` z odnośnikiem do `candidate_source_review.md`.
-- [ ] Zaimplementować normalizację, konserwatywną deduplikację, role, jawne składowe rankingu,
-  coverage, display/reserve limits, adnotacje i stabilne cross-references.
-- [ ] Zachować oddzielenie source tier case'ów, canonicality, maturity, access i scientific-quality
-  signals; nie wykonywać pobierania ani decyzji za użytkownika.
-- [ ] Dodać operacje MCP, profil `candidate_index`, search extension, resume, mocki i testy.
-- [ ] Generować audytowalny `candidate_source_review.md` w języku wyjściowym z kompletną instrukcją
-  Human Source Selection Gate.
+- [x] Zaimplementowano konserwatywną deduplikację, role, jawne składowe rankingu, candidate
+  coverage, display/reserve limits, adnotacje i stabilne cross-references przy wznowieniu.
+- [x] Zachowano oddzielenie source tier case'ów, canonicality, maturity, access i
+  `scientific_quality: not_assessed`; A05 nie pobiera treści i nie zapisuje decyzji za użytkownika.
+- [x] Dodano trzy operacje MCP, profil `candidate_index`, refs rozszerzeń wyszukiwania, resume,
+  selection-profile mock i testy kontraktowe/offline A05.
+- [x] Generator tworzy audytowalny `candidate_source_review.md` w języku wyjściowym z opisem treści,
+  podstawą opisu, ograniczeniami, coverage, instrukcją akcji i kopiowalnym szablonem bramki.
+
+#### Minimalne kontrole DEV A05, 2026-06-22
+
+- [x] AST wszystkich 40 plików Python, parse 52 plików JSON oraz odczyt kontraktów
+  `candidate_index_input@1` 1.0 i `candidate_source_index@1` 1.1: PASS.
+- [x] Walidacja manifestu, 11 agentów, 20 skilli i wymaganych adapterów oraz statyczny
+  `graph_check` dla source: PASS.
+- [x] `git diff --check`, zgodność inventory i dispatch MCP `0.8.0` / 30 operacji oraz skan zmian
+  pod kątem prywatnego e-maila i kluczy: PASS.
+- [ ] `pytest`, build bundle, live API i forward Claude/Codex nie są uruchamiane w DEV.
+
+### TEST 7, G02-A05 Candidate Source Index i Human Source Selection Gate
+
+Wszystkie checkboxy TEST 7 pozostają odznaczone do wykonania w osobnym środowisku. Kontrole DEV
+nie potwierdzają zachowania agenta, parsera bramki ani interakcji z użytkownikiem.
+
+#### A. Kontrakty i reviewed-only scoped input
+
+- [ ] `candidate_index_input@1` i `candidate_source_index@1` przechodzą pozytywne oraz negatywne
+  fixtures, a `candidate_source_index@1` zachowuje kompatybilną listę `sources` wymaganą przez A11.
+- [ ] `research_candidate_index_prepare` przyjmuje dokładny ResearchPlan oraz pary artifact/ref
+  review dla A02, A03, A04 i A11. Każda decyzja ma `APPROVED`, pustą listę findings i zgodne task,
+  producer, profile, artifact ref oraz artifact version.
+- [ ] `REVISE`, `BLOCKED`, findings przy `APPROVED`, zły producer/profile, inny task, plan, topic,
+  ref lub version są odrzucane przed zbudowaniem indeksu.
+- [ ] Brak oczekiwanego reviewed streamu daje jawny `missing_reviewed_stream` i pozwala utworzyć
+  `degraded` indeks, o ile pozostałe dane są użyteczne. Duplikat stream/topic jest odrzucany.
+- [ ] Scoped input zawiera tylko topic, coverage, role, rekordy, reviewed adnotacje, politykę wyboru,
+  język, upstream descriptors i refs rozszerzeń. Nie zawiera query plans, operation logs, pełnych
+  review decisions, surowych odpowiedzi providerów, konfiguracji, cache paths ani sekretów.
+- [ ] `previous_index_ref` musi wskazywać poprawny indeks tego samego tasku. Niepoprawny ref,
+  traversal, obcy task lub błędny kontrakt kończą się jawnym failure.
+
+#### B. Normalizacja, deduplikacja, provenance i resume
+
+- [ ] Identyczny DOI scala rekordy A02/A03/A04; testy osobno obejmują arXiv ID, ISBN, Semantic
+  Scholar ID, OpenAlex ID oraz konserwatywny fallback title-year-first-author bez stabilnego ID.
+- [ ] Różne wydania, tłumaczenia, rozdziały i preprint/version of record pozostają rozłączne, jeżeli
+  nie ma jednoznacznej reguły równoważności. Konflikt trafia do `ambiguous_duplicate_groups`.
+- [ ] Market case scala się wyłącznie po dokładnym canonical URL lub stabilnym ID. Dwie strony
+  opisujące to samo zdarzenie pozostają oddzielnymi źródłami i mogą stanowić corroboration.
+- [ ] Każde scalenie zapisuje typ i wartość klucza, retained source ID, occurrences, merged IDs oraz
+  regułę. `provenance_records` zachowuje providerów i źródłowe rekordy ze wszystkich streamów.
+- [ ] Jeden source ID nie może rozwiązywać się do dwóch grup. Brak source ID, tytułu albo source API
+  kończy się failure zamiast wygenerowania zastępczej tożsamości.
+- [ ] Resume z poprzednim indeksem zachowuje source ID dla tej samej grupy, przelicza ranking i
+  coverage po rozszerzeniu wyszukiwania oraz tworzy nową artifact version bez mutacji starej.
+
+#### C. Role, ranking, coverage i limity prezentacji
+
+- [ ] Role canonical, current, survey, didactic, qualifying/critical i applied_case pochodzą z
+  reviewed adnotacji lub jawnego stream fallback. Role nie są traktowane jako jakość ani stance.
+- [ ] Ranking pokazuje wszystkie komponenty i wagi: coverage contribution, role fit, topic
+  relevance, access, canonical signal, recency signal, market-case value i redundancy penalty.
+- [ ] Remis jest deterministyczny po stable source ID. Zmiana wagi zmienia score w sposób
+  odtwarzalny, a brak sygnału nie powoduje wygenerowania citation count, maturity lub quality.
+- [ ] Source tier market case, canonicality, maturity, access i `scientific_quality: not_assessed`
+  pozostają osobnymi polami. Tier 1/2 nie staje się oceną jakości naukowej.
+- [ ] Coverage jest role-aware. `applied_case` może realizować dydaktyczny market-case requirement,
+  ale samo mapowanie coverage bez wymaganej roli nie wystarcza do statusu `covered`.
+- [ ] `covered`, `partial` i `missing` odpowiadają minimum_sources. Display, reserve i per-topic limit
+  są przestrzegane, a obowiązkowa luka nie znika wskutek limitu ani wysokiego łącznego score.
+- [ ] DOWNLOAD, LIBRARY, CITATION i RESERVE są wyłącznie rekomendacjami A05. Indeks nie zawiera
+  decyzji człowieka, final confirmation ani automatycznego EXCLUDE.
+
+#### D. Opisy treści i `candidate_source_review.md`
+
+- [ ] Artykuł z abstraktem otrzymuje krótki `content_summary`, `description_basis: abstract` i
+  bounded `basis_excerpt`, który jest rzeczywistym fragmentem dostępnego abstraktu.
+- [ ] Publikacja bez abstraktu otrzymuje `description_basis: metadata` i jawny komunikat, że opis
+  nie streszcza zawartości publikacji. Tytuł, venue i rok nie są rozwijane w zmyślone findings.
+- [ ] Market case otrzymuje `description_basis: market_case_annotation`; opis łączy reviewed
+  `market_fact.statement` i `didactic_interpretation.mechanism`, zachowując ich rozdzielenie w A11.
+- [ ] Karta market case pokazuje tier i regime limitation oraz informuje, że pełna strona nie została
+  jeszcze wyodrębniona. Tekst strony, raw response i instrukcje z treści zewnętrznej nie trafiają do
+  dokumentu wyboru.
+- [ ] Każda prezentowana karta pokazuje citation, source ID, typ, role, skrót treści, relevance do
+  topic/coverage, podstawę opisu, access, limitations i rekomendowaną akcję.
+- [ ] Dokument używa `output_language`, wskazuje machine-readable index ref i zawiera coverage,
+  źródła prezentowane, rezerwę, luki oraz kompletny szablon DOWNLOAD, LIBRARY, CITATION, RESERVE,
+  EXCLUDE, SEARCH_MORE i FINAL_CONFIRMATION.
+- [ ] Tekst z abstraktu lub market snippet zawierający prompt injection pozostaje danymi i nie może
+  zmienić rankingu, konfiguracji, instrukcji bramki, source IDs ani innych artefaktów.
+
+#### E. Finalizacja, status i review G02-A10
+
+- [ ] `research_candidate_index_finalize` zapisuje wersjonowany JSON i Markdown z działającymi
+  cross-references. Brak możliwości zapisania lub odczytania któregokolwiek artefaktu daje failure.
+- [ ] Pełne mandatory coverage bez upstream issues daje `ok`; mandatory gap albo brak oczekiwanego
+  streamu daje `degraded`, metrics i resume token. Błędny indeks nie daje pozornego sukcesu.
+- [ ] `research_candidate_index_review_task` tworzy jeden review task profilu `candidate_index`,
+  producenta A05 i dokładnie jednego indeksu, którego document ref jest czytelny i kompletny.
+- [ ] Kryteria CI-01–CI-08, CI-E01–CI-E03, prohibited behaviors i severity rules są identyczne w
+  agencie, runtime, skillu reviewera i dokumentacji.
+- [ ] A10 zatwierdza poprawny indeks, kieruje naprawialny ranking/coverage/opis do REVISE, a
+  unreviewed input, utratę identity, sfabrykowany opis lub zapisaną decyzję człowieka do BLOCKED.
+- [ ] Rewizja zwiększa artifact version, zachowuje untargeted fields i wiąże previous decision oraz
+  producer revision response zgodnie z uniwersalnym kontraktem reviewera.
+
+#### F. Rzeczywista interakcja Human Source Selection Gate
+
+- [ ] Po APPROVED review A05 orkiestrator pokazuje użytkownikowi krótkie podsumowanie, liczbę źródeł
+  i luk oraz klikalną ścieżkę do `candidate_source_review.md`, po czym prosi o decyzje per source.
+- [ ] Orkiestrator przyjmuje copyable template oraz zwykły język, mapuje wyłącznie istniejące source
+  IDs i odrzuca ID obce, duplikaty akcji, sprzeczne akcje i niepełny zakres decyzji.
+- [ ] Po parsowaniu pokazuje użytkownikowi zestaw DOWNLOAD, LIBRARY, CITATION, RESERVE, EXCLUDE i
+  SEARCH_MORE oraz prosi o odrębne finalne potwierdzenie. Przed nim nic nie jest pobierane.
+- [ ] `human_source_selection@1` ma poprawny task i candidate index ref, rozłączne akcje, status
+  zgodny z decyzją i `final_confirmation: true` wyłącznie po odpowiedzi użytkownika.
+- [ ] SEARCH_MORE bez claim/topic/coverage/roli jest odrzucane. Poprawne żądanie wraca do właściwego
+  A02/A03/A04/A11, tworzy nowy reviewed A05 index i ponownie pyta człowieka.
+- [ ] Mandatory coverage naruszone wyborem daje ostrzeżenie. Kontynuacja wymaga SEARCH_MORE albo
+  jawnej coverage exception z powodem i finalnym potwierdzeniem.
+- [ ] Status `cancelled` kończy ścieżkę bez pobierania. LIBRARY, CITATION, RESERVE i EXCLUDE nie są
+  przekazywane jako zgoda na automatyczny download.
+- [ ] Zatwierdzony market case może uruchomić gated A11 extraction, a zwykła publikacja przechodzi do
+  A06. Odrzucony source ID nie uruchamia żadnej operacji sieciowej.
+
+#### G. MCP, packaging i forward hosts
+
+- [ ] MCP raportuje `0.8.0` i 30 operacji, w tym prepare, finalize i review task A05. Publiczne schema
+  nie przyjmują filesystem base, sekretu ani konfiguracji providera od modelu.
+- [ ] Graf wiąże A05 z `candidate_index_input@1`, `candidate_source_index@1`, profilem
+  `candidate_index`, dokumentem Markdown i user-source-selection-gate przed A06.
+- [ ] Oba bundle zawierają runtime A05, dwa kontrakty, agenta, sześć wymaganych skilli i poprawne
+  adaptery, bez mocków, tests, runtime artifacts, cache, `__pycache__`, `.pyc` i sekretów.
+- [ ] Claude i Codex na tym samym scoped input tworzą zgodne source IDs, basis, coverage, action
+  recommendations i strukturę dokumentu. Żaden host nie pobiera treści ani nie podejmuje decyzji.
+- [ ] Missing MCP operation, nieczytelny artifact ref lub brak host executora daje jawny status
+  dependency failure, bez lokalnego browse, pobierania lub cichego pominięcia bramki.
+
+#### H. Konkretny protokół wykonania TEST 7
+
+1. Uruchomić `tests/test_g02_candidate_index.py`, następnie pełną regresję repo. Zapisać commit,
+   środowisko, liczbę PASS/FAIL oraz wszystkie warnings.
+2. Wykonać macierz A–E na scholarly source z abstraktem, scholarly metadata-only, duplikacie DOI,
+   konflikcie wersji i reviewed market case. Użyć jawnych fixtures, nie live web.
+3. Wykonać interakcję F na Claude i Codex: jedna odpowiedź przez template, jedna zwykłym językiem,
+   jedna SEARCH_MORE, jedna coverage exception, jedna cancel oraz jedna odmowa final confirmation.
+4. Potwierdzić logiem operacji, że przed final confirmation liczba pobrań i ekstrakcji wynosi zero.
+5. Wykonać build obu hostów, trzy `graph_check`, dry-run instalacji, skan sekretów i kontrolę higieny
+   bundle. Następnie dopisać nową rundę w `docs/08_Log_wynikow_TEST.md`.
+
+Warunek zamknięcia TEST 7: użytkownik widzi treściowe opisy obu typów źródeł, rozumie podstawę i
+ograniczenia każdej karty, może wybrać lub rozszerzyć wyszukiwanie, a żaden download nie rozpoczyna
+się bez pokazania sparsowanego podsumowania i osobnego finalnego potwierdzenia.
 
 ### Wspólny TEST batcha po DEV 7, osobne środowisko
 
@@ -998,3 +1173,57 @@ DEV potwierdzają wyłącznie składnię i spójność statyczną, więc nie zaz
 - [ ] Build obu hostów, `graph_check`, skan sekretów, brak runtime artifacts i zgodność inventory.  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
 - [ ] Wyniki zapisać jako nową rundę na górze `08_Log_wynikow_TEST.md`; checkboxy zaznaczyć wyłącznie  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   dla faktycznie wykonanych scenariuszy.
+
+### Bramka gotowości do DEV 8, G02-A06 Paper Retrieval
+
+**Werdykt:** repo jest gotowe do rozpoczęcia projektowania pionowego wycinka A06. Nie jest jeszcze
+gotowe do uruchomienia pobierania end-to-end. Poniższe odznaczone pozycje stanowią zakres DEV A06,
+a nie pracę wykonaną w bieżącej rundzie.
+
+#### Gotowe wejścia i decyzje projektowe
+
+- [x] A05 produkuje stable source IDs, pełne `SourceRecord`, access summary, rekomendacje oraz
+  `candidate_source_review.md` przed bramką człowieka.
+- [x] Istnieje `human_source_selection@1` z akcjami, SEARCH_MORE, coverage exceptions i
+  `final_confirmation`; A11 extraction już egzekwuje zatwierdzenie dokładnego market source ID.
+- [x] Agent A06, trzy wymagane skille, pozycja grafu po user gate i wpisy manifestu istnieją jako
+  scaffold projektowy.
+- [x] Zasady prawne i bezpieczeństwa są zamrożone: tylko DOWNLOAD, legalne OA, brak institutional
+  login, bounded redirects/size/retry, walidacja identity i brak scientific interpretation.
+- [ ] Akceptacja właściciela pionowego wycinka A05 przed rozpoczęciem DEV A06.
+
+#### Pierwsze obowiązkowe elementy przyszłego DEV A06
+
+- [ ] Zamrozić brakujący kontrakt `human_approved_source_set@1` oraz deterministyczny parser/generator
+  z `human_source_selection@1`. Musi on wymagać drugiego finalnego potwierdzenia i rozłącznych akcji.
+- [ ] Dodać wykonawczą bramkę orkiestratora, która rzeczywiście pokazuje dokument, przyjmuje template
+  lub zwykły język, prezentuje sparsowane podsumowanie i dopiero potem zapisuje zatwierdzenie.
+- [ ] Rozszerzyć scaffold `retrieved_corpus@1` o task, approved set ref, validated documents,
+  unavailable, failed, library/citation/reserve, attempts, checksums, wersje, licencje i summary.
+- [ ] Zamrozić scoped input A06 oraz kontrakty pośrednie `open_access_resolution@1`,
+  `retrieved_file_candidate@1` i `validated_document@1`.
+- [ ] Zaimplementować deterministyczne OA resolvers, downloader, walidator dokumentu, storage,
+  deduplikację checksum, resume, provider config i redakcję sekretów.
+- [ ] Dodać operacje MCP A06, profil review `retrieved_corpus`, kryteria RT-01–RT-07, mocki PDF/HTML,
+  testy offline, live OA, failure matrix, packaging i forward Claude/Codex.
+- [ ] Zaktualizować node A06 o `input_contract`, wersje MCP oraz dokumentację 00–08 dopiero w ramach
+  zaakceptowanego DEV A06.
+
+#### Plan późniejszego TEST end-to-end po A06
+
+- [ ] Uruchomić discovery A02/A03/A04/A11, reviewed A05 i rzeczywistą bramkę użytkownika. Przed
+  final confirmation potwierdzić zero requestów download i zero plików w corpus.
+- [ ] Zatwierdzić jeden OA article jako DOWNLOAD, jeden closed source jako LIBRARY, jeden jako
+  CITATION, jeden RESERVE, jeden EXCLUDE i jeden market case do gated A11 extraction.
+- [ ] Potwierdzić, że A06 pobiera wyłącznie OA article z DOWNLOAD, A11 ekstrahuje wyłącznie
+  zatwierdzony market case, a pozostałe akcje nie powodują requestów.
+- [ ] Dla pobranego dokumentu sprawdzić URL chain, content type, `%PDF` signature, size, checksum,
+  source identity, wersję, licencję, page count gdy dostępny i stabilny local artifact ref.
+- [ ] Osobno podać HTML login page, zły PDF, identity mismatch, redirect poza policy, oversized file,
+  timeout, 429/5xx, duplicate bytes i brak OA. Każdy przypadek ma właściwy unavailable/failed status.
+- [ ] Powtórzyć run z resume. Poprawny checksum nie jest pobierany ponownie, a retry obejmuje tylko
+  unresolved source IDs. Wynik ma pełny nowy RetrievedCorpus i zachowaną historię prób.
+- [ ] Wykonać scenariusz na Claude i Codex, build obu bundle, `graph_check`, skan sekretów i zapisać
+  wyniki jako nową rundę w `docs/08_Log_wynikow_TEST.md`.
+
+Do czasu jawnej zgody właściciela nie rozpoczynać implementacji A06.

@@ -366,14 +366,17 @@ topic, ResearchPlan i reviewed A02 ref. Profil review zamraża `RD-01` do `RD-06
 
 **Odpowiedzialności:**
 
-- agregować trzy strumienie kandydatów,
+- agregować reviewed A02 oraz strumienie A03, A04 i A11,
 - normalizować metadane,
 - deduplikować rekordy,
 - przypisywać role źródeł,
 - tworzyć osobne sygnały canonical i rising,
 - sprawdzać candidate coverage,
 - wybierać pulę prezentowaną i rezerwową,
-- generować opisy LLM wyłącznie z dostępnych abstraktów,
+- generować krótkie opisy publikacji z dostępnych abstraktów, a przy braku abstraktu jawnie
+  ograniczać kartę do metadanych,
+- opisywać market case przez reviewed fakt rynkowy i mechanizm dydaktyczny A11, bez ekstrakcji
+  strony przed bramką,
 - tworzyć `candidate_source_index.json` i `candidate_source_review.md`.
 
 **Granice:**
@@ -383,7 +386,12 @@ topic, ResearchPlan i reviewed A02 ref. Profil review zamraża `RD-01` do `RD-06
 - nie tworzy metadanych bibliograficznych przez LLM,
 - nie usuwa zamkniętych źródeł tylko z powodu braku OA.
 
-**Wyjście:** `CandidateSourceIndex` i human-readable review document.
+**Wejście wykonawcze:** `candidate_index_input@1`, przygotowane wyłącznie z artefaktów związanych
+z decyzjami A10 `APPROVED` dla dokładnego tasku, planu, ref i wersji.
+
+**Wyjście:** `candidate_source_index@1` i `candidate_source_review.md`. Każda karta pokazuje
+`description_basis`, skrót treści, związek z topic/coverage, ograniczenia dostępu i rekomendowaną
+akcję, pozostawiając decyzję człowiekowi.
 
 ### 5.6. G02-A06 Paper Retrieval Agent
 

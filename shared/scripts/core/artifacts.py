@@ -111,3 +111,31 @@ def store(relpath: str, obj, *, base: str | Path | None = None) -> str:
     finally:
         temporary.unlink(missing_ok=True)
     return ref_for(relpath)
+
+
+def store_text(relpath: str, content: str, *, base: str | Path | None = None) -> str:
+    """Atomically store a UTF-8 text artifact under the constrained artifact root."""
+    if not isinstance(content, str):
+        raise TypeError("text artifact content must be a string")
+    root = (Path(base) if base is not None else paths.artifacts_dir()).resolve()
+    path = (root / relpath).resolve()
+    try:
+        path.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"artifact write escapes artifact root: {relpath!r}") from exc
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(content)
+            if content and not content.endswith("\n"):
+                handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return ref_for(relpath)

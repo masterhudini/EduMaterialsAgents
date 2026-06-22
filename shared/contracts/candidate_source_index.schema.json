@@ -1,47 +1,78 @@
 {
-  "title": "CandidateSourceIndex \u2014 deduplicated, ranked index for the user gate (design 02 \u00a75.5).",
-  "x-version": "1.0",
+  "title": "G02-A05 deduplicated candidate index for the Human Source Selection Gate",
+  "x-version": "1.1",
   "x-major": 1,
   "type": "object",
   "required": [
-    "sources"
+    "schema_version", "artifact_version", "task_id", "research_plan_ref",
+    "research_plan_artifact_version", "reviewed_upstreams", "selection_profile", "sources",
+    "displayed_source_ids", "reserve_source_ids", "merge_log", "ambiguous_duplicate_groups",
+    "coverage_matrix", "search_summary", "annotation_policy", "human_review_document_ref",
+    "review_profile_ref"
   ],
   "properties": {
+    "schema_version": {"type": "string", "enum": ["candidate_source_index@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "research_plan_ref": {"type": "string"},
+    "research_plan_artifact_version": {"type": "string"},
+    "reviewed_upstreams": {"type": "array", "items": {"type": "object"}},
+    "selection_profile": {"type": "object"},
     "sources": {
       "type": "array",
       "items": {
         "type": "object",
         "required": [
-          "source_id",
-          "role"
+          "source_id", "record_type", "record", "origin_streams", "topic_ids", "claim_ids",
+          "role_assignments", "coverage_unit_ids", "duplicate_source_ids", "ranking",
+          "human_annotation", "access_summary", "signal_summary", "provenance_records"
         ],
         "properties": {
-          "source_id": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
+          "source_id": {"type": "string"},
+          "record_type": {"type": "string", "enum": ["scholarly", "market_case"]},
+          "record": {"type": "object"},
+          "origin_streams": {"type": "array", "items": {"type": "string"}},
+          "topic_ids": {"type": "array", "items": {"type": "string"}},
+          "claim_ids": {"type": "array", "items": {"type": "string"}},
+          "role_assignments": {"type": "array", "items": {"type": "object"}},
+          "coverage_unit_ids": {"type": "array", "items": {"type": "string"}},
+          "duplicate_source_ids": {"type": "array", "items": {"type": "string"}},
+          "provenance_records": {"type": "array", "items": {"type": "object"}},
           "ranking": {
-            "type": "number"
+            "type": "object",
+            "required": ["score", "rank", "components", "recommended_action", "rationale"],
+            "properties": {
+              "score": {"type": "number"},
+              "rank": {"type": "integer"},
+              "components": {"type": "object"},
+              "recommended_action": {"type": "string", "enum": ["DOWNLOAD", "LIBRARY", "CITATION", "RESERVE"]},
+              "rationale": {"type": "array", "items": {"type": "string"}}
+            }
           },
-          "description": {
-            "type": "string"
+          "human_annotation": {
+            "type": "object",
+            "required": ["content_summary", "description_basis", "selection_relevance", "limitations", "basis_excerpt"],
+            "properties": {
+              "content_summary": {"type": "string"},
+              "description_basis": {"type": "string", "enum": ["abstract", "metadata", "market_case_annotation"]},
+              "selection_relevance": {"type": "string"},
+              "limitations": {"type": "array", "items": {"type": "string"}},
+              "basis_excerpt": {"type": ["string", "null"]}
+            }
           },
-          "selection": {
-            "type": "string"
-          }
+          "access_summary": {"type": "object"},
+          "signal_summary": {"type": "object"}
         }
       }
     },
-    "coverage": {
-      "type": "object"
-    },
-    "review_document_ref": {
-      "type": "string"
-    }
+    "displayed_source_ids": {"type": "array", "items": {"type": "string"}},
+    "reserve_source_ids": {"type": "array", "items": {"type": "string"}},
+    "merge_log": {"type": "array", "items": {"type": "object"}},
+    "ambiguous_duplicate_groups": {"type": "array", "items": {"type": "object"}},
+    "coverage_matrix": {"type": "array", "items": {"type": "object"}},
+    "search_summary": {"type": "object"},
+    "annotation_policy": {"type": "object"},
+    "human_review_document_ref": {"type": "string"},
+    "review_profile_ref": {"type": "string", "enum": ["candidate_index"]}
   }
 }

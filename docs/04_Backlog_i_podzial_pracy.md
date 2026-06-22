@@ -401,6 +401,11 @@ degraded result.
 
 ## 10. Faza H, G02-A05 Candidate Source Index i bramka człowieka
 
+**Status A05:** pionowy wycinek indeksu i dokumentu wyboru zaimplementowany. H1–H4 oraz
+candidate-stage część H6 mają kontrakty, runtime, MCP, review profile, mock i testy. Parser swobodnej
+odpowiedzi człowieka, pełna obsługa coverage exception i pętla orkiestratora `SEARCH_MORE` pozostają
+w H5–H6 do integracji bramki.
+
 ### H1. Skille metadanych
 
 **Owner:** CONTENT
@@ -417,8 +422,10 @@ Utworzyć:
 
 **Owner:** CONTENT
 
-Agent tworzy indeks maszynowy i dokument dla człowieka. LLM używa wyłącznie dostępnego
-abstraktu do summary i relevance reason. Brak abstraktu jest jawny.
+Agent tworzy indeks maszynowy i dokument dla człowieka. Opis publikacji korzysta wyłącznie z
+dostępnego abstraktu, a brak abstraktu daje jawny opis metadata-only, który nie udaje streszczenia
+treści. Market case korzysta z reviewed faktu rynkowego i mechanizmu dydaktycznego A11 oraz
+informuje, że strona nie została jeszcze wyodrębniona.
 
 ### H3. Generator `candidate_source_review.md`
 
@@ -754,8 +761,8 @@ Definicje agentów i skilli istnieją. Dalsza praca przebiega pionowymi wycinkam
 testy pozostają rozdzielone zgodnie z `07_Rejestr_DEV_TEST_1b1.md`. Agent, skille, scoped input,
 wariant `candidate_sources@1`, Tavily, administrator-controlled SearXNG, materiality gate, review,
 ekstrakcja po bramce, mocki, testy, graf i packaging są zsynchronizowane. Pełna regresja, live API
-oraz forward Claude/Codex odbędą się w osobnym środowisku. Po akceptacji A11 następny jest A05,
-który agreguje reviewed A02, A03, A04 i A11.
+oraz forward Claude/Codex odbędą się w osobnym środowisku. Właściciel zaakceptował A11, a A05
+agregujący reviewed A02, A03, A04 i A11 został zaimplementowany w kolejnym pionowym wycinku DEV.
 
 ### E1. Treść agenta i skilli
 

@@ -1,0 +1,15 @@
+{
+  "display_limit": 6,
+  "reserve_limit": 4,
+  "per_topic_limit": 6,
+  "ranking_weights": {
+    "coverage_contribution": 0.3,
+    "role_fit": 0.18,
+    "topic_relevance": 0.12,
+    "access": 0.12,
+    "canonical_signal": 0.1,
+    "recency_signal": 0.08,
+    "market_case_value": 0.1,
+    "redundancy_penalty": 0.1
+  }
+}

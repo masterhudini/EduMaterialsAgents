@@ -1,0 +1,77 @@
+{
+  "title": "Reviewed and scoped input for G02-A05 Candidate Source Index",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "task_id", "research_plan_ref", "research_plan_artifact_version",
+    "output_language", "topics", "selection_profile", "reviewed_upstreams",
+    "source_entries", "upstream_issues"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["candidate_index_input@1"]},
+    "task_id": {"type": "string"},
+    "research_plan_ref": {"type": "string"},
+    "research_plan_artifact_version": {"type": "string"},
+    "output_language": {"type": "string"},
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["topic_id", "name", "purpose", "related_claims", "source_roles_required", "coverage_requirements"],
+        "properties": {
+          "topic_id": {"type": "string"},
+          "name": {"type": "string"},
+          "purpose": {"type": "string"},
+          "related_claims": {"type": "array", "items": {"type": "string"}},
+          "source_roles_required": {"type": "object"},
+          "coverage_requirements": {"type": "array", "items": {"type": "object"}}
+        }
+      }
+    },
+    "selection_profile": {
+      "type": "object",
+      "required": ["display_limit", "reserve_limit", "per_topic_limit", "ranking_weights"],
+      "properties": {
+        "display_limit": {"type": "integer"},
+        "reserve_limit": {"type": "integer"},
+        "per_topic_limit": {"type": "integer"},
+        "ranking_weights": {"type": "object"}
+      }
+    },
+    "reviewed_upstreams": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["stream", "topic_id", "artifact_ref", "artifact_version", "review_decision_ref", "review_id"],
+        "properties": {
+          "stream": {"type": "string", "enum": ["domain", "canonical", "recent", "market_cases"]},
+          "topic_id": {"type": "string"},
+          "artifact_ref": {"type": "string"},
+          "artifact_version": {"type": "string"},
+          "review_decision_ref": {"type": "string"},
+          "review_id": {"type": "string"}
+        }
+      }
+    },
+    "source_entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["stream", "topic_id", "record", "coverage_unit_ids", "role_assignments", "stream_annotation"],
+        "properties": {
+          "stream": {"type": "string", "enum": ["domain", "canonical", "recent", "market_cases"]},
+          "topic_id": {"type": "string"},
+          "record": {"type": "object"},
+          "coverage_unit_ids": {"type": "array", "items": {"type": "string"}},
+          "role_assignments": {"type": "array", "items": {"type": "object"}},
+          "stream_annotation": {"type": ["object", "null"]}
+        }
+      }
+    },
+    "upstream_issues": {"type": "array", "items": {"type": "object"}},
+    "previous_index_ref": {"type": ["string", "null"]},
+    "previous_source_id_map": {"type": "object"},
+    "search_extension_refs": {"type": "array", "items": {"type": "string"}}
+  }
+}

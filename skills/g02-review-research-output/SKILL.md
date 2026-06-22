@@ -45,7 +45,9 @@ Use these standard profile identifiers and minimum concerns:
 - `recent_developments`: recency, maturity and separation of core updates from trends;
 - `market_cases`: exact web-operation scope, unchanged records, dated case identity, source tier,
   materiality, fact/interpretation separation, regime context and extraction deferral;
-- `candidate_index`: normalization, deduplication, ranking, coverage and human-readable review;
+- `candidate_index`: approved upstream bindings, conservative deduplication, visible ranking,
+  role-aware coverage and human-readable descriptions whose abstract, metadata or A11 basis and
+  access limits are explicit;
 - `retrieved_corpus`: human authorization, stable identity, file integrity and explicit errors;
 - `paper_evidence`: evidence location, method, findings, limitations and claim relation;
 - `claim_assessment`: evidence dimensions, counterevidence, confidence and coverage;
