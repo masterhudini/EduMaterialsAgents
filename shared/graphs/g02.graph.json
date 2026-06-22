@@ -5,23 +5,27 @@
   "reviewer": "g02-a10-output-reviewer",
   "review_task_contract": "review_task@1",
   "review_decision_contract": "review_decision@1",
+  "retry_matrix": {
+    "deterministic_technical": {"low": 0, "medium": 1, "high": 2, "critical": 3},
+    "research_planning": {"low": 0, "medium": 2, "high": 3, "critical": 3},
+    "research_search": {"low": 0, "medium": 2, "high": 3, "critical": 3},
+    "evidence_high_impact": {"low": 1, "medium": 2, "high": 3, "critical": 3},
+    "synthesis_decision": {"low": 0, "medium": 1, "high": 2, "critical": 3}
+  },
+  "default_escalation": "user-research-gate",
+  "reviewer_complexity_class": "cross_artifact_reconciliation",
+  "model_bindings": {
+    "research_planning": {"claude": "opus"},
+    "research_search": {"claude": "sonnet"},
+    "synthesis_decision": {"claude": "opus"},
+    "deterministic_technical": {"claude": "sonnet"},
+    "evidence_high_impact": {"claude": "opus"},
+    "cross_artifact_reconciliation": {"claude": "opus"}
+  },
   "entry_node": "g02-a01-planner",
   "input_contract": "research_graph_input@1",
   "exit_artifact": "user_approved_research_bundle@1",
   "nodes": [
-<<<<<<< Updated upstream
-    {"name": "g02-a01-planner", "kind": "agent", "input_contract": "research_planner_input@1", "output_contract": "research_plan@1", "review_profile": "research_plan", "produces": ["research_plan@1"]},
-    {"name": "g02-a02-domain", "kind": "agent", "input_contract": "domain_research_input@1", "output_contract": "domain_candidate_sources@1", "review_profile": "domain_candidates", "produces": ["domain_candidate_sources@1"]},
-    {"name": "g02-a03-canonical-sources", "kind": "agent", "review_profile": "canonical_sources", "produces": ["CanonicalCandidateSources"]},
-    {"name": "g02-a04-recent-developments", "kind": "agent", "review_profile": "recent_developments", "produces": ["RecentCandidateSources"]},
-    {"name": "g02-a05-candidate-source-index", "kind": "agent", "review_profile": "candidate_index", "produces": ["CandidateSourceIndex"]},
-    {"name": "user-source-selection-gate", "kind": "user-gate"},
-    {"name": "g02-a06-paper-retrieval", "kind": "agent", "review_profile": "retrieved_corpus", "produces": ["RetrievedCorpus"]},
-    {"name": "g02-a07-paper-review", "kind": "agent", "review_profile": "paper_evidence", "produces": ["PaperReview", "PaperEvidenceCards"]},
-    {"name": "g02-a08-claim-verification", "kind": "agent", "review_profile": "claim_assessment", "produces": ["ClaimAssessmentState"]},
-    {"name": "g02-a09-synthesizer", "kind": "agent", "review_profile": "research_synthesis", "produces": ["ResearchState", "EvidenceMap", "UserResearchValidationPacket", "SolutionInputCandidate"]},
-    {"name": "user-research-gate", "kind": "user-gate"}
-=======
     {"name": "g02-a01-planner", "kind": "agent", "complexity_class": "research_planning", "input_contract": "research_planner_input@1", "output_contract": "research_plan@1", "review_profile": "research_plan", "produces": ["research_plan@1"]},
     {"name": "g02-a02-domain", "kind": "agent", "complexity_class": "research_search", "input_contract": "domain_research_input@1", "output_contract": "domain_candidate_sources@1", "review_profile": "domain_candidates", "produces": ["domain_candidate_sources@1"]},
     {"name": "g02-a03-canonical-sources", "kind": "agent", "complexity_class": "research_search", "review_profile": "canonical_sources", "output_contract": "candidate_sources@1", "produces": ["CanonicalCandidateSources"]},
@@ -34,11 +38,7 @@
     {"name": "g02-a08-claim-verification", "kind": "agent", "complexity_class": "evidence_high_impact", "review_profile": "claim_assessment", "output_contract": "claim_assessment@1", "produces": ["ClaimAssessmentState"]},
     {"name": "g02-a09-synthesizer", "kind": "agent", "complexity_class": "synthesis_decision", "review_profile": "research_synthesis", "output_contract": "research_state@1", "produces": ["ResearchState", "EvidenceMap", "UserResearchValidationPacket", "SolutionInputCandidate"]},
     {"name": "user-research-gate", "kind": "user-gate", "required_decisions": [{"id": "approve_required_updates", "type": "approve"}, {"id": "approve_optional_improvements", "type": "approve"}, {"id": "unresolved_claim_handling", "type": "choice"}]}
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-  ],
+],
   "sequence": [
     "g02-a01-planner",
     "g02-a02-domain",

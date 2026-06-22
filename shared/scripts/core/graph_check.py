@@ -80,12 +80,16 @@ def _load_contract_from_root(ref: str, root: Path) -> dict:
     return schema
 
 
-def check_manifest(manifest_path, plugin_root: Path | None = None,
-                   graphs_dir: Path | None = None, host: str | None = None) -> dict:
+def check_manifest(
+    manifest_path,
+    plugin_root: Path | None = None,
+    graphs_dir: Path | None = None,
+    host: str | None = None,
+) -> dict:
     """Validate one manifest against the components present on disk + sibling manifests."""
     manifest_path = Path(manifest_path)
     gdir = graphs_dir or manifest_path.parent or GRAPHS_DIR
-    manifest = json.loads(manifest_path.read_text())
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     root = plugin_root or ROOT
     resolved_host = resolve_host(root, host)
     require_agent_files = True
@@ -118,27 +122,37 @@ def check_manifest(manifest_path, plugin_root: Path | None = None,
                 _load_contract_from_root(ref, root)
             except (KeyError, ValueError) as exc:
                 errors.append(f"{manifest_path.name}: invalid {field} {ref!r}: {exc}")
+
     for node in manifest.get("nodes", []):
         kind = node.get("kind")
         name = node.get("name", "<unnamed>")
+
         if kind == "subgraph":
             sub = node.get("graph") or name
             if not (gdir / f"{sub}.graph.json").exists():
-                errors.append(f"{manifest_path.name}: subgraph node {name!r} references "
-                              f"missing manifest {sub}.graph.json")
+                errors.append(
+                    f"{manifest_path.name}: subgraph node {name!r} references "
+                    f"missing manifest {sub}.graph.json"
+                )
             continue
+
         if kind in _NON_REGISTERED_KINDS:
             continue
+
         require_component = kind == "skill" or (kind == "agent" and require_agent_files)
         if require_component and name not in registered:
-            errors.append(f"{manifest_path.name}: node {name!r} (kind={kind}) has no component "
-                          f"file on disk")
+            errors.append(
+                f"{manifest_path.name}: node {name!r} (kind={kind}) has no component "
+                f"file on disk"
+            )
+
         if reviewer and kind == "agent":
             profile = node.get("review_profile")
             if not isinstance(profile, str) or not profile.strip():
                 errors.append(
                     f"{manifest_path.name}: agent node {name!r} has no review_profile"
                 )
+
         for field in ("input_contract", "output_contract"):
             if field not in node:
                 continue
@@ -163,6 +177,22 @@ def check_manifest(manifest_path, plugin_root: Path | None = None,
                 errors.append(
                     f"{manifest_path.name}: node {name!r} produces invalid contract {ref!r}: {exc}"
                 )
+
+    # Parity guard: the host orchestrator skill must stay manifest-driven (single source of
+    # truth) rather than hardcoding a divergent sequence/policy. We require it to reference the
+    # manifest file so a refactor that copies the flow into the prompt is caught here.
+    orchestrator = manifest.get("orchestrator")
+    if orchestrator:
+        skill_md = root / "skills" / orchestrator / "SKILL.md"
+        gid_file = f"{manifest.get('graph_id', manifest_path.stem)}.graph.json"
+        if not skill_md.exists():
+            errors.append(f"{manifest_path.name}: orchestrator skill {orchestrator!r} not found")
+        elif gid_file not in skill_md.read_text(encoding="utf-8"):
+            errors.append(
+                f"{manifest_path.name}: orchestrator skill {orchestrator!r} must "
+                f"reference {gid_file} (manifest is the single source of truth)"
+            )
+
     return {
         "ok": not errors,
         "graph": manifest.get("graph_id", manifest_path.stem),
@@ -171,8 +201,11 @@ def check_manifest(manifest_path, plugin_root: Path | None = None,
     }
 
 
-def check_all(graphs_dir: Path | None = None, plugin_root: Path | None = None,
-              host: str | None = None) -> dict:
+def check_all(
+    graphs_dir: Path | None = None,
+    plugin_root: Path | None = None,
+    host: str | None = None,
+) -> dict:
     """Check every manifest. No manifests -> ok (scaffold stage)."""
     gdir = graphs_dir or GRAPHS_DIR
     resolved_host = resolve_host(plugin_root, host)

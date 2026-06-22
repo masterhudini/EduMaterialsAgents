@@ -1,0 +1,41 @@
+{
+  "title": "ClaimAssessmentState \u2014 per-claim multidimensional assessment (design 02 \u00a75.8).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "assessments"
+  ],
+  "properties": {
+    "assessments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "claim_id",
+          "confidence"
+        ],
+        "properties": {
+          "claim_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "string"
+          },
+          "recommended_action": {
+            "type": "string"
+          },
+          "evidence_refs": {
+            "type": "array"
+          },
+          "controversy": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -66,10 +66,11 @@ file because Claude treats it as project MCP config when this repo is the curren
 ## Runtime is dependency-free by design
 
 Everything under `shared/scripts/**` is **pure stdlib**. At build time the MCP configuration is
-bound to the Python interpreter used by the installer, so both `python3` and `python` environments
-are supported. There is **no virtualenv in the installed plugin**. Provider HTTP clients use the
-standard library. Work requiring third-party packages, such as PDF parsing, stays outside the
-deterministic core until its owning agent defines an isolated tool boundary.
+bound to the absolute Python interpreter used by the installer, so both `python3` and `python`
+environments are supported. If that interpreter path later changes (upgrade/relocation), rerun the
+installer to rebind the MCP command. There is **no virtualenv in the installed plugin**. Provider
+HTTP clients use the standard library. Work requiring third-party packages, such as PDF parsing,
+stays outside the deterministic core until its owning agent defines an isolated tool boundary.
 
 Runtime artifacts (drafts, logs, hydrated `artifact://` files) live in the **current project**
 under `.emagents/` (override with `EMAGENTS_HOME`); the dir is git-ignored.
@@ -142,28 +143,41 @@ On Windows use `.\install.ps1 --codex`. Replacement of an existing Codex plugin 
 the previous directory is retained as a timestamped backup after a successful installation.
 
 Then start a new Codex thread. The plugin appears as `edu-materials-agents` in the default
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 `Local Plugins` marketplace. Codex receives the shared skill/runtime and MCP tools; Codex-specific
 subagent orchestration is a separate adapter layer from Claude's agent `.md` files.
-=======
-`Local Plugins` marketplace. Codex receives the shared agents, skills, runtime and MCP tools. The Codex
-CLI plugin manifest does not currently register plugin `commands/` as slash commands, so
-`/research` is Claude-only in current Codex CLI builds.
->>>>>>> Stashed changes
-=======
-`Local Plugins` marketplace. Codex receives the shared agents, skills, runtime and MCP tools. The
-Codex runner reads the same agent `.md` definitions as Claude and invokes each node through an
-isolated `codex exec`; only the host execution adapter differs.
->>>>>>> Stashed changes
 
 ## Run
 
-```
+In Claude Code:
+
+```text
 /research mocks/g02/research_graph_input.json
 ```
 
-Or deterministically, without an LLM. This harness validates wiring and uses no-op producers,
+In Codex, start a new thread after install and ask in natural language, using an absolute JSON path
+so plugin runtime does not depend on the MCP or worker process working directory:
+
+```text
+Zrób research dla /home/khudaszek/projects/EduMaterialsAgents/mocks/g02/research_graph_input.json
+```
+
+or:
+
+```text
+Run the research graph for /home/khudaszek/projects/EduMaterialsAgents/mocks/g02/research_graph_input.json
+```
+
+The `g02-orchestrate-research` skill treats these as semantic entrypoints and uses the
+`research_run_codex` MCP tool. The default Codex gate mode is pause/resume (`gates: "pause"`), so
+human gates return a `resume_token` instead of reading interactive stdin from the MCP process.
+
+Or use the runner directly:
+
+```bash
+python /home/khudaszek/.codex/plugins/edu-materials-agents/shared/scripts/g02/g02_flow.py run-codex /home/khudaszek/projects/EduMaterialsAgents/mocks/g02/research_graph_input.json
+```
+
+Or run deterministically, without an LLM. This harness validates wiring and uses no-op producers,
 automatic reviewer approvals and automatic user-gate approvals:
 
 ```bash
@@ -172,8 +186,6 @@ python shared/scripts/g02/g02_flow.py run mocks/g02/research_graph_input.json
 python shared/scripts/g02/g02_flow.py inputs mocks/g02/research_graph_input.json --node g02-a01-planner
 ```
 
-<<<<<<< Updated upstream
-=======
 Or drive the real graph through **Codex workers** (each node is an isolated `codex exec`, no API
 key — Codex subscription login; terminal user gates). Local/dev only:
 
@@ -186,7 +198,6 @@ python shared/scripts/g02/runners/codex.py g02-a01-planner mocks/g02/research_gr
 The engine is host-agnostic; execution is the per-host runner (Claude Task subagents vs Codex
 `codex exec`). Gates support auto / terminal (`--gates prompt`) / async pause-resume.
 
->>>>>>> Stashed changes
 ## Develop & test
 
 ```bash

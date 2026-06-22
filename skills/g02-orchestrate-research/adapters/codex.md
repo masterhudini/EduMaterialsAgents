@@ -1,12 +1,10 @@
 ## Host Adapter: Codex
 
-<<<<<<< Updated upstream
 - Use the installed Research Graph MCP or equivalent node-agent adapter for validation, scoped input,
   agent execution, artifact persistence and final handoff.
 - Do not simulate physical node agents by copying their work into the orchestrator context.
 - While `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]` remains unresolved, validate the boundary input,
   then return `external_dependency_blocked` with the missing capability named explicitly.
-=======
 - For semantic requests such as "zrob research", "zrób research" or "run the research graph", use
   the MCP tool `research_run_codex` when available:
 
@@ -32,4 +30,3 @@
   node is a separate `codex exec` worker reading its own agent prompt (shipped under `agents/`).
 - If the `codex` CLI is unavailable or the user is not logged in, validate the boundary input and
   report `external_dependency_blocked`, naming the missing capability (codex CLI / login).
->>>>>>> Stashed changes
