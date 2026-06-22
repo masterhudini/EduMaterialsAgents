@@ -1,0 +1,47 @@
+{
+  "title": "CandidateSourceIndex \u2014 deduplicated, ranked index for the user gate (design 02 \u00a75.5).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "sources"
+  ],
+  "properties": {
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id",
+          "role"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "ranking": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          },
+          "selection": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object"
+    },
+    "review_document_ref": {
+      "type": "string"
+    }
+  }
+}

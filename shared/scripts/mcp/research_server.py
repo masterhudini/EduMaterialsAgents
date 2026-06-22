@@ -180,6 +180,36 @@ def _run_stub(args: dict):
     return rf.run(rf.front_door(args["context"])["ref"])
 
 
+def _run_codex(args: dict):
+    """Run or resume the graph through Codex workers.
+
+    MCP tools are not an interactive stdin surface, so the default gate behavior is pause/resume.
+    Use gates=auto only for deterministic smoke runs where human approvals may be simulated.
+    """
+    from g02.runners.codex import codex_node_runner
+
+    gates = args.get("gates", "pause")
+    if gates not in {"pause", "auto"}:
+        raise ValueError("gates must be 'pause' or 'auto'")
+
+    resume_token = args.get("resume_token")
+    decisions = args.get("decisions")
+    if resume_token:
+        return rf.run(
+            None,
+            node_runner=codex_node_runner,
+            pause_on_gate=(gates == "pause"),
+            resume_token=resume_token,
+            decisions=decisions,
+        )
+
+    context = args.get("context")
+    if not context:
+        raise ValueError("context is required when resume_token is absent")
+    ref = rf.front_door(context)["ref"]
+    return rf.run(ref, node_runner=codex_node_runner, pause_on_gate=(gates == "pause"))
+
+
 TOOLS = [
     {
         "name": "research_front_door",
@@ -393,7 +423,76 @@ TOOLS = [
             "required": ["context"],
         },
     },
+    {
+        "name": "research_run_codex",
+        "description": "Semantic entrypoint for 'zrob research', 'zrób research' or "
+                       "'run research graph' in Codex. "
+                       "Validate the input and run the full Research Graph with isolated Codex "
+                       "workers. Defaults to pause/resume user gates because MCP tools cannot "
+                       "read interactive stdin; use gates='auto' only for smoke/dev runs.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "context": {
+                    "type": "string",
+                    "description": "Path or artifact:// ref to a research_graph_input bundle. "
+                                   "Required unless resume_token is provided.",
+                },
+                "gates": {
+                    "type": "string",
+                    "enum": ["pause", "auto"],
+                    "description": "pause for human gate handoff/resume (default), auto for dev smoke.",
+                },
+                "resume_token": {
+                    "type": "string",
+                    "description": "Token from an awaiting_user response to resume a paused run.",
+                },
+                "decisions": {
+                    "type": "object",
+                    "description": "Gate decisions keyed by gate name when resuming.",
+                },
+            },
+        },
+    },
 ]
+
+PROMPTS = [
+    {
+        "name": "research",
+        "description": "Semantic 'zrob research' / 'zrób research' entrypoint for running the "
+                       "Research Graph over an approved research_graph_input bundle.",
+        "arguments": [
+            {
+                "name": "context",
+                "description": "Path or artifact:// ref to a research_graph_input bundle.",
+                "required": True,
+            },
+        ],
+    },
+]
+
+
+def _research_prompt(context: str) -> dict:
+    return {
+        "description": "Semantic 'zrob research' entrypoint for a research_graph_input bundle.",
+        "messages": [
+            {
+                "role": "user",
+                "content": {
+                    "type": "text",
+                    "text": (
+                        "The user asked to zrob research / zrób research. Use the "
+                        "edu-materials-agents orchestrate-research workflow for this "
+                        f"research_graph_input bundle: {context}\n\n"
+                        "For the full Codex workflow, call research_run_codex with gates='pause' "
+                        "so human gates return an awaiting_user resume token. For a deterministic "
+                        "wiring check only, use research_run_stub."
+                    ),
+                },
+            },
+        ],
+    }
+
 
 DISPATCH = {
     "research_front_door": _front_door,
@@ -410,6 +509,7 @@ DISPATCH = {
     "research_review_finalize": _review_finalize,
     "research_finalize": _finalize,
     "research_run_stub": _run_stub,
+    "research_run_codex": _run_codex,
 }
 
 
@@ -436,11 +536,22 @@ def handle(msg: dict):
     if method == "initialize":
         return _result(mid, {
             "protocolVersion": params.get("protocolVersion", PROTOCOL_VERSION),
-            "capabilities": {"tools": {}},
+            "capabilities": {"prompts": {}, "tools": {}},
             "serverInfo": SERVER_INFO,
         })
     if method == "ping":
         return _result(mid, {})
+    if method == "prompts/list":
+        return _result(mid, {"prompts": PROMPTS})
+    if method == "prompts/get":
+        name = params.get("name")
+        if name != "research":
+            return _error(mid, -32602, f"unknown prompt {name!r}")
+        args = params.get("arguments") or {}
+        context = args.get("context")
+        if not context:
+            return _error(mid, -32602, "missing required prompt argument 'context'")
+        return _result(mid, _research_prompt(context))
     if method == "tools/list":
         return _result(mid, {"tools": TOOLS})
     if method == "tools/call":

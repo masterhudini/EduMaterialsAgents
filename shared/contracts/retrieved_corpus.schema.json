@@ -1,0 +1,41 @@
+{
+  "title": "RetrievedCorpus \u2014 retrieved/registered documents (design 02 \u00a75.6).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "documents"
+  ],
+  "properties": {
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id",
+          "status"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable",
+              "library",
+              "failed"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "file_type": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

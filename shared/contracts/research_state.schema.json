@@ -1,0 +1,48 @@
+{
+  "title": "ResearchState \u2014 synthesizer output for the user gate + Solution handoff (design 02 \u00a75.9).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "required_updates",
+    "optional_improvements"
+  ],
+  "properties": {
+    "required_updates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "finding_id",
+          "impact"
+        ],
+        "properties": {
+          "finding_id": {
+            "type": "string"
+          },
+          "impact": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string"
+          },
+          "evidence_refs": {
+            "type": "array"
+          }
+        }
+      }
+    },
+    "optional_improvements": {
+      "type": "array"
+    },
+    "unresolved": {
+      "type": "array"
+    },
+    "evidence_map_ref": {
+      "type": "string"
+    },
+    "research_summary_ref": {
+      "type": "string"
+    }
+  }
+}

@@ -95,7 +95,7 @@
     },
     "codex": {
       "includeCommands": false,
-      "includeAgents": false,
+      "includeAgents": true,
       "manifestDir": ".codex-plugin"
     }
   }
