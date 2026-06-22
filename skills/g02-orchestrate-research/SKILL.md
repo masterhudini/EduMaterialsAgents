@@ -62,15 +62,18 @@ extend its fields inside the orchestrator.
    `candidate_source_review.md`, explain coverage and the actions DOWNLOAD, LIBRARY, CITATION,
    RESERVE, EXCLUDE and SEARCH_MORE through `research_source_selection_prepare`.
 8. Map the template or natural-language answer to `human_source_selection@1`, validate it through
-   `research_source_selection_validate`, show the returned summary and ask for a separate final
-   confirmation. Only after confirmation call `research_source_selection_finalize`. Route
+   `research_source_selection_validate`, show the returned summary including the exact DOWNLOAD
+   count and its scholarly/market-case split, and ask for a separate final confirmation. The human
+   is the decision maker; A05 recommendations are advisory. Only after confirmation call
+   `research_source_selection_finalize`. Route
    SEARCH_MORE to the relevant discovery agent, rebuild and re-review the index. Retrieval receives
    only the produced `human_approved_source_set@1` ref.
 9. Run A06 through `research_retrieval_prepare`. For scholarly DOWNLOAD sources call
    `research_oa_resolve`, `research_document_retrieve` and `research_document_validate`. For market
    cases call `research_web_case_extract` with the final selection ref, reviewed A11 ref and exact
-   approved source ID. Finalize both kinds of files through `research_retrieval_finalize` and review
-   the corpus through `research_retrieval_review_task` before A07.
+   approved source ID. Finalize both kinds through `research_retrieval_finalize`. Confirm that each
+   accepted market case produced a readable Markdown document and a separate JSON audit artifact,
+   then review the corpus through `research_retrieval_review_task` before A07.
 10. Fan out G02-A07 evidence review per validated scholarly document and per human-approved market
    case file. Then run G02-A08
    Claim Verification per independent claim or tight claim group. Preserve artifact isolation and

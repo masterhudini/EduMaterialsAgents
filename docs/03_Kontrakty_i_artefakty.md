@@ -738,19 +738,37 @@ Paper Retrieval przyjmuje ten artefakt. Nie przyjmuje surowego Candidate Source 
 ```yaml
 RetrievedCorpus:
   schema_version: retrieved_corpus@1
+  artifact_version:
   task_id:
   approved_source_set_ref:
+  candidate_source_index_ref:
+  run_directory_ref:
 
   documents:
     - source_id:
-      status: done
+      status: accepted
       local_ref:
-      metadata_ref:
-      resolved_from: unpaywall
+      validated_document_ref:
+      sha256:
       version_type: accepted_manuscript
       license: null
       content_type_valid: true
-      pdf_header_valid: true
+      signature_valid: true
+      identity_valid: true
+
+  market_cases:
+    - source_id:
+      status: accepted
+      file_type: market_case_bundle
+      source_title:
+      source_url:
+      human_document_ref: corpus://...market-case.md
+      human_document_sha256:
+      machine_artifact_ref: corpus://...market-case.json
+      machine_artifact_sha256:
+      market_candidate_sources_ref: artifact://... # reviewed A11
+      web_extract_result_ref: artifact://...
+      content_boundary: untrusted_external_research
 
   unavailable:
     - source_id:
@@ -767,13 +785,36 @@ RetrievedCorpus:
   retrieval_summary:
 ```
 
-Dozwolone źródła rozwiązania OA są konfigurowalne. Domyślna kolejność semantyczna:
+Towarzyszący artefakt katalogu:
 
-1. Unpaywall,
-2. OpenAlex OA locations,
-3. arXiv,
-4. CORE,
-5. DOAB/OAPEN.
+```yaml
+RetrievalDirectory:
+  schema_version: retrieval_directory@1
+  task_id:
+  run_directory_ref:
+  retrieved_corpus_ref:
+  manifest_ref:
+  documents_directory_ref:
+  market_cases_directory_ref:
+  document_count:
+  market_case_count:
+```
+
+Dozwolone źródła rozwiązania OA są konfigurowalne. Domyślna kolejność wykonawcza:
+
+1. zatwierdzone linki rekordu, w tym arXiv i OA locations,
+2. Unpaywall,
+3. CORE, jeżeli administrator skonfigurował klucz,
+4. DOAB jako katalog książek,
+5. OAPEN jako repozytorium ORIGINAL PDF bitstream.
+
+Liczba pozycji jest ustalana w Human Source Selection Gate. Człowiek przypisuje `DOWNLOAD`
+konkretnym source IDs i osobno zatwierdza sparsowane podsumowanie. Liczba PDF odpowiada scholarly
+source IDs z akcją `DOWNLOAD`. Każdy market case jest zapisywany jako para: czytelny Markdown z
+reviewed faktem, mechanizmem dydaktycznym, oceną źródła/materialności, kontekstem reżimu, treścią
+pobraną po bramce i ostrzeżeniem bezpieczeństwa oraz osobny JSON z dokładnym niezaufanym payloadem
+ekstrakcji. `RetrievedCorpus` przechowuje odrębne refs i SHA-256 obu plików.
+A06 odrzuca cały zatwierdzony zbiór ponad `max_documents_per_task` i sam nie dopisuje źródeł.
 
 ## 10. Paper Review i evidence cards
 

@@ -102,6 +102,29 @@ def _origin(value: str) -> tuple[str, str, int | None]:
     return parsed.scheme.casefold(), (parsed.hostname or "").casefold(), parsed.port
 
 
+def _validate_redirect_target(initial_url: str, final_url: str, *, cached: bool = False) -> None:
+    """Classify redirect violations before provider allowlist validation."""
+    try:
+        initial_origin = _origin(initial_url)
+        final_origin = _origin(final_url)
+    except ValueError as exc:
+        raise WebProviderError(
+            "unsafe_web_endpoint", "web redirect target contains an invalid port"
+        ) from exc
+    if final_origin != initial_origin:
+        raise WebProviderError(
+            "cross_origin_redirect_blocked",
+            "cached web provider response changed origin" if cached
+            else "web provider redirect changed origin",
+        )
+    if urllib.parse.urlparse(final_url).path != urllib.parse.urlparse(initial_url).path:
+        raise WebProviderError(
+            "provider_redirect_target_mismatch",
+            "cached provider response changed the authorized operation endpoint" if cached
+            else "web provider redirect changed the authorized operation endpoint",
+        )
+
+
 def _validate_provider_url(config: provider_config.ProviderRuntimeConfig,
                            provider: str, url: str, *, final: bool = False) -> None:
     parsed = urllib.parse.urlparse(url)
@@ -376,14 +399,8 @@ def _request_json(config: provider_config.ProviderRuntimeConfig, provider: str, 
     _validate_provider_url(config, provider, url)
     cached = _cached_response(config, provider, method, url, public_body)
     if cached is not None:
+        _validate_redirect_target(url, cached.final_url, cached=True)
         _validate_provider_url(config, provider, cached.final_url, final=True)
-        if _origin(cached.final_url) != _origin(url) \
-                or urllib.parse.urlparse(cached.final_url).path \
-                != urllib.parse.urlparse(url).path:
-            raise WebProviderError(
-                "provider_redirect_target_mismatch",
-                "cached provider response changed the authorized operation endpoint",
-            )
         return json.loads(cached.body_text), cached, _public_budget(config, task_id)
     budget = _consume_budget(config, task_id, provider, operation)
     request_cfg = _web_section(config, "request")
@@ -424,14 +441,8 @@ def _request_json(config: provider_config.ProviderRuntimeConfig, provider: str, 
                 for key, value in dict(raw.get("headers", {})).items()
             }
             final_url = str(raw.get("final_url", url))
+            _validate_redirect_target(url, final_url)
             _validate_provider_url(config, provider, final_url, final=True)
-            requested = urllib.parse.urlparse(url)
-            if _origin(final_url) != _origin(url) \
-                    or urllib.parse.urlparse(final_url).path != requested.path:
-                raise WebProviderError(
-                    "provider_redirect_target_mismatch",
-                    "web provider redirect changed the authorized operation endpoint",
-                )
             status = int(raw["status_code"])
             body_text = _redact(
                 _decode_body(raw.get("body", b""), response_headers), secrets

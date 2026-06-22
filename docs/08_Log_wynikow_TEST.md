@@ -24,6 +24,144 @@ scenariusze, wyniki i werdykty historycznych rund pozostają niezmienne.
 
 ## Wpisy
 
+### Runda 8 — 2026-06-22 — Pierwszy TEST nowego batcha A11 (TEST 6), A05 (TEST 7), A06 (DEV 8): deterministyka + live Tavily/OA + packaging
+
+Środowisko: repo `ema-wsl` (WSL2), branch `main` na `0751f63` (po merge A05 #17 i A06 #18), Python 3.14.4,
+`pytest` 9.1.1 z `.venv`. Sieć wychodząca dostępna. Sekrety wyłącznie w env: `TAVILY_API_KEY` (klucz
+dostarczony przez właściciela w tej sesji), `EMAGENTS_RESEARCH_CONTACT_EMAIL`, `OPENALEX_API_KEY`,
+`SEMANTIC_SCHOLAR_API_KEY`. `CORE_API_KEY` nieobecny (CORE OA pozostaje opcjonalny). Każdy przebieg
+miał osobny `EMAGENTS_HOME` w `/tmp`. Wartości sekretów nie były zapisywane do plików repo ani logów;
+skrypty live trzymane poza repo (`/tmp`).
+
+**Cel rundy:** pierwsze faktyczne wykonanie wcześniej nieprzetestowanych funkcjonalności nowego batcha
+(A11 Market Cases, A05 Candidate Source Index, A06 Paper Retrieval) na warstwie deterministycznej,
+live API (Tavily dla A11; Unpaywall/DOAB/OAPEN/CORE dla A06) oraz packagingu. Forward Claude/Codex,
+pełna integracja A01→…→A06 i live gated Tavily extraction świadomie odroczone — `⏳ KOŃCOWY`.
+
+**Werdykt zbiorczy: warstwa deterministyczna A05 i A06 zielona; A11 zielona poza jednym FAIL kodu issue.
+Live Tavily discovery (A11) i live Unpaywall (A06) — PASS. Packaging zbudowany i higieniczny, ale
+`graph_check` FAIL na source i obu bundlach z powodu BRAKUJĄCEGO kontraktu `retrieval_directory@1`
+(blocker A06). Trzy findingi (niżej).**
+
+#### Liczby
+
+- Pełny `pytest`: **93 passed, 2 failed** (95 łącznie). FAIL: A11 redirect (issue-code) + `test_research_graph::test_manifest_matches_registration` (graph_check).
+- A11 `tests/test_g02_market_cases.py`: **8/9** (1 FAIL — finding 1).
+- A05 `tests/test_g02_candidate_index.py`: **4/4 PASS**.
+- A06 `tests/test_g02_retrieval.py`: **6/6 PASS**.
+- Live Tavily discovery (auto_budgeted, SearXNG off): **PASS** — 6 realnych case'ów.
+- Live OA: Unpaywall **PASS**; CORE poprawnie `unavailable` (brak klucza); DOAB **HTTP 403** (finding 3); OAPEN odpowiada (0 dla testowego ISBN).
+- Packaging: dry-run 20 skilli/11 agentów bez mutacji źródeł; build obu bundli OK; higiena bundla czysta; MCP `0.9.0` / **39 operacji**. `graph_check` source/Claude/Codex: **FAIL** (jeden błąd — finding 2).
+
+#### TEST 6, G02-A11 Market Cases
+
+- A–E (deterministyka) — **PASS poza jednym FAIL** przez `tests/test_g02_market_cases.py` (8/9):
+  contracts+config+scoped prepare; query plan + auto_budgeted result; finalize+review+MCP parity;
+  walidator odrzuca zmodyfikowany rekord/scope/sfabrykowaną obserwację; limit odpowiedzi + blokada
+  ekstrakcji przed bramką; **post-gate extraction → bounded untrusted artifact** (offline mock Tavily);
+  rewizja zachowuje untargeted i odrzuca nieznany target/unscoped change. **FAIL: redirect issue-code
+  (finding 1).**
+- F (live Tavily) — **PASS**: discovery zwraca 6 datowalnych case'ów z allowlisted domen (risk.net itd.),
+  każdy `source_record@1` (contract_ok), `record_type: market_case`, `tier_2_reputable_media`,
+  `abstract_source: search_snippet` i `raw_page_ref: None` (**brak ekstrakcji strony w discovery**);
+  powtórzenie → `provenance.cache_hit: True` (brak drugiego requestu); skan `EMAGENTS_HOME` — **0 wycieków**
+  klucza/e-maila. Live SearXNG — **nie wykonano** (brak skonfigurowanej instancji). Live gated Tavily
+  extraction — **nie wykonano** (wymaga pełnego łańcucha A11→A05→human gate; egzekwowanie bramki zielone
+  offline).
+- G (forward Claude/Codex) — **`⏳ KOŃCOWY`**.
+- H (packaging) — inventory 11 agentów/20 skilli, build obu bundli, higiena czysta: **PASS**;
+  `graph_check`: **FAIL** (finding 2, wspólny dla całego grafu).
+
+#### TEST 7, G02-A05 Candidate Source Index
+
+- A–E (deterministyka) — **PASS** przez `tests/test_g02_candidate_index.py` (4/4): prepare wymaga
+  dokładnych APPROVED reviews i rzutuje reviewed-only scoped input; build deduplikuje i opisuje treść
+  scholarly oraz market case; finalize zapisuje przyjazny dokument + review task; MCP inventory +
+  prepare parity.
+- F (rzeczywista interakcja Human Source Selection Gate) — **nie wykonano** (wymaga realnego hosta/orkiestratora) — `⏳ KOŃCOWY`.
+- G (MCP/packaging/forward) — MCP `0.9.0`/39 i prepare parity **PASS**; `graph_check` **FAIL** (finding 2); forward **`⏳ KOŃCOWY`**.
+
+#### DEV 8, G02-A06 Paper Retrieval
+
+- Deterministyka — **PASS** przez `tests/test_g02_retrieval.py` (6/6): bramka wymaga osobnego final
+  confirmation; resolvery record/unpaywall/core/doab/oapen; DOAB jako katalog i OAPEN ORIGINAL PDF
+  bitstream; mixed retrieval tworzy jeden folder z PDF + market case; HTML login page odrzucony;
+  MCP inventory A06 bez publicznego `config`.
+- Live OA — **PASS z findingiem**: capabilities `record/unpaywall/doab/oapen` ready, `core` nieready
+  (brak `CORE_API_KEY`), status nie ujawnia e-maila; Unpaywall na PLOS OA DOI `10.1371/journal.pone.0000308`
+  → 2 kandydaci `version_of_record`, HTTPS PDF, licencja cc-by; zamknięty DOI → 0 (kontrolowany brak, bez
+  fabrykacji); 0 wycieków. **DOAB live `/rest/search` → HTTP 403 (finding 3)**; OAPEN `/rest` odpowiada
+  (0 dla testowego ISBN, bez fabrykacji).
+- Integracja end-to-end, resume live, forward — **`⏳ KOŃCOWY`**.
+- Packaging — build/hygiena **PASS**; `graph_check` **FAIL** (finding 2).
+
+#### Findingi (do decyzji/poprawki dev)
+
+1. **A11: redirect cross-origin raportowany jako `unsafe_searxng_endpoint`, nie `cross_origin_redirect_blocked`**
+   (`tests/test_g02_market_cases.py::test_agent_cannot_supply_searxng_endpoint_or_cross_origin_redirect`).
+   Przy wstrzykniętym transportcie walidacja `final_url` (`web_cases.py:427`) wywołuje
+   `_validate_provider_url(..., final=True)` **przed** dedykowanym sprawdzeniem cross-origin (`:429`).
+   Kod `cross_origin_redirect_blocked` powstaje wyłącznie w `_PinnedRedirectHandler` (`:168`), używanym
+   tylko przez `_default_transport`, więc przy własnym transportcie jest nieosiągalny. **Substancja
+   bezpieczeństwa zachowana** (redirect zablokowany, status `partial`, treść atakującego nieużyta) —
+   różni się tylko kod issue. **Do decyzji:** przestawić kolejność sprawdzeń, albo dostroić oczekiwanie
+   testu. Ścieżka produkcyjna (default transport) jest poprawna.
+2. **A06 BLOCKER: brak kontraktu `retrieval_directory@1`.** Węzeł `g02-a06-paper-retrieval` w
+   `shared/graphs/g02.graph.json` deklaruje `produces: ["retrieved_corpus@1", "retrieval_directory@1"]`,
+   a `shared/scripts/g02/retrieval.py:367` emituje deskryptor `schema_version: retrieval_directory@1`,
+   ale **brak `shared/contracts/retrieval_directory.schema.json`**. `graph_check` ładuje schemat każdego
+   produkowanego kontraktu (`graph_check.py:175`) → KeyError → `graph_check` FAIL na source **oraz obu
+   bundlach** (jedyny błąd na każdym hoście). Uciekło, bo DEV 8 jawnie nie uruchamiał `graph_check`/buildu.
+   **Do poprawki:** dodać `retrieval_directory.schema.json`, albo usunąć `retrieval_directory@1` z
+   `produces[]` i deskryptora (run directory jako nie-kontraktowy ref). Blokuje bramkę packagingu.
+3. **A06: live DOAB `/rest/search` → HTTP 403.** DOAB używa starego DSpace-6 REST API (`directory.doabooks.org/rest/...`),
+   które zwraca 403 (przestarzałe; DOAB/OAPEN przeszły na DSpace-7 `/server/api/`). OAPEN `/rest` jeszcze
+   odpowiada. Offline (mocki starego formatu) przechodzi; live DOAB resolution wymaga migracji endpointu.
+   Wynik kontrolowany (`RetrievalError`/failed), **bez udawanego sukcesu**.
+
+   **Korekta diagnostyczna DEV 2026-06-23:** wynik HTTP 403 pozostaje historycznym wynikiem Rundy 8,
+   ale przyczyną nie było wycofanie DSpace 6. `/rest/status` raportuje API 6/source 6.3, a ten sam
+   `/rest/search` odpowiada 200 dla `User-Agent: EduMaterialsAgents/0.9` i 403 dla
+   `Python-urllib/3.14`. Runtime otrzymał stały nie-sekretny User-Agent; potrzebny jest rerun TEST.
+
+#### Follow-up DEV po Rundzie 8 — 2026-06-23 (bez nowego werdyktu TEST)
+
+- Naprawiono klasyfikację redirectu A11 dla transportu wstrzykniętego, cache i ścieżki produkcyjnej.
+- Dodano brakujący kontrakt `retrieval_directory@1`, typed descriptor `artifact://` i kontrolę bundla.
+- Dodano stały User-Agent dla metadanych OA, klasyfikację HTTP status oraz kontrolę DNS każdego
+  redirectu downloadera.
+- Dodano domyślnie pomijany live smoke, który pobiera rzeczywisty PDF PLOS przez Unpaywall,
+  waliduje `%PDF-` i SHA-256, finalizuje katalog i wypisuje `A06_LIVE_RUN_DIRECTORY`.
+- Domknięto starszy finding Rundy 7: wyłączony provider jest teraz rozpoznawany przed walidacją
+  gotowości QueryPlan, zwraca `unavailable/provider_disabled` i nie wykonuje requestu.
+- Rozszerzono A06 o czytelny dokument market case. Po zatwierdzeniu źródła A06 wiąże dokładnie
+  jedną reviewed adnotację A11 z gated extraction i zapisuje obok JSON także Markdown zawierający
+  fakt, interpretację dydaktyczną, ocenę źródła/materialności, kontekst reżimu, powiązania i jawne
+  ostrzeżenie o niezaufanej treści. `retrieved_corpus@1` 1.2 przechowuje odrębne refs i SHA-256 obu
+  plików; brak dokładnej adnotacji A11 blokuje utworzenie dokumentu.
+- Dodano asercje treści i checksum pakietu, negatywny test brakującej adnotacji oraz wydruk
+  `A06_MARKET_CASE_RUN_DIRECTORY`. Następny domyślny rerun `tests/test_g02_retrieval.py` ma dać
+  8 PASS i 1 SKIPPED (live PDF), a
+  procedura wykonania i ręcznej inspekcji znajduje się w końcu sekcji TEST A06 pliku 07.
+- Powyższe punkty są zmianami DEV. Historyczne 93/95 pozostaje bez zmian do ponownego uruchomienia
+  pełnego pytest, `graph_check` na trzech hostach oraz testów live DOAB/PDF w środowisku TEST.
+
+#### Odroczone (`⏳ KOŃCOWY`)
+
+- Forward Claude/Codex dla A11, A05, A06; pełna integracja A01→A02→A03→A04→A11 discovery→A05→bramka→A06.
+- Live gated Tavily extraction (po finalnej bramce człowieka) i live skonfigurowanej instancji SearXNG.
+- Rzeczywista interakcja Human Source Selection Gate (TEST 7 F) na realnym hoście.
+
+#### Mapa „co zmienić w 07" po tej rundzie
+
+- TEST 6 (A11): zaznaczyć deterministyczne A–E pokryte `test_g02_market_cases.py` oprócz bulletu redirect
+  (oznaczyć `❌ FAIL`, finding 1); zaznaczyć live Tavily discovery + skan sekretów w F (SearXNG/extraction
+  live = nie wykonano); H — zaznaczyć inventory/build/higienę, `graph_check` `❌ FAIL` (finding 2).
+- TEST 7 (A05): zaznaczyć deterministyczne A–E pokryte `test_g02_candidate_index.py` i MCP parity w G;
+  `graph_check` `❌ FAIL`; F i forward `⏳ KOŃCOWY`.
+- DEV 8 batch A06: zaznaczyć deterministyczne pozycje pokryte `test_g02_retrieval.py` i live Unpaywall;
+  DOAB live z notą (finding 3); `graph_check`/packaging `❌ FAIL` (finding 2); integracja/forward/resume `⏳ KOŃCOWY`.
+
 ### Runda 7 — 2026-06-22 — Pełne domknięcie TEST 1–5 (A01–A04) + live API; baseline „ostatni pełny przebieg"
 
 Środowisko: klon repo `ema-wsl` (WSL2), branch `main` (po merge `e75244b` z A03/A04), Python 3.14.4,

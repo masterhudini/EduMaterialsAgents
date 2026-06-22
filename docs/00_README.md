@@ -66,16 +66,21 @@ Pliki w tym katalogu są częścią repozytorium i stanowią kontekst projektowy
 ### Status implementacji warstwy treści
 
 Warstwa definicji zawiera 11 agentów i 20 skilli, w tym jeden uniwersalny reviewer, orkiestrator
-oraz zaimplementowane A11 Market Cases i A05 Candidate Source Index. A11 ma scoped input,
+oraz zaimplementowane A11 Market Cases, A05 Candidate Source Index i A06 Paper Retrieval. A11 ma scoped input,
 deterministyczne operacje Tavily/SearXNG, wariant `candidate_sources@1`, profil review i gated
 extraction. A05 ma reviewed-only scoped input, konserwatywną deduplikację, jawny ranking,
-candidate coverage oraz generator czytelnego `candidate_source_review.md`.
+candidate coverage oraz generator czytelnego `candidate_source_review.md`. A06 ma dwuetapową
+bramkę człowieka, resolvery record/Unpaywall/CORE/DOAB/OAPEN, bezpieczny downloader, walidację PDF
+oraz typed deskryptor jednego katalogu wynikowego. Dla każdego zatwierdzonego market case zapisuje
+czytelny dokument Markdown z faktem i interpretacją A11 oraz oddzielny JSON audytowy z pobraną
+treścią oznaczoną jako niezaufana.
 
-Deterministyczne seams reviewera oraz G02-A01, A02, A03, A04, A11 i A05 są wdrożone. G02-A02 posiada
+Deterministyczne seams reviewera oraz G02-A01, A02, A03, A04, A11, A05 i A06 są wdrożone. G02-A02 posiada
 konfigurację providerów, adaptery OpenAlex, Semantic Scholar i arXiv, cache, retry, rate limiting,
 normalizację oraz zapis surowej proweniencji. `g02_flow.py run-codex` uruchamia fizyczne definicje
 agentów jako izolowane procesy `codex exec`; tryb `run` pozostaje harness-em no-op do testowania
-wiringu i nie jest testem zachowania agentów. Downloader, indeks tekstu PDF, dalsze scoped inputs i
+wiringu i nie jest testem zachowania agentów. Produkcyjny downloader A06 ma domyślnie pomijany
+live smoke pobierający rzeczywisty PDF przez Unpaywall. Indeks tekstu PDF, dalsze scoped inputs i
 scheduler fan-out/fan-in pozostają kolejnymi etapami.
 
 ### Zamknięta decyzja nadrzędna

@@ -187,6 +187,7 @@ Minimalne artifact types:
 - `human_source_selection@1`,
 - `human_approved_source_set@1`,
 - `retrieved_corpus@1`,
+- `retrieval_directory@1`,
 - `paper_review@1`,
 - `paper_evidence_card@1`,
 - `claim_assessment_state@1`,
@@ -482,6 +483,8 @@ Kontrola content type, nagłówka PDF, source ID, duplikatu i jawnego statusu b�
 **Owner:** CONTENT
 
 Agent łączy trzy skille, nie ocenia jakości naukowej i zwraca RetrievedCorpus.
+Po gated extraction renderuje też deterministyczny, czytelny dokument market case z reviewed
+adnotacji A11 i zapisuje go obok odrębnego JSON audytowego. Oba pliki mają osobne refs i checksumy.
 
 ### I5. Adaptery API i downloader
 

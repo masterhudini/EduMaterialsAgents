@@ -88,7 +88,11 @@ choice document whose scholarly descriptions are labelled as abstract-based or m
 whose market-case descriptions use reviewed A11 facts and didactic mechanisms. A two-step source
 gate freezes `human_approved_source_set@1`. A06 resolves scholarly DOWNLOAD sources through approved
 record links, Unpaywall, optional CORE and DOAB/OAPEN, validates PDF identity and integrity, and
-places validated PDFs plus gated A11 market-case JSON files in one `corpus://` run folder. The MCP
+places validated PDFs plus gated A11 market-case bundles in one `corpus://` run folder described
+by `retrieval_directory@1`. Each bundle includes a readable Markdown document containing
+the reviewed A11 fact, didactic mechanism, source assessment and bounded post-gate page content;
+the JSON remains the machine-readable audit artifact. The human fixes the exact DOWNLOAD count at the gate; A06 enforces the
+administrator's `max_documents_per_task` and cannot add sources. The MCP
 server exposes thirty-nine operations at version `0.9.0`. Remaining producer operations are added
 with their owning agents.
 

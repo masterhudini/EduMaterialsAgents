@@ -176,11 +176,17 @@ Komponenty:
 - `skills/g02-a06-resolve-open-access/`,
 - `skills/g02-a06-retrieve-open-access-document/`,
 - `skills/g02-a06-validate-retrieved-document/`,
-- `retrieved_corpus@1`.
+- `retrieved_corpus@1`,
+- `retrieval_directory@1`.
 
 Łańcuch OA obejmuje Unpaywall, OpenAlex OA, arXiv, CORE i DOAB/OAPEN. Implementacja zawiera
 bezpieczny downloader, kontrolę redirectów i rozmiaru, sygnaturę pliku, checksum, wykrywanie
 duplikatów, zgodność dokumentu ze źródłem oraz zakaz pobierania bez decyzji `DOWNLOAD`.
+Zatwierdzony market case daje dwa pliki w jednym katalogu: czytelny Markdown deterministycznie
+łączący adnotację A11 z ograniczoną treścią strony pobraną po bramce oraz osobny JSON audytowy.
+`retrieved_corpus@1` zapisuje refs i sumy kontrolne obu plików.
+Dokładną liczbę `DOWNLOAD` wybiera człowiek w bramce po A05, natomiast limit maksymalny ustala
+administrator w `retrieval.limits.max_documents_per_task`.
 
 ### 4.8. G02-A07 Paper Review
 

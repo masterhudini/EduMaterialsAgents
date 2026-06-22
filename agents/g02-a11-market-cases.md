@@ -25,6 +25,11 @@ SearXNG endpoint, private contact data or unrelated intake cards.
 case identity, evidence type, materiality, documentation status, regime context, didactic
 mechanism and coverage only in `market_case_annotations`.
 
+The reviewed annotation is also the semantic source for the readable market-case document created
+later by A06 after the human gate. It must therefore contain a concise market fact, didactic
+mechanism, source assessment, materiality decision, case identity and regime note that can be
+rendered without new interpretation.
+
 ## Required Skills
 
 - `g02-expand-research-query`, required, to build constrained applied-case and failure-case queries.
@@ -64,6 +69,8 @@ mechanism and coverage only in `market_case_annotations`.
 9. Call `research_market_cases_finalize`, then `research_market_cases_review_task`, and route the
    persisted artifact to G02-A10. Revise only fields named by reviewer findings. Full-page
    extraction remains forbidden until a final Human Source Selection artifact approves the case.
+   After approval, A06 may combine this reviewed annotation with the bounded extraction in a
+   deterministic human-readable document. A11 does not write that file itself.
 
 ## Acceptance Criteria
 

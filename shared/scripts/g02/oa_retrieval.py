@@ -33,6 +33,7 @@ METADATA_ORIGINS = {
     "doab": "https://directory.doabooks.org",
     "oapen": "https://library.oapen.org",
 }
+METADATA_USER_AGENT = "EduMaterialsAgents/0.9"
 RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}
 MetadataTransport = Callable[[str, dict[str, str], float, int], dict]
 DownloadTransport = Callable[[str, dict[str, str], float, int, Path, int], dict]
@@ -197,11 +198,14 @@ def _metadata_json(config: provider_config.ProviderRuntimeConfig, provider: str,
     backoff = float(request_cfg["backoff_seconds"])
     max_bytes = int(request_cfg["max_metadata_response_bytes"])
     runner = transport or _default_metadata_transport
+    request_headers = dict(headers)
+    request_headers.setdefault("Accept", "application/json")
+    request_headers.setdefault("User-Agent", METADATA_USER_AGENT)
     last: RetrievalError | None = None
     for attempt in range(max_retries + 1):
         _rate_limit(config, provider)
         try:
-            raw = runner(url, headers, timeout, max_bytes)
+            raw = runner(url, request_headers, timeout, max_bytes)
             status = int(raw["status_code"])
             final_url = str(raw.get("final_url", url))
             _validate_metadata_url(provider, final_url)
@@ -220,6 +224,12 @@ def _metadata_json(config: provider_config.ProviderRuntimeConfig, provider: str,
                 return json.loads(body)
         except RetrievalError as exc:
             last = exc
+        except urllib.error.HTTPError as exc:
+            status = int(exc.code)
+            last = RetrievalError(
+                "metadata_http_error", f"{provider} returned HTTP {status}",
+                status in RETRYABLE_STATUS, status,
+            )
         except (urllib.error.URLError, TimeoutError, OSError, ValueError,
                 UnicodeDecodeError, json.JSONDecodeError, KeyError) as exc:
             last = RetrievalError("metadata_transport_error", str(exc), True)
@@ -518,6 +528,7 @@ class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         _validate_https_url(newurl)
+        _reject_private_dns(newurl)
         if len(self.chain) >= self.max_redirects:
             raise RetrievalError("redirect_limit_exceeded", "document redirect limit exceeded")
         self.chain.append(newurl)
@@ -650,6 +661,21 @@ def retrieve_document(retrieval_input: dict, resolution_ref: str, *, config_path
                 temporary_ref = corpus_ref(target, config)
                 status = "downloaded"
                 break
+            except urllib.error.HTTPError as exc:
+                response_status = int(exc.code)
+                retryable = response_status in RETRYABLE_STATUS
+                issues.append(_issue(
+                    "document_http_error",
+                    f"document host returned HTTP {response_status}",
+                    retryable=retryable, provider=selected.get("provider"),
+                ))
+                attempts.append({"attempt": attempt + 1, "url": url,
+                                 "http_status": response_status, "status": "failed"})
+                target.unlink(missing_ok=True)
+                if not retryable or attempt >= max_retries:
+                    status = "failed"
+                    break
+                time.sleep(backoff * (2 ** attempt))
             except (RetrievalError, urllib.error.URLError, TimeoutError, OSError,
                     ValueError, KeyError) as exc:
                 retryable = exc.retryable if isinstance(exc, RetrievalError) else True

@@ -964,6 +964,23 @@ def search_metadata(query_plan: object, domain_input: object, *, route_id: str,
             config_profile=config.profile,
         )
         return _store_result(result, config, base=artifact_base)
+    preferred_providers = route.get("preferred_providers", [])
+    if not isinstance(preferred_providers, list) or provider not in preferred_providers:
+        result = _failed_result(
+            provider, route, started_at=started_at, status="failed",
+            issue=_issue("provider_not_authorized_for_route", provider),
+            operation_scope=operation_scope,
+            config_profile=config.profile,
+        )
+        return _store_result(result, config, base=artifact_base)
+    if not config.enabled(provider):
+        result = _failed_result(
+            provider, route, started_at=started_at, status="unavailable",
+            issue=_issue("provider_disabled", f"{provider} is disabled"),
+            operation_scope=operation_scope,
+            config_profile=config.profile,
+        )
+        return _store_result(result, config, base=artifact_base)
     limits = config.data["limits"]
     assert isinstance(limits, dict)
     validation = query_planning.validate_query_plan(
@@ -980,23 +997,6 @@ def search_metadata(query_plan: object, domain_input: object, *, route_id: str,
             config_profile=config.profile,
         )
         return _store_result(result, config, base=artifact_base)
-    if provider not in route.get("preferred_providers", []):
-        result = _failed_result(
-            provider, route, started_at=started_at, status="failed",
-            issue=_issue("provider_not_authorized_for_route", provider),
-            operation_scope=operation_scope,
-            config_profile=config.profile,
-        )
-        return _store_result(result, config, base=artifact_base)
-    if not config.enabled(provider):
-        result = _failed_result(
-            provider, route, started_at=started_at, status="unavailable",
-            issue=_issue("provider_disabled", f"{provider} is disabled"),
-            operation_scope=operation_scope,
-            config_profile=config.profile,
-        )
-        return _store_result(result, config, base=artifact_base)
-
     operation_id = f"OP_{uuid.uuid4().hex.upper()}"
     records: list[dict] = []
     raw_refs: list[str] = []

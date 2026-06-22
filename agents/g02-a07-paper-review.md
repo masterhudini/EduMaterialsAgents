@@ -14,8 +14,11 @@ the assigned evidence.
 
 ## Contract
 
-**Input:** one validated document from `RetrievedCorpus`, its `SourceRecord`, assigned claim and topic
-cards, review scope, audience level, output language and optional targeted follow-up request.
+**Input:** one validated document or accepted market-case bundle from `RetrievedCorpus`, its
+`SourceRecord`, assigned claim and topic cards, review scope, audience level, output language and
+optional targeted follow-up request. A market-case entry supplies the persisted
+`web_extract_result_ref`, readable `human_document_ref`, machine `machine_artifact_ref` and reviewed
+`market_candidate_sources_ref`; A07 must not repeat the network extraction.
 
 **Output artifacts:** one `PaperReview` (`paper_review@1`) and its `PaperEvidenceCards`, with stable
 evidence IDs and document locations. Return descriptors through `envelope@1`.
@@ -24,14 +27,15 @@ evidence IDs and document locations. Return descriptors through `envelope@1`.
 
 - `g02-a07-extract-paper-evidence`, required for scholarly documents.
 - `g02-a11-extract-case-evidence`, required only for an approved `market_case` after the A11
-  deterministic extraction seam is implemented.
+  extraction has been persisted and packaged by A06.
 
 ## Workflow
 
 1. Confirm source identity, human approval, validated local or page-artifact ref and assigned scope.
 2. For a scholarly document, use the deterministic PDF text and section index. For a market case,
-   call the deterministic web extraction operation only after approval and consume its persisted
-   page artifact. Inspect only relevant windows for each assigned claim, methods and limitations.
+   consume the A06 bundle and its already persisted extraction artifact. Use the readable Markdown
+   for orientation and the machine artifact plus A11 annotation for evidence locations. Do not call
+   Tavily again. Inspect only relevant windows for each assigned claim, methods and limitations.
 3. Read surrounding context needed to distinguish this paper's result from cited background,
    assumptions or speculative discussion. Inspect the whole document progressively when the scope
    cannot be resolved from targeted sections.

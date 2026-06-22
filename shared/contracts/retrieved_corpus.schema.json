@@ -1,6 +1,6 @@
 {
   "title": "G02-A06 validated scholarly documents and gated market-case files",
-  "x-version": "1.1",
+  "x-version": "1.2",
   "x-major": 1,
   "type": "object",
   "required": [
@@ -18,12 +18,60 @@
     "candidate_source_index_ref": {"type": "string"},
     "run_directory_ref": {"type": "string"},
     "documents": {"type": "array", "items": {"type": "object"}},
-    "market_cases": {"type": "array", "items": {"type": "object"}},
+    "market_cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id", "status", "file_type", "source_title", "source_url",
+          "human_document_ref", "human_document_sha256", "machine_artifact_ref",
+          "machine_artifact_sha256", "content_sha256", "content_boundary",
+          "web_extract_result_ref", "market_candidate_sources_ref", "source_selection_ref"
+        ],
+        "properties": {
+          "source_id": {"type": "string"},
+          "status": {"type": "string", "enum": ["accepted"]},
+          "file_type": {"type": "string", "enum": ["market_case_bundle"]},
+          "source_title": {"type": "string"},
+          "source_url": {"type": "string"},
+          "human_document_ref": {"type": "string"},
+          "human_document_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "machine_artifact_ref": {"type": "string"},
+          "machine_artifact_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "local_ref": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "content_boundary": {"type": "string", "enum": ["untrusted_external_research"]},
+          "truncated": {"type": "boolean"},
+          "prompt_injection_patterns_detected": {"type": "array", "items": {"type": "string"}},
+          "web_extract_result_ref": {"type": "string"},
+          "market_candidate_sources_ref": {"type": "string"},
+          "source_selection_ref": {"type": "string"}
+        }
+      }
+    },
     "unavailable": {"type": "array", "items": {"type": "object"}},
     "failed": {"type": "array", "items": {"type": "object"}},
     "skipped_actions": {"type": "object"},
     "attempt_log": {"type": "array", "items": {"type": "object"}},
-    "retrieval_summary": {"type": "object"},
+    "retrieval_summary": {
+      "type": "object",
+      "required": [
+        "approved_download_count", "validated_document_count", "market_case_count",
+        "market_case_human_document_count", "market_case_machine_artifact_count",
+        "unavailable_count", "failed_count", "network_attempt_count"
+      ],
+      "properties": {
+        "approved_download_count": {"type": "integer"},
+        "validated_document_count": {"type": "integer"},
+        "market_case_count": {"type": "integer"},
+        "market_case_human_document_count": {"type": "integer"},
+        "market_case_machine_artifact_count": {"type": "integer"},
+        "unavailable_count": {"type": "integer"},
+        "failed_count": {"type": "integer"},
+        "network_attempt_count": {"type": "integer"}
+      }
+    },
     "policy": {"type": "object"},
     "review_profile_ref": {"type": "string", "enum": ["retrieved_corpus"]}
   }

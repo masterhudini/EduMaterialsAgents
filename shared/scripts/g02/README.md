@@ -18,6 +18,7 @@ Authoritative design references: `docs/02_Architektura_agentow_i_skilli.md` and
 | `recent.py` | Derive the exact intake-approved recent window, scope reviewed A01/A02 artifacts for G02-A04, validate and store recent `candidate_sources@1`, constrain revisions and build the frozen `recent_developments` review task. |
 | `market_cases.py` | Project the minimal A11 input from reviewed A01/A02 refs, validate market-case annotations, materiality, tiering, coverage and revisions, persist the `market_cases` stream and build MC-01 to MC-06 review tasks. |
 | `web_cases.py` | Execute controlled Tavily/SearXNG discovery with fixed or administrator-pinned endpoints, budgets, cache, redirect and response controls, normalize `market_case` records, and perform Tavily extraction only after a final stored source selection. |
+| `retrieval.py` | Prepare A06 from the finally confirmed source set, finalize scholarly PDFs and render every accepted market case as readable Markdown plus a separate untrusted JSON audit artifact with distinct refs and checksums. |
 | `citations.py` | Execute bounded one-hop OpenAlex and Semantic Scholar citation relations with the shared provider transport, normalization, cache and provenance boundary. |
 | `provider_config.py` | Load and validate the secret-free provider profile, environment credentials, runtime paths and startup capabilities. |
 | `query_planning.py` | Validate provider-neutral `query_plan@1` routes, generated-term bases, approved topic scope, coverage and enabled providers. |
