@@ -68,7 +68,7 @@ def upload(pdf_path, *, hints: dict | None = None, ingestion_profile: dict | Non
             "language_hint": h.get("language"),
         },
         "ingestion_profile": _merged_ingestion_profile(ingestion_profile),
-        "output_language": h.get("output_language", "English"),
+        "output_language": h.get("output_language") or h.get("language") or "English",
     }
     res = contracts.validate(bundle, INPUT_CONTRACT)
     if not res["ok"]:

@@ -55,6 +55,7 @@ EXPECTED_GLOBAL_SETTINGS = {
 
 
 EXPECTED_SKILL_SETTINGS = {
+    "g01-orchestrate-intake": ("opus", "low"),
     "g02-a01-plan-research-scope": ("opus", "medium"),
     "g02-a05-annotate-source-candidates": ("opus", "medium"),
     "g02-a05-deduplicate-source-records": ("opus", "medium"),
@@ -89,8 +90,8 @@ def test_manifest_declares_every_source_component():
     assert set(components["skills"]) == skills
     assert set(components["agents"]) == agents
     assert set(components["commands"]) == commands
-    assert len(skills) == 21
-    assert len(agents) == 11
+    assert len(skills) == 22
+    assert len(agents) == 15
 
 
 def test_every_skill_has_required_host_adapters():
@@ -143,6 +144,9 @@ def test_every_agent_required_skill_exists():
         text = agent.read_text(encoding="utf-8")
         section = re.search(r"^## Required Skills\s*$\n(.*?)(?=^## |\Z)", text, re.MULTILINE | re.DOTALL)
         assert section, f"{agent.name}: missing Required Skills section"
+        section_text = re.sub(r"\s+", " ", section.group(1)).casefold()
+        if "no separate skill is loaded" in section_text:
+            continue
         required = set(re.findall(r"`([a-z0-9-]+)`", section.group(1)))
         assert required, f"{agent.name}: no skill references"
         assert required <= available, f"{agent.name}: unknown skills {sorted(required - available)}"
@@ -167,7 +171,7 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
     for host in ("claude", "codex"):
         plugin = tmp_path / host / "plugins" / "edu-materials-agents"
         rendered = sorted((plugin / "skills").glob("*/SKILL.md"))
-        assert len(rendered) == 21
+        assert len(rendered) == 22
         assert not list((plugin / "skills").glob("*/adapters"))
         for relative in (
             "agents/g02-a03-canonical-sources.md",
@@ -220,9 +224,9 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
 
     claude_plugin = tmp_path / "claude" / "plugins" / "edu-materials-agents"
     codex_plugin = tmp_path / "codex" / "plugins" / "edu-materials-agents"
-    assert len(list((claude_plugin / "agents").glob("*.md"))) == 11
+    assert len(list((claude_plugin / "agents").glob("*.md"))) == 15
     assert len(list((claude_plugin / "commands").glob("*.md"))) == 1
-    assert len(list((codex_plugin / "agents").glob("*.md"))) == 11
+    assert len(list((codex_plugin / "agents").glob("*.md"))) == 15
     assert not (codex_plugin / "commands").exists()
     for agent, (model, effort) in EXPECTED_AGENT_SETTINGS.items():
         rendered_agent = (claude_plugin / "agents" / f"{agent}.md").read_text(encoding="utf-8")
@@ -243,5 +247,5 @@ def test_dry_run_validates_in_temporary_directory_without_touching_dist():
         capture_output=True,
         text=True,
     )
-    assert "Validated 21 skills and 11 agents." in completed.stdout
+    assert "Validated 22 skills and 15 agents." in completed.stdout
     assert before == digest_tree(ROOT / "dist")
