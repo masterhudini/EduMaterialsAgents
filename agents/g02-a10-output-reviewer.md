@@ -24,7 +24,7 @@ the smallest correction that can close it.
   `artifact_version`;
 - `expected_output_contract`, observable `acceptance_criteria`, `evidence_requirements`,
   `prohibited_behaviors` and `severity_rules`;
-- optional `previous_decision_ref` and `producer_revision_response` for a revision attempt.
+- no prior reviewer attempt for this producer run; the runtime permits one A10 invocation only.
 
 **Output:** `envelope@1` with one produced `ReviewDecision`:
 
@@ -50,6 +50,10 @@ findings:
     observed: string
     required_correction: string
     evidence_refs: [string]
+advisories:
+  - criterion_id: string
+    location: string
+    observation: string
 closed_finding_ids: [string]
 revision_scope:
   target_agent: string
@@ -74,21 +78,20 @@ value in `path`, and `schema_version: review_decision@1` as required by `envelop
    review profile through the deterministic review preparation operation. Return `BLOCKED` with
    `review_profile_error` when the review basis is absent or contradictory.
 2. Load only the supplied artifact and authorized references. Do not request the producer's
-   private reasoning or unrelated graph state. On revision, use the previous decision returned
-   by the preparation operation.
+   private reasoning or unrelated graph state.
 3. Apply `g02-review-research-output`: consume the deterministic artifact validation, check any
    remaining shape concerns, then evidence, semantics, traceability, scope and prohibited
    behavior.
-4. Recheck previous findings against the current artifact version. Close only findings whose
-   required correction is observable in that version.
-5. Consolidate overlapping findings. Give each finding a criterion, precise location,
+4. Consolidate overlapping findings. Give each finding a criterion, precise location,
    severity, observed defect and minimally sufficient correction.
-6. Select the decision:
-   - `APPROVED` when every mandatory criterion passes and no finding remains;
-   - `REVISE` when all findings can be corrected by the producer within its authorized task;
+   Put optional wording, style and non-blocking improvement notes in `advisories`; they must not
+   trigger `REVISE`.
+5. Select the decision:
+   - `APPROVED` when every mandatory criterion passes and no correction-required finding remains;
+   - `REVISE` only when a material producer-owned correction is required for safe downstream use;
    - `BLOCKED` when input, profile, upstream design or an external dependency prevents a safe
      producer revision.
-7. Submit one `ReviewDecision` through the deterministic review finalization operation and return
+6. Submit one `ReviewDecision` through the deterministic review finalization operation and return
    its `envelope@1`. Do not return a corrected artifact.
 
 ## Acceptance Criteria
@@ -99,13 +102,15 @@ value in `path`, and `schema_version: review_decision@1` as required by `envelop
 - Findings contain no new requirements outside the review profile.
 - Decision, severities and root cause are mutually consistent.
 - `APPROVED` has empty findings, null root cause and null revision scope.
+- `APPROVED` may carry concise advisories that do not require another producer run.
 - `REVISE` contains only minor or major findings, a producer-owned revision scope and root cause
   `producer_error` or `insufficient_evidence`.
 - `BLOCKED` contains a blocker finding and root cause `invalid_or_incomplete_input`,
   `upstream_plan_error`, `review_profile_error` or `external_dependency_blocked`, identifying
   why another producer revision cannot resolve the problem.
-- A revision review reports which prior findings closed and which remain.
 - The reviewed artifact is not modified or replaced.
+- The reviewer is invoked at most once for this producer run. A corrected artifact after `REVISE`
+  is finalized deterministically and receives a revision receipt without another review.
 
 ## Boundaries
 
@@ -128,8 +133,5 @@ value in `path`, and `schema_version: review_decision@1` as required by `envelop
 
 ## Resume
 
-Review is stateless. `review_id` identifies one review stream and remains stable while `attempt`
-increments. On revision, consume the new artifact version, the hydrated previous decision and
-the producer's response. Preserve finding IDs for unchanged defects and issue new IDs only for
-newly observed defects. Every previous finding must remain open with the same ID or appear in
-`closed_finding_ids`.
+Do not resume A10 for the corrected artifact. The orchestrator keeps the original ReviewDecision,
+routes its findings once to the producer and records deterministic correction completion.

@@ -1,0 +1,49 @@
+{
+  "title": "Reviewed Research Graph run report",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "run_id", "graph_id", "status", "through", "completed",
+    "records", "issues", "output_ref", "resume_token", "gate"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["research_run_report@1"]},
+    "run_id": {"type": "string"},
+    "graph_id": {"type": "string", "enum": ["g02"]},
+    "status": {"type": "string", "enum": ["completed", "failed", "blocked", "awaiting_user"]},
+    "through": {"type": "string"},
+    "completed": {"type": "array", "items": {"type": "string"}},
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["node", "topic_id", "status", "artifact_ref", "review_decision_ref", "revision_completion_ref"],
+        "properties": {
+          "node": {"type": "string"},
+          "topic_id": {"type": ["string", "null"]},
+          "status": {"type": "string", "enum": ["approved", "revised_after_review", "skipped"]},
+          "artifact_ref": {"type": ["string", "null"]},
+          "review_decision_ref": {"type": ["string", "null"]},
+          "revision_completion_ref": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "type", "message"],
+        "properties": {
+          "severity": {"type": "string", "enum": ["blocker", "major", "minor"]},
+          "type": {"type": "string"},
+          "message": {"type": "string"}
+        }
+      }
+    },
+    "output_ref": {"type": ["string", "null"]},
+    "resume_token": {"type": ["string", "null"]},
+    "gate": {"type": ["object", "null"]},
+    "report_ref": {"type": "string"}
+  }
+}

@@ -57,6 +57,18 @@
         }
       }
     },
+    "advisories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["criterion_id", "location", "observation"],
+        "properties": {
+          "criterion_id": {"type": "string"},
+          "location": {"type": "string"},
+          "observation": {"type": "string"}
+        }
+      }
+    },
     "closed_finding_ids": {"type": "array", "items": {"type": "string"}},
     "revision_scope": {
       "type": ["object", "null"],

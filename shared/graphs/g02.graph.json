@@ -1,26 +1,41 @@
 {
   "graph_id": "g02",
-  "description": "G02 Research Graph. Verifies approved claims and finds current literature for a lecture refresh, then freezes a UserApprovedResearchBundle. SINGLE SOURCE OF TRUTH for the node order — g02_flow.py and the orchestrator skill must agree with this manifest. Authoritative design: docs/02_Architektura_agentow_i_skilli.md. Reviews are runs of ONE physical agent (g02-a10-output-reviewer) with a per-node review_profile; the two user gates are orchestrator steps, not agents. g02_flow.py supports an injectable no-op runner for deterministic wiring tests and a Codex runner for isolated codex exec workers. The current runtime executes sequence serially; discovery nodes marked as a logical fan-out in the design become concurrent only after explicit dependency and scheduler support is added.",
+  "description": "G02 Research Graph. Verifies approved claims and finds current literature for a lecture refresh, then freezes a UserApprovedResearchBundle. SINGLE SOURCE OF TRUTH for the node order — g02_flow.py and the orchestrator skill must agree with this manifest. Authoritative design: docs/02_Architektura_agentow_i_skilli.md. Reviews are runs of ONE physical agent (g02-a10-output-reviewer) with a per-node review_profile; each producer run receives at most one review. APPROVED continues, BLOCKED stops, and REVISE permits one deterministically finalized producer correction without re-review. The two user gates are orchestrator steps, not agents. g02_flow.py keeps an injectable no-op wiring harness, while reviewed_flow.py runs the implemented A01-A06 frontier through isolated codex exec workers. Discovery remains serial per topic; concurrency requires explicit dependency and scheduler support.",
   "orchestrator": "g02-orchestrate-research",
   "reviewer": "g02-a10-output-reviewer",
   "review_task_contract": "review_task@1",
   "review_decision_contract": "review_decision@1",
+  "max_reviews_per_producer_run": 1,
+  "max_revision_attempts_after_review": 1,
   "retry_matrix": {
-    "deterministic_technical": {"low": 0, "medium": 1, "high": 2, "critical": 3},
-    "research_planning": {"low": 0, "medium": 2, "high": 3, "critical": 3},
-    "research_search": {"low": 0, "medium": 2, "high": 3, "critical": 3},
-    "evidence_high_impact": {"low": 1, "medium": 2, "high": 3, "critical": 3},
-    "synthesis_decision": {"low": 0, "medium": 1, "high": 2, "critical": 3}
+    "deterministic_technical": {"low": 0, "medium": 1, "high": 1, "critical": 0},
+    "research_planning": {"low": 0, "medium": 1, "high": 1, "critical": 0},
+    "research_search": {"low": 0, "medium": 1, "high": 1, "critical": 0},
+    "evidence_high_impact": {"low": 0, "medium": 1, "high": 1, "critical": 0},
+    "synthesis_decision": {"low": 0, "medium": 1, "high": 1, "critical": 0}
   },
   "default_escalation": "user-research-gate",
   "reviewer_complexity_class": "cross_artifact_reconciliation",
   "model_bindings": {
-    "research_planning": {"claude": "opus"},
-    "research_search": {"claude": "sonnet"},
-    "synthesis_decision": {"claude": "opus"},
-    "deterministic_technical": {"claude": "sonnet"},
-    "evidence_high_impact": {"claude": "opus"},
-    "cross_artifact_reconciliation": {"claude": "opus"}
+    "research_planning": {"claude": {"model": "opus", "effort": "medium"}},
+    "research_search": {"claude": {"model": "sonnet", "effort": "medium"}},
+    "synthesis_decision": {"claude": {"model": "opus", "effort": "medium"}},
+    "deterministic_technical": {"claude": {"model": "sonnet", "effort": "medium"}},
+    "evidence_high_impact": {"claude": {"model": "sonnet", "effort": "medium"}},
+    "cross_artifact_reconciliation": {"claude": {"model": "opus", "effort": "medium"}}
+  },
+  "agent_host_bindings": {
+    "g02-a01-planner": {"claude": {"model": "opus", "effort": "medium"}},
+    "g02-a02-domain": {"claude": {"model": "sonnet", "effort": "high"}},
+    "g02-a03-canonical-sources": {"claude": {"model": "sonnet", "effort": "high"}},
+    "g02-a04-recent-developments": {"claude": {"model": "sonnet", "effort": "high"}},
+    "g02-a05-candidate-source-index": {"claude": {"model": "opus", "effort": "medium"}},
+    "g02-a06-paper-retrieval": {"claude": {"model": "sonnet", "effort": "high"}},
+    "g02-a07-paper-review": {"claude": {"model": "opus", "effort": "high"}},
+    "g02-a08-claim-verification": {"claude": {"model": "opus", "effort": "medium"}},
+    "g02-a09-synthesizer": {"claude": {"model": "opus", "effort": "high"}},
+    "g02-a10-output-reviewer": {"claude": {"model": "sonnet", "effort": "xhigh"}},
+    "g02-a11-market-cases": {"claude": {"model": "sonnet", "effort": "high"}}
   },
   "entry_node": "g02-a01-planner",
   "input_contract": "research_graph_input@1",

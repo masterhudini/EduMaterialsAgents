@@ -470,6 +470,29 @@ def resolve_open_access(retrieval_input: dict, source_id: str, *, config_path=No
             f"g02/oa-resolutions/{operation_id}.json", resolution, base=artifact_base
         )
         return {**resolution, "artifact_ref": ref}
+    verification = approved.get("doi_verification")
+    if isinstance(verification, dict) and verification.get("match_status") == "conflict":
+        resolution = {
+            "schema_version": RESOLUTION_CONTRACT, "operation_id": operation_id,
+            "task_id": retrieval_input["task_id"], "source_id": source_id,
+            "record_type": record_type, "status": "unavailable",
+            "checked_providers": [{"provider": "crossref", "status": "identity_conflict",
+                                   "candidate_count": 0}],
+            "candidates": [], "selected_candidate": None,
+            "issues": [_issue(
+                "crossref_identity_conflict",
+                "Crossref conflicts with the approved bibliographic identity; automated retrieval is blocked",
+                provider="crossref",
+            )],
+            "resolved_at": _utc_now(),
+        }
+        errors = _shape(resolution, RESOLUTION_CONTRACT)
+        if errors:
+            raise ValueError("invalid OA resolution: " + "; ".join(errors))
+        ref = artifacts.store(
+            f"g02/oa-resolutions/{operation_id}.json", resolution, base=artifact_base
+        )
+        return {**resolution, "artifact_ref": ref}
     config = provider_config.load_config(
         config_path, runtime_home=runtime_home, create_dirs=True
     )

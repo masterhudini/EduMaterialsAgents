@@ -28,6 +28,7 @@ canonicality, relation, access and coverage reasoning only in `canonical_annotat
 - `g02-expand-citation-graph`, required when `verified_seed_ids` is non-empty.
 - `g02-search-scholarly-metadata`, required for complementary discovery and metadata confirmation.
 - `g02-classify-source-role`, required for every accepted candidate.
+- `g02-verify-doi-metadata`, required for every DOI-bearing candidate.
 - `g02-normalize-source-metadata`, optional; provider results are already normalized and may only
   be inspected for identity conflicts, never rewritten by the agent.
 
@@ -48,7 +49,10 @@ canonicality, relation, access and coverage reasoning only in `canonical_annotat
    `canonical_input`; preserve valid zero results and all issues.
 5. Copy selected records exactly from the reviewed domain pool or persisted tool results. Never
    modify bibliographic, access, signal, inclusion or provenance fields.
-6. For every candidate create exactly one canonical annotation:
+6. Reuse an exact upstream Crossref binding when the unchanged candidate already has one.
+   Otherwise call `research_doi_verify` or `research_doi_verify_batch`. Store one binding for every
+   DOI-bearing candidate, preserve conflicts, and never apply the suggested overlay automatically.
+7. For every candidate create exactly one canonical annotation:
    - assign at least one required role with observed signals, confidence, access basis, scoped
      topic and coverage units;
    - provide at least two observed canonicality signals, or one explicit domain-authoritative
@@ -57,14 +61,15 @@ canonicality, relation, access and coverage reasoning only in `canonical_annotat
      operation ID;
    - copy access level and library requirement exactly from the record;
    - list accessible surrogates as separate candidate IDs and state that they are not equivalents.
-7. Build `operation_log` from every persisted metadata and citation result. Accept only results
+8. Build `operation_log` from every persisted metadata and citation result. Accept only results
    whose `request.scope` exactly matches this task, topic, ResearchPlan and reviewed A02 artifact.
    Copy non-ok operation issues exactly into `provider_issues`. Do not omit zero-result or failed
    searches.
-8. Compute coverage from annotations, list unresolved units, apply the candidate limit and choose a
+9. Compute coverage from annotations, list unresolved units, apply the candidate limit and choose a
    truthful stop reason. `completed` requires no coverage gap and no provider issue.
-9. Call `research_canonical_finalize`. Then call `research_canonical_review_task` and route the
-   persisted artifact to G02-A10. Revise only fields named by reviewer findings.
+10. Call `research_canonical_finalize`; the orchestrator then performs the single allowed G02-A10
+    review. If it returns `REVISE`, correct only named findings and finalize once more without a
+    second review.
 
 ## Acceptance Criteria
 
@@ -79,6 +84,8 @@ canonicality, relation, access and coverage reasoning only in `canonical_annotat
 - `CS-05`: Every candidate maps to a required role or target coverage unit; remaining gaps and
   provider failures are explicit.
 - `CS-06`: Surrogates remain separate identities and are labelled without claiming equivalence.
+- `CS-07`: Every valid DOI is bound to an auditable Crossref result; identity conflicts are
+  explicit and cannot be treated as confirmed metadata.
 
 ## Boundaries
 

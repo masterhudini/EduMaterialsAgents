@@ -6,59 +6,49 @@
 flowchart TD
     IN["ResearchGraphInput"] --> RP["G02-A01 Planner Agent"]
     RP --> RV1["G02-A10 Output Reviewer\nprofile: research_plan"]
-    RV1 -->|REVISE| RP
-    RV1 -->|APPROVED| DR["G02-A02 Domain Agents\none per topic"]
+    RV1 -->|APPROVED or one corrected REVISE| DR["G02-A02 Domain Agents\none per topic"]
 
     DR --> RV2["G02-A10 Output Reviewer\nprofile: domain_candidates"]
-    RV2 -->|REVISE| DR
-    RV2 -->|APPROVED| EXP["Discovery expansion\nlogical fan-out"]
+    RV2 -->|APPROVED or one corrected REVISE| EXP["Discovery expansion\nlogical fan-out"]
 
     EXP --> CS["G02-A03 Canonical Sources Agents"]
     EXP --> RD["G02-A04 Recent Developments Agents"]
-    EXP --> MC["G02-A11 Market Cases Agent\nTavily + controlled SearXNG"]
+    EXP --> MC["G02-A11 Market Cases Agent\nTavily"]
     CS --> RV3["G02-A10 Output Reviewer\nprofile: canonical_sources"]
     RD --> RV4["G02-A10 Output Reviewer\nprofile: recent_developments"]
     MC --> RVMC["G02-A10 Output Reviewer\nprofile: market_cases"]
-    RV3 -->|REVISE| CS
-    RV4 -->|REVISE| RD
-    RVMC -->|REVISE| MC
-
-    RV3 -->|APPROVED| IDX["G02-A05 Candidate Source Index Agent"]
-    RV4 -->|APPROVED| IDX
-    RVMC -->|APPROVED| IDX
-    RV2 -->|APPROVED| IDX
+    RV3 -->|APPROVED or one corrected REVISE| IDX["G02-A05 Candidate Source Index Agent"]
+    RV4 -->|APPROVED or one corrected REVISE| IDX
+    RVMC -->|APPROVED or one corrected REVISE| IDX
+    RV2 -->|APPROVED or one corrected REVISE| IDX
 
     IDX --> RV5["G02-A10 Output Reviewer\nprofile: candidate_index"]
-    RV5 -->|REVISE| IDX
-    RV5 -->|APPROVED| HG1["Human Source Selection Gate"]
+    RV5 -->|APPROVED or one corrected REVISE| HG1["Human Source Selection Gate"]
     HG1 -->|SEARCH_MORE| DR
     HG1 -->|APPROVED DOCUMENT| PR["G02-A06 Paper Retrieval Agent"]
     HG1 -->|APPROVED MARKET CASE| WEX["Deterministic Tavily extraction\nfinal selection required"]
 
     PR --> RV6["G02-A10 Output Reviewer\nprofile: retrieved_corpus"]
-    RV6 -->|REVISE| PR
-    RV6 -->|APPROVED| PRA["G02-A07 Paper Review Agents\none per document"]
+    RV6 -->|APPROVED or one corrected REVISE| PRA["G02-A07 Paper Review Agents\none per document"]
     WEX --> PR
 
     PRA --> RV7["G02-A10 Output Reviewer\nprofile: paper_evidence"]
-    RV7 -->|REVISE| PRA
-    RV7 -->|APPROVED| CV["G02-A08 Claim Verification Agents\none per claim or tight claim group"]
+    RV7 -->|APPROVED or one corrected REVISE| CV["G02-A08 Claim Verification Agents\none per claim or tight claim group"]
 
     CV --> RV8["G02-A10 Output Reviewer\nprofile: claim_assessment"]
-    RV8 -->|REVISE| CV
-    RV8 -->|APPROVED| RS["G02-A09 Synthesizer Agent"]
+    RV8 -->|APPROVED or one corrected REVISE| RS["G02-A09 Synthesizer Agent"]
 
     RS --> RV9["G02-A10 Output Reviewer\nprofile: research_synthesis"]
-    RV9 -->|REVISE| RS
-    RV9 -->|UPSTREAM_ERROR| RP
-    RV9 -->|APPROVED| HG2["Human Research Gate"]
+    RV9 -->|APPROVED or one corrected REVISE| HG2["Human Research Gate"]
 
     HG2 -->|NEEDS_CORRECTION| RS
     HG2 -->|APPROVED| OUT["UserApprovedResearchBundle"]
 ```
 
 Wszystkie pola oznaczone jako `G02-A10 Output Reviewer` są uruchomieniami tej samej
-fizycznej definicji agenta.
+fizycznej definicji agenta. Każde pole jest wykonywane raz. Etykieta „one corrected REVISE”
+oznacza jeden powrót do producenta, deterministyczną finalizację i przejście dalej bez drugiego
+review. `BLOCKED` zatrzymuje graf i dlatego nie jest pokazany jako krawędź do kolejnego węzła.
 
 ## 2. Fizyczne definicje agentów
 
@@ -510,7 +500,7 @@ profilem etapu.
 - evidence requirements,
 - prohibited behaviors,
 - severity rules,
-- poprzednie findings i numer próby.
+- numer próby równy 1; reviewer nie jest ponawiany dla korekty po `REVISE`.
 
 **Wyjście:** `ReviewDecision` (`review_decision@1`) w `envelope@1`.
 
@@ -538,6 +528,11 @@ profilem etapu.
 - brak lub sprzeczność kryteriów prowadzi do `BLOCKED`,
 - reviewer otrzymuje artefakt i kontrakt, bez prywatnego toku rozumowania producenta,
 - osobne artefakty są oceniane w osobnych wywołaniach.
+- każdy producent otrzymuje maksymalnie jedno wywołanie A10 w danym wykonaniu,
+- `APPROVED` może zawierać nieblokujące `advisories`,
+- `REVISE` uruchamia dokładnie jedną korektę producenta, finalizowaną deterministycznie bez
+  drugiego review; runtime zapisuje `revision_completion@1`,
+- `BLOCKED` zatrzymuje proces.
 
 ## 7. Profile review
 
@@ -566,6 +561,7 @@ otrzymuje numeru i zachowuje dotychczasową nazwę.
 | `g02-a01-plan-research-scope` | Topics, research needs, source strategy, coverage i stop rules. |
 | `g02-expand-research-query` | Kontrolowane synonimy, terms, topics i wyłączenia. |
 | `g02-search-scholarly-metadata` | Wyszukiwanie realnych rekordów bibliograficznych. |
+| `g02-verify-doi-metadata` | Weryfikacja DOI i zgodności metadanych przez Crossref bez nadpisywania rekordu providera. |
 | `g02-expand-citation-graph` | Rozszerzenie od seed sources i relacji cytowań. |
 | `g02-classify-source-role` | Canonical, recent, survey, didactic, claim-specific, applied_case, optional. |
 | `g02-normalize-source-metadata` | Ujednolicenie DOI, autorów, roku, typu i identyfikatorów. |
@@ -579,7 +575,7 @@ otrzymuje numeru i zachowuje dotychczasową nazwę.
 | `g02-a07-extract-paper-evidence` | Ukierunkowane wydobycie evidence cards z dokumentu. |
 | `g02-a08-assess-claim-evidence` | Wielowymiarowa ocena claimu. |
 | `g02-a09-synthesize-research-findings` | ResearchState, EvidenceMap i handoff. |
-| `g02-a11-find-market-cases` | Web discovery realnych, datowanych case'ów przez kontrolowany seam Tavily/SearXNG. |
+| `g02-a11-find-market-cases` | Web discovery realnych, datowanych case'ów przez Tavily; SearXNG pozostaje wyłączony w profilu domyślnym. |
 | `g02-a11-extract-case-evidence` | Ekstrakcja kompaktowej evidence card z case'a zatwierdzonego przez człowieka. |
 | `g02-review-research-output` | Uniwersalna procedura review względem profile. |
 | `g02-orchestrate-research` | Rozmowa, routing, reviewer loops i human gates. |
@@ -589,16 +585,37 @@ otrzymuje numeru i zachowuje dotychczasową nazwę.
 | Agent | Wymagane skille | Opcjonalne skille |
 |---|---|---|
 | G02-A01 Planner | `g02-a01-plan-research-scope` | `g02-expand-research-query` do planu terminów, bez wyszukiwania |
-| G02-A02 Domain | `g02-expand-research-query`, `g02-search-scholarly-metadata` | `g02-expand-citation-graph` |
-| G02-A03 Canonical Sources | `g02-expand-citation-graph`, `g02-classify-source-role`, `g02-search-scholarly-metadata` | `g02-normalize-source-metadata` |
-| G02-A04 Recent Developments | `g02-expand-research-query`, `g02-search-scholarly-metadata`, `g02-classify-source-role` | `g02-expand-citation-graph` |
+| G02-A02 Domain | `g02-expand-research-query`, `g02-search-scholarly-metadata`, `g02-verify-doi-metadata` | `g02-expand-citation-graph` |
+| G02-A03 Canonical Sources | `g02-expand-citation-graph`, `g02-classify-source-role`, `g02-search-scholarly-metadata`, `g02-verify-doi-metadata` | `g02-normalize-source-metadata` |
+| G02-A04 Recent Developments | `g02-expand-research-query`, `g02-search-scholarly-metadata`, `g02-classify-source-role`, `g02-verify-doi-metadata` | `g02-expand-citation-graph` |
 | G02-A11 Market Cases | `g02-expand-research-query`, `g02-a11-find-market-cases`, `g02-classify-source-role` | brak; ekstrakcja należy warunkowo do A07 po bramce człowieka |
-| G02-A05 Candidate Source Index | `g02-normalize-source-metadata`, `g02-a05-deduplicate-source-records`, `g02-classify-source-role`, `g02-a05-rank-source-candidates`, `g02-a05-annotate-source-candidates`, `g02-assess-source-coverage` | brak na start |
-| G02-A06 Paper Retrieval | `g02-a06-resolve-open-access`, `g02-a06-retrieve-open-access-document`, `g02-a06-validate-retrieved-document` | brak na start |
+| G02-A05 Candidate Source Index | `g02-normalize-source-metadata`, `g02-a05-deduplicate-source-records`, `g02-classify-source-role`, `g02-a05-rank-source-candidates`, `g02-a05-annotate-source-candidates`, `g02-assess-source-coverage`, `g02-verify-doi-metadata` | brak na start |
+| G02-A06 Paper Retrieval | `g02-a06-resolve-open-access`, `g02-a06-retrieve-open-access-document`, `g02-a06-validate-retrieved-document`, `g02-verify-doi-metadata` | brak na start |
 | G02-A07 Paper Review | `g02-a07-extract-paper-evidence`; `g02-a11-extract-case-evidence` warunkowo dla zatwierdzonego market case | ukierunkowane ponowne wydobycie |
 | G02-A08 Claim Verification | `g02-a08-assess-claim-evidence`, `g02-assess-source-coverage` | brak na start |
 | G02-A09 Synthesizer | `g02-a09-synthesize-research-findings`, `g02-assess-source-coverage` | brak na start |
 | G02-A10 Output Reviewer | `g02-review-research-output` | read-only użycie odpowiedniego skilla sprawdzającego, jeśli review profile tego wymaga |
+
+### 9.1. Modele i effort Claude
+
+| Agent | Model | Effort |
+|---|---|---|
+| G02-A01 Planner | Opus | medium |
+| G02-A02 Domain | Sonnet | high |
+| G02-A03 Canonical Sources | Sonnet | high |
+| G02-A04 Recent Developments | Sonnet | high |
+| G02-A05 Candidate Source Index | Opus | medium |
+| G02-A06 Paper Retrieval | Sonnet | high |
+| G02-A07 Paper Review | Opus | high |
+| G02-A08 Claim Verification | Opus | medium |
+| G02-A09 Synthesizer | Opus | high |
+| G02-A10 Output Reviewer | Sonnet | xhigh |
+| G02-A11 Market Cases | Sonnet | high |
+
+Skille przypisane wyłącznie do jednego agenta dziedziczą jego ustawienie. Dla skilli wspólnych
+obowiązuje ustawienie najbardziej wymagającego aktywnego konsumenta. Wyjątkiem funkcjonalnym jest
+orkiestrator, który używa Opus z effort `low`, ponieważ koordynuje kontrakty i bramki, lecz nie
+wykonuje pracy producentów.
 
 ## 10. Human Source Selection Gate
 
@@ -628,7 +645,7 @@ RESERVE       Keep it available as a replacement.
 EXCLUDE       Remove it from this research run.
 SEARCH_MORE   Ask for more candidates for a topic, claim or missing source role.
 
-Reply using the copyable template below. Natural language is also accepted.
+Reply using the copyable template below. Natural language and displayed source numbers are accepted.
 
 DOWNLOAD: SRC_...
 LIBRARY: SRC_...
@@ -638,7 +655,8 @@ EXCLUDE: SRC_..., reason: ...
 SEARCH_MORE: CLM_... or TOPIC_..., need: ...
 ```
 
-Orkiestrator parsuje odpowiedź, pokazuje dokładną liczbę `DOWNLOAD` oraz osobno liczbę PDF
+Orkiestrator pokazuje numerowaną listę w terminalu lub rozmowie, parsuje odpowiedź, pokazuje
+dokładną liczbę `DOWNLOAD` oraz osobno liczbę PDF
 scholarly i plików market case, po czym prosi o finalne potwierdzenie. Człowiek podejmuje decyzję.
 A05 wyłącznie rekomenduje, a A06 nie może zwiększyć ani zmienić zatwierdzonego zbioru.
 
@@ -646,7 +664,8 @@ A05 wyłącznie rekomenduje, a A06 nie może zwiększyć ani zmienić zatwierdzo
 
 `SEARCH_MORE` musi zawierać claim, topic albo brakującą rolę. Orkiestrator kieruje żądanie do
 G02-A02 Domain, G02-A03 Canonical Sources, G02-A04 Recent Developments albo G02-A11 Market Cases
-zgodnie z typem luki. A11 korzysta wyłącznie z kontrolowanych operacji Tavily/SearXNG.
+zgodnie z typem luki. A11 korzysta z kontrolowanych operacji Tavily. SearXNG pozostaje wyłączony
+w dostarczonej konfiguracji i repozytorium nie utrzymuje katalogu publicznych endpointów.
 Po rozszerzeniu G02-A05 Candidate Source Index jest
 budowany ponownie, reviewer ocenia nową wersję, a człowiek otrzymuje zaktualizowany dokument.
 

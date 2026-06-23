@@ -50,6 +50,7 @@
           "artifact_ref": {"type": "string"},
           "artifact_version": {"type": "string"},
           "review_decision_ref": {"type": "string"},
+          "revision_completion_ref": {"type": ["string", "null"]},
           "review_id": {"type": "string"}
         }
       }
@@ -65,7 +66,8 @@
           "record": {"type": "object"},
           "coverage_unit_ids": {"type": "array", "items": {"type": "string"}},
           "role_assignments": {"type": "array", "items": {"type": "object"}},
-          "stream_annotation": {"type": ["object", "null"]}
+          "stream_annotation": {"type": ["object", "null"]},
+          "doi_verification": {"type": ["object", "null"]}
         }
       }
     },

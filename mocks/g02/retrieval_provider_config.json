@@ -4,7 +4,8 @@
   "providers": {
     "openalex": {"enabled": true},
     "semantic_scholar": {"enabled": false},
-    "arxiv": {"enabled": false}
+    "arxiv": {"enabled": false},
+    "crossref": {"enabled": true}
   },
   "request": {
     "timeout_seconds": 2,
@@ -22,7 +23,8 @@
   "rate_limits": {
     "openalex_min_interval_seconds": 0.0,
     "semantic_scholar_min_interval_seconds": 0.0,
-    "arxiv_min_interval_seconds": 3.0
+    "arxiv_min_interval_seconds": 3.0,
+    "crossref_min_interval_seconds": 0.0
   },
   "retrieval": {
     "enabled": true,

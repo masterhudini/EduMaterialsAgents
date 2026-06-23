@@ -29,6 +29,7 @@ publication status, maturity, update class, citation relations and coverage only
 - `g02-expand-research-query`, required for every run.
 - `g02-search-scholarly-metadata`, required for every planned route.
 - `g02-classify-source-role`, required for every accepted candidate.
+- `g02-verify-doi-metadata`, required for every DOI-bearing candidate.
 - `g02-expand-citation-graph`, optional only for a verified A02 seed when a one-hop relation can
   improve recent coverage.
 
@@ -47,7 +48,10 @@ publication status, maturity, update class, citation relations and coverage only
    verified seed. Use only supported provider-relation pairs and preserve each introducing edge.
 6. Select only unchanged provider records whose publication year lies inside the frozen window.
    Unknown publication year cannot support a recent candidate.
-7. Create exactly one `recent_annotation` per candidate:
+7. Reuse exact upstream Crossref bindings for unchanged candidates and verify every remaining
+   DOI-bearing candidate through `research_doi_verify` or `research_doi_verify_batch`. Keep provider
+   metadata unchanged and surface identity conflicts or registry unavailability.
+8. Create exactly one `recent_annotation` per candidate:
    - assign supported current, rising, methodological, claim-specific or qualifying roles;
    - copy the exact publication year and frozen window into `recency_basis`;
    - classify a provider-labelled preprint as `preprint`; for other published metadata use
@@ -57,11 +61,12 @@ publication status, maturity, update class, citation relations and coverage only
    - use `core_update` only for an established, non-preprint candidate with at least two supported
      maturity signals and an available abstract. Otherwise use `optional_trend` or `watch`;
    - keep `quality_status: not_assessed`.
-8. Build `operation_log` from persisted tool results whose `request.scope` exactly matches this
+9. Build `operation_log` from persisted tool results whose `request.scope` exactly matches this
    task, topic, ResearchPlan and reviewed A02 artifact. Copy all non-ok issues exactly, compute
    coverage and choose a truthful stop reason. `completed` requires no coverage or provider gap.
-9. Call `research_recent_finalize`, then `research_recent_review_task`, and route the persisted
-   artifact to G02-A10. Revise only fields named by reviewer findings.
+10. Call `research_recent_finalize`; the orchestrator then performs the single allowed G02-A10
+    review. If it returns `REVISE`, correct only named findings and finalize once more without a
+    second review.
 
 ## Acceptance Criteria
 
@@ -75,6 +80,8 @@ publication status, maturity, update class, citation relations and coverage only
 - `RD-05`: Metadata and citation operations preserve route, seed, provider, limit, result ref and
   raw provenance.
 - `RD-06`: Coverage gaps, provider failures, preprint limitations and stop reason are explicit.
+- `RD-07`: Every valid DOI is bound to an auditable Crossref result, with conflicts kept separate
+  from recency and maturity judgments.
 
 ## Boundaries
 

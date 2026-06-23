@@ -28,6 +28,7 @@
           "related_topics": {"type": "array", "items": {"type": "string"}},
           "related_claims": {"type": "array", "items": {"type": "string"}},
           "source_roles": {"type": "array", "items": {"type": "string"}},
+          "doi_verification": {"type": ["object", "null"]},
           "market_candidate_sources_ref": {"type": ["string", "null"]}
         }
       }

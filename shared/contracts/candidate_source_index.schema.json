@@ -39,6 +39,7 @@
           "coverage_unit_ids": {"type": "array", "items": {"type": "string"}},
           "duplicate_source_ids": {"type": "array", "items": {"type": "string"}},
           "provenance_records": {"type": "array", "items": {"type": "object"}},
+          "doi_verification": {"type": ["object", "null"]},
           "ranking": {
             "type": "object",
             "required": ["score", "rank", "components", "recommended_action", "rationale"],

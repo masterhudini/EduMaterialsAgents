@@ -14,7 +14,8 @@ user make an informed source decision before any retrieval occurs.
 ## Contract
 
 **Input:** `candidate_index_input@1`, prepared only from the exact approved `ResearchPlan` and
-upstream artifacts whose A10 decisions are `APPROVED`. The scoped input contains source records,
+upstream artifacts that passed their single A10 review, either `APPROVED` or corrected once after
+`REVISE` with a valid revision receipt. The scoped input contains source records,
 their reviewed annotations and mappings, selection limits, output language and prior search
 extensions, not whole producer outputs or review transcripts.
 
@@ -33,28 +34,32 @@ Return both descriptors in `envelope@1.produced`.
 - `g02-a05-rank-source-candidates`;
 - `g02-a05-annotate-source-candidates`;
 - `g02-assess-source-coverage`.
+- `g02-verify-doi-metadata`, required to preserve or complete DOI verification coverage.
 
 ## Workflow
 
-1. Call `research_candidate_index_prepare` with the exact plan ref and paired upstream artifact and
-   review-decision refs. Stop if any supplied review is not approved or does not bind the exact
-   artifact version.
+1. Call `research_candidate_index_prepare` with the exact plan ref, upstream artifact and paired
+   review-decision refs. For a corrected artifact also supply its revision receipt. Stop if the
+   review chain does not bind the exact artifact version.
 2. Normalize all provider records and preserve their raw provenance, record type and stream of
    origin. Keep market-case source tier separate from scientific-quality signals.
 3. Deduplicate conservatively, retaining version relations, merge logs and ambiguous groups.
-4. Reconcile source roles against plan requirements without treating role as quality or stance.
-5. Build candidate-stage `CoverageMatrix`; identify mandatory role and claim gaps before ranking.
-6. Rank candidates with visible component scores. Apply display, reserve and per-topic limits while
+4. Preserve exact upstream Crossref bindings. For each DOI-bearing record lacking a reusable
+   binding, call `research_doi_verify` or `research_doi_verify_batch`. Keep conflicts visible on the
+   source and its human-facing card; do not overwrite provider metadata.
+5. Reconcile source roles against plan requirements without treating role as quality or stance.
+6. Build candidate-stage `CoverageMatrix`; identify mandatory role and claim gaps before ranking.
+7. Rank candidates with visible component scores. Apply display, reserve and per-topic limits while
    preserving coverage contribution and qualifying or critical candidates.
-7. Annotate displayed and library candidates from available metadata or abstract only. For market
+8. Annotate displayed and library candidates from available metadata or abstract only. For market
    cases, use the separate reviewed A11 market fact and didactic mechanism. Every card must expose
    `description_basis`, `basis_excerpt` and limitations. A metadata-only card must say that it does
    not summarize publication contents. Explain that this is the pre-selection preview; when the
    user approves a market case for DOWNLOAD, A06 will create a fuller readable Markdown document
    from the same reviewed A11 annotation and the post-gate page extraction.
-8. Generate `candidate_source_review.md` in `output_language` with instructions, coverage overview,
+9. Generate `candidate_source_review.md` in `output_language` with instructions, coverage overview,
    grouped candidate cards, access limitations, reserve, known gaps and a copyable response template.
-9. Call `research_candidate_index_finalize` to create and cross-reference both artifacts. Then use
+10. Call `research_candidate_index_finalize` to create and cross-reference both artifacts. Then use
    `research_candidate_index_review_task` to freeze the `candidate_index` review profile.
 
 A05 may recommend `DOWNLOAD`, but the recommendation is non-binding. The human chooses the exact
@@ -73,6 +78,8 @@ is the number of unique IDs assigned `DOWNLOAD`, split into scholarly PDFs and m
 - `CI-07`: Display, reserve, topic and global limits are respected without silently dropping a
   mandatory uncovered role.
 - `CI-08`: The agent recommends actions but records no human approval.
+- `CI-09`: Every DOI-bearing scholarly source exposes an auditable Crossref status and any identity
+  conflict in both the index and the review document.
 
 ## Boundaries
 

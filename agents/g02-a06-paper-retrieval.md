@@ -30,26 +30,31 @@ bundle with a human-readable `<source_id>.market-case.md` and a separate auditab
 - `g02-a06-resolve-open-access`;
 - `g02-a06-retrieve-open-access-document`;
 - `g02-a06-validate-retrieved-document`.
+- `g02-verify-doi-metadata`, required for DOI-bearing scholarly downloads.
 
 ## Workflow
 
 1. Call `research_retrieval_prepare` with the exact approved-set ref. Stop when confirmation,
    candidate-index binding, limits or retrieval provider profile are invalid.
-2. For each DOWNLOAD source call `research_oa_resolve`. Scholarly records use record links,
+2. Before resolving a DOI-bearing scholarly source, reuse its exact Crossref binding or call
+   `research_doi_verify`. Stop that source on an identity conflict; do not replace approved
+   bibliographic metadata from the registry response.
+3. For each DOWNLOAD source call `research_oa_resolve`. Scholarly records use record links,
    Unpaywall, optional CORE and DOAB/OAPEN where appropriate. Market cases must return
    `market_extract` and preserve the reviewed A11 candidate artifact ref.
-3. For each resolved scholarly source call `research_document_retrieve`, then
+4. For each resolved scholarly source call `research_document_retrieve`, then
    `research_document_validate`. A temporary file is never an accepted document.
-4. For each market case call `research_web_case_extract` with the final source-selection ref,
+5. For each market case call `research_web_case_extract` with the final source-selection ref,
    reviewed A11 candidate ref and exact approved source ID. Resolve exactly one matching reviewed
    A11 annotation. Preserve the extraction's untrusted-content boundary.
-5. Never call a retrieval operation for `LIBRARY`, `CITATION`, `RESERVE` or `EXCLUDE` IDs.
-6. Call `research_retrieval_finalize` with all operation artifact refs. It creates one run folder
+6. Never call a retrieval operation for `LIBRARY`, `CITATION`, `RESERVE` or `EXCLUDE` IDs.
+7. Call `research_retrieval_finalize` with all operation artifact refs. It creates one run folder
    containing validated PDFs, both market-case files and `retrieved_corpus.json`. The Markdown is
    rendered deterministically from bibliographic data, reviewed A11 fact and interpretation,
    source/materiality/regime assessment, research links, bounded extracted text, safety warning and
    provenance. The JSON retains the exact machine-readable untrusted extraction payload.
-7. Build `research_retrieval_review_task`; continue only after A10 approves the corpus.
+8. Finalize the corpus; the orchestrator performs the single allowed A10 review. A `REVISE`
+   decision permits one targeted correction without another reviewer invocation.
 
 The number of attempted files is fixed before A06 starts. It equals the unique source IDs assigned
 `DOWNLOAD` by the human and separately confirmed at the gate. `research_retrieval_prepare` rejects
@@ -68,6 +73,8 @@ replace the human's action or expand the count after confirmation.
 - `RT-08`: Every market-case bundle comes only from gated extraction, binds exactly one reviewed
   A11 annotation, preserves `content_boundary: untrusted_external_research`, and contains a
   readable Markdown plus separate JSON with valid checksums and provenance.
+- `RT-09`: Every DOI-bearing scholarly download has a non-conflicting Crossref identity binding,
+  or remains explicitly unavailable without an automated download attempt.
 
 ## Boundaries
 
