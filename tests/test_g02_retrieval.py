@@ -261,6 +261,23 @@ def test_gate_requires_separate_final_confirmation():
     assert result["issues"][0]["type"] == "final_confirmation_required"
 
 
+def test_gate_prompt_is_readable_and_accepts_display_numbers():
+    _, index_ref, scholarly_id, market_id, _ = _index_fixture()
+    prepared = source_selection.prepare_source_selection(index_ref)
+    prompt = prepared["gate_prompt"]
+    rendered = source_selection.render_gate_prompt(prompt)
+    assert "[1]" in rendered and "[2]" in rendered
+    assert "DOWNLOAD: 1" in rendered
+    assert scholarly_id in rendered and market_id in rendered
+
+    checked = source_selection.validate_source_selection(
+        index_ref, response_text="DOWNLOAD: 1, 2"
+    )
+    assert set(checked["summary"]["download"]) == {scholarly_id, market_id}
+    summary = source_selection.render_selection_summary(checked["summary"], polish=True)
+    assert "Pliki do pobrania: 2" in summary
+
+
 def test_prepare_enforces_human_download_count_and_admin_cap(tmp_path):
     approved_ref, _, _ = _approved_set()
     config_payload = json.loads(CONFIG.read_text(encoding="utf-8"))
@@ -292,6 +309,29 @@ def test_resolvers_include_record_unpaywall_core_doab_oapen():
     }
     market = oa_retrieval.resolve_open_access(scoped, market_id)
     assert market["status"] == "market_extract"
+
+
+def test_crossref_identity_conflict_blocks_oa_resolution_before_provider_calls():
+    approved_ref, scholarly_id, _ = _approved_set()
+    scoped = retrieval.prepare_retrieval(
+        approved_ref, config_path=CONFIG
+    )["retrieval_input"]
+    scholarly = next(item for item in scoped["approved_sources"]
+                       if item["source_id"] == scholarly_id)
+    scholarly["doi_verification"] = {
+        "status": "partial", "registry_status": "confirmed_crossref",
+        "match_status": "conflict", "result_ref": "artifact://g02/doi/conflict.json",
+    }
+
+    def forbidden(*args):
+        raise AssertionError("OA metadata providers must not be called after DOI conflict")
+
+    resolution = oa_retrieval.resolve_open_access(
+        scoped, scholarly_id, config_path=CONFIG, metadata_transport=forbidden
+    )
+    assert resolution["status"] == "unavailable"
+    assert resolution["checked_providers"][0]["provider"] == "crossref"
+    assert resolution["issues"][0]["code"] == "crossref_identity_conflict"
 
 
 def test_doab_is_catalog_and_oapen_supplies_original_pdf_bitstream():
@@ -387,7 +427,7 @@ def test_mixed_retrieval_creates_one_folder_with_pdf_and_market_case():
         scoped, descriptor, review_id="REV_A06_001", config_path=CONFIG
     )
     assert [item["criterion_id"] for item in task["acceptance_criteria"]] == [
-        "RT-01", "RT-02", "RT-03", "RT-04", "RT-05", "RT-06", "RT-07", "RT-08"
+        "RT-01", "RT-02", "RT-03", "RT-04", "RT-05", "RT-06", "RT-07", "RT-08", "RT-09"
     ]
 
 

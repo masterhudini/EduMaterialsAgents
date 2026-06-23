@@ -21,7 +21,7 @@ import pathlib as _pl
 # Make `core` importable whether run as a module or as a script.
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))
 
-from core import artifacts, contracts, event_log, gate, graphs, handoff, paths, revision  # noqa: E402
+from core import artifacts, contracts, event_log, gate, graphs, handoff, paths  # noqa: E402
 from core import state as st  # noqa: E402
 from core import validate_state as vs  # noqa: E402
 from g02.runners.stub import stub_node_runner  # noqa: E402
@@ -272,7 +272,7 @@ def _produced_artifact_ref(stored_ref: str, artifact_type: str, contract_ref: st
     return None
 
 
-def run(
+def _run_stub_harness(
     input_ref=None,
     *,
     base=None,
@@ -382,6 +382,17 @@ def run(
                     },
                 )
 
+                # A REVISE verdict permits one producer correction. The corrected artifact is
+                # accepted after deterministic validation and is never sent to A10 again.
+                if attempt == 1:
+                    log.append(
+                        name,
+                        "revision_completed",
+                        status="ok",
+                        detail={"ref": ref, "finding_count": len(prior_findings)},
+                    )
+                    break
+
                 # F2: review the artifact; the universal reviewer runs via the same node_runner.
                 review = _review(
                     reviewer,
@@ -426,27 +437,13 @@ def run(
                             "policy_severity": policy_severity,
                         },
                     )
-                    break
+                    return {
+                        "status": "blocked", "node": name,
+                        "review_decision": review_decision, "findings": findings,
+                    }
 
-                step = revision.decide(
-                    policy,
-                    policy_severity,
-                    approved=False,
-                    attempts_used=attempt,
-                )
-                log.append(
-                    name,
-                    "revision_decision",
-                    status=step["action"],
-                    detail={
-                        "severity": severity,
-                        "policy_severity": policy_severity,
-                        "attempt": attempt,
-                    },
-                )
-
-                if step["action"] == "REVISE":
-                    attempt += 1
+                if review_decision == "REVISE":
+                    attempt = 1
                     prior_findings = findings
                     continue
 
@@ -455,12 +452,15 @@ def run(
                     "escalated",
                     status="blocked",
                     detail={
-                        "to": step.get("to"),
+                        "to": policy.get("escalation_after_exhaustion"),
                         "severity": severity,
                         "policy_severity": policy_severity,
                     },
                 )
-                break
+                return {
+                    "status": "blocked", "node": name,
+                    "review_decision": review_decision, "findings": findings,
+                }
 
             produced_refs[name] = ref
 
@@ -561,6 +561,51 @@ def run(
     return desc
 
 
+def run(
+    input_ref=None,
+    *,
+    base=None,
+    node_runner=None,
+    gate_handler=None,
+    pause_on_gate=False,
+    resume_token=None,
+    decisions=None,
+    reviewed=False,
+    through="g02-a06-paper-retrieval",
+    topic_ids=None,
+) -> dict:
+    """Dispatch to the no-op wiring harness or the fail-closed reviewed frontier.
+
+    ``reviewed=False`` is intentionally the default for compatibility with deterministic wiring
+    tests. Every real host entrypoint must pass ``reviewed=True``.
+    """
+    if not reviewed:
+        return _run_stub_harness(
+            input_ref,
+            base=base,
+            node_runner=node_runner,
+            gate_handler=gate_handler,
+            pause_on_gate=pause_on_gate,
+            resume_token=resume_token,
+            decisions=decisions,
+        )
+    if node_runner is None:
+        raise ValueError("reviewed execution requires a real host node_runner")
+    from g02 import reviewed_flow
+
+    return reviewed_flow.run(
+        input_ref,
+        base=base,
+        node_runner=node_runner,
+        gate_handler=gate_handler,
+        pause_on_gate=pause_on_gate,
+        resume_token=resume_token,
+        decisions=decisions,
+        through=through,
+        topic_ids=topic_ids,
+    )
+
+
 def _cli(argv: list[str]) -> int:
     import argparse
 
@@ -596,9 +641,26 @@ def _cli(argv: list[str]) -> int:
     sp.add_argument("context", help="path or artifact:// ref to a research_graph_input bundle")
     sp.add_argument(
         "--gates",
-        choices=["auto", "prompt"],
+        choices=["prompt", "pause"],
         default="prompt",
-        help="prompt for each gate on stdin (default) or auto-approve",
+        help="prompt for the two-step gate on stdin (default) or return a pause/resume token",
+    )
+    sp.add_argument(
+        "--through",
+        default="g02-a06-paper-retrieval",
+        choices=[
+            "g02-a01-planner", "g02-a02-domain", "g02-a03-canonical-sources",
+            "g02-a04-recent-developments", "g02-a11-market-cases",
+            "g02-a05-candidate-source-index", "user-source-selection-gate",
+            "g02-a06-paper-retrieval",
+        ],
+        help="stop after this implemented stage (default: A06)",
+    )
+    sp.add_argument(
+        "--topic-id",
+        action="append",
+        dest="topic_ids",
+        help="restrict discovery to one or more ResearchPlan topics; A05 requires all topics",
     )
 
     sp = sub.add_parser("finalize", help="validate a result bundle and emit the handoff")
@@ -625,12 +687,17 @@ def _cli(argv: list[str]) -> int:
             out = run(front_door(args.context)["ref"], gate_handler=handler)
         elif args.cmd == "run-codex":
             from g02.runners.codex import codex_node_runner
+            from g02.reviewed_flow import terminal_gate_handler as reviewed_terminal_gate
 
-            handler = terminal_gate_handler if args.gates == "prompt" else None
+            handler = reviewed_terminal_gate if args.gates == "prompt" else None
             out = run(
                 front_door(args.context)["ref"],
                 node_runner=codex_node_runner,
                 gate_handler=handler,
+                pause_on_gate=(args.gates == "pause"),
+                reviewed=True,
+                through=args.through,
+                topic_ids=args.topic_ids,
             )
         elif args.cmd == "finalize":
             out = finalize(args.bundle)

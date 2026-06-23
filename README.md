@@ -78,12 +78,14 @@ under `.emagents/` (override with `EMAGENTS_HOME`); the dir is git-ignored.
 The implemented deterministic Research Graph seams cover the boundary front door, G02-A01
 Planner, G02-A02 Domain, G02-A03 Canonical Sources, G02-A04 Recent Developments, G02-A11 Market
 Cases, G02-A05 Candidate Source Index, G02-A06 Paper Retrieval, the universal reviewer and the final handoff. OpenAlex,
-Semantic Scholar and arXiv adapters
-apply bounded metadata and citation requests. A11 adds Tavily as the primary web provider and an
-administrator-pinned SearXNG JSON adapter, with strict query budgets, endpoint and redirect checks,
-cache, timeout, rate limits, source tiers and provenance. Full-page Tavily extraction requires a
+Semantic Scholar and arXiv adapters apply bounded metadata and citation requests. Crossref verifies
+available DOIs through persisted registry metadata, field comparisons and raw provenance; provider
+metadata is never overwritten on conflict. A11 uses Tavily as the default web provider, with strict
+query budgets, redirect checks, cache, timeout, rate limits, source tiers and provenance. SearXNG
+remains disabled and no public-instance endpoint catalog is installed. Full-page Tavily extraction requires a
 persisted final `human_source_selection@1`; discovery cannot invoke it. A05 accepts only upstream
-artifacts bound to `APPROVED` A10 decisions. It creates a deduplicated index and a readable source
+artifacts bound either to `APPROVED` A10 decisions or to one corrected `REVISE` decision with a
+validated `revision_completion@1` receipt. It creates a deduplicated index and a readable source
 choice document whose scholarly descriptions are labelled as abstract-based or metadata-only and
 whose market-case descriptions use reviewed A11 facts and didactic mechanisms. A two-step source
 gate freezes `human_approved_source_set@1`. A06 resolves scholarly DOWNLOAD sources through approved
@@ -93,14 +95,14 @@ by `retrieval_directory@1`. Each bundle includes a readable Markdown document co
 the reviewed A11 fact, didactic mechanism, source assessment and bounded post-gate page content;
 the JSON remains the machine-readable audit artifact. The human fixes the exact DOWNLOAD count at the gate; A06 enforces the
 administrator's `max_documents_per_task` and cannot add sources. The MCP
-server exposes thirty-nine operations at version `0.9.0`. Remaining producer operations are added
+server exposes forty-one operations at version `0.10.0`. Remaining producer operations are added
 with their owning agents.
 
 Before the first G02-A02 or A11 run, copy `shared/config/g02.providers.example.json` to
 `.emagents/config/g02-providers.json`, set `EMAGENTS_RESEARCH_CONTACT_EMAIL` and provide the
-required `OPENALEX_API_KEY`. Set `TAVILY_API_KEY` for A11. `SEMANTIC_SCHOLAR_API_KEY` remains
-optional. To enable SearXNG, an administrator must pin one exact instance in the non-secret config;
-the runtime never selects a public instance. See `shared/config/README.md`; credentials never belong
+required `OPENALEX_API_KEY`. The same contact email enables polite Crossref requests. Set
+`TAVILY_API_KEY` for A11. `SEMANTIC_SCHOLAR_API_KEY` remains optional. The supplied configuration
+keeps SearXNG disabled; the runtime never selects a public instance. See `shared/config/README.md`; credentials never belong
 in JSON, prompts, artifacts, cache or logs.
 
 ## Host-specific skill rendering
@@ -138,7 +140,7 @@ Then, in Claude Code:
 /plugin                              # shows edu-materials-agents (marketplace: edu-materials)
 ```
 
-Verify the component inventory (expect 11 agents + 20 skills, including the implemented A11 and
+Verify the component inventory (expect 11 agents + 21 skills, including DOI verification, A11 and
 g02-orchestrate-research):
 
 ```bash
@@ -186,6 +188,8 @@ Run the research graph for /home/khudaszek/projects/EduMaterialsAgents/mocks/g02
 The `g02-orchestrate-research` skill treats these as semantic entrypoints and uses the
 `research_run_codex` MCP tool. The default Codex gate mode is pause/resume (`gates: "pause"`), so
 human gates return a `resume_token` instead of reading interactive stdin from the MCP process.
+The reviewed runner currently covers the implemented frontier A01–A06 and returns a typed
+`research_run_report@1`; it never fabricates the later A07–A09 output bundle.
 
 Or use the runner directly:
 
@@ -207,12 +211,21 @@ key — Codex subscription login; terminal user gates). Local/dev only:
 
 ```bash
 python shared/scripts/g02/g02_flow.py run-codex mocks/g02/research_graph_input.json
+# bounded forward smoke for one topic, stopping before A05 requires the complete plan:
+python shared/scripts/g02/g02_flow.py run-codex mocks/g02/research_graph_input.json \
+  --through g02-a02-domain --topic-id TOPIC_BAYESIAN_COMPUTATION
 # single isolated node (cheaper smoke):
 python shared/scripts/g02/runners/codex.py g02-a01-planner mocks/g02/research_graph_input.json
 ```
 
 The engine is host-agnostic; execution is the per-host runner (Claude Task subagents vs Codex
-`codex exec`). Gates support auto / terminal (`--gates prompt`) / async pause-resume.
+`codex exec`). Real Codex gates show numbered source cards, accept numbers or stable source IDs,
+and require a separate terminal confirmation (`--gates prompt`) or
+pause/resume (`--gates pause`). Automatic synthetic gates exist only in the no-op stub harness.
+Every real producer envelope and stored artifact is validated before A10 runs. A10 runs at most
+once per producer execution. `APPROVED` continues immediately, `BLOCKED` stops the process, and
+`REVISE` permits one targeted producer correction that is deterministically finalized and recorded
+without a second review.
 
 ## Develop & test
 

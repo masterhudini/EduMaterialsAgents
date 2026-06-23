@@ -548,6 +548,18 @@ zwraca ref ograniczonej treści oznaczonej
 `untrusted_external_research`, hash, długość, truncation, provenance i flagi prompt injection. Pełna
 treść nie występuje inline i nie może być przekazana downstream.
 
+### 4.4. Crossref DOI Verification
+
+`doi_verification_result@1` wiąże jeden niezmieniony `source_record@1` z zapytaniem do stałego
+endpointu Crossref Works. Artefakt przechowuje znormalizowany DOI, status rejestru, porównania pól
+bibliograficznych, `match_status`, surową proweniencję i jawne problemy. `confirmed_crossref`
+potwierdza tożsamość depozytu bibliograficznego. Nie potwierdza jakości naukowej, prawdziwości
+claimu, peer review ani prawa dostępu.
+
+Crossref może zasugerować uzupełnienie wyłącznie pola brakującego u pierwotnego providera.
+Konflikt tytułu, autorów lub roku pozostaje jawny i nie może zostać automatycznie nadpisany.
+Kompaktowe bindingi w artefaktach A02, A03, A04 i A05 wskazują pełny wynik przez `result_ref`.
+
 ## 5. CandidateSourceIndex
 
 Wejściem A05 jest `candidate_index_input@1`. Runtime hydratuje dokładny ResearchPlan oraz pary
@@ -1035,17 +1047,15 @@ Każde wywołanie uniwersalnego reviewera otrzymuje jeden `review_task@1`. Kontr
   `artifact_version`,
 - expected output contract, obserwowalne acceptance criteria, evidence requirements,
   prohibited behaviors i severity rules,
-- opcjonalny `previous_decision_ref` i odpowiedź producenta na poprzednie findings.
+- brak poprzedniej próby review w tym wykonaniu producenta; A10 jest wywoływany raz.
 
 Kryterium acceptance ma `criterion_id`, opis i flagę `mandatory`. Evidence requirement ma
 analogiczny stabilny identyfikator, opis i flagę `mandatory`. Severity rules jawnie definiują
 znaczenie `minor`, `major` i `blocker` dla danego wywołania.
 
 Reviewer nie przyjmuje tablicy artefaktów. Niezależne artefakty wymagają niezależnych zadań.
-`review_id` pozostaje stabilny w jednym strumieniu review, a `attempt` zwiększa się przy każdej
-kolejnej ocenie poprawionego artefaktu. `previous_decision_ref` wskazuje bezpośrednio poprzednią
-próbę. Finding z poprzedniej decyzji musi zachować ID albo pojawić się w
-`closed_finding_ids`.
+`review_id` identyfikuje pojedynczą ocenę, a `attempt` ma wartość 1. Poprawiony artefakt po
+`REVISE` nie wraca do reviewera.
 
 ### 13.2. ReviewDecision
 
@@ -1072,6 +1082,11 @@ ReviewDecision:
       required_correction:
       evidence_refs: []
 
+  advisories:
+    - criterion_id:
+      location:
+      observation:
+
   closed_finding_ids: []
 
   revision_scope:
@@ -1092,6 +1107,7 @@ Dozwolone root causes to `producer_error`, `insufficient_evidence`,
 Reguły spójności:
 
 - `APPROVED` ma pustą listę findings oraz null w `root_cause` i `revision_scope`,
+- `APPROVED` może zawierać nieblokujące `advisories`, które nie uruchamiają producenta,
 - `REVISE` ma findings `minor` lub `major`, root cause `producer_error` albo
   `insufficient_evidence` oraz revision scope należący do producenta,
 - `BLOCKED` ma co najmniej jeden finding `blocker` oraz root cause
@@ -1105,6 +1121,14 @@ Reviewer decision jest artefaktem w `envelope@1.produced[]`. Pole `path` deskryp
 URI `artifact://`, a `schema_version` ma wartość `review_decision@1`. Status envelope pozostaje
 jednym z `ok`, `needs_input`, `degraded` lub `failed`. Zakończone wykonanie reviewera zwraca
 envelope `ok` również dla decyzji `REVISE` i `BLOCKED`.
+
+### 13.3. RevisionCompletion
+
+Po `REVISE` orkiestrator uruchamia producenta dokładnie raz z nazwanymi findings. Jeżeli nowy
+artefakt przejdzie deterministyczną finalizację, runtime zapisuje `revision_completion@1` z refem
+oryginalnej decyzji A10, refami i wersjami obu artefaktów oraz listą obsłużonych finding IDs.
+Downstream przyjmuje parę `REVISE` + `revision_completion@1` bez drugiego wywołania reviewera.
+Brak poprawnego receipt blokuje użycie skorygowanego artefaktu.
 
 ## 14. Synteza
 

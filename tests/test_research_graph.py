@@ -72,6 +72,37 @@ def test_nodes_receive_mocked_context():
     assert all(task_id == "RESEARCH_001" and n_claims == 1 for _, task_id, n_claims in seen)
 
 
+def test_stub_harness_revise_runs_one_correction_without_second_review():
+    seed = json.loads(SEED.read_text())
+    in_ref = artifacts.store("handoffs/research_graph_input.json", seed)
+    producer_calls = {}
+    reviewer_calls = {}
+
+    def runner(node, ctx, log):
+        if node.get("kind") == "reviewer":
+            target = ctx["review"]["target"]
+            reviewer_calls[target] = reviewer_calls.get(target, 0) + 1
+            if target == "g02-a01-planner":
+                return {
+                    "status": "ok", "produced": [], "summary": "revise", "issues": [],
+                    "artifact": {
+                        "decision": "REVISE",
+                        "findings": [{"severity": "major", "finding_id": "RF_ONCE"}],
+                    },
+                }
+            return {"status": "ok", "produced": [], "summary": "approved", "issues": [],
+                    "artifact": {"decision": "APPROVED", "findings": []}}
+        name = node["name"]
+        producer_calls[name] = producer_calls.get(name, 0) + 1
+        return {"status": "ok", "produced": [], "summary": "producer", "issues": []}
+
+    result = g02_flow.run(in_ref, node_runner=runner)
+    assert result["type"] == "user_approved_research_bundle"
+    assert producer_calls["g02-a01-planner"] == 2
+    assert reviewer_calls["g02-a01-planner"] == 1
+    assert all(count == 1 for count in reviewer_calls.values())
+
+
 def test_node_input_map_exposes_per_agent_context():
     """The harness can show exactly what each agent node receives (for isolated agent testing)."""
     seed = json.loads(SEED.read_text())

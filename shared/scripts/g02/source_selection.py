@@ -80,14 +80,16 @@ def prepare_source_selection(candidate_source_index_ref: str, *, base=None) -> d
     language = str(index.get("output_language", "English"))
     polish = language.casefold().startswith("pl") or "pol" in language.casefold()
     cards = []
-    for source_id in index["displayed_source_ids"]:
+    for display_number, source_id in enumerate(index["displayed_source_ids"], start=1):
         item = by_id[source_id]
         cards.append({
+            "display_number": display_number,
             "source_id": source_id,
             "title": item["record"]["bibliographic"]["title"],
             "record_type": item["record_type"],
             "description": item["human_annotation"]["content_summary"],
             "description_basis": item["human_annotation"]["description_basis"],
+            "doi_verification": deepcopy(item.get("doi_verification")),
             "recommended_action": item["ranking"]["recommended_action"],
             "coverage_unit_ids": deepcopy(item["coverage_unit_ids"]),
         })
@@ -98,11 +100,13 @@ def prepare_source_selection(candidate_source_index_ref: str, *, base=None) -> d
         "output_language": language,
         "instruction": (
             "Przejrzyj karty źródeł. Przypisz DOWNLOAD, LIBRARY, CITATION, RESERVE albo EXCLUDE "
-            "każdemu prezentowanemu źródłu lub wybierz SEARCH_MORE. Pokażę sparsowane podsumowanie "
-            "i poproszę o osobne finalne potwierdzenie przed jakimkolwiek pobraniem."
+            "każdemu prezentowanemu źródłu, używając numeru z listy lub stabilnego ID, albo wybierz "
+            "SEARCH_MORE. Pokażę podsumowanie i poproszę o osobne finalne potwierdzenie przed "
+            "jakimkolwiek pobraniem."
             if polish else
             "Review the linked source cards. Assign DOWNLOAD, LIBRARY, CITATION, RESERVE or "
-            "EXCLUDE to every displayed source, or request SEARCH_MORE. I will show the parsed "
+            "EXCLUDE to every displayed source using its list number or stable ID, or request "
+            "SEARCH_MORE. I will show the parsed "
             "decision and ask for a separate final confirmation before any retrieval."
         ),
         "required_source_ids": deepcopy(index["displayed_source_ids"]),
@@ -111,12 +115,92 @@ def prepare_source_selection(candidate_source_index_ref: str, *, base=None) -> d
         "coverage_gaps": [deepcopy(item) for item in index["coverage_matrix"]
                           if item.get("status") != "covered"],
         "copyable_template": [
-            "DOWNLOAD: SRC_...", "LIBRARY: SRC_...", "CITATION: SRC_...",
+            "DOWNLOAD: <number or SRC_ID>", "LIBRARY: <number or SRC_ID>", "CITATION: SRC_...",
             "RESERVE: SRC_...", "EXCLUDE: SRC_... | reason=...",
             "SEARCH_MORE: coverage_id=... | request=...",
         ],
     }
-    return {"ready": True, "gate_prompt": prompt}
+    return {"ready": True, "gate_prompt": prompt, "user_prompt": render_gate_prompt(prompt)}
+
+
+def render_gate_prompt(prompt: dict) -> str:
+    """Render the structured gate payload as a concise terminal/chat prompt."""
+    language = str(prompt.get("output_language", "English"))
+    polish = language.casefold().startswith("pl") or "pol" in language.casefold()
+    lines = ["Wybór źródeł do pobrania" if polish else "Source selection for retrieval", ""]
+    review_ref = prompt.get("review_document_ref")
+    if review_ref:
+        lines.append(("Pełny przegląd: " if polish else "Full review: ") + str(review_ref))
+        lines.append("")
+    for card in prompt.get("cards", []):
+        number = card.get("display_number", "?")
+        title = card.get("title") or card.get("source_id") or "Untitled"
+        kind = card.get("record_type", "source")
+        recommendation = card.get("recommended_action", "")
+        lines.append(f"[{number}] {title}")
+        lines.append(f"    ID: {card.get('source_id')} | {kind} | "
+                     f"{'sugestia' if polish else 'suggested'}: {recommendation}")
+        description = card.get("description")
+        if isinstance(description, str) and description.strip():
+            lines.append(f"    {description.strip()}")
+        coverage = card.get("coverage_unit_ids")
+        if isinstance(coverage, list) and coverage:
+            lines.append(f"    {'pokrycie' if polish else 'coverage'}: {', '.join(coverage)}")
+        verification = card.get("doi_verification")
+        if isinstance(verification, dict):
+            lines.append(f"    Crossref: {verification.get('registry_status')} / "
+                         f"{verification.get('match_status')}")
+    lines.extend([
+        "",
+        ("Wpisz po jednej komendzie w linii, używając numerów lub ID:" if polish else
+         "Enter one command per line, using numbers or IDs:"),
+        "DOWNLOAD: 1",
+        "LIBRARY: SRC_...",
+        "CITATION: SRC_...",
+        "RESERVE: SRC_...",
+        "EXCLUDE: SRC_... | reason=...",
+        "SEARCH_MORE: coverage_id=... | request=...",
+        "CANCEL:",
+    ])
+    return "\n".join(lines)
+
+
+def render_selection_summary(summary: dict, *, polish: bool = False) -> str:
+    """Render the exact parsed decision before the separate confirmation step."""
+    labels = {
+        "download": "Pobierz" if polish else "Download",
+        "library": "Biblioteka" if polish else "Library",
+        "citation": "Tylko cytowanie" if polish else "Citation only",
+        "reserve": "Rezerwa" if polish else "Reserve",
+        "excluded": "Wykluczone" if polish else "Excluded",
+        "search_more": "Dalsze wyszukiwanie" if polish else "Search more",
+    }
+    lines = ["Podsumowanie decyzji" if polish else "Selection summary"]
+    for field in ("download", "library", "citation", "reserve", "excluded", "search_more"):
+        lines.append(f"- {labels[field]}: "
+                     f"{json.dumps(summary.get(field, []), ensure_ascii=False)}")
+    if polish:
+        lines.append(f"- Pliki do pobrania: {summary.get('download_count', 0)} "
+                     f"(naukowe: {summary.get('scholarly_download_count', 0)}, "
+                     f"przypadki rynkowe: {summary.get('market_case_download_count', 0)})")
+    else:
+        lines.append(f"- Downloads: {summary.get('download_count', 0)} "
+                     f"(scholarly: {summary.get('scholarly_download_count', 0)}, "
+                     f"market cases: {summary.get('market_case_download_count', 0)})")
+    return "\n".join(lines)
+
+
+def _resolve_source_tokens(index: dict, values: list[str]) -> list[str]:
+    """Accept stable source IDs and convenient 1-based display numbers."""
+    displayed = index["displayed_source_ids"]
+    resolved = []
+    for value in values:
+        token = value.strip()
+        if token.isdigit() and 1 <= int(token) <= len(displayed):
+            resolved.append(displayed[int(token) - 1])
+        else:
+            resolved.append(token)
+    return resolved
 
 
 def parse_selection_template(candidate_source_index_ref: str, response_text: str,
@@ -137,11 +221,12 @@ def parse_selection_template(candidate_source_index_ref: str, response_text: str
         value = value.strip()
         if action in ACTIONS:
             ids = [item for item in re.split(r"[,;\s]+", value) if item]
-            fields[ACTIONS[action]].extend(ids)
+            fields[ACTIONS[action]].extend(_resolve_source_tokens(index, ids))
         elif action == "EXCLUDE":
             source_part, _, reason_part = value.partition("|")
             reason = reason_part.removeprefix("reason=").strip() or None
-            for source_id in [item for item in re.split(r"[,;\s]+", source_part.strip()) if item]:
+            ids = [item for item in re.split(r"[,;\s]+", source_part.strip()) if item]
+            for source_id in _resolve_source_tokens(index, ids):
                 excluded.append({"source_id": source_id, "reason": reason})
         elif action == "SEARCH_MORE":
             status = "needs_more_search"
@@ -357,6 +442,7 @@ def finalize_source_selection(candidate_source_index_ref: str, selection: dict,
                 "related_claims": deepcopy(item["claim_ids"]),
                 "source_roles": [role.get("role") for role in item["role_assignments"]
                                  if isinstance(role, dict) and isinstance(role.get("role"), str)],
+                "doi_verification": deepcopy(item.get("doi_verification")),
                 "market_candidate_sources_ref": market_ref,
             })
         approved_set = {

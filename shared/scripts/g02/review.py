@@ -300,6 +300,8 @@ def validate_review_decision(decision: object, task: dict | None = None,
 
     findings = decision.get("findings")
     findings = findings if isinstance(findings, list) else []
+    advisories = decision.get("advisories")
+    advisories = advisories if isinstance(advisories, list) else []
     finding_ids = [item.get("finding_id") for item in findings
                    if isinstance(item, dict) and isinstance(item.get("finding_id"), str)]
     duplicates = _duplicates(finding_ids)
@@ -319,6 +321,13 @@ def validate_review_decision(decision: object, task: dict | None = None,
         if isinstance(evidence_refs, list) and any(
                 isinstance(ref, str) and not ref.strip() for ref in evidence_refs):
             errors.append(f"findings[{index}].evidence_refs contains an empty ref")
+    for index, item in enumerate(advisories):
+        if not isinstance(item, dict):
+            continue
+        for field in ("criterion_id", "location", "observation"):
+            value = item.get(field)
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"advisories[{index}].{field} must not be empty")
 
     closed_ids = decision.get("closed_finding_ids")
     closed_ids = closed_ids if isinstance(closed_ids, list) else []
@@ -415,6 +424,11 @@ def validate_review_decision(decision: object, task: dict | None = None,
                     f"finding {item.get('finding_id')!r} uses unauthorized criterion_id "
                     f"{item.get('criterion_id')!r}"
                 )
+        for item in advisories:
+            if isinstance(item, dict) and item.get("criterion_id") not in allowed_criteria:
+                errors.append(
+                    f"advisory uses unauthorized criterion_id {item.get('criterion_id')!r}"
+                )
 
     attempt = decision.get("attempt")
     if attempt == 1 and closed_ids:
@@ -500,6 +514,7 @@ def blocked_decision(task: dict, issue: dict) -> dict:
             "required_correction": "Correct the review basis or restore the required dependency.",
             "evidence_refs": [],
         }],
+        "advisories": [],
         "closed_finding_ids": [],
         "revision_scope": None,
         "root_cause": root_cause,
@@ -571,6 +586,7 @@ def finalize_review_decision(task: dict | None, decision: dict, *, base=None) ->
             "decision": decision["decision"],
             "attempt": decision["attempt"],
             "finding_count": len(decision["findings"]),
+            "advisory_count": len(decision.get("advisories", [])),
         },
     }
 

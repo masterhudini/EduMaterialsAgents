@@ -65,7 +65,7 @@ Pliki w tym katalogu są częścią repozytorium i stanowią kontekst projektowy
 
 ### Status implementacji warstwy treści
 
-Warstwa definicji zawiera 11 agentów i 20 skilli, w tym jeden uniwersalny reviewer, orkiestrator
+Warstwa definicji zawiera 11 agentów i 21 skilli, w tym jeden uniwersalny reviewer, orkiestrator
 oraz zaimplementowane A11 Market Cases, A05 Candidate Source Index i A06 Paper Retrieval. A11 ma scoped input,
 deterministyczne operacje Tavily/SearXNG, wariant `candidate_sources@1`, profil review i gated
 extraction. A05 ma reviewed-only scoped input, konserwatywną deduplikację, jawny ranking,
@@ -76,10 +76,15 @@ czytelny dokument Markdown z faktem i interpretacją A11 oraz oddzielny JSON aud
 treścią oznaczoną jako niezaufana.
 
 Deterministyczne seams reviewera oraz G02-A01, A02, A03, A04, A11, A05 i A06 są wdrożone. G02-A02 posiada
-konfigurację providerów, adaptery OpenAlex, Semantic Scholar i arXiv, cache, retry, rate limiting,
+konfigurację providerów, adaptery OpenAlex, Semantic Scholar, arXiv i Crossref, cache, retry, rate limiting,
 normalizację oraz zapis surowej proweniencji. `g02_flow.py run-codex` uruchamia fizyczne definicje
-agentów jako izolowane procesy `codex exec`; tryb `run` pozostaje harness-em no-op do testowania
-wiringu i nie jest testem zachowania agentów. Produkcyjny downloader A06 ma domyślnie pomijany
+agentów jako izolowane procesy `codex exec` w fail-closed flow A01–A06: każdy wynik jest hydratowany,
+walidowany i wiązany z dokładną decyzją A10 przed downstreamem. A10 jest wywoływany maksymalnie
+raz na wykonanie producenta. `REVISE` uruchamia jedną korektę producenta bez ponownego review,
+a jej zakończenie zapisuje `revision_completion@1`. Runner zwraca
+`research_run_report@1`, obsługuje ograniczenie `--through`/`--topic-id` i nie emituje stubowego
+wyniku A07–A09. Tryb `run` pozostaje harness-em no-op do testowania wiring i nie jest testem
+zachowania agentów. Produkcyjny downloader A06 ma domyślnie pomijany
 live smoke pobierający rzeczywisty PDF przez Unpaywall. Indeks tekstu PDF, dalsze scoped inputs i
 scheduler fan-out/fan-in pozostają kolejnymi etapami.
 

@@ -396,7 +396,7 @@ def test_finalize_and_review_task_happy_path():
     assert task["producer_agent"] == "g02-a03-canonical-sources"
     assert task["review_profile"] == "canonical_sources"
     assert [item["criterion_id"] for item in task["acceptance_criteria"]] == [
-        "CS-01", "CS-02", "CS-03", "CS-04", "CS-05", "CS-06"
+        "CS-01", "CS-02", "CS-03", "CS-04", "CS-05", "CS-06", "CS-07"
     ]
 
 

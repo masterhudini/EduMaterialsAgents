@@ -38,6 +38,7 @@ Return the artifact descriptor through `envelope@1.produced`.
 
 - `g02-expand-research-query`, required.
 - `g02-search-scholarly-metadata`, required.
+- `g02-verify-doi-metadata`, required for every DOI-bearing candidate.
 
 `g02-expand-citation-graph` is not used by A02. It belongs to the implemented G02-A03 slice and
 operates only on provider-resolvable seeds from the reviewed A02 artifact.
@@ -48,6 +49,8 @@ operates only on provider-resolvable seeds from the reviewed A02 artifact.
 - `research_provider_status`, inspect enabled and ready services without exposing secrets.
 - `research_metadata_search`, execute one approved route through one provider and persist its
   result and raw-response provenance.
+- `research_doi_verify` / `research_doi_verify_batch`, persist Crossref registry and bibliographic
+  comparisons for unchanged DOI-bearing records.
 - `research_domain_finalize`, validate all provider references and store the output artifact.
 - `research_domain_review_task`, freeze the `domain_candidates` review basis.
 
@@ -65,13 +68,16 @@ Never call provider endpoints, generic web tools or shell network commands direc
    unavailable and failed operations in the query log.
 4. Copy returned `source_record@1` objects without altering provider metadata. Retain a single
    occurrence of a repeated provider `source_id`; cross-provider deduplication belongs to G02-A05.
-5. Map candidates to approved coverage units using only provider metadata, title or abstract.
+5. Call `research_doi_verify` or `research_doi_verify_batch` for every DOI-bearing candidate. Store
+   the returned compact bindings in `doi_verifications`. Treat Crossref as an independent DOI and
+   bibliographic check: never overwrite provider metadata, and expose conflicts or unavailability.
+6. Map candidates to approved coverage units using only provider metadata, title or abstract.
    State the basis explicitly. Do not infer claim stance or scientific quality.
-6. Include neutral candidates that may support, qualify or challenge the investigation. Do not
+7. Include neutral candidates that may support, qualify or challenge the investigation. Do not
    optimize the pool toward an expected conclusion.
-7. Stop on the topic limit, executed saturation rule, provider exhaustion or explicit provider
+8. Stop on the topic limit, executed saturation rule, provider exhaustion or explicit provider
    unavailability. Record remaining coverage and all partial failures.
-8. Call `research_domain_finalize` with the complete current pool and return its envelope. The
+9. Call `research_domain_finalize` with the complete current pool and return its envelope. The
    orchestrator builds the review task and invokes G02-A10.
 
 ## Acceptance Criteria
@@ -84,6 +90,8 @@ Never call provider endpoints, generic web tools or shell network commands direc
 - `DR-04`: Query logs preserve successful, failed and valid zero-result operations.
 - `DR-05`: Neutral complementary and qualifying-or-critical routes exist when required.
 - `DR-06`: Stop reason, provider failures and remaining coverage units are explicit.
+- `DR-07`: Every valid DOI has a stored Crossref verification; conflicts remain visible and never
+  silently modify the provider record.
 
 ## Boundaries
 

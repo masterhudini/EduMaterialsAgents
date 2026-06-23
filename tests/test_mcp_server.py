@@ -28,7 +28,7 @@ def test_initialize_and_tools_list():
     init = srv.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                        "params": {"protocolVersion": "2024-11-05"}})
     assert init["result"]["serverInfo"]["name"] == "edu-materials-research"
-    assert init["result"]["serverInfo"]["version"] == "0.9.0"
+    assert init["result"]["serverInfo"]["version"] == "0.10.0"
     assert init["result"]["protocolVersion"] == "2024-11-05"
     assert "prompts" in init["result"]["capabilities"]
 
@@ -38,7 +38,8 @@ def test_initialize_and_tools_list():
                      "research_planner_prepare", "research_planner_finalize",
                      "research_plan_review_task",
                      "research_provider_status", "research_domain_prepare",
-                     "research_metadata_search", "research_domain_finalize",
+                     "research_metadata_search", "research_doi_verify",
+                     "research_doi_verify_batch", "research_domain_finalize",
                      "research_domain_review_task",
                      "research_canonical_prepare", "research_citation_expand",
                      "research_canonical_finalize", "research_canonical_review_task",
@@ -65,8 +66,51 @@ def test_initialize_and_tools_list():
     assert len(a11_tools) == 5
     assert all("config" not in t["inputSchema"]["properties"] for t in a11_tools)
     assert set(run_codex["inputSchema"]["properties"]) == {
-        "context", "gates", "resume_token", "decisions"
+        "context", "gates", "resume_token", "decisions", "through", "topic_ids"
     }
+
+
+def test_planner_input_schema_and_loader_accept_object_ref_path_and_json(tmp_path):
+    tools = {item["name"]: item for item in srv.TOOLS}
+    for name in ("research_planner_prepare", "research_planner_finalize",
+                 "research_plan_review_task"):
+        assert tools[name]["inputSchema"]["properties"]["input"]["type"] == ["object", "string"]
+
+    payload = json.loads(Path(SEED).read_text(encoding="utf-8"))
+    assert srv._planner_payload(payload) == payload
+    assert srv._planner_payload(json.dumps(payload)) == payload
+    path = tmp_path / "input.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    assert srv._planner_payload(str(path)) == payload
+
+    ref = srv._front_door({"context": SEED})["ref"]
+    assert srv._planner_payload(ref) == payload
+    with pytest.raises(ValueError, match="neither inline JSON nor a safe path"):
+        srv._planner_payload("x" * 5000)
+
+
+def test_reviewed_run_disallows_auto_gate_and_mcp_audit_logs_keys_only(monkeypatch):
+    with pytest.raises(ValueError, match="require gates='pause'"):
+        srv._run_codex({"context": SEED, "gates": "auto"})
+
+    entries = []
+
+    class Audit:
+        def append(self, *args, **kwargs):
+            entries.append((args, kwargs))
+
+    monkeypatch.setenv("EMAGENTS_RUN_ID", "RUN_AUDIT")
+    monkeypatch.setenv("EMAGENTS_NODE_ID", "NODE_AUDIT")
+    monkeypatch.setattr(srv.event_log, "open_log", lambda name: Audit())
+    response = srv.handle({
+        "jsonrpc": "2.0", "id": 20, "method": "tools/call",
+        "params": {"name": "research_front_door", "arguments": {"context": SEED}},
+    })
+    assert "result" in response
+    assert len(entries) == 2
+    assert entries[0][0][:2] == ("NODE_AUDIT", "research_front_door")
+    assert entries[0][1]["detail"] == {"argument_keys": ["context"]}
+    assert SEED not in json.dumps(entries)
 
 
 def test_prompts_list_and_get_research():

@@ -24,12 +24,12 @@
         "type": "object",
         "required": ["provider", "enabled", "ready", "authentication"],
         "properties": {
-          "provider": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv"]},
+          "provider": {"type": "string", "enum": ["openalex", "semantic_scholar", "arxiv", "crossref"]},
           "enabled": {"type": "boolean"},
           "ready": {"type": "boolean"},
           "authentication": {
             "type": "string",
-            "enum": ["none", "optional_key", "required_key_missing", "configured_key"]
+            "enum": ["none", "optional_key", "required_key_missing", "configured_key", "configured_email", "required_email_missing"]
           }
         }
       }

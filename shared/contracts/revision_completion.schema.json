@@ -1,0 +1,26 @@
+{
+  "title": "Producer revision completion after the single universal review",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "review_decision_ref", "review_id", "task_id", "producer_agent",
+    "original_artifact_ref", "original_artifact_version", "revised_artifact_ref",
+    "revised_artifact_version", "finding_ids", "deterministic_validation_passed",
+    "completed_at"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["revision_completion@1"]},
+    "review_decision_ref": {"type": "string"},
+    "review_id": {"type": "string"},
+    "task_id": {"type": "string"},
+    "producer_agent": {"type": "string"},
+    "original_artifact_ref": {"type": "string"},
+    "original_artifact_version": {"type": "string"},
+    "revised_artifact_ref": {"type": "string"},
+    "revised_artifact_version": {"type": "string"},
+    "finding_ids": {"type": "array", "items": {"type": "string"}},
+    "deterministic_validation_passed": {"type": "boolean", "enum": [true]},
+    "completed_at": {"type": "string"}
+  }
+}

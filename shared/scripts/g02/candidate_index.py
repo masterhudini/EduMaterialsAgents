@@ -55,11 +55,12 @@ ACCEPTANCE_CRITERIA = [
         "The review document explains all gate actions, gaps and a copyable response format.",
         "Display, reserve and topic limits do not silently remove mandatory coverage.",
         "The index recommends actions but records no human source-selection decision.",
+        "Every DOI-bearing scholarly source exposes an auditable Crossref status and identity conflicts remain visible.",
     ], 1)
 ]
 EVIDENCE_REQUIREMENTS = [
     {"requirement_id": "CI-E01", "mandatory": True,
-     "description": "Every upstream artifact has an APPROVED review decision bound to its exact ref and version."},
+     "description": "Every upstream artifact has an APPROVED decision or one completed REVISE receipt bound to its exact ref and version."},
     {"requirement_id": "CI-E02", "mandatory": True,
      "description": "Content summaries quote or condense only available abstract, metadata or reviewed A11 annotations."},
     {"requirement_id": "CI-E03", "mandatory": True,
@@ -167,6 +168,7 @@ def _reviewed_artifact(descriptor: dict, plan: dict, *, base=None) -> tuple[dict
         raise ValueError(f"unsupported upstream stream {stream!r}")
     artifact_ref = descriptor.get("artifact_ref")
     decision_ref = descriptor.get("review_decision_ref")
+    completion_ref = descriptor.get("revision_completion_ref")
     if not isinstance(artifact_ref, str) or not artifact_ref.startswith(artifacts.SCHEME):
         raise ValueError("upstream artifact_ref must use artifact://")
     if not isinstance(decision_ref, str) or not decision_ref.startswith(artifacts.SCHEME):
@@ -184,20 +186,45 @@ def _reviewed_artifact(descriptor: dict, plan: dict, *, base=None) -> tuple[dict
         raise ValueError("upstream artifact task binding is invalid")
     if artifact.get("research_plan_ref") != plan["_ref"]:
         raise ValueError("upstream artifact does not bind the exact ResearchPlan ref")
-    if decision.get("decision") != "APPROVED" or decision.get("findings"):
-        raise ValueError("upstream review decision must be APPROVED with no findings")
-    expected = {
-        "task_id": plan["task_id"], "artifact_ref": artifact_ref,
-        "artifact_version": artifact.get("artifact_version"), "review_profile": profile,
-        "producer_agent": producer,
-    }
+    expected = {"task_id": plan["task_id"], "review_profile": profile,
+                "producer_agent": producer}
     for field, value in expected.items():
         if decision.get(field) != value:
             raise ValueError(f"review decision {field} does not match the upstream artifact")
+    if decision.get("decision") == "APPROVED" and not decision.get("findings"):
+        if completion_ref is not None:
+            raise ValueError("APPROVED upstream cannot carry a revision completion")
+        if decision.get("artifact_ref") != artifact_ref \
+                or decision.get("artifact_version") != artifact.get("artifact_version"):
+            raise ValueError("approved review decision does not bind the exact upstream artifact")
+    elif decision.get("decision") == "REVISE" and decision.get("findings"):
+        if not isinstance(completion_ref, str) or not completion_ref.startswith(artifacts.SCHEME):
+            raise ValueError("revised upstream requires revision_completion_ref")
+        completion = artifacts.hydrate(completion_ref, base=base)
+        completion_errors = _shape(completion, "revision_completion@1")
+        if completion_errors:
+            raise ValueError("; ".join(completion_errors))
+        expected_completion = {
+            "review_decision_ref": decision_ref,
+            "review_id": decision["review_id"],
+            "task_id": plan["task_id"],
+            "producer_agent": producer,
+            "original_artifact_ref": decision["artifact_ref"],
+            "original_artifact_version": decision["artifact_version"],
+            "revised_artifact_ref": artifact_ref,
+            "revised_artifact_version": artifact.get("artifact_version"),
+            "finding_ids": [item["finding_id"] for item in decision["findings"]],
+            "deterministic_validation_passed": True,
+        }
+        for field, value in expected_completion.items():
+            if completion.get(field) != value:
+                raise ValueError(f"revision completion {field} does not match the upstream artifact")
+    else:
+        raise ValueError("upstream requires APPROVED or one completed REVISE decision")
     frozen = {
         "stream": stream, "topic_id": artifact.get("topic_id"), "artifact_ref": artifact_ref,
         "artifact_version": artifact["artifact_version"], "review_decision_ref": decision_ref,
-        "review_id": decision["review_id"],
+        "revision_completion_ref": completion_ref, "review_id": decision["review_id"],
     }
     return artifact, frozen
 
@@ -208,6 +235,8 @@ def _project_entries(stream: str, topic_id: str, artifact: dict) -> list[dict]:
     field = ANNOTATION_FIELD.get(stream)
     annotations = {item.get("source_id"): item for item in artifact.get(field, [])
                    if isinstance(item, dict)} if field else {}
+    verifications = {item.get("source_id"): item for item in artifact.get("doi_verifications", [])
+                     if isinstance(item, dict)}
     result = []
     for record in artifact.get("candidates", []):
         if _shape(record, "source_record@1"):
@@ -231,6 +260,7 @@ def _project_entries(stream: str, topic_id: str, artifact: dict) -> list[dict]:
             "stream": stream, "topic_id": topic_id, "record": deepcopy(record),
             "coverage_unit_ids": cov, "role_assignments": deepcopy(roles),
             "stream_annotation": deepcopy(annotation),
+            "doi_verification": deepcopy(verifications.get(record["source_id"])),
         })
     return result
 
@@ -485,6 +515,8 @@ def build_candidate_index(candidate_input: dict, *, artifact_version: str = "1.0
             "role_assignments": roles,
             "coverage_unit_ids": _unique(cov for entry in group for cov in entry["coverage_unit_ids"]),
             "duplicate_source_ids": [value for value in source_ids if value != record["source_id"]],
+            "doi_verification": deepcopy(next((entry.get("doi_verification") for entry in group
+                                                if entry.get("doi_verification")), None)),
             "provenance_records": [{"source_id": entry["record"]["source_id"],
                                     "stream": entry["stream"],
                                     "provenance": deepcopy(entry["record"].get("provenance", {}))}
@@ -621,12 +653,18 @@ def render_review_document(index: dict, output_language: str, *, index_ref: str 
     for sid in index["displayed_source_ids"]:
         item = by_id[sid]; bib = item["record"]["bibliographic"]; note = item["human_annotation"]
         authors = ", ".join(bib.get("authors", [])) or ("autor nieznany" if pl else "unknown author")
+        verification = item.get("doi_verification")
+        crossref_status = (
+            f"{verification.get('registry_status')} / {verification.get('match_status')}"
+            if isinstance(verification, dict) else ("nie dotyczy" if pl else "not applicable")
+        )
         lines += [f"### {item['ranking']['rank']}. {bib['title']}", "",
                   f"- **ID:** `{sid}`", f"- **Cytowanie skrócone:** {authors} ({bib.get('year') or 'b.d.'}). {bib.get('venue') or bib.get('publisher') or ''}",
                   f"- **Typ:** {item['record_type']}; **role:** {', '.join(r.get('role', '') for r in item['role_assignments']) or 'unclassified'}",
                   f"- **Co zawiera według dostępnych danych:** {note['content_summary']}",
                   f"- **Dlaczego może pasować:** {note['selection_relevance']}",
                   f"- **Podstawa opisu:** `{note['description_basis']}`",
+                  f"- **Crossref DOI:** `{crossref_status}`",
                   f"- **Dostęp:** `{item['access_summary'].get('access_level', 'unknown')}`; rekomendacja `{item['ranking']['recommended_action']}`",
                   f"- **Ograniczenia:** {' '.join(note['limitations'])}", ""]
     lines += ["## Rezerwa" if pl else "## Reserve", ""]
