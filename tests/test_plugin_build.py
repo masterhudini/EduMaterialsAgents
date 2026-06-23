@@ -29,6 +29,56 @@ def source_skills() -> list[Path]:
     return sorted(path.parent for path in (ROOT / "skills").glob("*/SKILL.md"))
 
 
+EXPECTED_AGENT_SETTINGS = {
+    "g02-a01-planner": ("opus", "medium"),
+    "g02-a02-domain": ("sonnet", "high"),
+    "g02-a03-canonical-sources": ("sonnet", "high"),
+    "g02-a04-recent-developments": ("sonnet", "high"),
+    "g02-a05-candidate-source-index": ("opus", "medium"),
+    "g02-a06-paper-retrieval": ("sonnet", "high"),
+    "g02-a07-paper-review": ("opus", "high"),
+    "g02-a08-claim-verification": ("opus", "medium"),
+    "g02-a09-synthesizer": ("opus", "high"),
+    "g02-a10-output-reviewer": ("sonnet", "xhigh"),
+    "g02-a11-market-cases": ("sonnet", "high"),
+}
+
+
+EXPECTED_GLOBAL_SETTINGS = {
+    "cross_artifact_reconciliation": ("opus", "medium"),
+    "deterministic_technical": ("sonnet", "medium"),
+    "evidence_high_impact": ("sonnet", "medium"),
+    "research_planning": ("opus", "medium"),
+    "research_search": ("sonnet", "medium"),
+    "synthesis_decision": ("opus", "medium"),
+}
+
+
+EXPECTED_SKILL_SETTINGS = {
+    "g02-a01-plan-research-scope": ("opus", "medium"),
+    "g02-a05-annotate-source-candidates": ("opus", "medium"),
+    "g02-a05-deduplicate-source-records": ("opus", "medium"),
+    "g02-a05-rank-source-candidates": ("opus", "medium"),
+    "g02-a06-resolve-open-access": ("sonnet", "high"),
+    "g02-a06-retrieve-open-access-document": ("sonnet", "high"),
+    "g02-a06-validate-retrieved-document": ("sonnet", "high"),
+    "g02-a07-extract-paper-evidence": ("opus", "high"),
+    "g02-a08-assess-claim-evidence": ("opus", "medium"),
+    "g02-a09-synthesize-research-findings": ("opus", "high"),
+    "g02-a11-extract-case-evidence": ("opus", "high"),
+    "g02-a11-find-market-cases": ("sonnet", "high"),
+    "g02-assess-source-coverage": ("opus", "high"),
+    "g02-classify-source-role": ("sonnet", "high"),
+    "g02-expand-citation-graph": ("sonnet", "high"),
+    "g02-expand-research-query": ("sonnet", "high"),
+    "g02-normalize-source-metadata": ("sonnet", "high"),
+    "g02-orchestrate-research": ("opus", "low"),
+    "g02-review-research-output": ("sonnet", "xhigh"),
+    "g02-search-scholarly-metadata": ("sonnet", "high"),
+    "g02-verify-doi-metadata": ("sonnet", "high"),
+}
+
+
 def test_manifest_declares_every_source_component():
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     components = manifest["components"]
@@ -39,7 +89,7 @@ def test_manifest_declares_every_source_component():
     assert set(components["skills"]) == skills
     assert set(components["agents"]) == agents
     assert set(components["commands"]) == commands
-    assert len(skills) == 20
+    assert len(skills) == 21
     assert len(agents) == 11
 
 
@@ -50,6 +100,30 @@ def test_every_skill_has_required_host_adapters():
             path = adapters / name
             assert path.is_file(), f"{skill.name}: missing {name}"
             assert path.read_text(encoding="utf-8").strip(), f"{skill.name}: empty {name}"
+
+
+def test_claude_agent_and_skill_model_effort_matrix_is_exact():
+    graph = json.loads((ROOT / "shared" / "graphs" / "g02.graph.json").read_text(encoding="utf-8"))
+    actual_agents = {
+        name: (value["claude"]["model"], value["claude"]["effort"])
+        for name, value in graph["agent_host_bindings"].items()
+    }
+    assert actual_agents == EXPECTED_AGENT_SETTINGS
+
+    actual_globals = {
+        name: (value["claude"]["model"], value["claude"]["effort"])
+        for name, value in graph["model_bindings"].items()
+    }
+    assert actual_globals == EXPECTED_GLOBAL_SETTINGS
+
+    actual_skills = {}
+    for skill in source_skills():
+        text = (skill / "adapters" / "claude.frontmatter.yaml").read_text(encoding="utf-8")
+        model = re.search(r"^model:\s*(\S+)\s*$", text, re.MULTILINE)
+        effort = re.search(r"^effort:\s*(\S+)\s*$", text, re.MULTILINE)
+        assert model and effort, f"{skill.name}: incomplete Claude settings"
+        actual_skills[skill.name] = (model.group(1), effort.group(1))
+    assert actual_skills == EXPECTED_SKILL_SETTINGS
 
 
 def test_every_command_has_required_host_adapters():
@@ -93,7 +167,7 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
     for host in ("claude", "codex"):
         plugin = tmp_path / host / "plugins" / "edu-materials-agents"
         rendered = sorted((plugin / "skills").glob("*/SKILL.md"))
-        assert len(rendered) == 20
+        assert len(rendered) == 21
         assert not list((plugin / "skills").glob("*/adapters"))
         for relative in (
             "agents/g02-a03-canonical-sources.md",
@@ -108,6 +182,7 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
             "shared/contracts/web_case_extract_result.schema.json",
             "shared/contracts/human_source_selection.schema.json",
             "shared/contracts/human_approved_source_set.schema.json",
+            "shared/contracts/doi_verification_result.schema.json",
             "shared/contracts/retrieval_input.schema.json",
             "shared/contracts/open_access_resolution.schema.json",
             "shared/contracts/retrieved_file_candidate.schema.json",
@@ -121,6 +196,7 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
             "shared/scripts/g02/market_cases.py",
             "shared/scripts/g02/web_cases.py",
             "shared/scripts/g02/source_selection.py",
+            "shared/scripts/g02/crossref.py",
             "shared/scripts/g02/oa_retrieval.py",
             "shared/scripts/g02/retrieval.py",
         ):
@@ -138,6 +214,7 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
             assert not (skill_md.parent / "adapters").exists()
             if host == "claude":
                 assert "\nmodel:" in text
+                assert "\neffort:" in text
             else:
                 assert "\nmodel:" not in text
 
@@ -147,6 +224,10 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
     assert len(list((claude_plugin / "commands").glob("*.md"))) == 1
     assert len(list((codex_plugin / "agents").glob("*.md"))) == 11
     assert not (codex_plugin / "commands").exists()
+    for agent, (model, effort) in EXPECTED_AGENT_SETTINGS.items():
+        rendered_agent = (claude_plugin / "agents" / f"{agent}.md").read_text(encoding="utf-8")
+        assert re.search(rf"^model:\s*{model}\s*$", rendered_agent, re.MULTILINE)
+        assert re.search(rf"^effort:\s*{effort}\s*$", rendered_agent, re.MULTILINE)
     codex_manifest = json.loads((codex_plugin / ".codex-plugin" / "plugin.json").read_text())
     assert "agents" not in codex_manifest
     assert "commands" not in codex_manifest
@@ -162,5 +243,5 @@ def test_dry_run_validates_in_temporary_directory_without_touching_dist():
         capture_output=True,
         text=True,
     )
-    assert "Validated 20 skills and 11 agents." in completed.stdout
+    assert "Validated 21 skills and 11 agents." in completed.stdout
     assert before == digest_tree(ROOT / "dist")

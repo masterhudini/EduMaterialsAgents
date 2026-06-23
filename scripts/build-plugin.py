@@ -322,45 +322,71 @@ def render_command_adapters(manifest: dict[str, Any], plugin_root: Path, host: s
         write_text(command, body.replace("{{HOST_ADAPTER}}", adapter_section).rstrip() + "\n")
 
 
-def agent_models(host: str) -> dict[str, str]:
-    """Map agent file stem -> model for ``host`` from each graph's complexity_class + model_bindings.
+def host_settings(binding: Any, host: str) -> dict[str, str]:
+    """Return normalized host settings from legacy or structured graph bindings."""
+    host_value = binding.get(host) if isinstance(binding, dict) else None
+    if isinstance(host_value, str):
+        return {"model": host_value}
+    if isinstance(host_value, dict):
+        return {
+            key: value
+            for key, value in host_value.items()
+            if key in {"model", "effort"} and isinstance(value, str)
+        }
+    return {}
 
-    Single source: the graph manifests carry complexity_class (per node + reviewer) and the
-    complexity_class -> model table. The builder bakes the result into Claude agent frontmatter;
-    the Codex runner reads the same table at runtime for ``-m``.
+
+def agent_settings(host: str) -> dict[str, dict[str, str]]:
+    """Map agent file stem to host frontmatter settings.
+
+    Complexity bindings provide the model default. Per-agent host bindings may override the model
+    and add host-specific controls such as Claude ``effort``. The builder bakes these values into
+    agent frontmatter; the Codex runner continues to read its model from complexity bindings.
     """
-    models: dict[str, str] = {}
+    settings: dict[str, dict[str, str]] = {}
     for graph_manifest in sorted(GRAPHS_DIR.glob("*.graph.json")):
         manifest = json.loads(graph_manifest.read_text())
         bindings = manifest.get("model_bindings", {})
+        per_agent = manifest.get("agent_host_bindings", {})
         for node in manifest.get("nodes", []):
             if node.get("kind") == "agent":
-                model = bindings.get(node.get("complexity_class"), {}).get(host)
-                if model:
-                    models[node["name"]] = model
+                current = host_settings(bindings.get(node.get("complexity_class"), {}), host)
+                current.update(host_settings(per_agent.get(node["name"], {}), host))
+                if current:
+                    settings[node["name"]] = current
         reviewer, rcc = manifest.get("reviewer"), manifest.get("reviewer_complexity_class")
         if reviewer and rcc:
-            model = bindings.get(rcc, {}).get(host)
-            if model:
-                models[reviewer] = model
-    return models
+            current = host_settings(bindings.get(rcc, {}), host)
+            current.update(host_settings(per_agent.get(reviewer, {}), host))
+            if current:
+                settings[reviewer] = current
+    return settings
+
+
+def agent_models(host: str) -> dict[str, str]:
+    """Backward-compatible model-only view used by tests and host adapters."""
+    return {name: item["model"] for name, item in agent_settings(host).items()
+            if item.get("model")}
 
 
 def bake_agent_models(plugin_root: Path, host: str) -> None:
-    """Inject ``model:`` into each shipped agent's frontmatter (agents are otherwise agnostic)."""
-    models = agent_models(host)
+    """Inject host execution settings into each shipped agent's frontmatter."""
+    settings = agent_settings(host)
     agents_dir = plugin_root / "agents"
     if not agents_dir.exists():
         return
     for path in sorted(agents_dir.glob("*.md")):
-        model = models.get(path.stem)
-        if not model:
+        current = settings.get(path.stem)
+        if not current:
             continue
         text = path.read_text(encoding="utf-8")
         if not text.startswith("---"):
             continue
         head = text.index("\n") + 1                 # after the opening '---'
-        write_text(path, text[:head] + f"model: {model}\n" + text[head:])
+        rendered = "".join(
+            f"{key}: {current[key]}\n" for key in ("model", "effort") if current.get(key)
+        )
+        write_text(path, text[:head] + rendered + text[head:])
 
 
 def build_claude(manifest: dict[str, Any], dist: Path, python_command: str) -> Path:

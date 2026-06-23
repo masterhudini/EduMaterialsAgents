@@ -3,8 +3,6 @@
 - Use the installed Research Graph MCP or equivalent node-agent adapter for validation, scoped input,
   agent execution, artifact persistence and final handoff.
 - Do not simulate physical node agents by copying their work into the orchestrator context.
-- While `[KH-TODO: CODEX-RESEARCH-RUNTIME-ADAPTER]` remains unresolved, validate the boundary input,
-  then return `external_dependency_blocked` with the missing capability named explicitly.
 - For semantic requests such as "zrob research", "zrób research" or "run the research graph", use
   the MCP tool `research_run_codex` when available:
 
@@ -13,17 +11,20 @@
   ```
 
   `gates: "pause"` is the default and preserves human gates by returning `awaiting_user` with a
-  `resume_token`; resume with the same tool using `resume_token` and `decisions`. Use
-  `gates: "auto"` only for explicit smoke/dev runs.
+  `resume_token`; resume with the same tool using `resume_token` and `decisions`. The reviewed
+  runner never auto-approves a human gate.
 - The Codex runtime adapter drives the deterministic engine with **Codex workers**: each node runs
   as an isolated `codex exec` call. Entry point (headless/local, subscription login, no API key):
 
   ```bash
-  python3 "<plugin-root>/shared/scripts/g02/g02_flow.py" run-codex <context> [--gates prompt|auto]
+  python3 "<plugin-root>/shared/scripts/g02/g02_flow.py" run-codex <context> [--gates prompt|pause]
   ```
 
-  This loads + validates the boundary input, runs every node via `codex exec`, applies the reviewer
-  loop, and hosts the two user gates on the terminal (`--gates prompt`).
+  This loads and validates the boundary input, runs the implemented A01–A06 frontier via isolated
+  `codex exec`, applies one fail-closed review per producer with at most one unreviewed correction,
+  and hosts the numbered two-step source gate on the
+  terminal (`--gates prompt`). It returns `research_run_report@1`; later A07–A09 execution remains
+  outside this bounded runner until those producers are implemented.
 - The Codex plugin manifest does not register plugin-local `commands/` as slash commands. Do not
   tell the user to use `/research` in Codex; `/research` is Claude-only for now.
 - Do not simulate physical node agents by copying their work into the orchestrator context — each

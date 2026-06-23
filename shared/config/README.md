@@ -8,12 +8,13 @@ relative runtime subdirectories. The runtime also accepts an explicit path throu
 Resolution order is: a path passed directly to the MCP operation, `EMAGENTS_RESEARCH_CONFIG`,
 the project file above, then the bundled example. The bundled example is a safe starting profile,
 but its enabled OpenAlex service requires both the contact environment variable and an API key
-before provider startup can succeed. arXiv requires the contact environment variable. These
+before provider startup can succeed. arXiv and enabled Crossref verification require the contact
+environment variable. These
 requirements were checked against official provider documentation on 2026-06-21.
 
 Secrets and contact data never belong in JSON configuration. Use environment variables:
 
-- `EMAGENTS_RESEARCH_CONTACT_EMAIL`, required when OpenAlex or arXiv is enabled;
+- `EMAGENTS_RESEARCH_CONTACT_EMAIL`, required when OpenAlex, arXiv or Crossref is enabled;
 - `OPENALEX_API_KEY`, required when OpenAlex is enabled and never logged;
 - `SEMANTIC_SCHOLAR_API_KEY`, optional, recommended and never logged.
 - `TAVILY_API_KEY`, required for Tavily search and extraction and never logged.
@@ -24,6 +25,7 @@ Provider references:
 - OpenAlex authentication: <https://docs.openalex.org/guides/authentication>
 - Semantic Scholar API tutorial: <https://www.semanticscholar.org/product/api/tutorial>
 - arXiv API user manual: <https://info.arxiv.org/help/api/user-manual.html>
+- Crossref REST API: <https://api.crossref.org/swagger-ui/index.html>
 - Unpaywall API: <https://unpaywall.org/products/api>
 - CORE API v3: <https://api.core.ac.uk/docs/v3>
 - DOAB OAI and DSpace API: <https://directory.doabooks.org/oai/request?verb=Identify>
@@ -55,17 +57,28 @@ credentials from failed network connectivity.
 
 ## A11 web provider configuration
 
-The `web` block is active and versioned inside `literature_provider_config@1`. Tavily endpoints are
-fixed in code and its key is read only from `TAVILY_API_KEY`. SearXNG is keyless but must be enabled
-with one exact administrator-controlled endpoint. HTTPS is required except for an explicitly
-enabled loopback DEV endpoint. Credentials in URLs, private or reserved literal addresses,
-cross-origin redirects, non-JSON responses and oversized payloads are blocked.
+The `web` block is active and versioned inside `literature_provider_config@1`. The bundled profile
+uses Tavily. Its endpoints are fixed in code and its key is read only from `TAVILY_API_KEY`.
+SearXNG stays disabled and the repository does not install or trust a public-instance endpoint
+catalog. The existing administrator-pinned seam remains unchanged for local configurations.
+Credentials in URLs, private or reserved literal addresses, cross-origin redirects, non-JSON
+responses and oversized payloads are blocked.
 
 Modes are `tavily`, `searxng` and `auto_budgeted`. The last mode uses bounded SearXNG discovery when
 ready and Tavily for supplementation or priority routes. Limits are shared per task and persisted
 under the configured web cache. Identical cache hits do not consume another query. Source tiers are
 administrator domain lists; A11 routes may select only from their union. The model cannot provide an
 endpoint, alter the mode or add a domain.
+
+## Crossref DOI verification
+
+`research_doi_verify` and `research_doi_verify_batch` call the fixed Crossref Works endpoint for
+unchanged provider records carrying a DOI. Results preserve normalized DOI, registry status,
+bibliographic field comparisons, conflicts and a raw-response artifact. Suggested values may fill
+only missing fields with Crossref provenance; they never overwrite a conflicting provider value.
+A Crossref match verifies deposited bibliographic identity, not scientific quality, claim truth,
+peer review or access rights. Older provider configurations are migrated in memory with Crossref
+disabled until the administrator enables it explicitly.
 
 Public A11 MCP calls do not accept a configuration path. They resolve the administrator-selected
 profile from `EMAGENTS_RESEARCH_CONFIG` or the standard runtime location; a test harness may inject

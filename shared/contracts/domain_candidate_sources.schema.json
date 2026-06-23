@@ -26,6 +26,21 @@
     "research_plan_ref": {"type": "string"},
     "query_plan": {"type": "object"},
     "candidates": {"type": "array", "items": {"type": "object"}},
+    "doi_verifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "normalized_doi", "status", "registry_status", "match_status", "result_ref"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "normalized_doi": {"type": ["string", "null"]},
+          "status": {"type": "string", "enum": ["ok", "partial", "not_found", "unavailable", "failed"]},
+          "registry_status": {"type": "string", "enum": ["confirmed_crossref", "not_found_crossref", "not_applicable", "unavailable"]},
+          "match_status": {"type": "string", "enum": ["exact", "compatible", "conflict", "not_assessed"]},
+          "result_ref": {"type": "string"}
+        }
+      }
+    },
     "query_log": {
       "type": "array",
       "items": {

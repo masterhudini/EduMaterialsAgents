@@ -7,7 +7,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from core import artifacts, contracts
-from g02 import provider_config, query_planning
+from g02 import crossref, provider_config, query_planning
 
 DOMAIN_INPUT_CONTRACT = "domain_research_input@1"
 DOMAIN_OUTPUT_CONTRACT = "domain_candidate_sources@1"
@@ -48,6 +48,11 @@ DOMAIN_ACCEPTANCE_CRITERIA = [
     {
         "criterion_id": "DR-06",
         "description": "Stop reason, provider failures and remaining coverage units are explicit.",
+        "mandatory": True,
+    },
+    {
+        "criterion_id": "DR-07",
+        "description": "Every non-empty DOI has an auditable Crossref result; identity conflicts remain visible and provider metadata is unchanged.",
         "mandatory": True,
     },
 ]
@@ -116,7 +121,7 @@ def _unknown_fields(value: object, allowed: set[str]) -> list[str]:
 
 def _revision_fields(revision_items: list[dict] | None) -> set[str]:
     mutable = {
-        "query_plan", "candidates", "query_log", "coverage_map", "stop_reason",
+        "query_plan", "candidates", "doi_verifications", "query_log", "coverage_map", "stop_reason",
         "remaining_coverage_units", "provider_issues",
     }
     targeted: set[str] = set()
@@ -414,7 +419,7 @@ def validate_domain_candidates(output: object, domain_input: dict, *, base=None,
     unknown_root = _unknown_fields(
         output,
         {"schema_version", "artifact_version", "task_id", "topic_id", "research_plan_ref",
-         "query_plan", "candidates", "query_log", "coverage_map", "stop_reason",
+         "query_plan", "candidates", "doi_verifications", "query_log", "coverage_map", "stop_reason",
          "remaining_coverage_units", "provider_issues", "review_profile_ref"},
     )
     if unknown_root:
@@ -533,6 +538,12 @@ def validate_domain_candidates(output: object, domain_input: dict, *, base=None,
             if isinstance(record, dict) and isinstance(record.get("source_id"), str):
                 provider_records.setdefault(record["source_id"], []).append(record)
     candidates = output.get("candidates") if isinstance(output.get("candidates"), list) else []
+    if "doi_verifications" in output:
+        for error in crossref.validate_bindings(
+                candidates, output.get("doi_verifications"), base=base):
+            issues.append(_issue(
+                "blocker", "invalid_doi_verification", error, "doi_verifications"
+            ))
     candidate_ids = [item.get("source_id") for item in candidates
                      if isinstance(item, dict) and isinstance(item.get("source_id"), str)]
     if _duplicates(candidate_ids):
@@ -676,7 +687,11 @@ def validate_domain_candidates(output: object, domain_input: dict, *, base=None,
             "minor", "noncanonical_complete_stop_reason",
             "a complete pool without provider issues must use stop_reason completed", "stop_reason",
         ))
-    complete = not remaining and not output.get("provider_issues")
+    verification_degraded = any(
+        item.get("status") != "ok" or item.get("match_status") == "conflict"
+        for item in output.get("doi_verifications", []) if isinstance(item, dict)
+    )
+    complete = not remaining and not output.get("provider_issues") and not verification_degraded
     return {"ok": not issues, "complete": complete, "issues": issues}
 
 

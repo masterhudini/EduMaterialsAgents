@@ -1163,6 +1163,24 @@ się bez pokazania sparsowanego podsumowania i osobnego finalnego potwierdzenia.
 
 ### Wspólny TEST batcha po DEV 7, osobne środowisko
 
+> **Runda 10 (2026-06-23):** realny forward na hoście Codex przez `run-codex --gates prompt` wystartował w świeżym
+> `EMAGENTS_HOME=/tmp/emagents-g02-final.CFEyii`. Przygotowanie PASS: provider status `ok:true` (Tavily-only,
+> SearXNG disabled), build obu bundli, inventory 20 skilli/11 agentów, MCP 39 operacji, `graph_check`
+> source/Claude/Codex PASS, skan sekretów 0. Forward FAIL/BLOCKED przed bramką: A01/A02/A03/A04 zapisały
+> `status: failed` przez niepoprawne `envelope@1` z workerów Codex, A10 zwracał `BLOCKED`, a scheduler mimo
+> tego kontynuował downstream (`g02_flow.py:418-465`). A11/A05/gate/A06 nieosiągnięte; nic forwardowego nie
+> zaznaczono. Szczegóły i findingi F-B/F-C/F-D: 08 Runda 10.
+
+> **DEV po Rundzie 10 (2026-06-23):** wdrożono naprawy F-A–F-D bez zmiany checkboxów TEST.
+> Schematy MCP typują wejście Plannera i bezpiecznie rozróżniają object, JSON string, `artifact://`
+> oraz ścieżkę. Codex używa `--output-schema`, ładuje jawnie skille agenta i zwraca dokładny envelope
+> finalizera. Nowy `reviewed_flow.py` zatrzymuje run po invalid/failed/BLOCKED, hydratuje wyłącznie typed
+> artefakt, buduje pełny `review_task@1`, wymaga dokładnej decyzji A10 i zapisuje audyt operacji MCP.
+> Dodano `--through`, `--topic-id`, `research_run_report@1` oraz dwustopniową bramkę bez trybu auto.
+> Lokalna regresja DEV: 115 PASS / 1 SKIP; realny Codex forward i osobna Runda 11 nadal wymagane.
+
+> **Runda 9 (2026-06-23):** próba forward A01→A06 na hoście Claude (headless `claude -p` + MCP). Mechanizm i ścieżka ref-owa `prepare` potwierdzone, ale wykryto **systemowy blocker F-A** (`*_prepare.input` bez `type` → agent wysyła string JSON → serwer traktuje go jako ścieżkę pliku → crash; `research_server.py:90-98`). Podejście `claude -p` uznane za nieodpowiednie do testów (blokada bypass, globalny tool-deferral, koszt/kruchość). **Żaden węzeł forward nie domknięty — nic nie zaznaczono.** Forward/końcowe powtórzymy w środowisku **Codex** (`run-codex`). Szczegóły: 08 Runda 9.
+
 - [ ] Pełna regresja A01, A02 i A10 oraz wszystkie nowe testy kontraktowe i offline.  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
 - [ ] Live smoke OpenAlex, Semantic Scholar, arXiv, Tavily i skonfigurowanej instancji SearXNG;  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   niedostępny darmowy provider ma dawać kontrolowany fallback albo jawny status częściowy.

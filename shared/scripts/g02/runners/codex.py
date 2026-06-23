@@ -14,6 +14,8 @@ POC usage:
 from __future__ import annotations
 
 import json
+import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -25,7 +27,10 @@ from core import contracts, graphs  # noqa: E402
 
 ROOT = _pl.Path(__file__).resolve().parents[4]
 AGENTS_DIR = ROOT / "agents"
+SKILLS_DIR = ROOT / "skills"
 GRAPH_ID = "g02"
+ENVELOPE_SCHEMA = ROOT / "shared" / "contracts" / "envelope.schema.json"
+ENVELOPE_FIELDS = {"status", "produced", "summary", "issues", "metrics", "resume_token"}
 
 
 def _codex_model(node: dict) -> str | None:
@@ -34,7 +39,14 @@ def _codex_model(node: dict) -> str | None:
         bindings = graphs.load(GRAPH_ID).get("model_bindings", {})
     except FileNotFoundError:
         return None
-    return bindings.get(node.get("complexity_class"), {}).get("codex")
+    host_value = bindings.get(node.get("complexity_class"), {}).get("codex")
+    if isinstance(host_value, str):
+        return host_value
+    if isinstance(host_value, dict):
+        model = host_value.get("model")
+        if isinstance(model, str):
+            return model
+    return None
 
 
 def _agent_prompt(node_name: str) -> str:
@@ -44,6 +56,35 @@ def _agent_prompt(node_name: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _required_skill_names(agent_text: str) -> list[str]:
+    """Return the explicitly declared Required Skills, preserving source order."""
+    section = re.search(
+        r"^## Required Skills\s*$([\s\S]*?)(?=^## |\Z)",
+        agent_text,
+        flags=re.MULTILINE,
+    )
+    if not section:
+        return []
+    names: list[str] = []
+    for name in re.findall(r"`([a-z0-9-]+)`", section.group(1)):
+        if name not in names:
+            names.append(name)
+    return names
+
+
+def _skill_prompt(name: str) -> str:
+    """Load one rendered skill, or render the source Codex adapter in-place for local runs."""
+    root = SKILLS_DIR / name
+    path = root / "SKILL.md"
+    if not path.is_file():
+        raise FileNotFoundError(f"required skill {name!r} is unavailable: {path}")
+    text = path.read_text(encoding="utf-8")
+    adapter = root / "adapters" / "codex.md"
+    if adapter.is_file():
+        text = f"{text.rstrip()}\n\n## Codex execution adapter\n\n{adapter.read_text(encoding='utf-8').strip()}\n"
+    return text
+
+
 def _json_block(label: str, value) -> str:
     if not value:
         return ""
@@ -51,32 +92,37 @@ def _json_block(label: str, value) -> str:
 
 
 def _build_prompt(node_name: str, ctx: dict, output_contract: str | None) -> str:
+    agent_text = _agent_prompt(node_name)
+    skill_sections = "\n\n".join(
+        f"----- REQUIRED SKILL: {name} -----\n{_skill_prompt(name)}"
+        for name in _required_skill_names(agent_text)
+    )
     scoped_input = ctx.get("input") or {}
     upstream = ctx.get("upstream") or {}
-    review = ctx.get("review")
+    review_task = ctx.get("review_task") or ctx.get("review")
     revision = ctx.get("revision")
+    protocol = ctx.get("protocol")
 
-    artifact_line = (
-        f'Put your typed result object (contract {output_contract}) in the "artifact" field.'
-        if output_contract else 'Put any result object in the "artifact" field.'
-    )
     role = (
         "You are the REVIEWER node. Review ONLY the target artifact against the review profile and "
         "acceptance criteria; do not redo the producer's work. Emit a ReviewDecision."
-        if review else
+        if review_task else
         "You are running as an ISOLATED producer worker for the node defined above. Perform that "
         "node's task for the INPUT below."
     )
     return (
-        f"{_agent_prompt(node_name)}\n\n"
+        f"{agent_text}\n\n"
+        f"{skill_sections}\n\n"
         "----- RUN CONTEXT -----\n"
         f"{role} Do not ask the user anything.\n\n"
-        "Your FINAL message must be ONLY a single JSON object: envelope@1 with an extra `artifact` key:\n"
-        '{"status": "ok|needs_input|degraded|failed", "produced": [], "summary": "<concise note>", '
-        '"issues": [], "artifact": { ... }}\n'
-        f"{artifact_line} On needs_input/failed, omit `artifact`.\n"
+        "Your FINAL message must be ONLY the exact envelope@1 returned by the final deterministic "
+        "MCP operation. Do not wrap it, rewrite issues, add an `artifact` field, or place JSON in a "
+        "Markdown fence. A producer must finish with its stage finalize operation. A reviewer must "
+        "finish with research_review_finalize. On any failure, return a valid failed envelope@1.\n"
+        f"The primary producer output contract is {output_contract or 'defined by the review task'}.\n"
+        f"{_json_block('MANDATORY OPERATION PROTOCOL', protocol)}"
         f"{_json_block('UPSTREAM ARTIFACT REFS (hydrate only what this node needs)', upstream)}"
-        f"{_json_block('REVIEW TASK (target artifact + profile + attempt + prior findings)', review)}"
+        f"{_json_block('REVIEW TASK (use exactly this object)', review_task)}"
         f"{_json_block('REVISION (apply these findings to your prior artifact)', revision)}"
         f"{_json_block('INPUT (scoped research_graph_input)', scoped_input)}"
     )
@@ -89,7 +135,8 @@ def _fail(name: str, message: str) -> dict:
 
 
 def codex_node_runner(node: dict, ctx: dict, log, *, codex_bin: str = "codex",
-                      timeout: int = 600, sandbox: str = "read-only") -> dict:
+                      timeout: int = 600, sandbox: str = "read-only",
+                      process_runner=subprocess.run) -> dict:
     """Run one node as an isolated Codex worker; return a validated envelope@1 (or a failed one)."""
     name = node["name"]
     prompt = _build_prompt(name, ctx, node.get("output_contract"))
@@ -101,26 +148,38 @@ def codex_node_runner(node: dict, ctx: dict, log, *, codex_bin: str = "codex",
         model = _codex_model(node)
         if model:
             cmd += ["-m", model]
-        cmd += ["--output-last-message", str(last), "-"]
+        cmd += [
+            "--output-schema", str(ENVELOPE_SCHEMA),
+            "--output-last-message", str(last), "-",
+        ]
         try:
-            proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout)
+            environment = os.environ.copy()
+            if isinstance(ctx.get("run_id"), str):
+                environment["EMAGENTS_RUN_ID"] = ctx["run_id"]
+            environment["EMAGENTS_NODE_ID"] = name
+            proc = process_runner(
+                cmd, input=prompt, capture_output=True, text=True, timeout=timeout,
+                env=environment,
+            )
         except subprocess.TimeoutExpired:
             return _fail(name, f"codex exec timed out after {timeout}s")
+        if proc.returncode != 0:
+            return _fail(name, f"codex exec exited with rc={proc.returncode}; stderr: {proc.stderr[-400:]}")
         if not last.exists() or not last.read_text(encoding="utf-8").strip():
             return _fail(name, f"no final message (rc={proc.returncode}); stderr: {proc.stderr[-400:]}")
         raw = last.read_text(encoding="utf-8").strip()
 
-    start, end = raw.find("{"), raw.rfind("}")
-    if start == -1 or end <= start:
-        return _fail(name, f"final message has no JSON object: {raw[:300]}")
     try:
-        envelope = json.loads(raw[start:end + 1])
+        envelope = json.loads(raw)
     except json.JSONDecodeError as exc:
         return _fail(name, f"final message JSON invalid: {exc}")
 
     result = contracts.validate_envelope(envelope)
     if not result["ok"]:
         return _fail(name, "envelope@1 invalid: " + "; ".join(result["errors"]))
+    extras = set(envelope) - ENVELOPE_FIELDS
+    if extras:
+        return _fail(name, f"envelope@1 contains unsupported fields: {sorted(extras)}")
     return envelope
 
 

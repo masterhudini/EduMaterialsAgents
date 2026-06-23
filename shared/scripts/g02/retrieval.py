@@ -36,6 +36,7 @@ ACCEPTANCE_CRITERIA = [
         "LIBRARY, CITATION, RESERVE and EXCLUDE sources cause no automated retrieval.",
         "Duplicate bytes preserve every source mapping without storing another copy.",
         "Each market case has a readable document from reviewed A11 semantics plus a separate untrusted machine artifact.",
+        "Every DOI-bearing scholarly download has a non-conflicting Crossref identity binding or remains explicitly unavailable.",
     ], 1)
 ]
 EVIDENCE_REQUIREMENTS = [

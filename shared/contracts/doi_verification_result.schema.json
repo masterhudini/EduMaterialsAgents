@@ -1,0 +1,71 @@
+{
+  "title": "Crossref DOI identity and bibliographic verification result",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "operation_id", "provider", "status", "source_id", "input_doi",
+    "normalized_doi", "registry_status", "match_status", "crossref_metadata",
+    "field_comparisons", "suggested_bibliographic_overlay", "provenance", "issues"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["doi_verification_result@1"]},
+    "operation_id": {"type": "string"},
+    "provider": {"type": "string", "enum": ["crossref"]},
+    "status": {"type": "string", "enum": ["ok", "partial", "not_found", "unavailable", "failed"]},
+    "source_id": {"type": "string"},
+    "input_doi": {"type": ["string", "null"]},
+    "normalized_doi": {"type": ["string", "null"]},
+    "registry_status": {"type": "string", "enum": ["confirmed_crossref", "not_found_crossref", "not_applicable", "unavailable"]},
+    "match_status": {"type": "string", "enum": ["exact", "compatible", "conflict", "not_assessed"]},
+    "crossref_metadata": {
+      "type": "object",
+      "required": ["doi", "title", "authors", "year", "venue", "publisher", "work_type"],
+      "properties": {
+        "doi": {"type": ["string", "null"]},
+        "title": {"type": ["string", "null"]},
+        "authors": {"type": "array", "items": {"type": "string"}},
+        "year": {"type": ["integer", "null"]},
+        "venue": {"type": ["string", "null"]},
+        "publisher": {"type": ["string", "null"]},
+        "work_type": {"type": ["string", "null"]}
+      }
+    },
+    "field_comparisons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["field", "status", "source_value", "crossref_value"],
+        "properties": {
+          "field": {"type": "string"},
+          "status": {"type": "string", "enum": ["exact", "compatible", "conflict", "source_missing", "registry_missing"]},
+          "source_value": {},
+          "crossref_value": {}
+        }
+      }
+    },
+    "suggested_bibliographic_overlay": {"type": "object"},
+    "provenance": {
+      "type": "object",
+      "required": ["retrieved_at", "raw_response_ref", "cache_hit", "endpoint"],
+      "properties": {
+        "retrieved_at": {"type": "string"},
+        "raw_response_ref": {"type": ["string", "null"]},
+        "cache_hit": {"type": "boolean"},
+        "endpoint": {"type": "string", "enum": ["https://api.crossref.org/works/{doi}"]}
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "retryable", "message"],
+        "properties": {
+          "code": {"type": "string"},
+          "retryable": {"type": "boolean"},
+          "message": {"type": "string"}
+        }
+      }
+    }
+  }
+}

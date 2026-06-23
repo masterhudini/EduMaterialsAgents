@@ -41,35 +41,43 @@ extend its fields inside the orchestrator.
 3. Before G02-A02, call `research_provider_status`. For each approved topic call
    `research_domain_prepare`, pass only `domain_research_input@1`, and let the producer create one
    provider-neutral `query_plan@1`. Execute each authorized route through
-   `research_metadata_search`; the agent never sends HTTP itself. Finalize only through
+   `research_metadata_search`; the agent never sends HTTP itself. Verify every returned valid DOI
+   through `research_doi_verify` or `research_doi_verify_batch`, preserving conflicts and registry
+   failures without overwriting provider metadata. Finalize only through
    `research_domain_finalize` and build review through `research_domain_review_task`.
 4. From the reviewed A02 ref, run A03 through `research_canonical_prepare`, A04 through
    `research_recent_prepare`, and A11 through `research_market_cases_prepare`, with their matching
-   finalize and review-task operations. A11 executes only `research_web_case_search` with its
-   prepared provider mode. The three discovery streams are logically independent but the current
+   finalize and review-task operations. A03 and A04 reuse exact upstream Crossref bindings and
+   verify new DOI-bearing candidates. A11 executes only `research_web_case_search` in Tavily mode.
+   SearXNG remains disabled and has no trusted endpoint catalog. The three discovery streams are logically independent but the current
    scheduler remains serial. Preserve all three reviewed refs for A05; never browse when the A11
    operation reports an unavailable provider.
-5. After every producer artifact, construct one `review_task@1` with the artifact, node profile,
+5. After every producer artifact, construct exactly one `review_task@1` with the artifact, node profile,
    producer input, output contract, acceptance criteria and revision history. Prepare it through
    `research_review_prepare`, invoke `g02-a10-output-reviewer`, then submit the decision through
    `research_review_finalize`.
 6. Handle reviewer verdicts:
-   - `APPROVED`: continue with the approved artifact ref;
-   - `REVISE`: return minimal findings to the same producer and review the new artifact version;
-   - `BLOCKED`: route by root cause or explain the blocking decision to the user;
-   - exhausted revision budget: escalate through the conversation without silently approving.
+   - `APPROVED`: continue with the artifact ref; non-blocking advisories do not rerun the producer;
+   - `REVISE`: return only the named findings to the same producer, allow one corrected artifact,
+     run deterministic finalization, persist `revision_completion@1`, and continue without another
+     reviewer invocation;
+   - `BLOCKED`: stop the process and explain the blocking decision to the user.
+   Never invoke A10 more than once for one producer run.
 7. After G02-A05 Candidate Source Index, run the Human Source Selection Gate. Present or link
    `candidate_source_review.md`, explain coverage and the actions DOWNLOAD, LIBRARY, CITATION,
    RESERVE, EXCLUDE and SEARCH_MORE through `research_source_selection_prepare`.
 8. Map the template or natural-language answer to `human_source_selection@1`, validate it through
-   `research_source_selection_validate`, show the returned summary including the exact DOWNLOAD
+   `research_source_selection_validate`, accepting stable IDs or the displayed source numbers.
+   Show the returned summary including the exact DOWNLOAD
    count and its scholarly/market-case split, and ask for a separate final confirmation. The human
    is the decision maker; A05 recommendations are advisory. Only after confirmation call
    `research_source_selection_finalize`. Route
    SEARCH_MORE to the relevant discovery agent, rebuild and re-review the index. Retrieval receives
    only the produced `human_approved_source_set@1` ref.
 9. Run A06 through `research_retrieval_prepare`. For scholarly DOWNLOAD sources call
-   `research_oa_resolve`, `research_document_retrieve` and `research_document_validate`. For market
+   `research_doi_verify` when an exact non-conflicting binding cannot be reused, then call
+   `research_oa_resolve`, `research_document_retrieve` and `research_document_validate`. A critical
+   DOI identity conflict makes that source unavailable for automated download. For market
    cases call `research_web_case_extract` with the final selection ref, reviewed A11 ref and exact
    approved source ID. Finalize both kinds through `research_retrieval_finalize`. Confirm that each
    accepted market case produced a readable Markdown document and a separate JSON audit artifact,
@@ -81,12 +89,14 @@ extend its fields inside the orchestrator.
 11. After reviewed synthesis, run the Human Research Gate. Present verified, mixed, unsupported and
    insufficient claims, required updates, optional improvements, unresolved questions, confidence
    and accepted coverage exceptions in `output_language`.
-12. Apply requested corrections through the proper producer and reviewer loop. After approval,
+12. Apply requested corrections through the proper producer. Each new user-requested stage run has
+    its own single review, while an A10-triggered correction is never reviewed a second time. After approval,
     validate, freeze and emit `user_approved_research_bundle@1`.
 
 ## Output requirements
 
 - Keep a task, node, attempt and artifact-version audit trail.
+- Persist the original A10 decision and a revision-completion receipt when `REVISE` is corrected.
 - Give the user plain-language instructions at both gates, even when the underlying response is JSON.
 - Require the boundary contract to provide `output_language` and preserve it in human-readable
   output.
@@ -109,6 +119,6 @@ valid empty search and preserve partial artifacts.
 
 ## Resume
 
-Resume from the latest approved artifact per node. Re-run a producer only when input, revision items,
+Resume from the latest accepted artifact per node. Re-run a producer only when input, revision items,
 human decisions or an upstream artifact version affecting it changed. Frozen human-approved bundles
 are immutable; a later change creates a new task or version.

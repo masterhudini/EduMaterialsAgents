@@ -9,11 +9,12 @@
     "profile": {"type": "string"},
     "providers": {
       "type": "object",
-      "required": ["openalex", "semantic_scholar", "arxiv"],
+      "required": ["openalex", "semantic_scholar", "arxiv", "crossref"],
       "properties": {
         "openalex": {"type": "object", "required": ["enabled"], "properties": {"enabled": {"type": "boolean"}}},
         "semantic_scholar": {"type": "object", "required": ["enabled"], "properties": {"enabled": {"type": "boolean"}}},
-        "arxiv": {"type": "object", "required": ["enabled"], "properties": {"enabled": {"type": "boolean"}}}
+        "arxiv": {"type": "object", "required": ["enabled"], "properties": {"enabled": {"type": "boolean"}}},
+        "crossref": {"type": "object", "required": ["enabled"], "properties": {"enabled": {"type": "boolean"}}}
       }
     },
     "request": {
@@ -54,11 +55,12 @@
     },
     "rate_limits": {
       "type": "object",
-      "required": ["openalex_min_interval_seconds", "semantic_scholar_min_interval_seconds", "arxiv_min_interval_seconds"],
+      "required": ["openalex_min_interval_seconds", "semantic_scholar_min_interval_seconds", "arxiv_min_interval_seconds", "crossref_min_interval_seconds"],
       "properties": {
         "openalex_min_interval_seconds": {"type": "number"},
         "semantic_scholar_min_interval_seconds": {"type": "number"},
-        "arxiv_min_interval_seconds": {"type": "number"}
+        "arxiv_min_interval_seconds": {"type": "number"},
+        "crossref_min_interval_seconds": {"type": "number"}
       }
     },
     "web": {

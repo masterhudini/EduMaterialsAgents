@@ -148,6 +148,67 @@ def test_prepare_requires_exact_approved_reviews_and_projects_scoped_input():
     assert not candidate_index.prepare_candidate_index(plan_ref, rejected)["ready"]
 
 
+def test_prepare_accepts_one_completed_revise_receipt_without_second_review():
+    plan_ref, descriptors, profile = _prepared()
+    descriptor = next(item for item in descriptors if item["stream"] == "canonical")
+    original_ref = descriptor["artifact_ref"]
+    original = artifacts.hydrate(original_ref)
+    revised = copy.deepcopy(original)
+    revised["artifact_version"] = "1.0.1"
+    revised_ref = artifacts.store("g02/canonical/a05-revised.json", revised)
+
+    decision = artifacts.hydrate(descriptor["review_decision_ref"])
+    decision.update({
+        "artifact_ref": original_ref, "artifact_version": original["artifact_version"],
+        "decision": "REVISE",
+        "findings": [{
+            "finding_id": "RF_A05_RECEIPT", "criterion_id": "CS-01",
+            "severity": "major", "location": "candidates[0]",
+            "observed": "Identity field required correction.",
+            "required_correction": "Correct the named identity field.",
+            "evidence_refs": [],
+        }],
+        "revision_scope": {
+            "target_agent": "g02-a03-canonical-sources",
+            "finding_ids": ["RF_A05_RECEIPT"],
+        },
+        "root_cause": "producer_error", "summary": "One correction required.",
+    })
+    decision_ref = artifacts.store("reviews/REV_A03_A05.revise.json", decision)
+    receipt = {
+        "schema_version": "revision_completion@1",
+        "review_decision_ref": decision_ref,
+        "review_id": decision["review_id"], "task_id": decision["task_id"],
+        "producer_agent": decision["producer_agent"],
+        "original_artifact_ref": original_ref,
+        "original_artifact_version": original["artifact_version"],
+        "revised_artifact_ref": revised_ref,
+        "revised_artifact_version": revised["artifact_version"],
+        "finding_ids": ["RF_A05_RECEIPT"],
+        "deterministic_validation_passed": True,
+        "completed_at": "2026-06-23T12:00:00Z",
+    }
+    receipt_ref = artifacts.store("g02/revision-completions/a05.json", receipt)
+    descriptor.update({
+        "artifact_ref": revised_ref, "review_decision_ref": decision_ref,
+        "revision_completion_ref": receipt_ref,
+    })
+
+    prepared = candidate_index.prepare_candidate_index(
+        plan_ref, descriptors, selection_profile=profile
+    )
+    assert prepared["ready"], prepared
+    frozen = next(item for item in prepared["candidate_index_input"]["reviewed_upstreams"]
+                  if item["stream"] == "canonical")
+    assert frozen["revision_completion_ref"] == receipt_ref
+
+    broken = copy.deepcopy(descriptors)
+    next(item for item in broken if item["stream"] == "canonical")[
+        "revision_completion_ref"
+    ] = None
+    assert not candidate_index.prepare_candidate_index(plan_ref, broken)["ready"]
+
+
 def test_build_deduplicates_and_describes_scholarly_and_market_content():
     plan_ref, descriptors, profile = _prepared()
     scoped = candidate_index.prepare_candidate_index(
@@ -180,7 +241,7 @@ def test_finalize_writes_friendly_document_and_review_task():
     task = candidate_index.build_candidate_index_review_task(
         scoped, index_descriptor, review_id="REV_A05_001")
     assert [item["criterion_id"] for item in task["acceptance_criteria"]] == [
-        "CI-01", "CI-02", "CI-03", "CI-04", "CI-05", "CI-06", "CI-07", "CI-08"
+        "CI-01", "CI-02", "CI-03", "CI-04", "CI-05", "CI-06", "CI-07", "CI-08", "CI-09"
     ]
 
 

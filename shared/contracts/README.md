@@ -16,8 +16,11 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
 - `research_plan.schema.json` — bounded, versioned G02-A01 output (`research_plan@1`, version 1.1
   preserves the unchanged approved research scope used by downstream discovery).
 - `literature_provider_config.schema.json` defines the secret-free G02 provider profile. Version
-  1.1 adds non-secret Tavily/SearXNG mode, endpoint policy, budgets, cache, rate and tier settings;
-  credentials remain environment-only.
+  1.2 adds Crossref readiness and rate policy beside the web and retrieval sections; credentials
+  and the required contact email remain environment-only.
+- `doi_verification_result.schema.json` records Crossref DOI registry status, conservative
+  bibliographic comparisons, conflicts and raw-response provenance without overwriting provider
+  metadata.
 - `domain_research_input.schema.json` is the isolated G02-A02 input for one approved topic.
 - `query_plan.schema.json` defines bounded, provider-neutral search routes (`query_plan@1`, contract
   version 1.3 within major 1), including semantic bases and controlled Tavily, SearXNG or
@@ -54,6 +57,10 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
 - `review_task.schema.json` — one universal reviewer invocation (`review_task@1`) with one
   artifact, an explicit profile and observable review criteria.
 - `review_decision.schema.json` — auditable universal reviewer result (`review_decision@1`).
+- `revision_completion.schema.json` proves deterministic completion of the one allowed producer
+  correction after a `REVISE` decision, without a second reviewer invocation.
+- `research_run_report.schema.json` — fail-closed status and approved artifact/review refs for a
+  bounded real-host run of the implemented A01–A06 frontier (`research_run_report@1`).
 - `user_approved_research_bundle.schema.json` — compact Research Graph handoff to Solution
   (`user_approved_research_bundle@1`).
 

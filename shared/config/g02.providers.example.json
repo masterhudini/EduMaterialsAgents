@@ -4,7 +4,8 @@
   "providers": {
     "openalex": {"enabled": true},
     "semantic_scholar": {"enabled": true},
-    "arxiv": {"enabled": true}
+    "arxiv": {"enabled": true},
+    "crossref": {"enabled": true}
   },
   "request": {
     "timeout_seconds": 20,
@@ -29,11 +30,12 @@
   "rate_limits": {
     "openalex_min_interval_seconds": 0.1,
     "semantic_scholar_min_interval_seconds": 1.0,
-    "arxiv_min_interval_seconds": 3.0
+    "arxiv_min_interval_seconds": 3.0,
+    "crossref_min_interval_seconds": 0.2
   },
   "web": {
     "enabled": true,
-    "mode": "auto_budgeted",
+    "mode": "tavily",
     "providers": {
       "tavily": {"enabled": true},
       "searxng": {

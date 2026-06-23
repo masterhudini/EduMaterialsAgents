@@ -302,7 +302,7 @@ def test_finalize_and_review_task_happy_path():
     assert contracts.validate(task, "review_task@1")["ok"]
     assert task["review_profile"] == "recent_developments"
     assert [item["criterion_id"] for item in task["acceptance_criteria"]] == [
-        "RD-01", "RD-02", "RD-03", "RD-04", "RD-05", "RD-06"
+        "RD-01", "RD-02", "RD-03", "RD-04", "RD-05", "RD-06", "RD-07"
     ]
 
 

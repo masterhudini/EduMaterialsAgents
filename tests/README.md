@@ -59,16 +59,21 @@ after pytest exits. No API key is required for this Unpaywall-only smoke.
 
 `tests/` is excluded from generated plugin bundles by `scripts/build-plugin.py`.
 
+The repository suite now includes direct A01, A02 and A10 regressions plus the reviewed scheduler
+and Codex worker boundary. `test_g02_reviewed_flow.py` proves fail-closed behavior, typed artifact
+hydration, one A10 invocation, one correction without re-review and one-topic A01→A02 scoping.
+`test_g02_crossref.py` covers exact matches, conflicts, missing and malformed DOI values, registry
+failures, binding integrity and legacy configuration migration. `test_g02_codex_runner.py` checks
+schema-constrained final output and explicit loading of the agent's declared skills.
+
 ## To add
 
 - `test_contracts.py` — envelope + schema validation, version ref parsing.
 - `test_state.py`, `test_validate_state.py`, `test_gate.py` — state/gate mechanics.
 - extend graph checks beyond current manifest, registration and packaging coverage.
-- `test_revision.py` — revision-policy counters and REVISE/APPROVED/ESCALATE routing.
 - one `test_<artifact>_shape.py` per Research Graph shape check.
-- TEST 2 modules for Planner preparation, semantic validation, finalization, revision and review.
-- TEST 3 modules for provider configuration, QueryPlan generated-term bases, offline provider
-  fixtures, Domain finalization, MCP parity and secret-redaction scans.
+- extend the repository A01/A02 modules with the remaining exhaustive revision and QueryPlan
+  matrices currently recorded in the external TEST log;
 - opt-in live tests for OpenAlex, Semantic Scholar and arXiv; they must remain skipped by default.
-- opt-in live tests for Tavily search/extraction and the administrator-configured SearXNG instance;
-  they must remain skipped by default.
+- opt-in live tests for Tavily search/extraction and Crossref verification; they must remain
+  skipped by default.

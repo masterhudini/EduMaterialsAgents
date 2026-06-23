@@ -12,7 +12,7 @@ except ImportError:  # Python < 3.11
 from pathlib import Path
 
 from core import artifacts, contracts
-from g02 import canonical, provider_config, query_planning
+from g02 import canonical, crossref, provider_config, query_planning
 
 RECENT_INPUT_CONTRACT = "recent_research_input@1"
 RECENT_OUTPUT_CONTRACT = "candidate_sources@1"
@@ -55,6 +55,11 @@ RECENT_ACCEPTANCE_CRITERIA = [
     {
         "criterion_id": "RD-06",
         "description": "Coverage gaps, provider failures, preprint limitations and stop reason are explicit and internally consistent.",
+        "mandatory": True,
+    },
+    {
+        "criterion_id": "RD-07",
+        "description": "Every non-empty DOI has an auditable Crossref result, with conflicts separate from recency and maturity judgments.",
         "mandatory": True,
     },
 ]
@@ -556,7 +561,7 @@ def prepare_recent(research_plan_ref: str, domain_candidates_ref: str, topic_id:
 
 def _revision_fields(revision_items: list[dict] | None) -> set[str]:
     mutable = {
-        "query_plan", "candidates", "recent_annotations", "operation_log", "coverage_map",
+        "query_plan", "candidates", "doi_verifications", "recent_annotations", "operation_log", "coverage_map",
         "remaining_coverage_units", "provider_issues", "stop_reason",
     }
     targeted: set[str] = set()
@@ -606,7 +611,7 @@ def validate_recent_candidates(output: object, recent_input: dict, *, base=None,
         return {"ok": False, "complete": False, "issues": issues}
     allowed = {
         "schema_version", "artifact_version", "stream", "task_id", "topic_id",
-        "research_plan_ref", "upstream_refs", "recency_window", "query_plan", "candidates",
+        "research_plan_ref", "upstream_refs", "recency_window", "query_plan", "candidates", "doi_verifications",
         "recent_annotations", "operation_log", "coverage_map", "remaining_coverage_units",
         "provider_issues", "unresolved_seed_ids", "stop_reason", "review_profile_ref",
     }
@@ -792,6 +797,12 @@ def validate_recent_candidates(output: object, recent_input: dict, *, base=None,
                         result.get("operation_id")
                     )
     candidates = output.get("candidates") if isinstance(output.get("candidates"), list) else []
+    if "doi_verifications" in output:
+        for error in crossref.validate_bindings(
+                candidates, output.get("doi_verifications"), base=base):
+            issues.append(_issue(
+                "blocker", "invalid_doi_verification", error, "doi_verifications"
+            ))
     candidate_ids = [item.get("source_id") for item in candidates if isinstance(item, dict)
                      and isinstance(item.get("source_id"), str)]
     candidate_map = {item.get("source_id"): item for item in candidates if isinstance(item, dict)}
@@ -1112,7 +1123,11 @@ def validate_recent_candidates(output: object, recent_input: dict, *, base=None,
             "major", "recent_partial_without_gap",
             "partial_coverage requires a gap or provider issue", "stop_reason",
         ))
-    complete = not remaining and not output.get("provider_issues")
+    verification_degraded = any(
+        item.get("status") != "ok" or item.get("match_status") == "conflict"
+        for item in output.get("doi_verifications", []) if isinstance(item, dict)
+    )
+    complete = not remaining and not output.get("provider_issues") and not verification_degraded
     return {"ok": not issues, "complete": complete, "issues": issues}
 
 

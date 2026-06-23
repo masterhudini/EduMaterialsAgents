@@ -9,7 +9,8 @@ wrap shared/scripts/g02/g02_flow.py.
 Methods: initialize, notifications/* (ignored), ping, tools/list, tools/call.
 Tools: research_front_door, research_node_input, research_planner_prepare,
 research_planner_finalize, research_plan_review_task, research_provider_status,
-research_domain_prepare, research_metadata_search, research_domain_finalize,
+research_domain_prepare, research_metadata_search, research_doi_verify,
+research_doi_verify_batch, research_domain_finalize,
 research_domain_review_task, research_canonical_prepare, research_citation_expand,
 research_canonical_finalize, research_canonical_review_task,
 research_recent_prepare, research_recent_finalize, research_recent_review_task,
@@ -28,6 +29,7 @@ research_finalize, research_run_stub, research_run_codex.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import pathlib
 
@@ -48,11 +50,12 @@ from g02 import web_cases  # noqa: E402
 from g02 import planner  # noqa: E402
 from g02 import provider_config  # noqa: E402
 from g02 import providers  # noqa: E402
+from g02 import crossref  # noqa: E402
 from g02 import review as reviewer  # noqa: E402
-from core import artifacts, graphs, handoff  # noqa: E402
+from core import artifacts, event_log, graphs, handoff  # noqa: E402
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "edu-materials-research", "version": "0.9.0"}
+SERVER_INFO = {"name": "edu-materials-research", "version": "0.10.0"}
 
 
 # ---- tool implementations (return JSON-serializable values) --------------
@@ -94,7 +97,20 @@ def _planner_payload(value):
     if isinstance(value, str) and value.startswith(artifacts.SCHEME):
         return artifacts.hydrate(value)
     if isinstance(value, str):
-        return json.loads(pathlib.Path(value).read_text(encoding="utf-8"))
+        stripped = value.strip()
+        if stripped.startswith(("{", "[")):
+            return json.loads(stripped)
+        if not stripped:
+            raise ValueError("planner input string must not be empty")
+        # Do not hand an arbitrary LLM-sized string to pathlib. Apart from producing
+        # platform-specific errors (for example ENAMETOOLONG), that made an inline JSON
+        # serialization indistinguishable from a path.
+        if len(stripped) > 4096 or "\x00" in stripped:
+            raise ValueError("planner input is neither inline JSON nor a safe path")
+        path = pathlib.Path(stripped)
+        if not path.is_file():
+            raise ValueError(f"planner input path does not exist or is not a file: {stripped}")
+        return json.loads(path.read_text(encoding="utf-8"))
     return value
 
 
@@ -164,6 +180,14 @@ def _metadata_search(args: dict):
         cursor=args.get("cursor"),
         config_path=args.get("config"),
     )
+
+
+def _doi_verify(args: dict):
+    return crossref.verify_source_record(args["source_record"])
+
+
+def _doi_verify_batch(args: dict):
+    return crossref.verify_source_records(args["source_records"])
 
 
 def _domain_finalize(args: dict):
@@ -467,13 +491,14 @@ def _run_codex(args: dict):
     """Run or resume the graph through Codex workers.
 
     MCP tools are not an interactive stdin surface, so the default gate behavior is pause/resume.
-    Use gates=auto only for deterministic smoke runs where human approvals may be simulated.
+    Human approval is never simulated in the reviewed runner. Use research_run_stub for a no-op
+    wiring smoke that intentionally auto-approves its synthetic gates.
     """
     from g02.runners.codex import codex_node_runner
 
     gates = args.get("gates", "pause")
-    if gates not in {"pause", "auto"}:
-        raise ValueError("gates must be 'pause' or 'auto'")
+    if gates != "pause":
+        raise ValueError("reviewed Codex runs require gates='pause'")
 
     resume_token = args.get("resume_token")
     decisions = args.get("decisions")
@@ -481,16 +506,26 @@ def _run_codex(args: dict):
         return rf.run(
             None,
             node_runner=codex_node_runner,
-            pause_on_gate=(gates == "pause"),
+            pause_on_gate=True,
             resume_token=resume_token,
             decisions=decisions,
+            reviewed=True,
+            through=args.get("through", "g02-a06-paper-retrieval"),
+            topic_ids=args.get("topic_ids"),
         )
 
     context = args.get("context")
     if not context:
         raise ValueError("context is required when resume_token is absent")
     ref = rf.front_door(context)["ref"]
-    return rf.run(ref, node_runner=codex_node_runner, pause_on_gate=(gates == "pause"))
+    return rf.run(
+        ref,
+        node_runner=codex_node_runner,
+        pause_on_gate=True,
+        reviewed=True,
+        through=args.get("through", "g02-a06-paper-retrieval"),
+        topic_ids=args.get("topic_ids"),
+    )
 
 
 TOOLS = [
@@ -528,6 +563,7 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "input": {
+                    "type": ["object", "string"],
                     "description": "Research Graph input object, path or artifact:// ref"
                 },
                 "previous_plan_ref": {"type": "string"},
@@ -545,6 +581,7 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "input": {
+                    "type": ["object", "string"],
                     "description": "Research Graph or scoped planner input object, path or ref"
                 },
                 "plan": {"type": "object"},
@@ -562,6 +599,7 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "input": {
+                    "type": ["object", "string"],
                     "description": "Research Graph or scoped planner input object, path or ref"
                 },
                 "artifact": {"type": "object"},
@@ -624,6 +662,31 @@ TOOLS = [
                 "config": {"type": "string"},
             },
             "required": ["query_plan", "route_id", "provider"],
+        },
+    },
+    {
+        "name": "research_doi_verify",
+        "description": "Verify one unchanged source_record@1 DOI and bibliographic identity "
+                       "through the configured deterministic Crossref adapter. Returns one "
+                       "persisted doi_verification_result@1 with field comparisons and raw "
+                       "provenance; it never overwrites provider metadata.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"source_record": {"type": "object"}},
+            "required": ["source_record"],
+        },
+    },
+    {
+        "name": "research_doi_verify_batch",
+        "description": "Verify a bounded array of unchanged source_record@1 values through "
+                       "Crossref while reusing the deterministic cache.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "source_records": {"type": "array", "items": {"type": "object"},
+                                   "maxItems": 60}
+            },
+            "required": ["source_records"],
         },
     },
     {
@@ -1109,7 +1172,10 @@ TOOLS = [
                        "Returns the handoff descriptor.",
         "inputSchema": {
             "type": "object",
-            "properties": {"bundle": {"description": "the bundle object, or a path to a JSON file"}},
+            "properties": {"bundle": {
+                "type": ["object", "string"],
+                "description": "the bundle object, or a path to a JSON file"
+            }},
             "required": ["bundle"],
         },
     },
@@ -1127,9 +1193,9 @@ TOOLS = [
         "name": "research_run_codex",
         "description": "Semantic entrypoint for 'zrob research', 'zrób research' or "
                        "'run research graph' in Codex. "
-                       "Validate the input and run the full Research Graph with isolated Codex "
-                       "workers. Defaults to pause/resume user gates because MCP tools cannot "
-                       "read interactive stdin; use gates='auto' only for smoke/dev runs.",
+                       "Validate the input and run the implemented A01-A06 frontier with isolated Codex "
+                       "workers through the implemented A01-A06 frontier. User gates always use "
+                       "pause/resume because MCP tools cannot read interactive stdin.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -1140,8 +1206,8 @@ TOOLS = [
                 },
                 "gates": {
                     "type": "string",
-                    "enum": ["pause", "auto"],
-                    "description": "pause for human gate handoff/resume (default), auto for dev smoke.",
+                    "enum": ["pause"],
+                    "description": "Human gate handoff/resume mode (default and only reviewed mode).",
                 },
                 "resume_token": {
                     "type": "string",
@@ -1150,6 +1216,21 @@ TOOLS = [
                 "decisions": {
                     "type": "object",
                     "description": "Gate decisions keyed by gate name when resuming.",
+                },
+                "through": {
+                    "type": "string",
+                    "enum": [
+                        "g02-a01-planner", "g02-a02-domain", "g02-a03-canonical-sources",
+                        "g02-a04-recent-developments", "g02-a11-market-cases",
+                        "g02-a05-candidate-source-index", "user-source-selection-gate",
+                        "g02-a06-paper-retrieval"
+                    ],
+                    "description": "Last implemented stage to execute; defaults to A06."
+                },
+                "topic_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional bounded topic subset; A05 requires the complete plan."
                 },
             },
         },
@@ -1203,6 +1284,8 @@ DISPATCH = {
     "research_provider_status": _provider_status,
     "research_domain_prepare": _domain_prepare,
     "research_metadata_search": _metadata_search,
+    "research_doi_verify": _doi_verify,
+    "research_doi_verify_batch": _doi_verify_batch,
     "research_domain_finalize": _domain_finalize,
     "research_domain_review_task": _domain_review_task,
     "research_canonical_prepare": _canonical_prepare,
@@ -1283,11 +1366,20 @@ def handle(msg: dict):
         fn = DISPATCH.get(name)
         if fn is None:
             return _error(mid, -32602, f"unknown tool {name!r}")
+        arguments = params.get("arguments") or {}
+        run_id = os.environ.get("EMAGENTS_RUN_ID", "unscoped")
+        node_id = os.environ.get("EMAGENTS_NODE_ID", "mcp-client")
+        audit = event_log.open_log(f"{run_id}-mcp")
+        audit.append(node_id, name, detail={"argument_keys": sorted(arguments)})
         try:
-            out = fn(params.get("arguments") or {})
+            out = fn(arguments)
+            audit.append(node_id, name, status="ok", detail={"is_error": False})
             return _result(mid, {"content": [{"type": "text",
-                                              "text": json.dumps(out, ensure_ascii=False)}]})
+                                               "text": json.dumps(out, ensure_ascii=False)}]})
         except Exception as exc:  # tool error -> result with isError, not a protocol error
+            audit.append(node_id, name, status="failed", detail={
+                "is_error": True, "exception_type": type(exc).__name__,
+            })
             return _result(mid, {"content": [{"type": "text", "text": f"error: {exc}"}],
                                  "isError": True})
     return _error(mid, -32601, f"method not found: {method}")

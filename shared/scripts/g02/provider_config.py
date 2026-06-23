@@ -26,7 +26,7 @@ OPENALEX_KEY_ENV = "OPENALEX_API_KEY"
 SEMANTIC_SCHOLAR_KEY_ENV = "SEMANTIC_SCHOLAR_API_KEY"
 TAVILY_KEY_ENV = "TAVILY_API_KEY"
 CORE_KEY_ENV = "CORE_API_KEY"
-PROVIDERS = ("openalex", "semantic_scholar", "arxiv")
+PROVIDERS = ("openalex", "semantic_scholar", "arxiv", "crossref")
 WEB_PROVIDERS = ("tavily", "searxng")
 RETRIEVAL_PROVIDERS = ("record", "unpaywall", "core", "doab", "oapen")
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -171,7 +171,7 @@ class ProviderRuntimeConfig:
         for provider in PROVIDERS:
             enabled = self.enabled(provider)
             key = self.api_key(provider)
-            contact_required = provider in {"openalex", "arxiv"}
+            contact_required = provider in {"openalex", "arxiv", "crossref"}
             key_required = provider == "openalex"
             ready = enabled \
                 and (not contact_required or self.contact_email is not None) \
@@ -180,8 +180,10 @@ class ProviderRuntimeConfig:
                 authentication = "configured_key" if key else "required_key_missing"
             elif provider == "semantic_scholar":
                 authentication = "configured_key" if key else "optional_key"
-            else:
+            elif provider == "arxiv":
                 authentication = "none"
+            else:
+                authentication = "configured_email" if ready else "required_email_missing"
             capabilities.append({
                 "provider": provider,
                 "enabled": enabled,
@@ -328,11 +330,26 @@ def _validate_searxng_endpoint(value: object, allow_http_loopback: bool,
         errors.append("loopback HTTP SearXNG endpoint must use an explicit port")
 
 
+def _with_crossref_defaults(payload: object) -> object:
+    """Migrate pre-Crossref v1 configs in memory without enabling a new network provider."""
+    if not isinstance(payload, dict):
+        return payload
+    normalized = deepcopy(payload)
+    providers = normalized.get("providers")
+    if isinstance(providers, dict):
+        providers.setdefault("crossref", {"enabled": False})
+    rates = normalized.get("rate_limits")
+    if isinstance(rates, dict):
+        rates.setdefault("crossref_min_interval_seconds", 0.2)
+    return normalized
+
+
 def validate_config(payload: object, *, env: Mapping[str, str] | None = None,
                     runtime_home: str | Path | None = None) -> dict:
     """Validate shape, safe paths, limits and required contact configuration."""
     environment = env if env is not None else os.environ
     errors: list[str] = []
+    payload = _with_crossref_defaults(payload)
     try:
         shape = contracts.validate(payload, CONFIG_CONTRACT)
     except (KeyError, ValueError) as exc:
@@ -366,10 +383,10 @@ def validate_config(payload: object, *, env: Mapping[str, str] | None = None,
         errors.append("at least one scholarly provider must be enabled")
 
     contact = environment.get(CONTACT_ENV, "").strip()
-    if any(name in enabled for name in ("openalex", "arxiv")):
+    if any(name in enabled for name in ("openalex", "arxiv", "crossref")):
         if not contact:
             errors.append(
-                f"{CONTACT_ENV} is required when OpenAlex or arXiv is enabled"
+                f"{CONTACT_ENV} is required when OpenAlex, arXiv or Crossref is enabled"
             )
         elif not EMAIL_RE.fullmatch(contact):
             errors.append(f"{CONTACT_ENV} must contain a valid email address")
@@ -426,7 +443,7 @@ def validate_config(payload: object, *, env: Mapping[str, str] | None = None,
         _reject_unknown_keys(
             rates,
             {"openalex_min_interval_seconds", "semantic_scholar_min_interval_seconds",
-             "arxiv_min_interval_seconds"},
+             "arxiv_min_interval_seconds", "crossref_min_interval_seconds"},
             "rate_limits",
             errors,
         )
@@ -434,6 +451,7 @@ def validate_config(payload: object, *, env: Mapping[str, str] | None = None,
             "openalex_min_interval_seconds",
             "semantic_scholar_min_interval_seconds",
             "arxiv_min_interval_seconds",
+            "crossref_min_interval_seconds",
         ):
             _positive_number(rates.get(field), f"rate_limits.{field}", errors,
                              allow_zero=True)
@@ -699,7 +717,8 @@ def load_config(config_path: str | Path | None = None, *,
     """Load a safe config and bind environment-only contact data and secrets."""
     environment = env if env is not None else os.environ
     source = _resolve_source(config_path, environment)
-    payload = _read_json(source)
+    payload = _with_crossref_defaults(_read_json(source))
+    assert isinstance(payload, dict)
     home = (Path(runtime_home) if runtime_home is not None else paths.runtime_home()).resolve()
     validation = validate_config(payload, env=environment, runtime_home=home)
     if not validation["ok"]:
@@ -725,6 +744,7 @@ def load_config(config_path: str | Path | None = None, *,
         "openalex": environment.get(OPENALEX_KEY_ENV, "").strip() or None,
         "semantic_scholar": environment.get(SEMANTIC_SCHOLAR_KEY_ENV, "").strip() or None,
         "arxiv": None,
+        "crossref": None,
         "tavily": environment.get(TAVILY_KEY_ENV, "").strip() or None,
         "core": environment.get(CORE_KEY_ENV, "").strip() or None,
     })

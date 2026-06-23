@@ -24,7 +24,74 @@ scenariusze, wyniki i werdykty historycznych rund pozostają niezmienne.
 
 ## Wpisy
 
-### Runda 8 — 2026-06-22 — Pierwszy TEST nowego batcha A11 (TEST 6), A05 (TEST 7), A06 (DEV 8): deterministyka + live Tavily/OA + packaging
+### Runda 10 — 2026-06-23 — Realny forward Codex `run-codex` A01→A06: infrastruktura gotowa, przebieg zablokowany przez niepoprawne envelope workerów i brak stopu po `BLOCKED`
+
+Środowisko: repo `ema-wsl` (WSL2), branch `main` @ `0ed20a6`, Python 3.14.4, `.venv` pytest 9.1.1, `codex-cli 0.142.0`. Sekrety wyłącznie w env: `TAVILY_API_KEY`, `OPENALEX_API_KEY`, `EMAGENTS_RESEARCH_CONTACT_EMAIL`, `SEMANTIC_SCHOLAR_API_KEY`; `CORE_API_KEY` nieobecny. Runtime testu: `EMAGENTS_HOME=/tmp/emagents-g02-final.CFEyii`. Konfiguracja `.emagents/config/g02-providers.json` skopiowana do runtime jako Tavily-only; SearXNG wyłączony (`endpoint: null`).
+
+**Cel:** wykonać realne testy forward/końcowe przez `python3 shared/scripts/g02/g02_flow.py run-codex --gates prompt mocks/g02/research_graph_input.json`, zakres docelowy A01 → A02 → A03 → A04 → A11 → A05 → user-source-selection-gate → A06, z review A10 po każdym producencie. **Wynik: FAIL/BLOCKED przed bramką źródeł. Nie zaznaczono żadnego forward checkboxa w `07`.**
+
+#### Przygotowanie — PASS
+
+- `codex --version`: `codex-cli 0.142.0`; minimalny `codex exec` smoke zwrócił `{"ok":true,"scope":"codex_exec_smoke"}`.
+- `codex mcp list`: `edu-materials-research` enabled.
+- Provider status z `EMAGENTS_HOME=/tmp/emagents-g02-final.CFEyii`: `ok:true`; OpenAlex, Semantic Scholar, arXiv, Tavily, Unpaywall, DOAB i OAPEN ready; CORE wyłączony/brak klucza; SearXNG disabled/endpoint missing.
+- Build: `python3 scripts/build-plugin.py --host all` utworzył `dist/claude` i `dist/codex`; inventory 20 skilli / 11 agentów w obu bundlach; MCP ma 39 operacji.
+- `graph_check`: source `True`, Claude bundle `True`, Codex bundle `True`.
+- Skan sekretów runtime po przebiegu: `secret_scan_hits=0`. W `dist` nie zostawiono `.emagents`, testów, `.pyc` ani `__pycache__`.
+
+#### Przebieg forward — FAIL/BLOCKED
+
+Uruchomienie:
+
+```bash
+script -q -f /tmp/emagents-g02-final.CFEyii/run-codex.transcript -c 'EMAGENTS_HOME=/tmp/emagents-g02-final.CFEyii python3 shared/scripts/g02/g02_flow.py run-codex --gates prompt mocks/g02/research_graph_input.json'
+```
+
+Log runu: `/tmp/emagents-g02-final.CFEyii/logs/run-g02-3364e0a32640.log`. Artefakty producentów zapisane w `/tmp/emagents-g02-final.CFEyii/artifacts/research/`.
+
+- A01 `g02-a01-planner`: worker uruchomiony, ale zapisany artefakt ma `status: failed`; `codex worker failed`, bo zwrócony `envelope@1` był niepoprawny: `issues[0]` bez wymaganego `type`, `severity: "blocking"` spoza enum `["blocker","major","minor"]`. A10 review: `BLOCKED`.
+- A02 `g02-a02-domain`: uruchomiony mimo zablokowanego A01; artefakt `status: failed`; `issues` bez wymaganych pól `severity` i `type`. A10 review: `BLOCKED`.
+- A03 `g02-a03-canonical-sources`: uruchomiony mimo zablokowanych upstreamów; artefakt `status: failed`; `issues` bez wymaganych pól `severity` i `type`. A10 review: `BLOCKED`.
+- A04 `g02-a04-recent-developments`: uruchomiony mimo zablokowanych upstreamów; artefakt `status: failed`; `severity: "blocking"` spoza enum i brak `type` w issues. Proces przerwano kontrolnie podczas review A04, bo dalsze downstreamy byłyby niemiarodajne.
+- A11, A05, user-source-selection-gate i A06 **nie zostały osiągnięte**. Liczba pobrań/ekstrakcji przed final confirmation: 0, bo final confirmation nie wystąpił. Live SearXNG nie był wykonany, zgodnie z Tavily-only i brakiem administrator-pinned endpointu.
+
+#### Findingi
+
+1. **F-B (NOWY, blocker Codex forward).** `runners/codex.py` poprawnie waliduje finalny JSON workera i przy niezgodności zwraca `_fail` (`shared/scripts/g02/runners/codex.py:121-123`), ale prompt/adapter Codex workerów nie wymusza wystarczająco kontraktu `envelope@1`: workery realnie emitują `issues` bez wymaganych pól albo z `severity: "blocking"`. **Fix:** wzmocnić prompt/adapter przez schema-constrained output (`--output-schema` dla envelope albo lokalną normalizację aliasów i brakujących pól przed walidacją), oraz dodać test, że każdy worker-fail również spełnia `envelope@1`.
+2. **F-C (NOWY, blocker scheduler integrity).** Scheduler po `review_decision == "BLOCKED"` tylko wychodzi z pętli prób (`break`), a następnie bezwarunkowo zapisuje `produced_refs[name] = ref` (`shared/scripts/g02/g02_flow.py:418-465`). To pozwoliło A02/A03/A04 ruszyć na failed artefaktach i zablokowanych upstreamach. **Fix:** po `BLOCKED`, invalid envelope lub invalid artifact zwracać `failed/BLOCKED` z runu i nie dodawać ref do `produced_refs`; downstreamy nie mogą startować bez zatwierdzonego/typed upstreamu.
+3. **F-D (NOWY, brak realnego użycia deterministic MCP seam w `run-codex`).** W przebiegu artefakty producentów miały `typed:false` i były zapisanymi envelope `_fail`, nie kontraktami producentów. Nie ma dowodu na wykonanie `research_*_prepare/finalize/search` przez workery ani na scope driver→topic→route→coverage. **Fix:** runner powinien egzekwować producer protocol: prepare przez MCP, provider calls wyłącznie przez MCP, finalize przez MCP, a następnie review-task/review-finalize; w logu powinien powstać audyt per MCP operation.
+
+#### Status `07`
+
+- Forward/końcowe scenariusze A01, A02, A03, A04, A11, A05, A10, gate i A06 pozostają odznaczone.
+- Packaging/build/`graph_check`/inventory/secret scan w tej rundzie: PASS, odnotowane tutaj, ale nie zaliczają pełnego checkboxa końcowego, bo run forward został zablokowany przed A05/A06.
+- SearXNG live pozostaje niewykonany: brak administrator-pinned endpointu; Tavily-only nie zalicza live SearXNG checkboxów.
+
+### Runda 9 — 2026-06-23 — Próba forward A01→A06 na hoście Claude (headless `claude -p` + MCP): mechanizm działa, ale ujawniony systemowy blocker F-A; podejście zarzucone na rzecz Codexa
+
+Środowisko: repo `ema-wsl` (WSL2), branch `main` @ `0ed20a6` (po merge #19, **finding #2 naprawiony przez właściciela** — `shared/contracts/retrieval_directory.schema.json` istnieje, `graph_check` source **ok: true**). Python 3.14.4, `claude` CLI 2.1.186. Sekrety wyłącznie w env: `TAVILY_API_KEY` (klucz właściciela tej sesji), `OPENALEX_API_KEY`, `EMAGENTS_RESEARCH_CONTACT_EMAIL`, `SEMANTIC_SCHOLAR_API_KEY`. Osobny `EMAGENTS_HOME` w `/tmp`. Sekrety NIE zapisywane do plików repo/mcp.json — przekazywane przez env procesu workera; skrypty/`mcp.json`/stream poza repo (`/tmp`) i posprzątane.
+
+**Cel:** uruchomić *prawdziwy* forward (izolowany executor LLM per węzeł woła wyłącznie narzędzia MCP) bez instalacji pluginu — przez headless `claude -p --mcp-config` jako runner host-agnostycznego silnika, z bramką w czacie i realnym pobieraniem PDF/Tavily na końcu. **Wynik: mechanizm potwierdzony, ale podejście `claude -p` okazało się złym narzędziem do testów; przerwane na A01 po wykryciu systemowego F-A. Decyzja właściciela: jutro powtórzyć w przygotowanym przez devów środowisku Codex.**
+
+#### Co potwierdzono (działa)
+
+- **Runner `claude -p` + MCP**: headless worker łączy się z `research_server.py` (stdio) przez `--mcp-config`, woła narzędzia `research_*`, zwraca JSON (`is_error:false`, `permission_denials:[]`). Smoke `research_provider_status` PASS (~12 s, ~$0.15 na Opusie).
+- **Bezpieczeństwo sekretów**: `TAVILY_API_KEY` dociera do serwera MCP przez env procesu (tavily `ready:true`), bez zapisu do `mcp.json`. Skan: 0 wycieków.
+- **`graph_check` zielony** na source (finding #2 naprawiony).
+- **Ścieżka ref-owa prepare działa**: `front_door(<ścieżka intake>) → artifact://handoffs/research_graph_input.json`; `research_planner_prepare(input=<ten ref>) → {ready: true, planner_input: {...}}`. A01 worker (Opus, slim) poprawnie wykonał `prepare(ref)` i zaczął budować `research_plan@1` — **przerwany przed `finalize`** (decyzja stop), więc A01 forward NIE jest zaliczony.
+
+#### Findingi
+
+1. **F-A (NOWY, systemowy blocker forwardu wszystkich producentów A01–A06).** Narzędzia `*_prepare` deklarują argument `input` **bez `type`** w JSON Schema (tylko opis „object, path or artifact:// ref"). Headless-agent LLM domyślnie serializuje wejście jako **string JSON**. Loader `_planner_payload` (`shared/scripts/mcp/research_server.py:90-98`) dla stringa niebędącego `artifact://` wykonuje `json.loads(pathlib.Path(value).read_text())` → traktuje go jako **ścieżkę pliku** → `[Errno 36] File name too long`; agent się zapętla. **Substancja pipeline'u OK** — przy podaniu `input` jako `artifact://` ref (jak robi prawdziwy orkiestrator) `prepare` przechodzi. **Fix (do devów):** dodać `"type"` do schematu `input` (np. `["object","string"]`) i/lub w loaderze próbować `json.loads` gdy string wygląda na JSON (zaczyna się od `{`), zanim potraktuje go jako path. Dotyczy też `*_finalize` przyjmujących `input`.
+2. **`claude -p` to złe narzędzie do tego testu (operacyjne).** (a) Harness Claude Code **blokuje** zagnieżdżony `--permission-mode bypassPermissions` (guardrail „unsafe agent / auto-mode bypass") — workery muszą iść bez bypassu (działa biała lista, ale to ograniczenie). (b) **Globalny tool-deferral**: każdy worker dziedziczy ~60–97 narzędzi jako *deferred* + pełną powierzchnię (Bash/Write/WebSearch/Task…), więc robi dodatkowy `ToolSearch` i ma osłabioną izolację (agent powinien widzieć TYLKO `research_*`). `--strict-mcp-config` ucina obce serwery MCP, ale nie deferral. (c) **Ciężki/wolny/kosztowny per węzeł** (Opus-planner), kruchy (crash F-A, parsowanie JSON z ```-fence). Łącznie: nie nadaje się na rzetelny, powtarzalny harness forward.
+
+#### Decyzja i status checklisty
+
+- **Podejście `claude -p` zarzucone.** Forward + końcowe powtórzymy w **środowisku Codex** przygotowanym przez devów (pierwszoklasowy `run-codex` / `runners/codex.py`, bramki w terminalu) — powinno być solidniejsze.
+- **Żaden węzeł forward nie został domknięty** (A01 zatrzymany przed `finalize`), więc **w `07` nie zaznaczono żadnego pola forward/końcowego** jako zaliczone. Pozostają `⏳ KOŃCOWY`. Jedyny nowy trwały wynik to **finding F-A** (do naprawy przed forwardem) oraz potwierdzenie, że runner-mechanizm i ścieżka ref-owa działają.
+- **Do devów (priorytet przed forwardem):** naprawić F-A; rozważyć, czy orkiestrator/agenci mają zawsze przekazywać `input` jako ref (wtedy F-A nie wystąpi w `/research`), ale schemat i tak warto utwardzić.
+
+
 
 Środowisko: repo `ema-wsl` (WSL2), branch `main` na `0751f63` (po merge A05 #17 i A06 #18), Python 3.14.4,
 `pytest` 9.1.1 z `.venv`. Sieć wychodząca dostępna. Sekrety wyłącznie w env: `TAVILY_API_KEY` (klucz
