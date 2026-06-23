@@ -24,6 +24,9 @@ Concept extraction, claim detection, logical-flow analysis. Domain inference is 
    slide ids and a `verification_need`.
 3. Detect internal logical-flow issues (concept used before definition, broken prerequisite order).
 4. Infer domains from concepts (not keywords); mark confidence.
+5. Persist by calling `intake_understanding_finalize` with `task_id` and the `intake_understanding@1`
+   object. Do NOT write the artifact yourself (the worker filesystem is read-only). Your FINAL
+   message is exactly the `envelope@1` that operation returns.
 
 ## Acceptance Criteria
 

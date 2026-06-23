@@ -10,22 +10,29 @@ Convert the uploaded PDF into a faithful, ordered slide corpus. Extract structur
 ## Contract
 
 **Input:** `intake_graph_input@1` (upload ref, ingestion_profile).
+**Intermediate artifact:** `pdf_extract_result@1` from the deterministic `intake_pdf_extract` seam.
 **Output artifact:** `SlideViews` (`slide_views@1`) — one entry per slide with a stable `slide_id`,
-text, layout hints and an image ref; original order preserved. Returns `envelope@1`.
+text, layout hints and an image ref or an explicit pending visual marker; original order preserved.
+Returns `envelope@1`.
 
 ## Required Skills
 
-Deterministic extraction tools (PDF text/layout/asset extraction). No model-generated bibliography.
+Deterministic extraction tools (`intake_pdf_extract` when available). No model-generated
+bibliography.
 
 ## Workflow
 
-1. Extract slides in source order; assign a stable `slide_id` per slide.
-2. Capture text, layout type hint and an image ref; mark missing text for OCR per `ocr_policy`.
-3. Return `slide_views@1` in the envelope `artifact`.
+1. Call `intake_slide_views` on the uploaded PDF or intake bundle. It may internally call
+   `intake_pdf_extract`.
+2. Preserve its `slide_views@1` output as the technical slide corpus.
+3. Carry extracted text exactly as technical corpus text. Do not infer text that is missing.
+4. Mark pages with empty text, extraction errors or unavailable parser status for OCR/visual follow-up.
+5. Return `slide_views@1` in the envelope `artifact`.
 
 ## Acceptance Criteria
 
-Every slide has a stable `slide_id` and an image ref; order preserved; missing text flagged.
+Every slide has a stable `slide_id`; order is preserved; missing text and visual-pending pages are
+flagged explicitly.
 (Reviewer profile: `slide_views`.)
 
 ## Boundaries

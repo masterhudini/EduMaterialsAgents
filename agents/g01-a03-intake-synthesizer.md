@@ -24,6 +24,9 @@ Card construction and lazy-hydration ref wiring. No new claims, concepts or flow
 1. Project understanding into compact cards + `artifact://` refs (never full states).
 2. Derive `research_drivers` linking claims/concepts/flow issues to a bounded purpose.
 3. Apply the gate's approved context, domains, scope and locked sections; set `constraints`.
+4. Persist by calling `intake_synthesis_finalize` with `task_id` and the `research_graph_input@1`
+   object. Do NOT write the artifact yourself (the worker filesystem is read-only). Your FINAL
+   message is exactly the `envelope@1` that operation returns.
 
 ## Acceptance Criteria
 

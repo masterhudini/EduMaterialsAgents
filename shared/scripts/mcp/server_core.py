@@ -87,6 +87,27 @@ def make_handle(*, server_info, tools, dispatch, prompts=(), prompt_handler=None
     return handle
 
 
+def hosted_handlers(flow) -> dict:
+    """Host-driven stepper tool handlers bound to a graph ``flow`` module (run/front_door).
+
+    Reusable across graphs (g01/g03) so the MCP surface is not copy-pasted: returns the three
+    handler callables for ``*_run_hosted`` / ``*_resume`` / ``*_get_artifact``.
+    """
+    def run_hosted(args: dict):
+        return flow.run(flow.front_door(args["context"])["ref"], pause_on_node=True, pause_on_gate=True)
+
+    def resume(args: dict):
+        return flow.run(resume_token=args["run_token"], pause_on_node=True, pause_on_gate=True,
+                        node_results=args.get("node_results"), node_failures=args.get("node_failures"),
+                        review_decisions=args.get("review_decisions"), decisions=args.get("decisions"))
+
+    def get_artifact(args: dict):
+        from core import artifacts
+        return artifacts.hydrate(args["ref"])
+
+    return {"run_hosted": run_hosted, "resume": resume, "get_artifact": get_artifact}
+
+
 def run_loop(handle) -> None:
     """Read newline-delimited JSON-RPC from stdin; write responses to stdout."""
     for line in sys.stdin:

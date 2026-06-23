@@ -23,9 +23,9 @@
   "input_contract": "intake_graph_input@1",
   "exit_artifact": "research_graph_input@1",
   "nodes": [
-    {"name": "g01-a01-pdf-intake", "kind": "agent", "complexity_class": "deterministic_technical", "review_profile": "slide_views", "output_contract": "slide_views@1", "produces": ["SlideViews"]},
-    {"name": "g01-a02-understanding", "kind": "agent", "complexity_class": "semantic_high_ambiguity", "review_profile": "understanding", "output_contract": "intake_understanding@1", "produces": ["IntakeUnderstanding"]},
-    {"name": "g01-a03-intake-synthesizer", "kind": "agent", "complexity_class": "synthesis_decision", "review_profile": "intake_synthesis", "output_contract": "research_graph_input@1", "produces": ["ResearchGraphInput"]},
+    {"name": "g01-a01-pdf-intake", "kind": "agent", "execution": "deterministic", "complexity_class": "deterministic_technical", "review_profile": "slide_views", "output_contract": "slide_views@1", "produces": ["SlideViews"]},
+    {"name": "g01-a02-understanding", "kind": "agent", "execution": "hosted", "finalize_op": "intake_understanding_finalize", "complexity_class": "semantic_high_ambiguity", "review_profile": "understanding", "output_contract": "intake_understanding@1", "produces": ["IntakeUnderstanding"]},
+    {"name": "g01-a03-intake-synthesizer", "kind": "agent", "execution": "hosted", "finalize_op": "intake_synthesis_finalize", "complexity_class": "synthesis_decision", "review_profile": "intake_synthesis", "output_contract": "research_graph_input@1", "produces": ["ResearchGraphInput"]},
     {"name": "user-intake-gate", "kind": "user-gate", "required_decisions": [{"id": "confirm_audience", "type": "confirm"}, {"id": "confirm_domains", "type": "confirm"}, {"id": "approve_research_scope", "type": "approve"}, {"id": "mark_locked_sections", "type": "choice"}]}
   ],
   "sequence": [
