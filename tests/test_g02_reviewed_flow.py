@@ -1,4 +1,4 @@
-"""Fail-closed tests for the real-host A01-A06 scheduler."""
+"""Fail-closed tests for the real-host G02 fast scheduler."""
 from __future__ import annotations
 
 import copy
@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "shared" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from core import artifacts, contracts  # noqa: E402
+from core import artifacts, contracts, graphs  # noqa: E402
 from g02 import domain, planner, review, reviewed_flow  # noqa: E402
 
 MOCKS = ROOT / "mocks" / "g02"
@@ -198,7 +198,7 @@ def test_revise_runs_producer_once_more_without_second_review(tmp_path):
     assert receipt["revised_artifact_ref"] == record["artifact_ref"]
 
 
-def test_one_topic_a01_a02_threads_scoped_protocol_and_reviews(tmp_path):
+def test_one_topic_a01_a02_threads_scoped_protocol_and_fast_tracks_clean_domain(tmp_path):
     base = tmp_path / "store"
     calls = []
     topic_id = "TOPIC_BAYESIAN_COMPUTATION"
@@ -213,6 +213,7 @@ def test_one_topic_a01_a02_threads_scoped_protocol_and_reviews(tmp_path):
             assert ctx["input"]["schema_version"] == "domain_research_input@1"
             assert ctx["input"]["topic"]["topic_id"] == topic_id
             assert ctx["protocol"]["prepare"]["operation"] == "research_domain_prepare"
+            assert "research_query_plan_generate_fast" in ctx["protocol"]["allowed_operations"]
             artifact = copy.deepcopy(_load("domain_candidate_sources.json"))
             ref = artifacts.store("g02/domain-candidates/forward-domain.json", artifact, base=base)
             return {
@@ -224,6 +225,8 @@ def test_one_topic_a01_a02_threads_scoped_protocol_and_reviews(tmp_path):
                 }],
             }
         task = ctx["review_task"]
+        assert task["review_mode"] == "fast"
+        assert task["review_guidance"]["finding_severities"] == ["blocker", "major"]
         return review.finalize_review_decision(task, _decision(task), base=base)
 
     report = reviewed_flow.run(
@@ -233,11 +236,56 @@ def test_one_topic_a01_a02_threads_scoped_protocol_and_reviews(tmp_path):
     assert report["status"] == "completed", report["issues"]
     assert [item[0] for item in calls] == [
         planner.PLANNER_AGENT, "g02-a10-output-reviewer",
-        domain.DOMAIN_AGENT, "g02-a10-output-reviewer",
+        domain.DOMAIN_AGENT,
     ]
     assert {item["node"] for item in report["records"]} == {
         planner.PLANNER_AGENT, domain.DOMAIN_AGENT,
     }
+    domain_record = next(item for item in report["records"] if item["node"] == domain.DOMAIN_AGENT)
+    decision = artifacts.hydrate(domain_record["review_decision_ref"], base=base)
+    assert "Fast-track deterministic approval" in decision["summary"]
+
+
+def test_fast_manifest_preserves_terminal_and_review_policy_for_future_frontier():
+    profile = graphs.load("g02")["execution_profiles"]["fast"]
+    assert profile["terminal_stage"] == "g02-a09-synthesizer"
+    assert profile["implemented_terminal_stage"] == "g02-a09-synthesizer"
+    assert profile["skip_nodes"] == ["g02-a08-claim-verification"]
+    assert profile["synthesis_mode"] == "evidence_without_claim_assessment"
+    assert "g02-a09-synthesizer" in profile["review_policy"]["required"]
+    assert "g02-a07-paper-review" in profile["review_policy"]["conditional"]
+
+
+def test_fast_a07_conditional_review_and_a09_mandatory_review_policy():
+    manifest = graphs.load("g02")
+    clean_a07 = {
+        "status": "ok",
+        "metrics": {
+            "missing_location_count": 0,
+            "conflicting_evidence_count": 0,
+            "prompt_injection_flag_count": 0,
+            "central_document": False,
+        },
+        "issues": [],
+    }
+    assert reviewed_flow._requires_a10_review(
+        manifest, "g02-a07-paper-review", clean_a07
+    ) is False
+    assert reviewed_flow._requires_a10_review(
+        manifest, "g02-a07-paper-review",
+        {"status": "ok", "metrics": {"missing_location_count": 1}},
+    ) is True
+    assert reviewed_flow._requires_a10_review(
+        manifest, "g02-a07-paper-review",
+        {"status": "ok", "metrics": {"prompt_injection_flag_count": 1}},
+    ) is True
+    assert reviewed_flow._requires_a10_review(
+        manifest, "g02-a07-paper-review",
+        {"status": "ok", "metrics": {"central_document": True}},
+    ) is True
+    assert reviewed_flow._requires_a10_review(
+        manifest, "g02-a09-synthesizer", {"status": "ok", "metrics": {}}
+    ) is True
 
 
 def test_candidate_index_rejects_partial_plan_topic_execution(tmp_path):

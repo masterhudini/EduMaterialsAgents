@@ -1,13 +1,57 @@
 {
-  "title": "ResearchState \u2014 synthesizer output for the user gate + Solution handoff (design 02 \u00a75.9).",
-  "x-version": "1.0",
+  "title": "ResearchState synthesizer output for the user gate and Solution handoff.",
+  "x-version": "1.2",
   "x-major": 1,
   "type": "object",
   "required": [
-    "required_updates",
-    "optional_improvements"
+    "schema_version", "artifact_version", "task_id", "synthesis_mode",
+    "claim_assessment_performed", "claim_assessment_status", "skipped_nodes",
+    "fast_mode_limitation", "findings", "required_updates", "optional_improvements",
+    "unresolved", "limitations", "confidence", "source_refs", "evidence_map",
+    "human_validation_packet", "solution_input_candidate", "upstream_refs"
   ],
   "properties": {
+    "schema_version": {"type": "string", "enum": ["research_state@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "synthesis_mode": {
+      "type": "string",
+      "enum": ["evidence_without_claim_assessment"]
+    },
+    "claim_assessment_performed": {"type": "boolean", "enum": [false]},
+    "claim_assessment_status": {"type": "string", "enum": ["skipped_fast_profile"]},
+    "skipped_nodes": {"type": "array", "items": {"type": "string"}},
+    "fast_mode_limitation": {"type": "string"},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "finding_id", "status", "claim_ids", "topic_ids", "source_ids",
+          "evidence_refs", "summary", "limitations", "confidence"
+        ],
+        "properties": {
+          "finding_id": {"type": "string"},
+          "status": {
+            "type": "string",
+            "enum": [
+              "supported_by_reviewed_source",
+              "needs_human_check",
+              "insufficient_evidence",
+              "context_only",
+              "market_case_signal"
+            ]
+          },
+          "claim_ids": {"type": "array", "items": {"type": "string"}},
+          "topic_ids": {"type": "array", "items": {"type": "string"}},
+          "source_ids": {"type": "array", "items": {"type": "string"}},
+          "evidence_refs": {"type": "array", "items": {"type": "string"}},
+          "summary": {"type": "string"},
+          "limitations": {"type": "array", "items": {"type": "string"}},
+          "confidence": {"type": "string", "enum": ["low", "medium", "high"]}
+        }
+      }
+    },
     "required_updates": {
       "type": "array",
       "items": {
@@ -17,32 +61,44 @@
           "impact"
         ],
         "properties": {
-          "finding_id": {
-            "type": "string"
-          },
-          "impact": {
-            "type": "string"
-          },
-          "priority": {
-            "type": "string"
-          },
-          "evidence_refs": {
-            "type": "array"
-          }
+          "finding_id": {"type": "string"},
+          "impact": {"type": "string"},
+          "priority": {"type": "string"},
+          "status": {"type": "string"},
+          "related_claims": {"type": "array", "items": {"type": "string"}},
+          "related_topics": {"type": "array", "items": {"type": "string"}},
+          "evidence_refs": {"type": "array", "items": {"type": "string"}},
+          "source_refs": {"type": "array", "items": {"type": "string"}},
+          "confidence": {"type": "string"}
         }
       }
     },
-    "optional_improvements": {
-      "type": "array"
+    "optional_improvements": {"type": "array", "items": {"type": "object"}},
+    "unresolved": {"type": "array", "items": {"type": "object"}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+    "source_refs": {"type": "array", "items": {"type": "object"}},
+    "upstream_refs": {
+      "type": "object",
+      "required": [
+        "research_plan_ref", "candidate_source_index_ref", "approved_source_set_ref",
+        "retrieved_corpus_ref", "paper_review_refs", "reviewed_paper_reviews"
+      ],
+      "properties": {
+        "research_plan_ref": {"type": "string"},
+        "candidate_source_index_ref": {"type": "string"},
+        "approved_source_set_ref": {"type": "string"},
+        "retrieved_corpus_ref": {"type": "string"},
+        "paper_review_refs": {"type": "array", "items": {"type": "string"}},
+        "reviewed_paper_reviews": {"type": "array", "items": {"type": "object"}}
+      }
     },
-    "unresolved": {
-      "type": "array"
-    },
-    "evidence_map_ref": {
-      "type": "string"
-    },
-    "research_summary_ref": {
-      "type": "string"
-    }
+    "evidence_map": {"type": "object"},
+    "evidence_map_ref": {"type": "string"},
+    "human_validation_packet": {"type": "object"},
+    "human_validation_packet_ref": {"type": "string"},
+    "solution_input_candidate": {"type": "object"},
+    "solution_input_candidate_ref": {"type": "string"},
+    "research_summary_ref": {"type": "string"}
   }
 }

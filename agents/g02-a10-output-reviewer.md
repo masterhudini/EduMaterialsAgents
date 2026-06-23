@@ -77,7 +77,10 @@ value in `path`, and `schema_version: review_decision@1` as required by `envelop
 1. Validate that the task identifies one producer, one artifact, one contract and a coherent
    review profile through the deterministic review preparation operation. Return `BLOCKED` with
    `review_profile_error` when the review basis is absent or contradictory.
-2. Load only the supplied artifact and authorized references. Do not request the producer's
+2. Read `preflight_summary` first. Use its contract status, artifact identity, criteria checklist,
+   evidence requirements, deterministic issues and bounded semantic sample to target the review.
+   Load only the supplied artifact and authorized references needed to resolve a material check.
+   Do not request the producer's
    private reasoning or unrelated graph state.
 3. Apply `g02-review-research-output`: consume the deterministic artifact validation, check any
    remaining shape concerns, then evidence, semantics, traceability, scope and prohibited
@@ -86,6 +89,8 @@ value in `path`, and `schema_version: review_decision@1` as required by `envelop
    severity, observed defect and minimally sufficient correction.
    Put optional wording, style and non-blocking improvement notes in `advisories`; they must not
    trigger `REVISE`.
+   When `review_mode` is `fast`, create findings only for `blocker` and `major` defects. The
+   deterministic finalizer also converts any accidental minor finding into an advisory.
 5. Select the decision:
    - `APPROVED` when every mandatory criterion passes and no correction-required finding remains;
    - `REVISE` only when a material producer-owned correction is required for safe downstream use;
@@ -103,7 +108,8 @@ value in `path`, and `schema_version: review_decision@1` as required by `envelop
 - Decision, severities and root cause are mutually consistent.
 - `APPROVED` has empty findings, null root cause and null revision scope.
 - `APPROVED` may carry concise advisories that do not require another producer run.
-- `REVISE` contains only minor or major findings, a producer-owned revision scope and root cause
+- In standard mode, `REVISE` contains only minor or major findings. In fast mode it contains only
+  major findings. Both use a producer-owned revision scope and root cause
   `producer_error` or `insufficient_evidence`.
 - `BLOCKED` contains a blocker finding and root cause `invalid_or_incomplete_input`,
   `upstream_plan_error`, `review_profile_error` or `external_dependency_blocked`, identifying

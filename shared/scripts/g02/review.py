@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import re
 from collections.abc import Callable
+from copy import deepcopy
 
 from core import artifacts, contracts
 
@@ -130,6 +131,25 @@ def validate_review_task(task: object) -> dict:
             "empty_review_profile", "review_profile must not be empty",
             root_cause="review_profile_error",
             criterion_id="REVIEW_BASIS", location="review_task.review_profile",
+        ))
+
+    review_mode = task.get("review_mode", "standard")
+    if review_mode not in {"standard", "fast"}:
+        issues.append(_issue(
+            "invalid_review_mode", "review_mode must be standard or fast",
+            root_cause="review_profile_error",
+            criterion_id="REVIEW_BASIS", location="review_task.review_mode",
+        ))
+    guidance = task.get("review_guidance")
+    if review_mode == "fast" and (
+            not isinstance(guidance, dict)
+            or guidance.get("finding_severities") != ["blocker", "major"]
+            or guidance.get("minor_disposition") != "advisories"):
+        issues.append(_issue(
+            "invalid_fast_review_guidance",
+            "fast review must focus findings on blocker and major and move minor items to advisories",
+            root_cause="review_profile_error",
+            criterion_id="REVIEW_BASIS", location="review_task.review_guidance",
         ))
 
     for field in ("review_id", "task_id", "logical_review_node", "producer_agent",
@@ -395,6 +415,8 @@ def validate_review_decision(decision: object, task: dict | None = None,
             errors.append("BLOCKED requires null revision_scope")
 
     if task is not None:
+        if task.get("review_mode") == "fast" and "minor" in severities:
+            errors.append("fast review requires minor observations to be stored as advisories")
         correlations = {
             "review_id": "review_id",
             "task_id": "task_id",
@@ -455,6 +477,70 @@ def validate_review_decision(decision: object, task: dict | None = None,
             errors.append(f"previous findings disappeared without closure: {sorted(missing)}")
 
     return {"ok": not errors, "errors": errors}
+
+
+def apply_review_mode(task: dict, mode: str = "standard") -> dict:
+    """Attach deterministic reviewer guidance without mutating a producer review task."""
+    if mode not in {"standard", "fast"}:
+        raise ValueError("review mode must be standard or fast")
+    result = deepcopy(task)
+    result["review_mode"] = mode
+    result["review_guidance"] = {
+        "finding_severities": ["blocker", "major"] if mode == "fast"
+        else ["blocker", "major", "minor"],
+        "minor_disposition": "advisories" if mode == "fast" else "findings_or_advisories",
+        "max_review_invocations": 1,
+        "max_correction_attempts": 1,
+    }
+    validation = validate_review_task(result)
+    if not validation["ok"]:
+        raise ValueError("invalid review mode task: " + "; ".join(
+            issue["message"] for issue in validation["issues"]
+        ))
+    return result
+
+
+def _normalize_fast_decision(task: dict | None, decision: dict) -> dict:
+    if task is None or task.get("review_mode") != "fast" or not isinstance(decision, dict):
+        return decision
+    result = deepcopy(decision)
+    findings = result.get("findings") if isinstance(result.get("findings"), list) else []
+    minor = [item for item in findings
+             if isinstance(item, dict) and item.get("severity") == "minor"]
+    if not minor:
+        return result
+    material = [item for item in findings
+                if not isinstance(item, dict) or item.get("severity") != "minor"]
+    advisories = result.get("advisories") \
+        if isinstance(result.get("advisories"), list) else []
+    for item in minor:
+        observed = str(item.get("observed", "")).strip()
+        correction = str(item.get("required_correction", "")).strip()
+        observation = observed
+        if correction:
+            observation = f"{observed} Suggested improvement: {correction}".strip()
+        advisories.append({
+            "criterion_id": item.get("criterion_id", "REVIEW_BASIS"),
+            "location": item.get("location", "artifact"),
+            "observation": observation or "Minor non-blocking observation.",
+        })
+    result["findings"] = material
+    result["advisories"] = advisories
+    if result.get("decision") == "REVISE":
+        if material:
+            scope = result.get("revision_scope")
+            if isinstance(scope, dict):
+                scope["finding_ids"] = [
+                    item.get("finding_id") for item in material if isinstance(item, dict)
+                ]
+        else:
+            result["decision"] = "APPROVED"
+            result["root_cause"] = None
+            result["revision_scope"] = None
+            result["summary"] = (
+                "Approved in fast review; minor observations were retained as advisories."
+            )
+    return result
 
 
 def _has_audit_identity(task: object) -> bool:
@@ -565,6 +651,7 @@ def finalize_review_decision(task: dict | None, decision: dict, *, base=None) ->
             previous = _load_previous_decision(task, base=base)
         except (OSError, ValueError, KeyError, IndexError) as exc:
             return failed_envelope("invalid_revision_history", str(exc))
+    decision = _normalize_fast_decision(task, decision)
     validation = validate_review_decision(decision, task, previous)
     if not validation["ok"]:
         return failed_envelope("invalid_review_decision", "; ".join(validation["errors"]))
@@ -588,6 +675,72 @@ def finalize_review_decision(task: dict | None, decision: dict, *, base=None) ->
             "finding_count": len(decision["findings"]),
             "advisory_count": len(decision.get("advisories", [])),
         },
+    }
+
+
+def _semantic_sample(artifact: object) -> dict:
+    if not isinstance(artifact, dict):
+        return {"value_type": type(artifact).__name__}
+    preferred = (
+        "schema_version", "artifact_version", "task_id", "topic_id", "status",
+        "title", "name", "summary", "stop_reason", "review_profile_ref",
+    )
+    scalars = {}
+    for field in preferred:
+        value = artifact.get(field)
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            scalars[field] = value[:240] if isinstance(value, str) else value
+    collection_counts = {
+        key: len(value) for key, value in artifact.items()
+        if isinstance(value, (list, dict))
+    }
+    return {
+        "top_level_keys": sorted(artifact)[:40],
+        "identity_and_status": scalars,
+        "collection_counts": collection_counts,
+    }
+
+
+def build_preflight_summary(task: dict, artifact: object,
+                            artifact_validation: dict) -> dict:
+    """Create a bounded deterministic basis for the semantic reviewer."""
+    descriptor = task.get("artifact") if isinstance(task.get("artifact"), dict) else {}
+    errors = artifact_validation.get("errors") \
+        if isinstance(artifact_validation, dict) else []
+    errors = errors if isinstance(errors, list) else []
+    return {
+        "contract_validation": {
+            "ok": bool(artifact_validation.get("ok"))
+            if isinstance(artifact_validation, dict) else False,
+            "contract": task.get("expected_output_contract"),
+            "error_count": len(errors),
+        },
+        "artifact_identity": {
+            "type": descriptor.get("type"),
+            "ref": descriptor.get("ref"),
+            "schema_version": descriptor.get("schema_version"),
+            "artifact_version": descriptor.get("artifact_version"),
+            "task_id": artifact.get("task_id") if isinstance(artifact, dict) else None,
+        },
+        "acceptance_criteria": [
+            {
+                "criterion_id": item.get("criterion_id"),
+                "mandatory": item.get("mandatory"),
+                "description": str(item.get("description", ""))[:500],
+            }
+            for item in task.get("acceptance_criteria", []) if isinstance(item, dict)
+        ],
+        "evidence_requirements": [
+            {
+                "requirement_id": item.get("requirement_id"),
+                "mandatory": item.get("mandatory"),
+                "description": str(item.get("description", ""))[:500],
+                "status": "semantic_check_required",
+            }
+            for item in task.get("evidence_requirements", []) if isinstance(item, dict)
+        ],
+        "deterministic_issues": deepcopy(errors),
+        "semantic_sample": _semantic_sample(artifact),
     }
 
 
@@ -646,6 +799,7 @@ def prepare_review(task: object, *, base=None) -> dict:
         "task": task,
         "artifact": artifact,
         "artifact_validation": artifact_validation,
+        "preflight_summary": build_preflight_summary(task, artifact, artifact_validation),
         "previous_decision": previous,
     }
 
@@ -724,6 +878,7 @@ def execute_review_task(task: object, reviewer_executor: Callable | None, *, bas
         review_context = {
             "artifact": prepared["artifact"],
             "artifact_validation": prepared["artifact_validation"],
+            "preflight_summary": prepared["preflight_summary"],
             "previous_decision": prepared["previous_decision"],
         }
         envelope = reviewer_executor(task, review_context)

@@ -1,12 +1,76 @@
 {
   "graph_id": "g02",
-  "description": "G02 Research Graph. Verifies approved claims and finds current literature for a lecture refresh, then freezes a UserApprovedResearchBundle. SINGLE SOURCE OF TRUTH for the node order — g02_flow.py and the orchestrator skill must agree with this manifest. Authoritative design: docs/02_Architektura_agentow_i_skilli.md. Reviews are runs of ONE physical agent (g02-a10-output-reviewer) with a per-node review_profile; each producer run receives at most one review. APPROVED continues, BLOCKED stops, and REVISE permits one deterministically finalized producer correction without re-review. The two user gates are orchestrator steps, not agents. g02_flow.py keeps an injectable no-op wiring harness, while reviewed_flow.py runs the implemented A01-A06 frontier through isolated codex exec workers. Discovery remains serial per topic; concurrency requires explicit dependency and scheduler support.",
+  "description": "G02 Research Graph. Verifies approved claims and finds current literature for a lecture refresh, then freezes a UserApprovedResearchBundle. SINGLE SOURCE OF TRUTH for the node order — g02_flow.py and the orchestrator skill must agree with this manifest. Authoritative design: docs/02_Architektura_agentow_i_skilli.md. Reviews are runs of ONE physical agent (g02-a10-output-reviewer) with a per-node review_profile; each producer run receives at most one review. APPROVED continues, BLOCKED stops, and REVISE permits one deterministically finalized producer correction without re-review. The two user gates are orchestrator steps, not agents. g02_flow.py keeps an injectable no-op wiring harness, while reviewed_flow.py runs the implemented fast frontier through reviewed A09, pauses at Human Research Gate, and finalizes the bundle only after resume approval. Discovery and A07 remain serial; concurrency requires explicit dependency and scheduler support.",
   "orchestrator": "g02-orchestrate-research",
   "reviewer": "g02-a10-output-reviewer",
   "review_task_contract": "review_task@1",
   "review_decision_contract": "review_decision@1",
   "max_reviews_per_producer_run": 1,
   "max_revision_attempts_after_review": 1,
+  "default_execution_profile": "fast",
+  "execution_profiles": {
+    "fast": {
+      "terminal_stage": "g02-a09-synthesizer",
+      "implemented_terminal_stage": "g02-a09-synthesizer",
+      "skip_nodes": ["g02-a08-claim-verification"],
+      "synthesis_mode": "evidence_without_claim_assessment",
+      "require_reviewed_a07_provenance": true,
+      "required_stream_policy": "available_streams",
+      "review_mode": "fast",
+      "planner": {
+        "max_topics": 2,
+        "candidate_limit_per_topic": 12,
+        "candidate_pool_target_per_topic": 8
+      },
+      "review_policy": {
+        "required": [
+          "g02-a01-planner",
+          "g02-a05-candidate-source-index",
+          "g02-a06-paper-retrieval",
+          "g02-a09-synthesizer"
+        ],
+        "conditional": [
+          "g02-a02-domain",
+          "g02-a03-canonical-sources",
+          "g02-a04-recent-developments",
+          "g02-a07-paper-review",
+          "g02-a11-market-cases"
+        ],
+        "condition": "run_a10_when_finalizer_status_is_degraded_or_dependency_blocked",
+        "a07_condition": "run_a10_when_degraded_missing_locations_conflicting_evidence_prompt_injection_or_central_document",
+        "fast_focus": ["blocker", "major"]
+      },
+      "discovery": {
+        "max_routes_per_topic": 3,
+        "default_providers_per_route": 1,
+        "fallback_provider_on_gap": true,
+        "default_provider": "openalex",
+        "per_page": 8,
+        "max_pages_per_call": 1,
+        "max_records_per_query": 8,
+        "route_limit": 8
+      },
+      "web": {
+        "max_queries_per_task": 4,
+        "max_tavily_queries_per_task": 3,
+        "max_results_per_query": 5,
+        "max_extractions_per_task": 3
+      },
+      "candidate_index": {
+        "display_limit": 8,
+        "reserve_limit": 4,
+        "per_topic_limit": 4,
+        "required_stream_policy": "available_streams"
+      },
+      "retrieval": {
+        "max_documents_per_task": 5
+      },
+      "paper_review": {
+        "max_windows_per_source": 4,
+        "max_chars_per_window": 1600
+      }
+    }
+  },
   "retry_matrix": {
     "deterministic_technical": {"low": 0, "medium": 1, "high": 1, "critical": 0},
     "research_planning": {"low": 0, "medium": 1, "high": 1, "critical": 0},
@@ -17,25 +81,25 @@
   "default_escalation": "user-research-gate",
   "reviewer_complexity_class": "cross_artifact_reconciliation",
   "model_bindings": {
-    "research_planning": {"claude": {"model": "opus", "effort": "medium"}},
+    "research_planning": {"claude": {"model": "sonnet", "effort": "xhigh"}},
     "research_search": {"claude": {"model": "sonnet", "effort": "medium"}},
     "synthesis_decision": {"claude": {"model": "opus", "effort": "medium"}},
     "deterministic_technical": {"claude": {"model": "sonnet", "effort": "medium"}},
-    "evidence_high_impact": {"claude": {"model": "sonnet", "effort": "medium"}},
-    "cross_artifact_reconciliation": {"claude": {"model": "opus", "effort": "medium"}}
+    "evidence_high_impact": {"claude": {"model": "opus", "effort": "medium"}},
+    "cross_artifact_reconciliation": {"claude": {"model": "sonnet", "effort": "medium"}}
   },
   "agent_host_bindings": {
-    "g02-a01-planner": {"claude": {"model": "opus", "effort": "medium"}},
-    "g02-a02-domain": {"claude": {"model": "sonnet", "effort": "high"}},
-    "g02-a03-canonical-sources": {"claude": {"model": "sonnet", "effort": "high"}},
-    "g02-a04-recent-developments": {"claude": {"model": "sonnet", "effort": "high"}},
+    "g02-a01-planner": {"claude": {"model": "sonnet", "effort": "xhigh"}},
+    "g02-a02-domain": {"claude": {"model": "sonnet", "effort": "medium"}},
+    "g02-a03-canonical-sources": {"claude": {"model": "sonnet", "effort": "medium"}},
+    "g02-a04-recent-developments": {"claude": {"model": "sonnet", "effort": "medium"}},
     "g02-a05-candidate-source-index": {"claude": {"model": "opus", "effort": "medium"}},
-    "g02-a06-paper-retrieval": {"claude": {"model": "sonnet", "effort": "high"}},
-    "g02-a07-paper-review": {"claude": {"model": "opus", "effort": "high"}},
+    "g02-a06-paper-retrieval": {"claude": {"model": "sonnet", "effort": "medium"}},
+    "g02-a07-paper-review": {"claude": {"model": "opus", "effort": "medium"}},
     "g02-a08-claim-verification": {"claude": {"model": "opus", "effort": "medium"}},
-    "g02-a09-synthesizer": {"claude": {"model": "opus", "effort": "high"}},
-    "g02-a10-output-reviewer": {"claude": {"model": "sonnet", "effort": "xhigh"}},
-    "g02-a11-market-cases": {"claude": {"model": "sonnet", "effort": "high"}}
+    "g02-a09-synthesizer": {"claude": {"model": "opus", "effort": "medium"}},
+    "g02-a10-output-reviewer": {"claude": {"model": "sonnet", "effort": "medium"}},
+    "g02-a11-market-cases": {"claude": {"model": "sonnet", "effort": "medium"}}
   },
   "entry_node": "g02-a01-planner",
   "input_contract": "research_graph_input@1",
@@ -49,10 +113,10 @@
     {"name": "g02-a05-candidate-source-index", "kind": "agent", "complexity_class": "synthesis_decision", "input_contract": "candidate_index_input@1", "review_profile": "candidate_index", "output_contract": "candidate_source_index@1", "produces": ["candidate_source_index@1", "candidate_source_review.md"]},
     {"name": "user-source-selection-gate", "kind": "user-gate", "output_contract": "human_approved_source_set@1", "produces": ["human_source_selection@1", "human_approved_source_set@1"], "required_decisions": [{"id": "source_actions", "type": "per_source_action", "actions": ["DOWNLOAD", "LIBRARY", "CITATION", "RESERVE", "EXCLUDE", "SEARCH_MORE"]}, {"id": "final_confirmation", "type": "confirm_parsed_selection"}]},
     {"name": "g02-a06-paper-retrieval", "kind": "agent", "complexity_class": "deterministic_technical", "input_contract": "retrieval_input@1", "review_profile": "retrieved_corpus", "output_contract": "retrieved_corpus@1", "produces": ["retrieved_corpus@1", "retrieval_directory@1"]},
-    {"name": "g02-a07-paper-review", "kind": "agent", "complexity_class": "evidence_high_impact", "review_profile": "paper_evidence", "output_contract": "paper_review@1", "produces": ["PaperReview", "PaperEvidenceCards"]},
+    {"name": "g02-a07-paper-review", "kind": "agent", "complexity_class": "evidence_high_impact", "review_profile": "paper_evidence", "output_contract": "paper_review@1", "produces": ["paper_review@1"]},
     {"name": "g02-a08-claim-verification", "kind": "agent", "complexity_class": "evidence_high_impact", "review_profile": "claim_assessment", "output_contract": "claim_assessment@1", "produces": ["ClaimAssessmentState"]},
-    {"name": "g02-a09-synthesizer", "kind": "agent", "complexity_class": "synthesis_decision", "review_profile": "research_synthesis", "output_contract": "research_state@1", "produces": ["ResearchState", "EvidenceMap", "UserResearchValidationPacket", "SolutionInputCandidate"]},
-    {"name": "user-research-gate", "kind": "user-gate", "required_decisions": [{"id": "approve_required_updates", "type": "approve"}, {"id": "approve_optional_improvements", "type": "approve"}, {"id": "unresolved_claim_handling", "type": "choice"}]}
+    {"name": "g02-a09-synthesizer", "kind": "agent", "complexity_class": "synthesis_decision", "review_profile": "research_synthesis", "output_contract": "research_state@1", "produces": ["research_state@1", "evidence_map@1", "user_research_validation_packet@1", "solution_input_candidate@1", "research_summary@1"]},
+    {"name": "user-research-gate", "kind": "user-gate", "output_contract": "user_approved_research_bundle@1", "produces": ["user_approved_research_bundle@1"], "required_decisions": [{"id": "approve_required_updates", "type": "approve"}, {"id": "approve_optional_improvements", "type": "approve"}, {"id": "unresolved_claim_handling", "type": "choice", "actions": ["keep_as_unresolved_items", "exclude_from_graph03_handoff", "return_for_research"]}]}
 ],
   "sequence": [
     "g02-a01-planner",

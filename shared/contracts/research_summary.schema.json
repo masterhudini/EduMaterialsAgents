@@ -1,0 +1,23 @@
+{
+  "title": "Compact research summary produced by G02-A09.",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "synthesis_mode",
+    "fast_mode_limitation", "required_updates", "optional_improvements", "unresolved",
+    "confidence", "created_at"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["research_summary@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "synthesis_mode": {"type": "string", "enum": ["evidence_without_claim_assessment"]},
+    "fast_mode_limitation": {"type": "string"},
+    "required_updates": {"type": "array", "items": {"type": "object"}},
+    "optional_improvements": {"type": "array", "items": {"type": "object"}},
+    "unresolved": {"type": "array", "items": {"type": "object"}},
+    "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+    "created_at": {"type": "string"}
+  }
+}

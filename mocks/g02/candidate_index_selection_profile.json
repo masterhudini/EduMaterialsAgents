@@ -2,6 +2,8 @@
   "display_limit": 6,
   "reserve_limit": 4,
   "per_topic_limit": 6,
+  "required_stream_policy": "strict",
+  "mandatory_streams": [],
   "ranking_weights": {
     "coverage_contribution": 0.3,
     "role_fit": 0.18,

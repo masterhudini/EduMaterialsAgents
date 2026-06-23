@@ -63,9 +63,16 @@ Pliki w tym katalogu są częścią repozytorium i stanowią kontekst projektowy
 
 9. [09_Optymalizacja_kosztu_i_czasu.md](09_Optymalizacja_kosztu_i_czasu.md)
 
-   Notatka robocza do powrotu po testach: aktualna macierz modeli i effortĂłw, diagnoza kosztu,
+   Notatka robocza do powrotu po testach: aktualna macierz modeli i effortów, diagnoza kosztu,
    rekomendowany profil balanced, adaptive effort, fan-out po A02, cache, top-K i metryki
-   potrzebne do dalszej optymalizacji szybkiego i taĹ„szego Research Graph.
+   potrzebne do dalszej optymalizacji szybkiego i tańszego Research Graph.
+
+10. [10_Plan_fast_prototyp_G02_do_Graph03.md](10_Plan_fast_prototyp_G02_do_Graph03.md)
+
+   Aktualny plan wykonawczy szybkiego prototypu G02 do Graph03. P0-P8 obejmujące politykę grafu,
+   szybki generator query planu, dostępne strumienie A05, limity, odchudzony A10, A07, A09 oraz
+   aktywację terminala A09 w runnerze są wdrożone bez lokalnego uruchamiania testów. P9 pozostaje
+   etapem osobnego środowiska TEST.
 
 ## Status decyzji
 
@@ -81,18 +88,33 @@ oraz typed deskryptor jednego katalogu wynikowego. Dla każdego zatwierdzonego m
 czytelny dokument Markdown z faktem i interpretacją A11 oraz oddzielny JSON audytowy z pobraną
 treścią oznaczoną jako niezaufana.
 
-Deterministyczne seams reviewera oraz G02-A01, A02, A03, A04, A11, A05 i A06 są wdrożone. G02-A02 posiada
+Deterministyczne seams reviewera oraz G02-A01, A02, A03, A04, A11, A05, A06, A07 i A09 są
+wdrożone. Profil
+`fast` nakłada ograniczenia providerów i retrieval, A02 otrzymał deterministyczny generator
+`query_plan@1`, A05 obsługuje politykę `available_streams`, a A10 korzysta z preflight summary i
+koncentruje findings na błędach blocker/major. G02-A02 posiada
 konfigurację providerów, adaptery OpenAlex, Semantic Scholar, arXiv i Crossref, cache, retry, rate limiting,
 normalizację oraz zapis surowej proweniencji. `g02_flow.py run-codex` uruchamia fizyczne definicje
-agentów jako izolowane procesy `codex exec` w fail-closed flow A01–A06: każdy wynik jest hydratowany,
+agentów jako izolowane procesy `codex exec` w fail-closed flow od A01 do reviewed A09: każdy wynik jest hydratowany,
 walidowany i wiązany z dokładną decyzją A10 przed downstreamem. A10 jest wywoływany maksymalnie
 raz na wykonanie producenta. `REVISE` uruchamia jedną korektę producenta bez ponownego review,
 a jej zakończenie zapisuje `revision_completion@1`. Runner zwraca
-`research_run_report@1`, obsługuje ograniczenie `--through`/`--topic-id` i nie emituje stubowego
-wyniku A07–A09. Tryb `run` pozostaje harness-em no-op do testowania wiring i nie jest testem
+`research_run_report@1`, obsługuje ograniczenie `--through`/`--topic-id`, obie bramki człowieka i
+CLI pause/resume. Tryb `run` pozostaje harness-em no-op do testowania wiring i nie jest testem
 zachowania agentów. Produkcyjny downloader A06 ma domyślnie pomijany
-live smoke pobierający rzeczywisty PDF przez Unpaywall. Indeks tekstu PDF, dalsze scoped inputs i
-scheduler fan-out/fan-in pozostają kolejnymi etapami.
+live smoke pobierający rzeczywisty PDF przez Unpaywall. Szeroki scheduler fan-out/fan-in pozostaje
+kolejnym etapem.
+
+Aktualizacja DEV P6-P8 z 2026-06-23: dodano A07 `paper_review@1` z deterministic text index i
+bounded windows, A09 `research_state@1` bez A08 w trybie `fast`, domyślny terminal runnera A09,
+Human Research Gate z pause/resume oraz finalizację kompaktowego
+`user_approved_research_bundle@1` po aprobacie człowieka. Testy P6-P8 są przygotowane, ale nie
+uruchamiane lokalnie; wykonanie pozostaje dla osobnego środowiska TEST.
+
+Audyt gotowości przed P9 domknął provenance review A07 -> A09, wersjonowanie jednej korekty,
+przebieg A09 przy zerowej liczbie pobranych dokumentów, ścisłą decyzję końcowej bramki, kontrakty
+pomocniczych artefaktów A09 i deterministyczne wiązanie evidence refs. Historyczny log 08 nie
+został zmieniony, ponieważ testy nadal czekają na osobne środowisko.
 
 ### Zamknięta decyzja nadrzędna
 

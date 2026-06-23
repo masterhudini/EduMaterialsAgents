@@ -26,6 +26,12 @@ def _runtime(tmp_path, monkeypatch):
     monkeypatch.setenv("EMAGENTS_HOME", str(tmp_path / ".emagents"))
     monkeypatch.setenv("EMAGENTS_RESEARCH_CONFIG", str(CONFIG))
     monkeypatch.setenv("TAVILY_API_KEY", "tavily-test-secret")
+    # Pin the deterministic market-case mechanics tests to the declared config
+    # limits instead of the global fast execution profile (default), which caps
+    # web fan-out (max_queries_per_task=4, max_results_per_query=5) and would
+    # starve this fixture's three-route auto_budgeted plan. Fast-limit application
+    # is asserted separately in test_g02_domain.py.
+    monkeypatch.setenv("EMAGENTS_G02_PROFILE", "strict")
     monkeypatch.delenv("EMAGENTS_RESEARCH_CONTACT_EMAIL", raising=False)
     monkeypatch.delenv("OPENALEX_API_KEY", raising=False)
     monkeypatch.delenv("SEMANTIC_SCHOLAR_API_KEY", raising=False)

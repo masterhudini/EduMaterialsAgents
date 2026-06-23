@@ -10,7 +10,10 @@
     "task_id": "RESEARCH_MOCK_001",
     "topic_id": "TOPIC_BAYESIAN_COMPUTATION",
     "routes": [],
-    "excluded_terms": ["generic Bayesian applications without computational analysis"]
+    "excluded_terms": [
+      "generic Bayesian applications without computational analysis",
+      "advanced computation without conceptual exposition"
+    ]
   },
   "candidates": [
     {
@@ -83,7 +86,11 @@
     }
   ],
   "stop_reason": "partial_coverage",
-  "remaining_coverage_units": ["COV_BAYESIAN_COST_CONDITIONS", "COV_POSTERIOR_METHODS"],
+  "remaining_coverage_units": [
+    "COV_BAYESIAN_COST_CONDITIONS",
+    "COV_POSTERIOR_METHODS",
+    "COV_LIKELIHOOD_POSTERIOR_SEQUENCE"
+  ],
   "provider_issues": [],
   "review_profile_ref": "domain_candidates"
 }

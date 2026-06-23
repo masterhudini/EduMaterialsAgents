@@ -50,6 +50,11 @@ fizycznej definicji agenta. Każde pole jest wykonywane raz. Etykieta „one cor
 oznacza jeden powrót do producenta, deterministyczną finalizację i przejście dalej bez drugiego
 review. `BLOCKED` zatrzymuje graf i dlatego nie jest pokazany jako krawędź do kolejnego węzła.
 
+Domyślny profil prototypowy `fast` ogranicza praktyczne użycie A10. A01, A05 i A06 nadal mają
+obowiązkowy review. A02, A03, A04 i A11 przechodzą przez deterministyczny fast-track approval, gdy
+ich finalizacja zwraca `ok`; jeżeli pojawi się `degraded`, luka coverage, provider issue albo
+problem zależności, orkiestrator uruchamia A10 dla danego artefaktu.
+
 ## 2. Fizyczne definicje agentów
 
 Moduł zawiera jedenaście plików agentów, płasko w `agents/` dla auto-discovery. Każdy techniczny
@@ -377,7 +382,9 @@ topic, ResearchPlan i reviewed A02 ref. Profil review zamraża `RD-01` do `RD-06
 - nie usuwa zamkniętych źródeł tylko z powodu braku OA.
 
 **Wejście wykonawcze:** `candidate_index_input@1`, przygotowane wyłącznie z artefaktów związanych
-z decyzjami A10 `APPROVED` dla dokładnego tasku, planu, ref i wersji.
+z decyzjami A10 `APPROVED` dla dokładnego tasku, planu, ref i wersji. W `fast` A02 pozostaje
+wymagany per topic, a A03, A04 i A11 są pobierane według `available_streams`; jawne braki
+opcjonalne nie blokują utworzenia indeksu.
 
 **Wyjście:** `candidate_source_index@1` i `candidate_source_review.md`. Każda karta pokazuje
 `description_basis`, skrót treści, związek z topic/coverage, ograniczenia dostępu i rekomendowaną
@@ -500,6 +507,8 @@ profilem etapu.
 - evidence requirements,
 - prohibited behaviors,
 - severity rules,
+- `review_mode`, guidance i deterministyczny preflight summary; `fast` ogranicza findings do
+  blocker/major i przenosi drobne uwagi do advisories,
 - numer próby równy 1; reviewer nie jest ponawiany dla korekty po `REVISE`.
 
 **Wyjście:** `ReviewDecision` (`review_decision@1`) w `envelope@1`.
@@ -839,3 +848,23 @@ evidence card z zatwierdzonego case'a, wariant A07). `g02-classify-source-role` 
 
 Macierz w par. 9 zawiera G02-A11 Market Cases z wymaganymi skillami
 `g02-expand-research-query`, `g02-a11-find-market-cases`, `g02-classify-source-role` i bez skilli opcjonalnych na start.
+
+## 16. Aktualizacja fast P6-P8, A07 do A09
+
+Profil `fast` jest wdrożony przez reviewed flow do A09. Po A06 runner uruchamia jedną instancję
+G02-A07 dla każdego zaakceptowanego dokumentu albo bundle market case. A07 korzysta z
+`research_document_text_index` i `research_document_text_window`, a wynik zapisuje jako kompaktowe
+`paper_review@1` z lokalizacjami, `evidence_access_level`, confidence, flagami konfliktu,
+brakujących lokalizacji i prompt injection. Pełny PDF, pełna strona web i obszerne PaperReview nie
+wchodzą do handoffu.
+
+W `fast` G02-A08 pozostaje w manifeście, ale jest pomijany przez `skip_nodes`. G02-A09 przyjmuje
+reviewed A07, A06, A05, human source selection i ResearchPlan bez wymaganego ClaimAssessment.
+Statusy findings są ograniczone do `supported_by_reviewed_source`, `needs_human_check`,
+`insufficient_evidence`, `context_only` i `market_case_signal`. A09 musi jawnie wskazać, że A08 nie
+został wykonany, i nie może używać etykiet sugerujących pełną weryfikację prawdy.
+
+Po mandatory A10 dla A09 runner zwraca `awaiting_user` przy Human Research Gate. Wznowienie z
+aprobatą człowieka tworzy `user_approved_research_bundle@1` z kompaktowym kandydatem wejścia dla
+Graph03: update recommendations, optional improvements, evidence refs, source refs, ograniczenia,
+unresolved items i confidence.

@@ -24,6 +24,117 @@ scenariusze, wyniki i werdykty historycznych rund pozostają niezmienne.
 
 ## Wpisy
 
+### Runda 12 — 2026-06-23 — Deterministyczny pytest w sandboxie (bez pluginu/MCP/live API): 4 przyczyny źródłowe (12 testów) zdiagnozowane i naprawione; suite zielony 146 passed / 1 skipped
+
+Środowisko: sandbox Cowork (Linux), Python **3.10.12**, vendored `pytest 9.1.1` z `.emagents/pytest-deps`
+plus dwa shimy zgodności tylko na czas uruchomienia w 3.10: backport `exceptiongroup` (klasy
+`BaseExceptionGroup`/`ExceptionGroup`, wymagane przez import pytest) oraz `datetime.UTC`. Bez instalacji
+pluginu, bez MCP forward, bez sieci. Zakres: pełny pakiet `tests/` (warstwa deterministyczna A01–A11,
+A07/A09, reviewed_flow, MCP inventory, plugin build).
+
+**Cel:** wykonać przygotowaną, deterministyczną część testów (P6–P8/P9) niezależnie od środowiska
+pluginowego/MCP, ustalić co realnie nie przechodzi przed osobnym TEST i naprawić.
+
+**Wynik: pierwszy przebieg 134 passed / 1 skipped / 12 failed. Po naprawach 146 passed / 1 skipped /
+0 failed.** 1 skipped = domyślnie pomijany live PDF smoke (Unpaywall). Forward przez plugin/MCP
+(Rundy 9–11, findingi F-A…F-H) i live API pozostają poza zakresem sandboxa.
+
+#### Uwaga środowiskowa (nie błąd repo, do decyzji)
+
+`shared/scripts/g02/{market_cases,oa_retrieval,paper_review,recent,synthesis}.py` używają
+`from datetime import UTC`, dostępnego dopiero od Pythona **3.11**. Wszystkie poprzednie rundy szły na
+3.14, więc bez znaczenia dla TEST na 3.11+. Jeśli kiedykolwiek 3.10 — dodać fallback
+(`UTC = timezone.utc`) albo jawnie przypiąć `python_requires>=3.11`.
+
+#### Findingi (4 przyczyny źródłowe → 12 testów) — wszystkie naprawione
+
+1. **F-12-1 (fixture, 8 testów `test_g02_market_cases.py`).** Domyślny profil wykonania `fast` (P4)
+   przez `_apply_execution_profile_limits` ścina web `max_results_per_query`→5 i
+   `max_queries_per_task`→4, a deterministyczny mock A11 ma 3 trasy z route `limit:6` i przebieg
+   auto_budgeted (tavily+searxng) → `invalid_market_query_plan` (`route_limit_exceeded`) oraz
+   `web_query_budget_exhausted`. Kaskadowo padały też testy redirect/response-limit/revision
+   (status `failed` zamiast oczekiwanego). **Naprawa:** w autouse fixture przypięto profil
+   deterministyczny `EMAGENTS_G02_PROFILE=strict` (ta sama konwencja co w `test_g02_domain.py`,
+   gdzie zastosowanie limitów `fast` jest asercjonowane osobno). **Plik:** `tests/test_g02_market_cases.py`.
+
+2. **F-12-2 (fixture, 2 testy `test_g02_canonical.py`).** Hand-built output A03 deklarował
+   `remaining_coverage_units: []`, podczas gdy plan ma 3 mandatory coverage units (min_sources 2),
+   a fixture pokrywa tylko 2; `COV_LIKELIHOOD_POSTERIOR_SEQUENCE` zostaje niepokryta, więc walidator
+   słusznie wymaga jej w remaining. Drugi test (`revision_requires_previous…`) padał kaskadowo, bo
+   finalize nie produkował artefaktu. **Naprawa:** uzupełniono fixture o
+   `["COV_LIKELIHOOD_POSTERIOR_SEQUENCE"]`. **Plik:** `tests/test_g02_canonical.py`.
+
+3. **F-12-3 (kod, 1 test `test_g02_paper_review.py::…rejects_fabricated_location`).** Envelope
+   `finalize_paper_review` spłaszcza issue do typu `paper_review_finalize_failed`, a komunikat
+   „section_id is absent from the deterministic section map" nie zawierał słowa „fabricated", którego
+   oczekuje test (spójnego z bazowym typem `fabricated_section_location`). **Naprawa:** komunikat
+   rozszerzono o „fabricated section location;…". **Plik:** `shared/scripts/g02/paper_review.py`.
+
+4. **F-12-4 (kod, REALNY BŁĄD, 1 test `test_g02_paper_review.py::…market_case_uses_a06_bundle`).**
+   Dla market case `build_document_text_index` liczy offsety sekcji na surowym markdownie (bez
+   prefiksu abstractu), ale `document_text_window` bezwarunkowo doszywał abstract na początku tekstu
+   → wszystkie offsety przesunięte → pierwsze okno = 15 znaków „Abstract\nCovera" zamiast faktu
+   „EUR 4.9 billion loss". Dodatkowo selekcja okna nie wystawiała sekcji z faktem. Defekt degradowałby
+   realne review market-case w A07. **Naprawa:** (A) abstract doszywany tylko gdy `source_kind ==
+   "scholarly"` (offsety market case liczone na surowym tekście, więc spójne); (B) dla market case
+   pierwsze suggested window obejmuje wszystkie sekcje małego, ograniczonego bundla A06.
+   **Plik:** `shared/scripts/g02/paper_review.py`.
+
+#### Klasyfikacja
+
+- Poprawki testów/fixture (bez wpływu na produkcję): F-12-1, F-12-2.
+- Zmiany kodu produkcyjnego (do przeglądu przez właściciela): F-12-3 (komunikat), F-12-4 (logika okien A07).
+
+#### Mapa „co zmienić w 07" po tej rundzie
+
+- Odhaczyć deterministyczne scenariusze pokryte zielonym pytestem (A01–A11, A07, A09, reviewed_flow,
+  MCP inventory, plugin build) jako **PASS w sandboxie**, z zastrzeżeniem, że forward plugin/MCP i live
+  API nadal `⏳ KOŃCOWY`.
+- Dopisać F-12-4 jako naprawiony błąd kodu A07 (okna market-case) przy sekcji A07/P6.
+
+---
+
+### Runda 11 — 2026-06-23 — Forward przez plugin Claude Code + MCP (`/research mocks/g02/research_graph_input.json`): A01 APPROVED, A10 review po korektach, A02 ×4 zablokowane przez błędy schematu query_plan i brak auto-proceed do search
+
+Środowisko: repo `ema-wsl` (WSL2), branch `main` @ `844b17f`, Python 3.14, plugin `edu-materials-agents@edu-materials` v0.2.0 (enabled), MCP `edu-materials-research` (39 operacji). Sekrety w env: `TAVILY_API_KEY`, `OPENALEX_API_KEY`, `SEMANTIC_SCHOLAR_API_KEY`. Orkiestrator: Claude Code `/research mocks/g02/research_graph_input.json`. Input: `mocks/g02/research_graph_input.json` (Bayesian Statistics, 4 approved domains, 5 drivers, 3 claims, 2 flow issues).
+
+**Cel:** pełny forward przez plugin w środowisku produkcyjnym: front_door → A01 → A10 review → A02 (×4 topics równolegle) → dalej. **Wynik: A01 APPROVED po korekcie task, A02 zablokowane — cztery nowe findingi F-E, F-F, F-G, F-H. Nie zaznaczono żadnego forward checkboxa w `07`.**
+
+#### Przebieg
+
+- `research_front_door`: PASS. `task_id=RESEARCH_MOCK_001`, `ref=artifact://handoffs/research_graph_input.json`.
+- `research_planner_prepare`: PASS. `research_planner_input@1` gotowy.
+- G02-A01 Planner agent: PASS. 4 topics, 5/5 drivers pokrytych. Artefakt: `artifact://g02/research-plans/RESEARCH_MOCK_001.1.json`. **Uwaga**: agent samodzielnie wywołał `research_planner_finalize` — naruszenie granic orkiestratora; orkiestrator powinien wywoływać finalize, nie agent.
+- `research_plan_review_task`: **FAIL × 2 (F-E)**. Pierwsze dwa wywołania odrzucone przez błędy deskryptora artefaktu (patrz niżej). Trzecie wywołanie z poprawioną strukturą: PASS.
+- `research_review_prepare`: **FAIL × 3 (F-F)**. Kolejne wywołania odrzucane przez brakujące `producer_input`, brakujące `original_task` i błędny klucz `criterion_id` zamiast `requirement_id` w `evidence_requirements`. Czwarte wywołanie z pełnym task: PASS, `ready=true`, artifact hydrated.
+- G02-A10 Reviewer (próba 1): FAIL — agent otrzymał task bez `producer_input` (stary payload). **BLOCKED**.
+- G02-A10 Reviewer (próba 2): PASS. Werdykt **APPROVED**, artefakt `artifact://reviews/REV_A01_001-attempt-1.json`. Reviewer: 0 findings, confidence: high, RP-01–RP-06 i RP-E01–RP-E04 zaliczone.
+- `research_provider_status`: PASS. OpenAlex, Semantic Scholar, arXiv, Tavily gotowe; CORE bez klucza; SearXNG brak endpointu.
+- `research_domain_prepare` ×4: PASS. Wszystkie 4 topic inputs gotowe równolegle.
+- G02-A02 ×4 (background): **FAIL/BLOCKED (F-G + F-H)**. Każdy agent zatrzymał się po wygenerowaniu `query_plan@1` i nie uruchomił `research_metadata_search`. Po wznowieniu: agenty próbowały wywołać search z błędnym schematem query_plan — adapter odrzucał kolejne warianty. TOPIC_INFERENCE_COST: OpenAlex HTTP 401. Wszystkie 4 zatrzymane i przerwane przez użytkownika.
+
+#### Findingi
+
+1. **F-E (NOWY, blocker orkiestrator A10). `research_plan_review_task` — wymagania deskryptora artefaktu nieczytelne.** Adapter wymaga: (a) pola `type: "research_plan"` w deskryptorze (brak → `artifact descriptor type must be research_plan`); (b) pola `ref` (nie `artifact_ref`) z wartością `artifact://` (brak → `artifact descriptor must contain an artifact:// path or ref`). Dokumentacja ani schemat MCP tego nie komunikują. **Fix:** zaktualizować prompt orkiestratora i ewentualnie schemat JSON deskryptora o jawne wymagane pola `type` i `ref` dla `research_plan_review_task`; dodać test, że adapter odrzuca deskryptor bez `type` i bez `ref`.
+
+2. **F-F (NOWY, blocker orkiestrator A10). `research_review_prepare` / `research_review_finalize` — pełny `review_task@1` z `producer_input` wymagany, a klucz `evidence_requirements[n].requirement_id` musi być `requirement_id` (nie `criterion_id`).** Prepare zwraca BLOCKED kolejno na: `$: missing required 'original_task'`, `$: missing required 'producer_input'`, `evidence_requirements[1]: missing required 'requirement_id'`. Orkiestrator musi przekazywać cały obiekt zwrócony przez `research_plan_review_task`, nie własną selekcję pól. Błędny klucz `criterion_id` vs `requirement_id` nie jest wykrywany przez linting. **Fix:** zaktualizować prompt orkiestratora: „przekaż cały obiekt z `research_plan_review_task` do prepare bez modyfikacji"; sprawdzić, czy w schemacie `review_task@1` `evidence_requirements[].requirement_id` jest oznaczony jako required z przykładem.
+
+3. **F-G (NOWY, blocker forward A02). Agent G02-A02 zatrzymuje się po `query_plan@1` bez uruchomienia `research_metadata_search`.** Skill `g02-expand-research-query` zwraca query_plan i kończy pracę. Agent traktuje ten etap jako finał i wraca do reszty. Brak jawnej instrukcji w prompcie/agencie A02: „po zakończeniu skill natychmiast wywołaj research_metadata_search dla każdej trasy". Wymagane dwa round-tripy zamiast jednego. **Fix:** wzmocnić prompt agenta G02-A02 o explicit krok: „po skill g02-expand-research-query wywołaj research_metadata_search dla każdej trasy i każdego providera bez oczekiwania na wiadomość od orkiestratora".
+
+4. **F-H (NOWY, blocker forward A02). `research_metadata_search` odrzuca query_plan wygenerowany przez agenty — niezgodność schematu.** Agenty generują strukturę z `routes[].queries[]` (zagnieżdżona tablica) i polami `providers`, `route_type`. Adapter oczekuje: (a) jeden query płasko na route — `canonical_query`, `origin_terms`, `generated_terms` bezpośrednio na obiekcie route; (b) `preferred_providers` (nie `providers`); (c) `purpose` z wartościami `"core"/"complementary"/"qualifying_or_critical"` (nie `route_type`); (d) `artifact_version` na poziomie query_plan. Agenty odkrywały różnice metodą prób i błędów przez wiele iteracji. **Fix:** zaktualizować skill `g02-expand-research-query` (schemat wewnętrzny i przykład w SKILL.md) do flat-route struktury zgodnej z adapterem; zaktualizować `mocks/g02/query_plan.json` jako reference fixture; opcjonalnie dodać offline test, że mock query_plan przechodzi przez `research_metadata_search` w trybie dry-run.
+
+#### Obserwacje dodatkowe
+
+- Agent G02-A01 wywołał `research_planner_finalize` samodzielnie — orkiestrator powinien być jedynym wywołującym finalize. Warto sprawdzić, czy prompt A01 zawiera instrukcję „wywołaj finalize" czy tylko „zwróć plan".
+- OpenAlex HTTP 401 dla TOPIC_INFERENCE_COST — pojedynczy incydent; możliwe rate-limiting lub format nagłówka auth w adapterze. Nie potwierdzony jako stały błąd.
+
+#### Status `07`
+
+- Żaden forward checkbox A01/A02/A10 nie zaznaczony.
+- Nowe wymagania testowe dla F-E, F-F, F-G, F-H dopisane do sekcji A01 (rewizja i reviewer) i A02 (TEST 3).
+
+---
+
 ### Runda 10 — 2026-06-23 — Realny forward Codex `run-codex` A01→A06: infrastruktura gotowa, przebieg zablokowany przez niepoprawne envelope workerów i brak stopu po `BLOCKED`
 
 Środowisko: repo `ema-wsl` (WSL2), branch `main` @ `0ed20a6`, Python 3.14.4, `.venv` pytest 9.1.1, `codex-cli 0.142.0`. Sekrety wyłącznie w env: `TAVILY_API_KEY`, `OPENALEX_API_KEY`, `EMAGENTS_RESEARCH_CONTACT_EMAIL`, `SEMANTIC_SCHOLAR_API_KEY`; `CORE_API_KEY` nieobecny. Runtime testu: `EMAGENTS_HOME=/tmp/emagents-g02-final.CFEyii`. Konfiguracja `.emagents/config/g02-providers.json` skopiowana do runtime jako Tavily-only; SearXNG wyłączony (`endpoint: null`).

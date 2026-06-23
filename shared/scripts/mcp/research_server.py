@@ -9,7 +9,8 @@ wrap shared/scripts/g02/g02_flow.py.
 Methods: initialize, notifications/* (ignored), ping, tools/list, tools/call.
 Tools: research_front_door, research_node_input, research_planner_prepare,
 research_planner_finalize, research_plan_review_task, research_provider_status,
-research_domain_prepare, research_metadata_search, research_doi_verify,
+research_domain_prepare, research_query_plan_generate_fast, research_metadata_search,
+research_doi_verify,
 research_doi_verify_batch, research_domain_finalize,
 research_domain_review_task, research_canonical_prepare, research_citation_expand,
 research_canonical_finalize, research_canonical_review_task,
@@ -23,6 +24,11 @@ research_source_selection_finalize, research_retrieval_prepare,
 research_oa_resolve, research_document_retrieve, research_document_validate,
 research_retrieval_finalize, research_retrieval_review_task,
 research_web_case_extract,
+research_paper_review_prepare, research_document_text_index,
+research_document_text_window, research_paper_review_finalize,
+research_paper_review_task, research_synthesis_prepare,
+research_synthesis_finalize, research_synthesis_review_task,
+research_bundle_finalize,
 research_review_prepare, research_review_finalize,
 research_finalize, research_run_stub, research_run_codex.
 """
@@ -47,15 +53,18 @@ from g02 import source_selection  # noqa: E402
 from g02 import retrieval  # noqa: E402
 from g02 import oa_retrieval  # noqa: E402
 from g02 import web_cases  # noqa: E402
+from g02 import paper_review  # noqa: E402
+from g02 import synthesis  # noqa: E402
 from g02 import planner  # noqa: E402
 from g02 import provider_config  # noqa: E402
 from g02 import providers  # noqa: E402
+from g02 import query_planning  # noqa: E402
 from g02 import crossref  # noqa: E402
 from g02 import review as reviewer  # noqa: E402
 from core import artifacts, event_log, graphs, handoff  # noqa: E402
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "edu-materials-research", "version": "0.10.0"}
+SERVER_INFO = {"name": "edu-materials-research", "version": "0.11.1"}
 
 
 # ---- tool implementations (return JSON-serializable values) --------------
@@ -154,6 +163,18 @@ def _plan_review_task(args: dict):
 
 def _provider_status(args: dict):
     return provider_config.provider_status(args.get("config"))
+
+
+def _query_plan_generate_fast(args: dict):
+    profile = args.get("profile")
+    if profile is None:
+        manifest = graphs.load("g02")
+        name = args.get("execution_profile") or manifest.get(
+            "default_execution_profile", "fast"
+        )
+        profiles = manifest.get("execution_profiles", {})
+        profile = profiles.get(name, {}) if isinstance(profiles, dict) else {}
+    return query_planning.generate_fast_query_plan(args["discovery_input"], profile)
 
 
 def _domain_prepare(args: dict):
@@ -445,6 +466,142 @@ def _web_case_extract(args: dict):
     )
 
 
+def _paper_review_prepare(args: dict):
+    return paper_review.prepare_paper_review(
+        args["retrieved_corpus_ref"],
+        args["source_id"],
+        research_plan_ref=args.get("research_plan_ref"),
+        candidate_source_index_ref=args.get("candidate_source_index_ref"),
+        text_index_ref=args.get("text_index_ref"),
+        previous_review_ref=args.get("previous_review_ref"),
+        revision_items=args.get("revision_items"),
+    )
+
+
+def _document_text_index(args: dict):
+    return paper_review.build_document_text_index(
+        args["retrieved_corpus_ref"],
+        args["source_id"],
+        research_plan_ref=args.get("research_plan_ref"),
+        candidate_source_index_ref=args.get("candidate_source_index_ref"),
+    )
+
+
+def _document_text_window(args: dict):
+    return paper_review.document_text_window(
+        args["text_index_ref"],
+        section_ids=args.get("section_ids"),
+        query_terms=args.get("query_terms"),
+        max_chars=args.get("max_chars", 1600),
+    )
+
+
+def _paper_review_finalize(args: dict):
+    prepared = paper_review.prepare_paper_review(
+        args["retrieved_corpus_ref"],
+        args["source_id"],
+        research_plan_ref=args.get("research_plan_ref"),
+        candidate_source_index_ref=args.get("candidate_source_index_ref"),
+        text_index_ref=args.get("text_index_ref"),
+        previous_review_ref=args.get("previous_review_ref"),
+        revision_items=args.get("revision_items"),
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return paper_review.finalize_paper_review(
+        prepared["paper_review_input"],
+        args["output"],
+        artifact_version=args.get("artifact_version", "1.0.0"),
+    )
+
+
+def _paper_review_task(args: dict):
+    prepared = paper_review.prepare_paper_review(
+        args["retrieved_corpus_ref"],
+        args["source_id"],
+        research_plan_ref=args.get("research_plan_ref"),
+        candidate_source_index_ref=args.get("candidate_source_index_ref"),
+        text_index_ref=args.get("text_index_ref"),
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return paper_review.build_paper_review_task(
+        prepared["paper_review_input"],
+        args["artifact"],
+        review_id=args["review_id"],
+        attempt=args.get("attempt", 1),
+        previous_decision_ref=args.get("previous_decision_ref"),
+        producer_revision_response=args.get("producer_revision_response"),
+    )
+
+
+def _synthesis_prepare(args: dict):
+    return synthesis.prepare_synthesis(
+        args["research_plan_ref"],
+        args["candidate_source_index_ref"],
+        args["approved_source_set_ref"],
+        args["retrieved_corpus_ref"],
+        args["paper_review_refs"],
+        profile=args.get("profile"),
+        reviewed_paper_reviews=args.get("reviewed_paper_reviews"),
+        previous_state_ref=args.get("previous_state_ref"),
+        revision_items=args.get("revision_items"),
+    )
+
+
+def _synthesis_finalize(args: dict):
+    prepared = synthesis.prepare_synthesis(
+        args["research_plan_ref"],
+        args["candidate_source_index_ref"],
+        args["approved_source_set_ref"],
+        args["retrieved_corpus_ref"],
+        args["paper_review_refs"],
+        profile=args.get("profile"),
+        reviewed_paper_reviews=args.get("reviewed_paper_reviews"),
+        previous_state_ref=args.get("previous_state_ref"),
+        revision_items=args.get("revision_items"),
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return synthesis.finalize_synthesis(
+        prepared["synthesis_input"],
+        args["output"],
+        artifact_version=args.get("artifact_version", "1.0.0"),
+    )
+
+
+def _synthesis_review_task(args: dict):
+    prepared = synthesis.prepare_synthesis(
+        args["research_plan_ref"],
+        args["candidate_source_index_ref"],
+        args["approved_source_set_ref"],
+        args["retrieved_corpus_ref"],
+        args["paper_review_refs"],
+        profile=args.get("profile"),
+        reviewed_paper_reviews=args.get("reviewed_paper_reviews"),
+        previous_state_ref=args.get("previous_state_ref"),
+        revision_items=args.get("revision_items"),
+    )
+    if not prepared["ready"]:
+        return prepared["envelope"]
+    return synthesis.build_synthesis_review_task(
+        prepared["synthesis_input"],
+        args["artifact"],
+        review_id=args["review_id"],
+        attempt=args.get("attempt", 1),
+        previous_decision_ref=args.get("previous_decision_ref"),
+        producer_revision_response=args.get("producer_revision_response"),
+    )
+
+
+def _bundle_finalize(args: dict):
+    return synthesis.finalize_research_bundle(
+        args["research_state_ref"],
+        args["decision"],
+        artifact_version=args.get("artifact_version", "1.0.0"),
+    )
+
+
 def _canonical_finalize(args: dict):
     prepared = canonical.prepare_canonical(
         args["research_plan_ref"],
@@ -510,7 +667,7 @@ def _run_codex(args: dict):
             resume_token=resume_token,
             decisions=decisions,
             reviewed=True,
-            through=args.get("through", "g02-a06-paper-retrieval"),
+            through=args.get("through", "g02-a09-synthesizer"),
             topic_ids=args.get("topic_ids"),
         )
 
@@ -523,7 +680,7 @@ def _run_codex(args: dict):
         node_runner=codex_node_runner,
         pause_on_gate=True,
         reviewed=True,
-        through=args.get("through", "g02-a06-paper-retrieval"),
+        through=args.get("through", "g02-a09-synthesizer"),
         topic_ids=args.get("topic_ids"),
     )
 
@@ -602,7 +759,17 @@ TOOLS = [
                     "type": ["object", "string"],
                     "description": "Research Graph or scoped planner input object, path or ref"
                 },
-                "artifact": {"type": "object"},
+                "artifact": {
+                    "type": "object",
+                    "description": "Persisted research_plan descriptor from finalize; use ref, not artifact_ref.",
+                    "required": ["type", "ref", "schema_version", "artifact_version"],
+                    "properties": {
+                        "type": {"type": "string", "enum": ["research_plan"]},
+                        "ref": {"type": "string", "description": "artifact:// research_plan ref"},
+                        "schema_version": {"type": "string", "enum": ["research_plan@1"]},
+                        "artifact_version": {"type": "string"}
+                    }
+                },
                 "review_id": {"type": "string"},
                 "attempt": {"type": "integer"},
                 "previous_decision_ref": {"type": "string"},
@@ -638,6 +805,21 @@ TOOLS = [
                 "revision_items": {"type": "array", "items": {"type": "object"}},
             },
             "required": ["research_plan_ref", "topic_id"],
+        },
+    },
+    {
+        "name": "research_query_plan_generate_fast",
+        "description": "Generate and validate a bounded provider-neutral scholarly query plan "
+                       "for the common fast A02/A03/A04 path. Returns a structured gap without "
+                       "making provider calls when deterministic generation is unsafe.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "discovery_input": {"type": "object"},
+                "profile": {"type": "object"},
+                "execution_profile": {"type": "string"},
+            },
+            "required": ["discovery_input"],
         },
     },
     {
@@ -1141,8 +1323,188 @@ TOOLS = [
         },
     },
     {
+        "name": "research_paper_review_prepare",
+        "description": "Prepare one source-scoped G02-A07 input from RetrievedCorpus, build or "
+                       "reuse a deterministic text index and provide bounded suggested windows.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "retrieved_corpus_ref": {"type": "string"},
+                "source_id": {"type": "string"},
+                "research_plan_ref": {"type": "string"},
+                "candidate_source_index_ref": {"type": "string"},
+                "text_index_ref": {"type": "string"},
+                "previous_review_ref": {"type": "string"},
+                "revision_items": {"type": "array", "items": {"type": "object"}},
+            },
+            "required": ["retrieved_corpus_ref", "source_id"],
+        },
+    },
+    {
+        "name": "research_document_text_index",
+        "description": "Create a deterministic section map for one accepted PDF or market-case "
+                       "bundle and store only bounded snippets, identity and location metadata.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "retrieved_corpus_ref": {"type": "string"},
+                "source_id": {"type": "string"},
+                "research_plan_ref": {"type": "string"},
+                "candidate_source_index_ref": {"type": "string"},
+            },
+            "required": ["retrieved_corpus_ref", "source_id"],
+        },
+    },
+    {
+        "name": "research_document_text_window",
+        "description": "Return one bounded text window from a deterministic text index by "
+                       "section IDs or query terms. It never returns full PDF or full page text.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "text_index_ref": {"type": "string"},
+                "section_ids": {"type": "array", "items": {"type": "string"}},
+                "query_terms": {"type": "array", "items": {"type": "string"}},
+                "max_chars": {"type": "integer"},
+            },
+            "required": ["text_index_ref"],
+        },
+    },
+    {
+        "name": "research_paper_review_finalize",
+        "description": "Validate source identity, locations, prompt-injection flags and compact "
+                       "size, then persist one paper_review@1 for a single accepted source.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "retrieved_corpus_ref": {"type": "string"},
+                "source_id": {"type": "string"},
+                "research_plan_ref": {"type": "string"},
+                "candidate_source_index_ref": {"type": "string"},
+                "text_index_ref": {"type": "string"},
+                "previous_review_ref": {"type": "string"},
+                "revision_items": {"type": "array", "items": {"type": "object"}},
+                "output": {"type": "object"},
+                "artifact_version": {"type": "string"},
+            },
+            "required": ["retrieved_corpus_ref", "source_id", "output"],
+        },
+    },
+    {
+        "name": "research_paper_review_task",
+        "description": "Build the G02-A07 paper_evidence review_task@1 for A10 conditional review.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "retrieved_corpus_ref": {"type": "string"},
+                "source_id": {"type": "string"},
+                "research_plan_ref": {"type": "string"},
+                "candidate_source_index_ref": {"type": "string"},
+                "text_index_ref": {"type": "string"},
+                "artifact": {"type": "object"},
+                "review_id": {"type": "string"},
+                "attempt": {"type": "integer"},
+                "previous_decision_ref": {"type": "string"},
+                "producer_revision_response": {"type": "object"},
+            },
+            "required": ["retrieved_corpus_ref", "source_id", "artifact", "review_id"],
+        },
+    },
+    {
+        "name": "research_synthesis_prepare",
+        "description": "Prepare the fast A09 synthesis input from reviewed A07 PaperReviews and "
+                       "A01/A05/source-gate/A06 refs without requiring A08 ClaimAssessment.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "candidate_source_index_ref": {"type": "string"},
+                "approved_source_set_ref": {"type": "string"},
+                "retrieved_corpus_ref": {"type": "string"},
+                "paper_review_refs": {"type": "array", "items": {"type": "string"}},
+                "reviewed_paper_reviews": {"type": "array", "items": {"type": "object"}},
+                "previous_state_ref": {"type": "string"},
+                "revision_items": {"type": "array", "items": {"type": "object"}},
+                "profile": {"type": "object"},
+            },
+            "required": [
+                "research_plan_ref", "candidate_source_index_ref",
+                "approved_source_set_ref", "retrieved_corpus_ref", "paper_review_refs"
+            ],
+        },
+    },
+    {
+        "name": "research_synthesis_finalize",
+        "description": "Persist research_state@1, compact evidence map, human validation packet "
+                       "and SolutionInputCandidate while making the skipped A08 limitation explicit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "candidate_source_index_ref": {"type": "string"},
+                "approved_source_set_ref": {"type": "string"},
+                "retrieved_corpus_ref": {"type": "string"},
+                "paper_review_refs": {"type": "array", "items": {"type": "string"}},
+                "reviewed_paper_reviews": {"type": "array", "items": {"type": "object"}},
+                "previous_state_ref": {"type": "string"},
+                "revision_items": {"type": "array", "items": {"type": "object"}},
+                "profile": {"type": "object"},
+                "output": {"type": "object"},
+                "artifact_version": {"type": "string"},
+            },
+            "required": [
+                "research_plan_ref", "candidate_source_index_ref",
+                "approved_source_set_ref", "retrieved_corpus_ref",
+                "paper_review_refs", "output"
+            ],
+        },
+    },
+    {
+        "name": "research_synthesis_review_task",
+        "description": "Build the mandatory G02-A09 research_synthesis review_task@1 for A10.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {"type": "string"},
+                "candidate_source_index_ref": {"type": "string"},
+                "approved_source_set_ref": {"type": "string"},
+                "retrieved_corpus_ref": {"type": "string"},
+                "paper_review_refs": {"type": "array", "items": {"type": "string"}},
+                "reviewed_paper_reviews": {"type": "array", "items": {"type": "object"}},
+                "previous_state_ref": {"type": "string"},
+                "revision_items": {"type": "array", "items": {"type": "object"}},
+                "profile": {"type": "object"},
+                "artifact": {"type": "object"},
+                "review_id": {"type": "string"},
+                "attempt": {"type": "integer"},
+                "previous_decision_ref": {"type": "string"},
+                "producer_revision_response": {"type": "object"},
+            },
+            "required": [
+                "research_plan_ref", "candidate_source_index_ref",
+                "approved_source_set_ref", "retrieved_corpus_ref",
+                "paper_review_refs", "artifact", "review_id"
+            ],
+        },
+    },
+    {
+        "name": "research_bundle_finalize",
+        "description": "After the Human Research Gate approves reviewed A09, validate and store "
+                       "the compact user_approved_research_bundle@1 for Graph03.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_state_ref": {"type": "string"},
+                "decision": {"type": "object"},
+                "artifact_version": {"type": "string"},
+            },
+            "required": ["research_state_ref", "decision"],
+        },
+    },
+    {
         "name": "research_review_prepare",
-        "description": "Validate one review_task@1, enforce one artifact and hydrate only that "
+        "description": "Validate one complete review_task@1 returned unchanged from a stage "
+                       "review-task builder, enforce one artifact and hydrate only that "
                        "artifact for the isolated universal reviewer. Invalid review basis or "
                        "unavailable artifact returns a completed BLOCKED decision envelope when "
                        "audit identity is available.",
@@ -1193,9 +1555,9 @@ TOOLS = [
         "name": "research_run_codex",
         "description": "Semantic entrypoint for 'zrob research', 'zrób research' or "
                        "'run research graph' in Codex. "
-                       "Validate the input and run the implemented A01-A06 frontier with isolated Codex "
-                       "workers through the implemented A01-A06 frontier. User gates always use "
-                       "pause/resume because MCP tools cannot read interactive stdin.",
+                       "Validate the input and run the fast reviewed frontier with isolated Codex "
+                       "workers through reviewed A09, then pause at human gates. User gates always "
+                       "use pause/resume because MCP tools cannot read interactive stdin.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -1223,9 +1585,10 @@ TOOLS = [
                         "g02-a01-planner", "g02-a02-domain", "g02-a03-canonical-sources",
                         "g02-a04-recent-developments", "g02-a11-market-cases",
                         "g02-a05-candidate-source-index", "user-source-selection-gate",
-                        "g02-a06-paper-retrieval"
+                        "g02-a06-paper-retrieval", "g02-a07-paper-review",
+                        "g02-a09-synthesizer", "user-research-gate"
                     ],
-                    "description": "Last implemented stage to execute; defaults to A06."
+                    "description": "Last implemented stage to execute; defaults to reviewed A09 and pauses at the Human Research Gate."
                 },
                 "topic_ids": {
                     "type": "array",
@@ -1283,6 +1646,7 @@ DISPATCH = {
     "research_plan_review_task": _plan_review_task,
     "research_provider_status": _provider_status,
     "research_domain_prepare": _domain_prepare,
+    "research_query_plan_generate_fast": _query_plan_generate_fast,
     "research_metadata_search": _metadata_search,
     "research_doi_verify": _doi_verify,
     "research_doi_verify_batch": _doi_verify_batch,
@@ -1312,6 +1676,15 @@ DISPATCH = {
     "research_retrieval_finalize": _retrieval_finalize,
     "research_retrieval_review_task": _retrieval_review_task,
     "research_web_case_extract": _web_case_extract,
+    "research_paper_review_prepare": _paper_review_prepare,
+    "research_document_text_index": _document_text_index,
+    "research_document_text_window": _document_text_window,
+    "research_paper_review_finalize": _paper_review_finalize,
+    "research_paper_review_task": _paper_review_task,
+    "research_synthesis_prepare": _synthesis_prepare,
+    "research_synthesis_finalize": _synthesis_finalize,
+    "research_synthesis_review_task": _synthesis_review_task,
+    "research_bundle_finalize": _bundle_finalize,
     "research_review_prepare": _review_prepare,
     "research_review_finalize": _review_finalize,
     "research_finalize": _finalize,

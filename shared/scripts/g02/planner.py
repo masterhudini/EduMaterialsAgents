@@ -9,11 +9,12 @@ Pure stdlib. Host adapters call ``prepare_planner`` before the agent and
 """
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Callable
 from copy import deepcopy
 
-from core import artifacts, contracts
+from core import artifacts, contracts, graphs
 
 GRAPH_INPUT_CONTRACT = "research_graph_input@1"
 PLANNER_INPUT_CONTRACT = "research_planner_input@1"
@@ -22,6 +23,10 @@ ENVELOPE_CONTRACT = "envelope@1"
 PLANNER_AGENT = "g02-a01-planner"
 REVIEWER_AGENT = "g02-a10-output-reviewer"
 REVIEW_PROFILE = "research_plan"
+DEFAULT_EXECUTION_PROFILE = "fast"
+FAST_MAX_TOPICS = 2
+FAST_CANDIDATE_LIMIT_PER_TOPIC = 12
+FAST_CANDIDATE_POOL_TARGET_PER_TOPIC = 8
 
 PLANNER_FIELDS = (
     "task_id",
@@ -222,7 +227,73 @@ def scope_planner_input(graph_input: object) -> dict:
     }
     for field in PLANNER_FIELDS:
         scoped[field] = deepcopy(graph_input[field])
+    _apply_execution_profile_limits(scoped)
     return scoped
+
+
+def _execution_profile_config() -> tuple[str, dict]:
+    env_profile = os.environ.get("EMAGENTS_G02_PROFILE")
+    try:
+        manifest = graphs.load("g02")
+    except (OSError, ValueError, KeyError, TypeError):
+        manifest = {}
+    manifest_profile = manifest.get("default_execution_profile") \
+        if isinstance(manifest, dict) else None
+    name = env_profile if isinstance(env_profile, str) and env_profile.strip() else manifest_profile
+    name = name if isinstance(name, str) and name.strip() else DEFAULT_EXECUTION_PROFILE
+    profiles = manifest.get("execution_profiles") if isinstance(manifest, dict) else {}
+    profile = profiles.get(name) if isinstance(profiles, dict) else {}
+    return name.strip().lower(), profile if isinstance(profile, dict) else {}
+
+
+def _limit_value(value: object, fallback: int) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else fallback
+
+
+def _apply_execution_profile_limits(scoped: dict) -> None:
+    """Apply default fast-prototype limits before A01 reasoning.
+
+    The original boundary input remains immutable. Fast limits are applied only to the scoped
+    planner input so downstream validators can enforce the prototype budget.
+    """
+    profile_name, profile = _execution_profile_config()
+    if profile_name != "fast":
+        return
+    planner_limits = profile.get("planner") if isinstance(profile.get("planner"), dict) else {}
+    max_topics = _limit_value(planner_limits.get("max_topics"), FAST_MAX_TOPICS)
+    candidate_limit = _limit_value(
+        planner_limits.get("candidate_limit_per_topic"),
+        FAST_CANDIDATE_LIMIT_PER_TOPIC,
+    )
+    pool_target = _limit_value(
+        planner_limits.get("candidate_pool_target_per_topic"),
+        FAST_CANDIDATE_POOL_TARGET_PER_TOPIC,
+    )
+    constraints = scoped.get("constraints")
+    if isinstance(constraints, dict):
+        current_topics = constraints.get("max_topics")
+        if isinstance(current_topics, int) and not isinstance(current_topics, bool):
+            constraints["max_topics"] = min(current_topics, max_topics)
+        current_candidates = constraints.get("candidate_limit_per_topic")
+        if isinstance(current_candidates, int) and not isinstance(current_candidates, bool):
+            constraints["candidate_limit_per_topic"] = min(
+                current_candidates, candidate_limit
+            )
+    selection = scoped.get("selection_profile")
+    if isinstance(selection, dict):
+        target = selection.get("candidate_pool_target_per_topic")
+        if isinstance(target, int) and not isinstance(target, bool):
+            candidate_ceiling = None
+            constraints = scoped.get("constraints")
+            if isinstance(constraints, dict) and isinstance(
+                    constraints.get("candidate_limit_per_topic"), int):
+                candidate_ceiling = constraints["candidate_limit_per_topic"]
+            ceilings = [pool_target]
+            if isinstance(candidate_ceiling, int) and not isinstance(candidate_ceiling, bool):
+                ceilings.append(candidate_ceiling)
+            selection["candidate_pool_target_per_topic"] = min(
+                target, *ceilings
+            )
 
 
 def validate_planner_input(planner_input: object) -> dict:
