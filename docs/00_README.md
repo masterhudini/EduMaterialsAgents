@@ -61,6 +61,12 @@ Pliki w tym katalogu są częścią repozytorium i stanowią kontekst projektowy
    Chronologiczny, append-only log rund testowych wykonywanych w niezależnym środowisku, wraz
    z wynikami, usterkami i mapą zmian statusu w rejestrze 07.
 
+9. [09_Optymalizacja_kosztu_i_czasu.md](09_Optymalizacja_kosztu_i_czasu.md)
+
+   Notatka robocza do powrotu po testach: aktualna macierz modeli i effortĂłw, diagnoza kosztu,
+   rekomendowany profil balanced, adaptive effort, fan-out po A02, cache, top-K i metryki
+   potrzebne do dalszej optymalizacji szybkiego i taĹ„szego Research Graph.
+
 ## Status decyzji
 
 ### Status implementacji warstwy treści
