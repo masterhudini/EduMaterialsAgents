@@ -1,30 +1,25 @@
-"""Thin runnable Research Graph — stub nodes so the whole graph executes end-to-end without
-an LLM.
+"""g02 (Research Graph) flow — a thin wrapper over the generic ``core.engine``.
 
-Every node is a no-op that returns an empty ``envelope@1`` (the "pass"). The flow exercises
-the REAL runtime seams, though: it loads + re-validates the boundary input contract, walks the
-manifest node sequence (single source of truth: shared/graphs/g02.graph.json), logs each
-step, then freezes a stub UserApprovedResearchBundle and emits it as a typed handoff.
-
-Replace each stub with a real agent invocation as the graph is fleshed out. Pure stdlib.
+The engine drives the manifest (single source of truth: shared/graphs/g02.graph.json) and the
+reviewer/gate/checkpoint machinery. This module supplies only what is g02-specific: the boundary
+contracts, the per-node scoped input (G02-A01 gets a typed research_planner_input@1), the thin
+stub exit bundle, and the human source-selection gate hooks. The public API
+(run / front_door / finalize / node_input_map / load_context / scoped_input / _load_any /
+terminal_gate_handler / GRAPH_ID / INPUT_CONTRACT / OUTPUT_CONTRACT / _cli) is preserved for the
+MCP server, the Codex runner and the tests.
 
 Run it directly:
-    python3 shared/scripts/g02/g02_flow.py run tests/fixtures/research_graph_input.example.json
+    python3 shared/scripts/g02/g02_flow.py run mocks/g02/research_graph_input.json
 """
 from __future__ import annotations
 
-import json
-import uuid
 import sys as _sys
 import pathlib as _pl
 
-# Make `core` importable whether run as a module or as a script.
+# Make `core` / `g02` importable whether run as a module or as a script.
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))
 
-from core import artifacts, contracts, event_log, gate, graphs, handoff, paths  # noqa: E402
-from core import state as st  # noqa: E402
-from core import validate_state as vs  # noqa: E402
-from g02.runners.stub import stub_node_runner  # noqa: E402
+from core import artifacts, contracts, engine  # noqa: E402
 from g02 import planner  # noqa: E402
 from g02 import source_selection  # noqa: E402
 
@@ -32,27 +27,18 @@ GRAPH_ID = "g02"
 INPUT_CONTRACT = "research_graph_input@1"
 OUTPUT_CONTRACT = "user_approved_research_bundle@1"
 
-# ReviewDecision@1 uses minor/major/blocker. The aliases keep the runner compatible with
-# older retry matrices that still use low/medium/high/critical.
-_SEVERITY_ORDER = {
-    "low": 0,
-    "minor": 0,
-    "medium": 1,
-    "major": 2,
-    "high": 2,
-    "critical": 3,
-    "blocker": 3,
-}
+_SOURCE_GATE = "user-source-selection-gate"
+_SOURCE_INDEX_NODE = "g02-a05-candidate-source-index"
+_SOURCE_INDEX_TYPE = "candidate_source_index"
+_SOURCE_INDEX_CONTRACT = "candidate_source_index@1"
 
-_POLICY_SEVERITY_ALIASES = {
-    "minor": ("minor", "low"),
-    "major": ("major", "high", "medium"),
-    "blocker": ("blocker", "critical", "high"),
-    "low": ("low", "minor"),
-    "medium": ("medium", "major"),
-    "high": ("high", "major"),
-    "critical": ("critical", "blocker"),
-}
+
+def _scoped_input(node: dict, rgi: dict) -> dict:
+    """G02-A01 receives a typed research_planner_input@1; other producers get the boundary input
+    in this no-op harness (their approved upstream artifacts do not exist here)."""
+    if node.get("name") == planner.PLANNER_AGENT:
+        return planner.scope_planner_input(rgi)
+    return rgi
 
 
 def _stub_bundle() -> dict:
@@ -74,213 +60,108 @@ def _stub_bundle() -> dict:
             "unresolved_claim_handling": "keep_as_unresolved_items",
         },
         "solution_handoff": {
-            "evidence_cards": [],
-            "slide_impact_cards": [],
-            "source_cards": [],
-            "unresolved_claim_cards": [],
+            "evidence_cards": [], "slide_impact_cards": [],
+            "source_cards": [], "unresolved_claim_cards": [],
         },
         "approved_at": "1970-01-01T00:00:00Z",
     }
 
 
-def load_context(path, *, validate: bool = True) -> dict:
-    """Read a research_graph_input JSON from disk; validate it against the boundary contract."""
-    seed = json.loads(_pl.Path(path).read_text(encoding="utf-8"))
-    if validate:
-        res = contracts.validate(seed, INPUT_CONTRACT)
-        if not res["ok"]:
-            raise ValueError(f"context fails {INPUT_CONTRACT}: " + "; ".join(res["errors"]))
-    return seed
-
-
-def scoped_input(node: dict, rgi: dict) -> dict:
-    """The input bundle a given node receives.
-
-    SINGLE place where boundary-only harness scoping lives. G02-A01 receives a validated
-    ``research_planner_input@1``. Dependency-based producers still receive the full boundary input
-    inside this no-op wiring harness because their approved upstream artifacts do not exist here.
-    Real G02-A02 execution must use ``research_domain_prepare`` with an approved ResearchPlan ref.
-    """
-    if node.get("name") == planner.PLANNER_AGENT:
-        return planner.scope_planner_input(rgi)
-    return rgi
-
-
-def node_input_map(rgi: dict, manifest: dict) -> dict:
-    """Preview no-op harness inputs; dependency-based real runs use their prepare operation."""
-    return {
-        n["name"]: scoped_input(n, rgi)
-        for n in graphs.nodes(manifest)
-        if n.get("kind") == "agent"
-    }
-
-
-def _load_any(path_or_ref, *, base=None) -> dict:
-    """Load + validate a research_graph_input from a file path or an artifact:// ref."""
-    if str(path_or_ref).startswith("artifact://"):
-        return handoff.load_handoff(path_or_ref, contract_ref=INPUT_CONTRACT, base=base)
-    return load_context(path_or_ref)
-
-
-def front_door(path_or_ref, *, base=None) -> dict:
-    """Validate the input context and ensure it is in the artifact store. Returns {ref, task_id}.
-
-    Fail-fast: raises if the context does not satisfy ``research_graph_input@1``. This is the
-    orchestrator's first step — the ``ref`` it returns threads through the rest of the run.
-    """
-    ctx = _load_any(path_or_ref, base=base)
-    ref = (
-        path_or_ref
-        if str(path_or_ref).startswith("artifact://")
-        else artifacts.store("handoffs/research_graph_input.json", ctx, base=base)
-    )
-    return {"ref": ref, "task_id": ctx.get("task_id")}
-
-
-def finalize(bundle_path, *, base=None) -> dict:
-    """Validate a result bundle against the output contract and emit it as the typed handoff."""
-    bundle = json.loads(_pl.Path(bundle_path).read_text(encoding="utf-8"))
-    return handoff.emit_handoff(bundle, OUTPUT_CONTRACT, name="research_bundle", base=base)
-
-
-def _policy_for(node: dict, manifest: dict) -> dict:
-    """Per-node revision policy derived from complexity_class + the graph's retry matrix."""
-    matrix = manifest.get("retry_matrix", {})
-    attempts = matrix.get(
-        node.get("complexity_class"),
-        {"low": 0, "medium": 1, "high": 2, "critical": 3},
-    )
-    return {
-        "retry_scope": node.get("retry_scope", "artifact"),
-        "max_revision_attempts": attempts,
-        "escalation_after_exhaustion": manifest.get(
-            "default_escalation",
-            "user-research-gate",
-        ),
-    }
-
-
-def _max_severity(findings) -> str:
-    """Return the highest finding severity.
-
-    Supports the current ReviewDecision@1 taxonomy (minor/major/blocker) and the legacy
-    low/medium/high/critical taxonomy so older fixtures do not break the harness.
-    """
-    best, sev = -1, "major"  # default when a non-approval omits severities
-    for finding in findings or []:
-        raw = finding.get("severity", "major")
-        rank = _SEVERITY_ORDER.get(raw, _SEVERITY_ORDER["major"])
-        if rank > best:
-            best, sev = rank, raw
-    return sev
-
-
-def _severity_for_policy(severity: str, policy: dict) -> str:
-    """Map reviewer severity to a key accepted by the active retry policy."""
-    attempts = policy.get("max_revision_attempts", {})
-    if severity in attempts:
-        return severity
-    for alias in _POLICY_SEVERITY_ALIASES.get(severity, (severity,)):
-        if alias in attempts:
-            return alias
-    return severity
-
-
-def _review(
-    reviewer: str,
-    node: dict,
-    artifact_ref: str,
-    attempt: int,
-    prior_findings: list,
-    node_runner,
-    log,
-    task_id,
-) -> dict:
-    """Invoke the universal reviewer through the same node_runner; return ReviewDecision."""
-    rnode = {
-        "name": reviewer,
-        "kind": "reviewer",
-        "output_contract": "review_decision@1",
-        "review_profile": node.get("review_profile"),
-    }
-    rctx = {
-        "input": {"task_id": task_id},
-        "upstream": {node["name"]: artifact_ref},
-        "review": {
-            "target": node["name"],
-            "profile": node.get("review_profile"),
-            "artifact_ref": artifact_ref,
-            "attempt": attempt,
-            "prior_findings": prior_findings,
-        },
-    }
-    env = node_runner(rnode, rctx, log)
-    return env.get("artifact") or {}
-
-
-def _checkpoint_path(token: str):
-    safe = "".join(c if c.isalnum() or c in "-_" else "-" for c in token)
-    return paths.drafts_dir() / f"{GRAPH_ID}.{safe}.checkpoint.json"
-
-
-def _save_checkpoint(token, input_ref, produced_refs, gate_decisions) -> None:
-    _checkpoint_path(token).write_text(
-        json.dumps(
-            {
-                "graph": GRAPH_ID,
-                "input_ref": input_ref,
-                "produced_refs": produced_refs,
-                "gate_decisions": gate_decisions,
-            },
-            ensure_ascii=False,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-
-
-def _load_checkpoint(token: str) -> dict:
-    return json.loads(_checkpoint_path(token).read_text(encoding="utf-8"))
-
-
-def _clear_checkpoint(token: str) -> None:
-    _checkpoint_path(token).unlink(missing_ok=True)
-
-
-def terminal_gate_handler(payload: dict) -> dict:
-    """Terminal surface: print the gate request, read one JSON line of decisions from stdin."""
-    _sys.stderr.write(
-        json.dumps(
-            {
-                "gate": payload["gate"],
-                "required_decisions": payload["required_decisions"],
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n"
-    )
-    _sys.stderr.write("Enter decision JSON for this gate, then newline:\n")
-    _sys.stderr.flush()
-    return json.loads(_sys.stdin.readline())
-
-
-def _produced_artifact_ref(stored_ref: str, artifact_type: str, contract_ref: str,
-                           *, base=None) -> str | None:
-    """Resolve a typed artifact from a node's persisted artifact or envelope."""
-    try:
-        value = artifacts.hydrate(stored_ref, base=base)
-    except (OSError, ValueError, KeyError, IndexError):
+def _source_index_ref(produced_refs: dict, base):
+    stored = produced_refs.get(_SOURCE_INDEX_NODE)
+    if not isinstance(stored, str):
         return None
-    if isinstance(value, dict) and value.get("schema_version") == contract_ref:
-        return stored_ref
-    for descriptor in value.get("produced", []) if isinstance(value, dict) else []:
-        if not isinstance(descriptor, dict) or descriptor.get("type") != artifact_type:
-            continue
-        ref = descriptor.get("path") or descriptor.get("ref")
-        if isinstance(ref, str) and ref.startswith(artifacts.SCHEME):
-            return ref
+    return engine._produced_artifact_ref(stored, _SOURCE_INDEX_TYPE, _SOURCE_INDEX_CONTRACT, base=base)
+
+
+def _gate_prepare(gname: str, produced_refs: dict, base) -> dict:
+    """Attach the source-selection prompt to the gate payload when the index is ready."""
+    if gname != _SOURCE_GATE:
+        return {}
+    ref = _source_index_ref(produced_refs, base)
+    if not ref:
+        return {}
+    prepared = source_selection.prepare_source_selection(ref, base=base)
+    if prepared.get("ready"):
+        return {"payload": {"source_selection": prepared["gate_prompt"]}}
+    return {}
+
+
+def _gate_finalize(gname: str, decision, produced_refs: dict, base):
+    """Resolve / validate the human-approved source set after the source-selection gate."""
+    if gname != _SOURCE_GATE:
+        return None
+    ref = _source_index_ref(produced_refs, base)
+    if not ref:
+        return None
+    approved_ref = decision.get("human_approved_source_set_ref") if isinstance(decision, dict) else None
+    if (isinstance(decision, dict) and not approved_ref
+            and isinstance(decision.get("selection"), dict)
+            and isinstance(decision.get("confirmation_token"), str)):
+        finalized = source_selection.finalize_source_selection(
+            ref, decision["selection"], decision["confirmation_token"], base=base)
+        approved_ref = next((item.get("path") for item in finalized.get("produced", [])
+                             if item.get("type") == "human_approved_source_set"), None)
+    if isinstance(approved_ref, str):
+        approved_set = artifacts.hydrate(approved_ref, base=base)
+        validation = contracts.validate(approved_set, "human_approved_source_set@1")
+        if not validation["ok"]:
+            raise ValueError("invalid human approved source set: " + "; ".join(validation["errors"]))
+        return approved_ref
     return None
+
+
+SPEC = engine.EngineSpec(
+    graph_id=GRAPH_ID,
+    input_contract=INPUT_CONTRACT,
+    output_contract=OUTPUT_CONTRACT,
+    scoped_input=_scoped_input,
+    stub_exit_bundle=_stub_bundle,
+    input_state_field="research_graph_input",
+    output_state_field="user_approved_research_bundle",
+    artifact_namespace="research",
+    emit_name="research_bundle",
+    gate_prepare=_gate_prepare,
+    gate_finalize=_gate_finalize,
+)
+
+
+# ---- preserved public API (bound to the g02 spec) ------------------------
+
+def run(input_ref=None, **kwargs):
+    # Reviewed/partial Codex execution of the implemented A01–A06 frontier (through / topic_ids)
+    # lives in its own g02-specific module; the generic core.engine stays a stub/wiring walk.
+    if kwargs.pop("reviewed", False):
+        from g02 import reviewed_flow
+        return reviewed_flow.run(input_ref, **kwargs)
+    return engine.run(SPEC, input_ref, **kwargs)
+
+
+def front_door(path_or_ref, *, base=None):
+    return engine.front_door(SPEC, path_or_ref, base=base)
+
+
+def finalize(bundle_path, *, base=None):
+    return engine.finalize(SPEC, bundle_path, base=base)
+
+
+def node_input_map(rgi, manifest):
+    return engine.node_input_map(SPEC, rgi, manifest)
+
+
+def load_context(path, *, validate=True):
+    return engine.load_context(SPEC, path, validate=validate)
+
+
+def scoped_input(node, rgi):
+    return _scoped_input(node, rgi)
+
+
+def _load_any(path_or_ref, *, base=None):
+    return engine._load_any(SPEC, path_or_ref, base=base)
+
+
+terminal_gate_handler = engine.terminal_gate_handler
 
 
 def _run_stub_harness(

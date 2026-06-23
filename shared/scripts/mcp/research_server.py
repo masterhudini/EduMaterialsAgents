@@ -651,7 +651,7 @@ def _run_codex(args: dict):
     Human approval is never simulated in the reviewed runner. Use research_run_stub for a no-op
     wiring smoke that intentionally auto-approves its synthetic gates.
     """
-    from g02.runners.codex import codex_node_runner
+    from runners.codex import codex_node_runner
 
     gates = args.get("gates", "pause")
     if gates != "pause":

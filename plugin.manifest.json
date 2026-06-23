@@ -1,6 +1,6 @@
 {
   "name": "edu-materials-agents",
-  "version": "0.2.0",
+  "version": "0.5.0",
   "description": "Agent-stack plugin for improving educational / lecture materials through reviewed agent graphs (intake -> research -> solution).",
   "author": {
     "name": "khudasze"
@@ -39,39 +39,44 @@
   },
   "components": {
     "skills": [
-      "skills/g02-a05-annotate-source-candidates",
-      "skills/g02-a08-assess-claim-evidence",
-      "skills/g02-assess-source-coverage",
-      "skills/g02-classify-source-role",
-      "skills/g02-a05-deduplicate-source-records",
-      "skills/g02-expand-citation-graph",
-      "skills/g02-expand-research-query",
-      "skills/g02-a07-extract-paper-evidence",
-      "skills/g02-normalize-source-metadata",
-      "skills/g02-orchestrate-research",
+      "skills/g01-orchestrate-intake",
       "skills/g02-a01-plan-research-scope",
+      "skills/g02-a05-annotate-source-candidates",
+      "skills/g02-a05-deduplicate-source-records",
       "skills/g02-a05-rank-source-candidates",
       "skills/g02-a06-resolve-open-access",
       "skills/g02-a06-retrieve-open-access-document",
+      "skills/g02-a06-validate-retrieved-document",
+      "skills/g02-a07-extract-paper-evidence",
+      "skills/g02-a08-assess-claim-evidence",
+      "skills/g02-a09-synthesize-research-findings",
+      "skills/g02-a11-extract-case-evidence",
+      "skills/g02-a11-find-market-cases",
+      "skills/g02-assess-source-coverage",
+      "skills/g02-classify-source-role",
+      "skills/g02-expand-citation-graph",
+      "skills/g02-expand-research-query",
+      "skills/g02-normalize-source-metadata",
+      "skills/g02-orchestrate-research",
       "skills/g02-review-research-output",
       "skills/g02-search-scholarly-metadata",
-      "skills/g02-verify-doi-metadata",
-      "skills/g02-a09-synthesize-research-findings",
-      "skills/g02-a06-validate-retrieved-document",
-      "skills/g02-a11-find-market-cases",
-      "skills/g02-a11-extract-case-evidence"
+      "skills/g02-verify-doi-metadata"
     ],
     "agents": [
-      "agents/g02-a05-candidate-source-index.md",
-      "agents/g02-a03-canonical-sources.md",
-      "agents/g02-a08-claim-verification.md",
+      "agents/g01-a01-pdf-intake.md",
+      "agents/g01-a02-understanding.md",
+      "agents/g01-a03-intake-synthesizer.md",
+      "agents/g01-a10-output-reviewer.md",
+      "agents/g02-a01-planner.md",
       "agents/g02-a02-domain.md",
-      "agents/g02-a10-output-reviewer.md",
+      "agents/g02-a03-canonical-sources.md",
+      "agents/g02-a04-recent-developments.md",
+      "agents/g02-a05-candidate-source-index.md",
       "agents/g02-a06-paper-retrieval.md",
       "agents/g02-a07-paper-review.md",
-      "agents/g02-a01-planner.md",
-      "agents/g02-a04-recent-developments.md",
+      "agents/g02-a08-claim-verification.md",
       "agents/g02-a09-synthesizer.md",
+      "agents/g02-a10-output-reviewer.md",
       "agents/g02-a11-market-cases.md"
     ],
     "commands": [
@@ -85,6 +90,10 @@
     "edu-materials-research": {
       "command": "{python}",
       "entrypoint": "shared/scripts/mcp/research_server.py"
+    },
+    "edu-materials-intake": {
+      "command": "{python}",
+      "entrypoint": "shared/scripts/mcp/intake_server.py"
     }
   },
   "hosts": {

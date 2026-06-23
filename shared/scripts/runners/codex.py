@@ -9,7 +9,7 @@ Local/dev only: relies on the Codex ChatGPT login (cached tokens — treat as a 
 CI/headless/SaaS, where an API key is the right path. Pure stdlib.
 
 POC usage:
-    python3 shared/scripts/g02/runners/codex.py [node-name] [context.json]
+    python3 shared/scripts/runners/codex.py [node-name] [context.json]
 """
 from __future__ import annotations
 
@@ -21,22 +21,22 @@ import sys
 import tempfile
 import pathlib as _pl
 
-sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[2]))  # -> shared/scripts
+sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))  # -> shared/scripts
 
-from core import contracts, graphs  # noqa: E402
+from core import contracts, graphs, paths  # noqa: E402
 
-ROOT = _pl.Path(__file__).resolve().parents[4]
+ROOT = _pl.Path(__file__).resolve().parents[3]
 AGENTS_DIR = ROOT / "agents"
 SKILLS_DIR = ROOT / "skills"
-GRAPH_ID = "g02"
+DEFAULT_GRAPH_ID = "g02"
 ENVELOPE_SCHEMA = ROOT / "shared" / "contracts" / "envelope.schema.json"
 ENVELOPE_FIELDS = {"status", "produced", "summary", "issues", "metrics", "resume_token"}
 
 
-def _codex_model(node: dict) -> str | None:
+def _codex_model(node: dict, graph_id: str) -> str | None:
     """Model for `codex exec -m`, from the graph's complexity_class -> model_bindings (codex)."""
     try:
-        bindings = graphs.load(GRAPH_ID).get("model_bindings", {})
+        bindings = graphs.load(graph_id).get("model_bindings", {})
     except FileNotFoundError:
         return None
     host_value = bindings.get(node.get("complexity_class"), {}).get("codex")
@@ -91,6 +91,46 @@ def _json_block(label: str, value) -> str:
     return f"\n{label}:\n```json\n{json.dumps(value, ensure_ascii=False, indent=2)}\n```\n"
 
 
+def _worker_output_schema() -> dict:
+    """Strict subset accepted by Codex structured output for worker final messages."""
+    return {
+        "title": "Codex worker envelope output",
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["status", "produced", "summary", "issues"],
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "needs_input", "degraded", "failed"]},
+            "produced": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["type", "path", "schema_version"],
+                    "properties": {
+                        "type": {"type": "string"},
+                        "path": {"type": "string"},
+                        "schema_version": {"type": "string"},
+                    },
+                },
+            },
+            "summary": {"type": "string"},
+            "issues": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["severity", "type", "message"],
+                    "properties": {
+                        "severity": {"type": "string", "enum": ["blocker", "major", "minor"]},
+                        "type": {"type": "string"},
+                        "message": {"type": "string"},
+                    },
+                },
+            },
+        },
+    }
+
+
 def _build_prompt(node_name: str, ctx: dict, output_contract: str | None) -> str:
     agent_text = _agent_prompt(node_name)
     skill_sections = "\n\n".join(
@@ -134,22 +174,28 @@ def _fail(name: str, message: str) -> dict:
             "issues": [{"severity": "blocker", "type": "codex_worker", "message": message}]}
 
 
-def codex_node_runner(node: dict, ctx: dict, log, *, codex_bin: str = "codex",
-                      timeout: int = 600, sandbox: str = "read-only",
+def codex_node_runner(node: dict, ctx: dict, log, *, graph_id: str = DEFAULT_GRAPH_ID,
+                      codex_bin: str = "codex", timeout: int = 600, sandbox: str = "read-only",
                       process_runner=subprocess.run) -> dict:
-    """Run one node as an isolated Codex worker; return a validated envelope@1 (or a failed one)."""
+    """Run one node as an isolated Codex worker; return a validated envelope@1 (or a failed one).
+
+    Host-level and graph-agnostic: ``graph_id`` selects the manifest used for the codex
+    ``model_bindings`` lookup, so g01/g02/g03 reuse the same worker without cross-graph imports.
+    """
     name = node["name"]
     prompt = _build_prompt(name, ctx, node.get("output_contract"))
     log.append(name, "codex_exec", detail={"sandbox": sandbox, "upstream": sorted(ctx.get("upstream") or {})})
     with tempfile.TemporaryDirectory() as tmp:
         last = _pl.Path(tmp) / "last.txt"
+        schema_path = _pl.Path(tmp) / "codex_worker_envelope.schema.json"
+        schema_path.write_text(json.dumps(_worker_output_schema(), indent=2), encoding="utf-8")
         cmd = [codex_bin, "exec", "--skip-git-repo-check", "--ephemeral",
                "-s", sandbox, "--cd", str(ROOT)]
-        model = _codex_model(node)
+        model = _codex_model(node, graph_id)
         if model:
             cmd += ["-m", model]
         cmd += [
-            "--output-schema", str(ENVELOPE_SCHEMA),
+            "--output-schema", str(schema_path),
             "--output-last-message", str(last), "-",
         ]
         try:
@@ -157,6 +203,7 @@ def codex_node_runner(node: dict, ctx: dict, log, *, codex_bin: str = "codex",
             if isinstance(ctx.get("run_id"), str):
                 environment["EMAGENTS_RUN_ID"] = ctx["run_id"]
             environment["EMAGENTS_NODE_ID"] = name
+            environment["EMAGENTS_HOME"] = str(paths.runtime_home().resolve())
             proc = process_runner(
                 cmd, input=prompt, capture_output=True, text=True, timeout=timeout,
                 env=environment,
@@ -183,6 +230,16 @@ def codex_node_runner(node: dict, ctx: dict, log, *, codex_bin: str = "codex",
     return envelope
 
 
+def make_codex_runner(graph_id: str = DEFAULT_GRAPH_ID, **options):
+    """Bind a Codex NodeRunner to one graph (for the manifest model_bindings lookup).
+
+    Usage: ``engine.make_cli(SPEC, codex_runner=make_codex_runner("g01"))``.
+    """
+    def runner(node: dict, ctx: dict, log) -> dict:
+        return codex_node_runner(node, ctx, log, graph_id=graph_id, **options)
+    return runner
+
+
 if __name__ == "__main__":
     from g02 import g02_flow as rf
     from core import event_log, graphs
@@ -193,7 +250,7 @@ if __name__ == "__main__":
     )
 
     rgi = rf.load_context(ctx_path)
-    node = next((n for n in graphs.nodes(graphs.load(GRAPH_ID)) if n["name"] == node_name), None)
+    node = next((n for n in graphs.nodes(graphs.load("g02")) if n["name"] == node_name), None)
     if node is None:
         print(f"no such node: {node_name}", file=sys.stderr)
         raise SystemExit(2)
