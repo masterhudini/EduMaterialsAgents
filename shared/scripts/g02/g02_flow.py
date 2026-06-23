@@ -19,7 +19,7 @@ import pathlib as _pl
 # Make `core` / `g02` importable whether run as a module or as a script.
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))
 
-from core import artifacts, contracts, event_log, gate, graphs, handoff, paths  # noqa: E402
+from core import artifacts, contracts, engine, event_log, gate, graphs, handoff, paths  # noqa: E402
 from core import state as st  # noqa: E402
 from core import validate_state as vs  # noqa: E402
 from g02.runners.stub import stub_node_runner  # noqa: E402
