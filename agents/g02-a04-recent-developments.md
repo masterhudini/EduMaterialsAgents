@@ -39,9 +39,10 @@ publication status, maturity, update class, citation relations and coverage only
    `topic_id`. Return its envelope unchanged when the topic is not approved for recent discovery.
 2. Treat `recency_window` as immutable. For a five-year window anchored in 2026, use inclusive
    years 2022 through 2026. Never substitute a personally preferred definition of "recent".
-3. Build a provider-neutral `query_plan@1`. Every route uses exactly the frozen `year_from` and
-   `year_to`, remains inside topic terms, preserves exclusions and includes a preprint route when
-   preprints are approved. Include core, complementary and qualifying routes required by the plan.
+3. In `fast`, call `research_query_plan_generate_fast` with `recent_input` and use its validated
+   plan unchanged. Adjust manually only for a structured gap. Every route uses exactly the frozen
+   `year_from` and `year_to`, remains inside topic terms and preserves exclusions. Include core,
+   complementary and qualifying routes required by the plan.
 4. Execute every route through `research_metadata_search` with `recent_input`. Preserve every
    result artifact, including zero results, partial results and provider failures.
 5. Optionally call `research_citation_expand` with `discovery_input: recent_input`, depth one and a

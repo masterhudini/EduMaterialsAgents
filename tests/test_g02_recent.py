@@ -236,13 +236,11 @@ def test_prepare_derives_intake_window_and_excludes_secrets():
 def test_prepare_skips_topic_without_current_role():
     plan = _json(MOCKS / "research_plan.json")
     domain_pool = _json(MOCKS / "domain_candidate_sources.json")
+    plan["topics"][0]["source_roles_required"]["current"] = False
     plan_ref = artifacts.store("g02/research-plans/plan.json", plan)
-    domain_pool["topic_id"] = "TOPIC_LIKELIHOOD_POSTERIOR_BRIDGE"
     domain_pool["research_plan_ref"] = plan_ref
     domain_ref = artifacts.store("g02/domain-candidates/domain.json", domain_pool)
-    prepared = recent.prepare_recent(
-        plan_ref, domain_ref, "TOPIC_LIKELIHOOD_POSTERIOR_BRIDGE"
-    )
+    prepared = recent.prepare_recent(plan_ref, domain_ref, TOPIC_ID)
     assert not prepared["ready"] and prepared["skipped"]
     assert prepared["envelope"]["status"] == "ok"
 

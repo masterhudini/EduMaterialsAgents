@@ -25,7 +25,7 @@
   "interface": {
     "displayName": "Edu Materials Agents",
     "shortDescription": "Improve lecture materials through reviewed research agent graphs.",
-    "longDescription": "Runs reviewed agent graphs for educational material improvement. G02 discovery includes scholarly and market-case streams. After a two-step human gate, A06 retrieves legal OA files through record links, Unpaywall, optional CORE and DOAB/OAPEN, validates PDFs and stores each gated market case as readable Markdown plus a separate JSON audit artifact in one corpus folder.",
+    "longDescription": "Runs reviewed agent graphs for educational material improvement. G02 discovery includes scholarly and market-case streams. After source selection, A06 retrieves legal OA files and gated market cases. Fast mode reviews each accepted source in A07, skips A08 explicitly, synthesizes a reviewed A09 research state, pauses at Human Research Gate and finalizes a compact Graph03 bundle only after user approval.",
     "developerName": "khudasze",
     "capabilities": [
       "Interactive",

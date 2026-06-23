@@ -12,10 +12,14 @@
       "origin_terms": ["Bayesian computation", "posterior sampling"],
       "generated_terms": [],
       "generated_term_bases": [],
-      "coverage_unit_ids": ["COV_BAYESIAN_COST_CONDITIONS", "COV_POSTERIOR_METHODS"],
-      "preferred_providers": ["openalex", "semantic_scholar"],
+      "coverage_unit_ids": [
+        "COV_BAYESIAN_COST_CONDITIONS",
+        "COV_POSTERIOR_METHODS",
+        "COV_LIKELIHOOD_POSTERIOR_SEQUENCE"
+      ],
+      "preferred_providers": ["openalex"],
       "filters": {"year_from": 2022, "year_to": 2026, "languages": ["en"], "work_types": ["article", "review", "preprint"]},
-      "limit": 12
+      "limit": 6
     },
     {
       "route_id": "ROUTE_RECENT_BAYESIAN_COMPLEMENTARY",
@@ -33,9 +37,9 @@
         }
       ],
       "coverage_unit_ids": ["COV_POSTERIOR_METHODS"],
-      "preferred_providers": ["openalex", "arxiv"],
+      "preferred_providers": ["openalex"],
       "filters": {"year_from": 2022, "year_to": 2026, "languages": ["en"], "work_types": ["article", "review", "preprint"]},
-      "limit": 12
+      "limit": 6
     },
     {
       "route_id": "ROUTE_RECENT_BAYESIAN_QUALIFYING",
@@ -53,10 +57,13 @@
         }
       ],
       "coverage_unit_ids": ["COV_BAYESIAN_COST_CONDITIONS"],
-      "preferred_providers": ["openalex", "semantic_scholar"],
+      "preferred_providers": ["openalex"],
       "filters": {"year_from": 2022, "year_to": 2026, "languages": ["en"], "work_types": ["article", "review", "preprint"]},
-      "limit": 12
+      "limit": 6
     }
   ],
-  "excluded_terms": ["generic Bayesian applications without computational analysis"]
+  "excluded_terms": [
+    "generic Bayesian applications without computational analysis",
+    "advanced computation without conceptual exposition"
+  ]
 }

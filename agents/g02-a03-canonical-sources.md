@@ -43,9 +43,9 @@ canonicality, relation, access and coverage reasoning only in `canonical_annotat
    - OpenAlex: `cited_by` only;
    - Semantic Scholar: `references`, `cited_by` or `recommendations`;
    - arXiv: no citation relation. Use it only through metadata search when authorized.
-4. Build a provider-neutral `query_plan@1` for complementary book, chapter, survey,
-   methodological and qualifying routes. Every term must remain traceable to approved topic terms
-   and expansion areas. Execute each route through `research_metadata_search` with
+4. In `fast`, call `research_query_plan_generate_fast` with `canonical_input` and use its validated
+   plan unchanged. Adjust manually only for a structured gap. Every term must remain traceable to
+   approved topic terms and expansion areas. Execute each route through `research_metadata_search` with
    `canonical_input`; preserve valid zero results and all issues.
 5. Copy selected records exactly from the reviewed domain pool or persisted tool results. Never
    modify bibliographic, access, signal, inclusion or provenance fields.

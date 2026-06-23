@@ -124,8 +124,8 @@
     }
   ],
   "constraints": {
-    "max_topics": 6,
-    "candidate_limit_per_topic": 24,
+    "max_topics": 2,
+    "candidate_limit_per_topic": 12,
     "no_new_coverage_passes": 2,
     "allowed_languages": ["en"],
     "allowed_work_types": ["article", "review", "book", "chapter", "preprint"],
@@ -133,7 +133,7 @@
     "year_to": null
   },
   "selection_profile": {
-    "candidate_pool_target_per_topic": 16,
+    "candidate_pool_target_per_topic": 8,
     "minimum_sources_per_required_role": 1,
     "open_access_preference": "preferred"
   },

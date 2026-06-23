@@ -77,7 +77,8 @@ under `.emagents/` (override with `EMAGENTS_HOME`); the dir is git-ignored.
 
 The implemented deterministic Research Graph seams cover the boundary front door, G02-A01
 Planner, G02-A02 Domain, G02-A03 Canonical Sources, G02-A04 Recent Developments, G02-A11 Market
-Cases, G02-A05 Candidate Source Index, G02-A06 Paper Retrieval, the universal reviewer and the final handoff. OpenAlex,
+Cases, G02-A05 Candidate Source Index, G02-A06 Paper Retrieval, source-scoped G02-A07 Paper Review,
+G02-A09 fast Synthesis, the universal reviewer and the final handoff. OpenAlex,
 Semantic Scholar and arXiv adapters apply bounded metadata and citation requests. Crossref verifies
 available DOIs through persisted registry metadata, field comparisons and raw provenance; provider
 metadata is never overwritten on conflict. A11 uses Tavily as the default web provider, with strict
@@ -94,9 +95,11 @@ places validated PDFs plus gated A11 market-case bundles in one `corpus://` run 
 by `retrieval_directory@1`. Each bundle includes a readable Markdown document containing
 the reviewed A11 fact, didactic mechanism, source assessment and bounded post-gate page content;
 the JSON remains the machine-readable audit artifact. The human fixes the exact DOWNLOAD count at the gate; A06 enforces the
-administrator's `max_documents_per_task` and cannot add sources. The MCP
-server exposes forty-one operations at version `0.10.0`. Remaining producer operations are added
-with their owning agents.
+administrator's `max_documents_per_task` and cannot add sources. A07 reads only deterministic
+bounded text windows from accepted PDFs or A06 market-case bundles. In `fast`, A08 remains skipped
+by graph policy, and A09 produces `research_state@1`, a compact evidence map, a human validation
+packet and a SolutionInputCandidate before pausing at the Human Research Gate. The MCP server
+exposes 51 operations at version `0.11.1`.
 
 Before the first G02-A02 or A11 run, copy `shared/config/g02.providers.example.json` to
 `.emagents/config/g02-providers.json`, set `EMAGENTS_RESEARCH_CONTACT_EMAIL` and provide the
@@ -188,8 +191,10 @@ Run the research graph for /home/khudaszek/projects/EduMaterialsAgents/mocks/g02
 The `g02-orchestrate-research` skill treats these as semantic entrypoints and uses the
 `research_run_codex` MCP tool. The default Codex gate mode is pause/resume (`gates: "pause"`), so
 human gates return a `resume_token` instead of reading interactive stdin from the MCP process.
-The reviewed runner currently covers the implemented frontier A01–A06 and returns a typed
-`research_run_report@1`; it never fabricates the later A07–A09 output bundle.
+The reviewed runner covers the implemented fast frontier through reviewed A09 and returns a typed
+`research_run_report@1`. It pauses at the Human Source Selection Gate and again at the Human
+Research Gate; after approval it creates a compact `user_approved_research_bundle@1` for Graph03.
+Fast mode explicitly states that A08 Claim Verification was skipped.
 
 Or use the runner directly:
 

@@ -17,7 +17,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Mapping
 
-from core import contracts, paths
+from core import contracts, graphs, paths
 
 CONFIG_CONTRACT = "literature_provider_config@1"
 CONFIG_ENV = "EMAGENTS_RESEARCH_CONFIG"
@@ -30,6 +30,7 @@ PROVIDERS = ("openalex", "semantic_scholar", "arxiv", "crossref")
 WEB_PROVIDERS = ("tavily", "searxng")
 RETRIEVAL_PROVIDERS = ("record", "unpaywall", "core", "doab", "oapen")
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+EXECUTION_PROFILE_ENV = "EMAGENTS_G02_PROFILE"
 
 SOURCE_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_CONFIG = SOURCE_ROOT / "config" / "g02.providers.example.json"
@@ -342,6 +343,75 @@ def _with_crossref_defaults(payload: object) -> object:
     if isinstance(rates, dict):
         rates.setdefault("crossref_min_interval_seconds", 0.2)
     return normalized
+
+
+def _execution_profile_config(environment: Mapping[str, str]) -> tuple[str, dict]:
+    try:
+        manifest = graphs.load("g02")
+    except (OSError, ValueError, KeyError, TypeError):
+        manifest = {}
+    requested = environment.get(EXECUTION_PROFILE_ENV, "").strip()
+    default = manifest.get("default_execution_profile") if isinstance(manifest, dict) else None
+    name = requested or (default if isinstance(default, str) else "strict")
+    profiles = manifest.get("execution_profiles") if isinstance(manifest, dict) else {}
+    profile = profiles.get(name) if isinstance(profiles, dict) else {}
+    return name.casefold(), profile if isinstance(profile, dict) else {}
+
+
+def _cap_positive(container: object, field: str, ceiling: object) -> None:
+    if not isinstance(container, dict) or not isinstance(ceiling, int) \
+            or isinstance(ceiling, bool) or ceiling < 1:
+        return
+    current = container.get(field)
+    if isinstance(current, int) and not isinstance(current, bool) and current > 0:
+        container[field] = min(current, ceiling)
+
+
+def _apply_execution_profile_limits(payload: dict, environment: Mapping[str, str]) -> dict:
+    """Cap provider fan-out for fast without changing stored non-fast configuration."""
+    name, profile = _execution_profile_config(environment)
+    if name != "fast":
+        return payload
+    result = deepcopy(payload)
+    discovery = profile.get("discovery") if isinstance(profile.get("discovery"), dict) else {}
+    limits = result.get("limits")
+    _cap_positive(limits, "per_page", discovery.get("per_page"))
+    _cap_positive(limits, "max_pages_per_call", discovery.get("max_pages_per_call"))
+    _cap_positive(limits, "max_records_per_query", discovery.get("max_records_per_query"))
+
+    web_profile = profile.get("web") if isinstance(profile.get("web"), dict) else {}
+    web = result.get("web") if isinstance(result.get("web"), dict) else {}
+    web_limits = web.get("limits")
+    _cap_positive(web_limits, "max_queries_per_task", web_profile.get("max_queries_per_task"))
+    _cap_positive(
+        web_limits, "max_tavily_queries_per_task",
+        web_profile.get("max_tavily_queries_per_task"),
+    )
+    _cap_positive(
+        web_limits, "max_searxng_queries_per_task",
+        web_profile.get("max_queries_per_task"),
+    )
+    _cap_positive(
+        web_limits, "max_results_per_query", web_profile.get("max_results_per_query")
+    )
+    _cap_positive(
+        web_limits, "auto_searxng_results_per_route",
+        web_profile.get("max_results_per_query"),
+    )
+    _cap_positive(
+        web_limits, "max_extractions_per_task",
+        web_profile.get("max_extractions_per_task"),
+    )
+
+    retrieval_profile = profile.get("retrieval") \
+        if isinstance(profile.get("retrieval"), dict) else {}
+    retrieval = result.get("retrieval") \
+        if isinstance(result.get("retrieval"), dict) else {}
+    _cap_positive(
+        retrieval.get("limits"), "max_documents_per_task",
+        retrieval_profile.get("max_documents_per_task"),
+    )
+    return result
 
 
 def validate_config(payload: object, *, env: Mapping[str, str] | None = None,
@@ -719,6 +789,7 @@ def load_config(config_path: str | Path | None = None, *,
     source = _resolve_source(config_path, environment)
     payload = _with_crossref_defaults(_read_json(source))
     assert isinstance(payload, dict)
+    payload = _apply_execution_profile_limits(payload, environment)
     home = (Path(runtime_home) if runtime_home is not None else paths.runtime_home()).resolve()
     validation = validate_config(payload, env=environment, runtime_home=home)
     if not validation["ok"]:

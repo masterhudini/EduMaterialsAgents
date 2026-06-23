@@ -41,6 +41,8 @@ def test_prepare_hydrates_exact_artifact_and_missing_executor_blocks():
     prepared = review.prepare_review(task)
     assert prepared["ready"]
     assert prepared["artifact"]["schema_version"] == "research_plan@1"
+    assert prepared["preflight_summary"]["contract_validation"]["ok"]
+    assert prepared["preflight_summary"]["artifact_identity"]["artifact_version"] == "1.0.0"
 
     envelope = review.execute_review_task(task, None)
     assert envelope["status"] == "ok"
@@ -88,4 +90,36 @@ def test_approved_decision_may_carry_nonblocking_advisory():
     assert envelope["status"] == "ok"
     stored = artifacts.hydrate(envelope["produced"][0]["path"])
     assert stored["decision"] == "APPROVED"
+    assert stored["advisories"][0]["criterion_id"] == criterion
+
+
+def test_fast_review_moves_minor_finding_to_advisory():
+    task = review.apply_review_mode(_task(), "fast")
+    criterion = task["acceptance_criteria"][0]["criterion_id"]
+    decision = {
+        "schema_version": "review_decision@1",
+        "review_id": task["review_id"], "task_id": task["task_id"],
+        "logical_review_node": task["logical_review_node"],
+        "reviewer_agent": "g02-a10-output-reviewer",
+        "producer_agent": task["producer_agent"],
+        "artifact_ref": task["artifact"]["ref"],
+        "artifact_version": task["artifact"]["artifact_version"],
+        "review_profile": task["review_profile"], "decision": "REVISE",
+        "findings": [{
+            "finding_id": "RF_MINOR_FAST", "criterion_id": criterion,
+            "severity": "minor", "location": "topics[0].name",
+            "observed": "Wording can be shorter.",
+            "required_correction": "Shorten the wording.", "evidence_refs": [],
+        }],
+        "advisories": [], "closed_finding_ids": [],
+        "revision_scope": {"target_agent": task["producer_agent"],
+                           "finding_ids": ["RF_MINOR_FAST"]},
+        "root_cause": "producer_error", "confidence": "high",
+        "attempt": 1, "summary": "Only a minor wording concern.",
+    }
+    envelope = review.finalize_review_decision(task, decision)
+    assert envelope["status"] == "ok"
+    stored = artifacts.hydrate(envelope["produced"][0]["path"])
+    assert stored["decision"] == "APPROVED"
+    assert stored["findings"] == []
     assert stored["advisories"][0]["criterion_id"] == criterion

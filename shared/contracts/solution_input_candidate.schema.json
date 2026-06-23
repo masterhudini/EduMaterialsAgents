@@ -1,0 +1,28 @@
+{
+  "title": "Compact pre-approval handoff candidate from G02-A09 to Graph03.",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "synthesis_mode",
+    "claim_assessment_performed", "graph03_handoff_constraints", "suggested_updates",
+    "optional_improvements", "evidence_map_ref", "source_refs", "limitations",
+    "unresolved_items", "confidence", "a08_status"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["solution_input_candidate@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "synthesis_mode": {"type": "string", "enum": ["evidence_without_claim_assessment"]},
+    "claim_assessment_performed": {"type": "boolean", "enum": [false]},
+    "graph03_handoff_constraints": {"type": "object"},
+    "suggested_updates": {"type": "array", "items": {"type": "object"}},
+    "optional_improvements": {"type": "array", "items": {"type": "object"}},
+    "evidence_map_ref": {"type": "string"},
+    "source_refs": {"type": "array", "items": {"type": "object"}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "unresolved_items": {"type": "array", "items": {"type": "object"}},
+    "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+    "a08_status": {"type": "string", "enum": ["skipped_fast_profile"]}
+  }
+}

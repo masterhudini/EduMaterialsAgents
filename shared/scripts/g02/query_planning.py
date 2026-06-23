@@ -1,7 +1,8 @@
-"""Deterministic validation for provider-neutral ``query_plan@1`` values."""
+"""Deterministic generation and validation of provider-neutral query plans."""
 from __future__ import annotations
 
 import re
+from copy import deepcopy
 
 from core import contracts
 
@@ -21,6 +22,8 @@ GENERATED_TERM_RELATIONS = {
 }
 ROUTE_ID_RE = re.compile(r"^ROUTE_[A-Z0-9][A-Z0-9_]*$")
 QUERY_ID_RE = re.compile(r"^QUERY_[A-Z0-9][A-Z0-9_]*$")
+FAST_DEFAULT_LIMIT = 8
+FAST_DEFAULT_MAX_ROUTES = 3
 
 
 def _issue(code: str, message: str, location: str) -> dict:
@@ -53,6 +56,215 @@ def _discovery_input_contract(discovery_input: object) -> str:
         if version in {CANONICAL_INPUT_CONTRACT, RECENT_INPUT_CONTRACT, MARKET_INPUT_CONTRACT}:
             return version
     return DOMAIN_INPUT_CONTRACT
+
+
+def _positive_int(value: object, fallback: int) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else fallback
+
+
+def _stable_id(value: object) -> str:
+    token = re.sub(r"[^A-Za-z0-9]+", "_", str(value or "TOPIC").upper()).strip("_")
+    return token or "TOPIC"
+
+
+def _ready_scholarly_provider(discovery_input: dict, strategy: dict,
+                                discovery_profile: dict) -> str | None:
+    ready = {
+        item.get("provider") for item in discovery_input.get("provider_capabilities", [])
+        if isinstance(item, dict) and item.get("enabled") is True and item.get("ready") is True
+    } & SCHOLARLY_PROVIDERS
+    preferred = discovery_profile.get("default_provider", "openalex")
+    order = [preferred, "openalex", "semantic_scholar", "arxiv"]
+    work_types = set(_strings(strategy.get("work_types")))
+    for provider in dict.fromkeys(order):
+        if provider not in ready:
+            continue
+        if provider == "arxiv" and "preprint" not in work_types:
+            continue
+        return provider
+    return None
+
+
+def _route_filters(discovery_input: dict, strategy: dict) -> dict:
+    filters = {
+        "year_from": strategy.get("year_from"),
+        "year_to": strategy.get("year_to"),
+        "languages": deepcopy(_strings(strategy.get("languages"))),
+        "work_types": deepcopy(_strings(strategy.get("work_types"))),
+    }
+    recency = discovery_input.get("recency_window")
+    if discovery_input.get("schema_version") == RECENT_INPUT_CONTRACT \
+            and isinstance(recency, dict):
+        filters["year_from"] = recency.get("year_from")
+        filters["year_to"] = recency.get("year_to")
+    return filters
+
+
+def _generated_basis(term: str, origin: str, expansion_area: str) -> dict:
+    return {
+        "term": term,
+        "source_origin_terms": [origin],
+        "expansion_area": expansion_area,
+        "relation": "established_technical_phrase",
+    }
+
+
+def generate_fast_query_plan(discovery_input: object, profile: dict | None = None) -> dict:
+    """Build the common fast scholarly plan without asking an agent to invent its shape.
+
+    The generator never broadens scope. It copies approved terms, exclusions, coverage units and
+    filters, selects one ready scholarly provider, then runs the normal query-plan validator.
+    Structured gaps are returned for inputs that require semantic adjustment.
+    """
+    contract_ref = _discovery_input_contract(discovery_input)
+    if contract_ref == MARKET_INPUT_CONTRACT:
+        return {
+            "ready": False,
+            "issues": [_issue(
+                "unsupported_fast_query_domain",
+                "The fast generator currently supports scholarly A02/A03/A04 inputs only.",
+                "discovery_input.schema_version",
+            )],
+        }
+    try:
+        checked = contracts.validate(discovery_input, contract_ref)
+    except (KeyError, ValueError) as exc:
+        return {"ready": False, "issues": [_issue("contract_unavailable", str(exc), contract_ref)]}
+    if not checked["ok"] or not isinstance(discovery_input, dict):
+        return {
+            "ready": False,
+            "issues": [
+                _issue("invalid_discovery_input_contract", error, contract_ref)
+                for error in checked["errors"]
+            ],
+        }
+
+    topic = discovery_input.get("topic")
+    topic = topic if isinstance(topic, dict) else {}
+    strategy = topic.get("search_strategy")
+    strategy = strategy if isinstance(strategy, dict) else {}
+    core_terms = _strings(strategy.get("core_terms"))
+    expansions = [item for item in _strings(strategy.get("allowed_expansion_areas"))
+                  if item not in set(core_terms)]
+    coverage = topic.get("coverage_requirements")
+    coverage_ids = [
+        item.get("coverage_id") for item in coverage or []
+        if isinstance(item, dict) and isinstance(item.get("coverage_id"), str)
+        and item.get("coverage_id").strip()
+    ]
+    gaps: list[dict] = []
+    if not core_terms:
+        gaps.append(_issue("missing_core_terms", "No approved core terms are available.",
+                           "topic.search_strategy.core_terms"))
+    if not coverage_ids:
+        gaps.append(_issue("missing_coverage_units", "No approved coverage units are available.",
+                           "topic.coverage_requirements"))
+
+    root_profile = profile if isinstance(profile, dict) else {}
+    discovery_profile = root_profile.get("discovery") \
+        if isinstance(root_profile.get("discovery"), dict) else root_profile
+    provider = _ready_scholarly_provider(discovery_input, strategy, discovery_profile)
+    if provider is None:
+        gaps.append(_issue(
+            "no_compatible_ready_provider",
+            "No ready scholarly provider is compatible with the approved work types.",
+            "provider_capabilities",
+        ))
+    if gaps:
+        return {"ready": False, "issues": gaps}
+
+    assert provider is not None
+    stop_rule = topic.get("stop_rule") if isinstance(topic.get("stop_rule"), dict) else {}
+    roles = topic.get("source_roles_required") \
+        if isinstance(topic.get("source_roles_required"), dict) else {}
+    purposes = ["core"]
+    if stop_rule.get("complementary_search_route_required") is True:
+        purposes.append("complementary")
+    if roles.get("qualifying_or_critical") is True:
+        purposes.append("qualifying_or_critical")
+    max_routes = _positive_int(
+        discovery_profile.get("max_routes_per_topic"), FAST_DEFAULT_MAX_ROUTES
+    )
+    if len(purposes) > min(max_routes, FAST_DEFAULT_MAX_ROUTES):
+        return {
+            "ready": False,
+            "issues": [_issue(
+                "required_routes_exceed_fast_limit",
+                f"The approved topic requires {len(purposes)} routes but the fast limit is "
+                f"{min(max_routes, FAST_DEFAULT_MAX_ROUTES)}.",
+                "topic.stop_rule",
+            )],
+        }
+
+    ceilings = [
+        _positive_int(discovery_profile.get("max_records_per_query"), FAST_DEFAULT_LIMIT),
+        _positive_int(discovery_profile.get("route_limit"), FAST_DEFAULT_LIMIT),
+    ]
+    for value in (
+        stop_rule.get("candidate_limit"),
+        discovery_input.get("search_limits", {}).get("candidate_limit")
+        if isinstance(discovery_input.get("search_limits"), dict) else None,
+    ):
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            ceilings.append(value)
+    route_limit = min(ceilings)
+    topic_token = _stable_id(topic.get("topic_id"))
+    filters = _route_filters(discovery_input, strategy)
+    routes = []
+    used_expansions: set[str] = set()
+    qualifier_words = ("limit", "critic", "risk", "bias", "fail", "diagnos", "conflict")
+    for index, purpose in enumerate(purposes):
+        if purpose == "core":
+            origins = core_terms[:3]
+            generated: list[str] = []
+            bases: list[dict] = []
+        else:
+            origins = [core_terms[min(index - 1, len(core_terms) - 1)]]
+            candidates = [item for item in expansions if item not in used_expansions]
+            if purpose == "qualifying_or_critical":
+                candidates.sort(key=lambda item: (
+                    not any(word in item.casefold() for word in qualifier_words),
+                    expansions.index(item),
+                ))
+            generated = candidates[:1]
+            used_expansions.update(generated)
+            bases = [_generated_basis(term, origins[0], term) for term in generated]
+        declared = [*origins, *generated]
+        suffix = "QUALIFYING" if purpose == "qualifying_or_critical" else purpose.upper()
+        routes.append({
+            "route_id": f"ROUTE_{topic_token}_{suffix}",
+            "query_id": f"QUERY_{topic_token}_{suffix}",
+            "purpose": purpose,
+            "canonical_query": " AND ".join(f'"{term}"' for term in declared),
+            "origin_terms": deepcopy(origins),
+            "generated_terms": deepcopy(generated),
+            "generated_term_bases": bases,
+            "coverage_unit_ids": deepcopy(coverage_ids),
+            "preferred_providers": [provider],
+            "filters": deepcopy(filters),
+            "limit": route_limit,
+        })
+
+    plan = {
+        "schema_version": QUERY_PLAN_CONTRACT,
+        "artifact_version": "1.0.0",
+        "task_id": discovery_input.get("task_id"),
+        "topic_id": topic.get("topic_id"),
+        "routes": routes,
+        "excluded_terms": deepcopy(_strings(strategy.get("excluded_terms"))),
+    }
+    validation = validate_query_plan(
+        plan, discovery_input, max_records_per_query=route_limit
+    )
+    if not validation["ok"]:
+        return {"ready": False, "issues": validation["issues"], "query_plan": plan}
+    return {
+        "ready": True,
+        "query_plan": plan,
+        "provider": provider,
+        "route_count": len(routes),
+        "limit_per_route": route_limit,
+    }
 
 
 def validate_query_plan(query_plan: object, domain_input: object, *,

@@ -1,6 +1,6 @@
 {
   "title": "Universal Research Graph review task",
-  "x-version": "1.0",
+  "x-version": "1.1",
   "x-major": 1,
   "type": "object",
   "required": [
@@ -76,6 +76,16 @@
         "minor": {"type": "string"},
         "major": {"type": "string"},
         "blocker": {"type": "string"}
+      }
+    },
+    "review_mode": {"type": "string", "enum": ["standard", "fast"]},
+    "review_guidance": {
+      "type": "object",
+      "properties": {
+        "finding_severities": {"type": "array", "items": {"type": "string"}},
+        "minor_disposition": {"type": "string"},
+        "max_review_invocations": {"type": "integer"},
+        "max_correction_attempts": {"type": "integer"}
       }
     },
     "previous_decision_ref": {"type": ["string", "null"]},

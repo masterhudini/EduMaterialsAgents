@@ -563,10 +563,15 @@ Kompaktowe bindingi w artefaktach A02, A03, A04 i A05 wskazują pełny wynik prz
 ## 5. CandidateSourceIndex
 
 Wejściem A05 jest `candidate_index_input@1`. Runtime hydratuje dokładny ResearchPlan oraz pary
-`artifact_ref` + `review_decision_ref` dla A02, A03, A04 i A11. Każda decyzja musi mieć
+`artifact_ref` + `review_decision_ref` dla dostępnych A02, A03, A04 i A11. Każda decyzja musi mieć
 `decision: APPROVED` i odpowiadać taskowi, producentowi, profilowi, refowi oraz wersji artefaktu.
 Scoped input zachowuje rekordy, reviewed adnotacje, topic, coverage i role, bez całych query planów,
 operation logs i treści stron.
+
+`selection_profile.required_stream_policy` przyjmuje `strict` lub `available_streams`. W `strict`
+obowiązuje pełny komplet strumieni wynikający z planu. W `available_streams` A02 jest wymagany dla
+każdego topicu, a A03, A04 i A11 są opcjonalne, chyba że `mandatory_streams` wskazuje je jawnie.
+Braki opcjonalne pozostają w coverage matrix, search summary i dokumencie dla człowieka.
 
 ```yaml
 CandidateSourceIndex:
@@ -576,7 +581,13 @@ CandidateSourceIndex:
   research_plan_ref:
   research_plan_artifact_version:
   reviewed_upstreams: []
-  selection_profile: {}
+  selection_profile:
+    display_limit:
+    reserve_limit:
+    per_topic_limit:
+    required_stream_policy: strict | available_streams
+    mandatory_streams: []
+    ranking_weights: {}
 
   sources:
     - source_id:
@@ -1047,6 +1058,8 @@ Każde wywołanie uniwersalnego reviewera otrzymuje jeden `review_task@1`. Kontr
   `artifact_version`,
 - expected output contract, obserwowalne acceptance criteria, evidence requirements,
   prohibited behaviors i severity rules,
+- opcjonalny `review_mode` oraz deterministyczne `review_guidance`; w `fast` findings obejmują
+  tylko `blocker` i `major`, a drobne uwagi trafiają do `advisories`,
 - brak poprzedniej próby review w tym wykonaniu producenta; A10 jest wywoływany raz.
 
 Kryterium acceptance ma `criterion_id`, opis i flagę `mandatory`. Evidence requirement ma
@@ -1056,6 +1069,10 @@ znaczenie `minor`, `major` i `blocker` dla danego wywołania.
 Reviewer nie przyjmuje tablicy artefaktów. Niezależne artefakty wymagają niezależnych zadań.
 `review_id` identyfikuje pojedynczą ocenę, a `attempt` ma wartość 1. Poprawiony artefakt po
 `REVISE` nie wraca do reviewera.
+
+`research_review_prepare` tworzy również ograniczony `preflight_summary`: wynik walidacji
+kontraktu, tożsamość i wersję artefaktu, kryteria, checklistę evidence requirements,
+deterministyczne błędy oraz małą próbkę semantyczną.
 
 ### 13.2. ReviewDecision
 
@@ -1144,13 +1161,18 @@ G02-A09 Synthesizer tworzy:
 ```yaml
 EvidenceMap:
   schema_version: evidence_map@1
+  artifact_version:
+  task_id:
+  synthesis_mode: evidence_without_claim_assessment
+  claim_assessment_performed: false
+  claim_assessment_status: skipped_fast_profile
   claims:
     - claim_id:
-      assessment_ref:
-      evidence_cards: []
+      status: supported_by_reviewed_source | needs_human_check | insufficient_evidence | context_only | market_case_signal
+      evidence_refs: []
       source_ids: []
-      evidence_coverage_ref:
-      unresolved: false
+      limitations: []
+  sources: []
 ```
 
 ### 14.2. UserResearchValidationPacket
@@ -1158,23 +1180,19 @@ EvidenceMap:
 ```yaml
 UserResearchValidationPacket:
   schema_version: user_research_validation_packet@1
-  research_summary_ref:
-
-  claim_summary:
-    supported:
-    mixed:
-    unsupported:
-    insufficient_evidence:
-    needs_update:
-    obsolete:
-    unresolved:
-
+  artifact_version:
+  task_id:
+  output_language:
+  synthesis_ref:
+  decisions_required:
+    - approve_required_updates
+    - approve_optional_improvements
+    - unresolved_claim_handling
+  fast_mode_limitation:
   required_updates: []
   optional_improvements: []
-  unresolved_questions: []
-  accepted_source_coverage_exceptions: []
-
-  required_human_decisions: []
+  unresolved: []
+  confidence:
 ```
 
 ## 15. UserApprovedResearchBundle
@@ -1182,6 +1200,9 @@ UserResearchValidationPacket:
 ```yaml
 UserApprovedResearchBundle:
   schema_version: user_approved_research_bundle@1
+  artifact_version:
+  task_id:
+  research_state_ref:
   approved_research_summary_ref:
 
   approved_update_findings:
@@ -1196,13 +1217,20 @@ UserApprovedResearchBundle:
 
   unresolved_claim_policy:
     action:
-    require_user_confirmation_before_final: true
+    a08_status: skipped_fast_profile
+
+  human_gate_decision:
+    status: approved
+    approve_required_updates: true
+    approve_optional_improvements: true | false
+    unresolved_claim_handling: keep_as_unresolved_items | exclude_from_graph03_handoff
 
   solution_handoff:
     evidence_cards: []
     slide_impact_cards: []
     source_cards: []
     unresolved_claim_cards: []
+  approved_at:
 ```
 
 Solution Graph otrzymuje kompaktowe karty. Pełny corpus, pełne PDF-y i verbose paper reviews
@@ -1231,3 +1259,30 @@ artefakty są niezmienne. Korekta tworzy nową rewizję artefaktu, zachowując l
 - Domyślny `output_language` to `English`.
 - Cytowania prezentowane człowiekowi mogą używać APA 7, ale identyfikatory DOI i metadane
   strukturalne są źródłem prawdy.
+
+## 18. Aktualizacja fast P6-P8
+
+`paper_review@1` jest kontraktem G02-A07. W profilu `fast` powstaje jedna instancja dla każdego
+zaakceptowanego dokumentu albo bundle market case. Artefakt zawiera `source_id`,
+`reviewed_document_ref`, dostępne `topic_ids` i `claim_ids`, contribution, method albo source basis,
+kompaktowe evidence cards, findings, limitations, page albo section locations, confidence,
+`evidence_access_level`, `review_profile_ref: paper_evidence` oraz flagi konfliktu, brakujących
+lokalizacji i prompt injection. Fallbackowy indeks PDF udostępnia lokalizacje sekcyjne, a page
+locations są dozwolone wyłącznie wtedy, gdy ekstraktor daje dokładne mapowanie stron. Pełny PDF,
+pełny tekst i obszerne ekstrakty pozostają poza handoffem.
+
+`research_state@1` jest kontraktem G02-A09 w trybie `evidence_without_claim_assessment`. Przyjmuje
+reviewed `paper_review@1` wraz z review-decision provenance, A06, A05, Human Source Selection i
+ResearchPlan. Gdy wszystkie źródła są `unavailable` albo `failed`, A09 nadal powstaje i zachowuje
+retrieval gaps jako unresolved insufficient-evidence items. `claim_assessment_performed`
+musi być `false`, a `skipped_nodes` musi jawnie wskazywać `g02-a08-claim-verification`. Dopuszczone
+statusy findings to `supported_by_reviewed_source`, `needs_human_check`, `insufficient_evidence`,
+`context_only` i `market_case_signal`.
+
+Po mandatory A10 dla A09 Human Research Gate zwraca `awaiting_user` oraz human validation packet.
+Dopiero kompletna decyzja człowieka dla required updates, optional improvements i unresolved
+handling finalizuje `user_approved_research_bundle@1`. Bundle oraz zatwierdzony research summary
+odzwierciedlają odrzucone optional i unresolved pozycje. Bundle zawiera
+kompaktowy kandydat wejścia dla Graph03: suggested updates, optional improvements, evidence refs,
+source refs, powiązania z topicami lub claimami, ograniczenia, unresolved items, confidence oraz
+jawną informację, że A08 został pominięty w profilu `fast`.

@@ -1,0 +1,57 @@
+{
+  "title": "Compact evidence map produced by G02-A09 fast synthesis.",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "synthesis_mode",
+    "claim_assessment_performed", "claim_assessment_status", "claims", "sources"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["evidence_map@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "synthesis_mode": {"type": "string", "enum": ["evidence_without_claim_assessment"]},
+    "claim_assessment_performed": {"type": "boolean", "enum": [false]},
+    "claim_assessment_status": {"type": "string", "enum": ["skipped_fast_profile"]},
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claim_id", "status", "evidence_refs", "source_ids", "limitations"],
+        "properties": {
+          "claim_id": {"type": "string"},
+          "status": {
+            "type": "string",
+            "enum": [
+              "supported_by_reviewed_source", "needs_human_check", "insufficient_evidence",
+              "context_only", "market_case_signal"
+            ]
+          },
+          "evidence_refs": {"type": "array", "items": {"type": "string"}},
+          "source_ids": {"type": "array", "items": {"type": "string"}},
+          "limitations": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id", "record_type", "paper_review_ref", "reviewed_document_ref",
+          "evidence_card_count", "confidence"
+        ],
+        "properties": {
+          "source_id": {"type": "string"},
+          "record_type": {"type": "string", "enum": ["scholarly", "market_case"]},
+          "title": {"type": ["string", "null"]},
+          "paper_review_ref": {"type": "string"},
+          "reviewed_document_ref": {"type": "string"},
+          "evidence_card_count": {"type": "integer"},
+          "confidence": {"type": "string", "enum": ["low", "medium", "high"]}
+        }
+      }
+    }
+  }
+}

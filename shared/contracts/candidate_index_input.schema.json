@@ -1,6 +1,6 @@
 {
   "title": "Reviewed and scoped input for G02-A05 Candidate Source Index",
-  "x-version": "1.0",
+  "x-version": "1.1",
   "x-major": 1,
   "type": "object",
   "required": [
@@ -36,6 +36,11 @@
         "display_limit": {"type": "integer"},
         "reserve_limit": {"type": "integer"},
         "per_topic_limit": {"type": "integer"},
+        "required_stream_policy": {"type": "string", "enum": ["strict", "available_streams"]},
+        "mandatory_streams": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["domain", "canonical", "recent", "market_cases"]}
+        },
         "ranking_weights": {"type": "object"}
       }
     },

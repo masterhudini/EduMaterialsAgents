@@ -35,6 +35,9 @@ def test_prepare_scope_finalize_and_review_task(tmp_path):
     scoped = prepared["planner_input"]
     assert contracts.validate(scoped, "research_planner_input@1")["ok"]
     assert set(scoped) == set(planner.PLANNER_FIELDS) | {"schema_version", "source_input_contract"}
+    assert scoped["constraints"]["max_topics"] == 2
+    assert scoped["constraints"]["candidate_limit_per_topic"] == 12
+    assert scoped["selection_profile"]["candidate_pool_target_per_topic"] == 8
     assert boundary == original
 
     envelope = planner.finalize_research_plan(
