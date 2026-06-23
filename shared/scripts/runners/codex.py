@@ -23,7 +23,7 @@ import pathlib as _pl
 
 sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))  # -> shared/scripts
 
-from core import contracts, graphs  # noqa: E402
+from core import contracts, graphs, paths  # noqa: E402
 
 ROOT = _pl.Path(__file__).resolve().parents[3]
 AGENTS_DIR = ROOT / "agents"
@@ -91,6 +91,46 @@ def _json_block(label: str, value) -> str:
     return f"\n{label}:\n```json\n{json.dumps(value, ensure_ascii=False, indent=2)}\n```\n"
 
 
+def _worker_output_schema() -> dict:
+    """Strict subset accepted by Codex structured output for worker final messages."""
+    return {
+        "title": "Codex worker envelope output",
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["status", "produced", "summary", "issues"],
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "needs_input", "degraded", "failed"]},
+            "produced": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["type", "path", "schema_version"],
+                    "properties": {
+                        "type": {"type": "string"},
+                        "path": {"type": "string"},
+                        "schema_version": {"type": "string"},
+                    },
+                },
+            },
+            "summary": {"type": "string"},
+            "issues": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["severity", "type", "message"],
+                    "properties": {
+                        "severity": {"type": "string", "enum": ["blocker", "major", "minor"]},
+                        "type": {"type": "string"},
+                        "message": {"type": "string"},
+                    },
+                },
+            },
+        },
+    }
+
+
 def _build_prompt(node_name: str, ctx: dict, output_contract: str | None) -> str:
     agent_text = _agent_prompt(node_name)
     skill_sections = "\n\n".join(
@@ -147,13 +187,15 @@ def codex_node_runner(node: dict, ctx: dict, log, *, graph_id: str = DEFAULT_GRA
     log.append(name, "codex_exec", detail={"sandbox": sandbox, "upstream": sorted(ctx.get("upstream") or {})})
     with tempfile.TemporaryDirectory() as tmp:
         last = _pl.Path(tmp) / "last.txt"
+        schema_path = _pl.Path(tmp) / "codex_worker_envelope.schema.json"
+        schema_path.write_text(json.dumps(_worker_output_schema(), indent=2), encoding="utf-8")
         cmd = [codex_bin, "exec", "--skip-git-repo-check", "--ephemeral",
                "-s", sandbox, "--cd", str(ROOT)]
         model = _codex_model(node, graph_id)
         if model:
             cmd += ["-m", model]
         cmd += [
-            "--output-schema", str(ENVELOPE_SCHEMA),
+            "--output-schema", str(schema_path),
             "--output-last-message", str(last), "-",
         ]
         try:
@@ -161,6 +203,7 @@ def codex_node_runner(node: dict, ctx: dict, log, *, graph_id: str = DEFAULT_GRA
             if isinstance(ctx.get("run_id"), str):
                 environment["EMAGENTS_RUN_ID"] = ctx["run_id"]
             environment["EMAGENTS_NODE_ID"] = name
+            environment["EMAGENTS_HOME"] = str(paths.runtime_home().resolve())
             proc = process_runner(
                 cmd, input=prompt, capture_output=True, text=True, timeout=timeout,
                 env=environment,

@@ -55,6 +55,9 @@ class EngineSpec:
     # Front-door normalizer: map a raw entry (e.g. a *.pdf path) to a boundary path/ref before
     # validation (default None = the context is already a boundary path/ref).
     context_resolver: Optional[Callable[[Any, Any], Any]] = None         # (path_or_ref, base) -> path_or_ref
+    # Host-driven (pause_on_node) executor for deterministic agent nodes: returns an envelope for a
+    # node the engine runs in-process (e.g. PDF intake), or None to defer that node to the host.
+    deterministic_node: Optional[Callable[[dict, dict, Any], Optional[dict]]] = None
 
 
 def default_stub_runner(node: dict, ctx: dict, log) -> dict:
@@ -161,6 +164,21 @@ def _review(reviewer, node, artifact_ref, attempt, prior_findings, node_runner, 
     return env.get("artifact") or {}
 
 
+def _produced_in_envelope(envelope: dict, contract_ref: str) -> str | None:
+    """Ref of a produced[] descriptor whose schema_version matches the node output contract.
+
+    Lets a producer's deterministic finalize op (g02-style) write the typed artifact server-side
+    and hand back only its ref, so a sandboxed/read-only worker never writes the filesystem.
+    """
+    for descriptor in envelope.get("produced", []) or []:
+        if not isinstance(descriptor, dict) or descriptor.get("schema_version") != contract_ref:
+            continue
+        candidate = descriptor.get("path") or descriptor.get("ref")
+        if isinstance(candidate, str) and candidate.startswith(artifacts.SCHEME):
+            return candidate
+    return None
+
+
 def _produced_artifact_ref(stored_ref: str, artifact_type: str, contract_ref: str, *, base=None) -> str | None:
     """Resolve a typed artifact ref from a node's persisted artifact or envelope.produced[]."""
     try:
@@ -185,11 +203,9 @@ def _checkpoint_path(graph_id: str, token: str):
     return paths.drafts_dir() / f"{graph_id}.{safe}.checkpoint.json"
 
 
-def _save_checkpoint(graph_id, token, input_ref, produced_refs, gate_decisions) -> None:
+def _save_checkpoint(graph_id, token, state: dict) -> None:
     _checkpoint_path(graph_id, token).write_text(
-        json.dumps({"graph": graph_id, "input_ref": input_ref,
-                    "produced_refs": produced_refs, "gate_decisions": gate_decisions},
-                   ensure_ascii=False, indent=2), encoding="utf-8")
+        json.dumps({"graph": graph_id, **state}, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _load_checkpoint(graph_id, token: str) -> dict:
@@ -212,13 +228,59 @@ def terminal_gate_handler(payload: dict) -> dict:
 
 # ---- the engine ----------------------------------------------------------
 
+def _persist_node_output(spec: EngineSpec, name: str, envelope: dict, output_contract,
+                         *, attempt: int, base, log) -> tuple[str, bool]:
+    """Persist a producer's output and return ``(ref, typed)``.
+
+    Inline ``artifact`` is validated + stored; otherwise a finalize-op ``produced[]`` ref is
+    threaded through (already stored server-side); otherwise the raw envelope is stored. Shared by
+    the normal reviewer loop and the host-driven (pause_on_node) path — behavior-preserving.
+    """
+    artifact = envelope.get("artifact")
+    if artifact is not None and output_contract:
+        av = contracts.validate(artifact, output_contract)
+        if not av["ok"]:
+            log.append(name, "invalid_artifact", status="failed",
+                       detail={"contract": output_contract, "errors": av["errors"]})
+
+    produced_ref = (_produced_in_envelope(envelope, output_contract)
+                    if artifact is None and output_contract else None)
+
+    if produced_ref is not None:
+        ref, typed = produced_ref, True
+        try:
+            pv = contracts.validate(artifacts.hydrate(ref, base=base), output_contract)
+            if not pv["ok"]:
+                log.append(name, "invalid_artifact", status="failed",
+                           detail={"contract": output_contract, "errors": pv["errors"]})
+        except (OSError, ValueError, KeyError, IndexError):
+            log.append(name, "invalid_artifact", status="failed",
+                       detail={"contract": output_contract, "errors": ["unreadable produced ref"]})
+    else:
+        ref = artifacts.store(f"{spec.artifact_namespace}/{name}.json",
+                              artifact if artifact is not None else envelope, base=base)
+        typed = artifact is not None
+    log.append(name, "persisted",
+               detail={"ref": ref, "contract": output_contract, "typed": typed, "attempt": attempt})
+    return ref, typed
+
+
 def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_handler=None,
-        pause_on_gate=False, resume_token=None, decisions=None) -> dict:
+        pause_on_gate=False, pause_on_node=False, resume_token=None, decisions=None,
+        node_results=None, node_failures=None, review_decisions=None) -> dict:
     """Run a graph; return the output handoff descriptor, or an ``awaiting_user`` request.
 
     Gates: default auto-approve; ``gate_handler(payload)->decision`` for a synchronous surface;
     ``pause_on_gate=True`` to checkpoint and return an awaiting_user request resumed via
     ``run(spec, resume_token=..., decisions={gate: ...})``.
+
+    Host-driven mode (``pause_on_node=True``): deterministic nodes (``spec.deterministic_node``) run
+    in-process; every other agent node yields ``{"status":"awaiting_node", "run_token", "node",
+    "input", "upstream", "finalize_op", ...}``. The host runs the node, persists via its finalize op
+    and resumes with ``node_results={node: ref}`` (or ``node_failures={node: {...}}`` if it cannot).
+    The engine then yields ``{"status":"awaiting_review", ...}`` for EVERY producer; the host plays
+    the reviewer and resumes with ``review_decisions={node: {decision, findings}}`` — APPROVED
+    advances, REVISE re-runs the node, BLOCKED/exhausted fails. User gates still pause as usual.
     """
     log = event_log.open_log(spec.graph_id)
     node_runner = node_runner or default_stub_runner
@@ -228,12 +290,21 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
         input_ref = cp["input_ref"]
         produced_refs = dict(cp["produced_refs"])
         gate_decisions = dict(cp["gate_decisions"])
+        pending = cp.get("pending")
+        attempts = dict(cp.get("attempts", {}))
+        revisions = dict(cp.get("revisions", {}))
         token = resume_token
         log.append("ENTRY", "resume", detail={"resume_token": token, "done": sorted(produced_refs)})
     else:
         produced_refs, gate_decisions = {}, {}
+        pending, attempts, revisions = None, {}, {}
         token = resume_token or uuid.uuid4().hex[:12]
     gate_decisions.update(decisions or {})
+
+    def _cp() -> dict:
+        return {"input_ref": input_ref, "produced_refs": produced_refs,
+                "gate_decisions": gate_decisions, "pending": pending,
+                "attempts": attempts, "revisions": revisions}
 
     rgi = handoff.load_handoff(input_ref, contract_ref=spec.input_contract, base=base)
     ref0 = input_ref.get("ref") if isinstance(input_ref, dict) else input_ref
@@ -253,8 +324,100 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
             name = node["name"]
             if name in produced_refs:  # resume: already completed
                 continue
-            policy = _policy_for(node, manifest)
             output_contract = node.get("output_contract")
+
+            if pause_on_node:
+                review_profile = node.get("review_profile")
+
+                def _await_review(ref, attempt):
+                    _save_checkpoint(spec.graph_id, token, _cp())
+                    log.append(name, "awaiting_review", status="paused",
+                               detail={"run_token": token, "attempt": attempt})
+                    return {"status": "awaiting_review", "run_token": token, "node": name,
+                            "artifact_ref": ref, "review_profile": review_profile,
+                            "output_contract": output_contract, "attempt": attempt}
+
+                def _failed(ref, summary, issues):
+                    log.append(name, "failed_envelope", status="failed", detail={"ref": ref})
+                    out = {"status": "failed", "graph": spec.graph_id, "node": name,
+                           "summary": summary, "issues": issues}
+                    if ref is not None:
+                        out["artifact_ref"] = ref
+                    return out
+
+                # (a) a node already produced is awaiting its review decision
+                if pending and pending["node"] == name:
+                    dec = (review_decisions or {}).get(name)
+                    if dec is None:
+                        return _await_review(pending["ref"], pending["attempt"])
+                    decision = dec.get("decision", dec.get("verdict", "APPROVED"))
+                    findings = dec.get("findings", dec.get("issues", []))
+                    if reviewer:
+                        log.append(reviewer, "review", status=decision,
+                                   detail={"target": name, "profile": review_profile,
+                                           "attempt": pending["attempt"], "hosted": True})
+                    if decision in ("APPROVED", "APPROVED_WITH_WARNINGS"):
+                        produced_refs[name] = pending["ref"]
+                        pending = None
+                        continue
+                    if decision == "BLOCKED":
+                        return _failed(pending["ref"], f"{name}: review BLOCKED", findings)
+                    policy = _policy_for(node, manifest)
+                    policy_severity = _severity_for_policy(_max_severity(findings), policy)
+                    step = revision.decide(policy, policy_severity, approved=False,
+                                           attempts_used=pending["attempt"])
+                    if step["action"] != "REVISE":
+                        return _failed(pending["ref"], f"{name}: revision exhausted", findings)
+                    revisions[name] = {"prior_artifact_ref": pending["ref"], "items": findings}
+                    attempts[name] = pending["attempt"] + 1
+                    pending = None
+                    # fall through to re-produce the node
+
+                # (b) host signalled it cannot produce this node
+                nf = (node_failures or {}).get(name)
+                if nf:
+                    return _failed(None, nf.get("summary", f"{name}: host could not produce"),
+                                   nf.get("issues", []))
+
+                # (c) produce the node: deterministic in-process, or host-played
+                attempt = attempts.get(name, 0)
+                hctx = {"input": spec.scoped_input(node, rgi), "upstream": dict(produced_refs)}
+                if name in revisions:
+                    hctx["revision"] = {"attempt": attempt, **revisions[name]}
+                env = spec.deterministic_node(node, hctx, log) if spec.deterministic_node else None
+                if env is not None:
+                    ref, _ = _persist_node_output(spec, name, env, output_contract,
+                                                  attempt=attempt, base=base, log=log)
+                    if env.get("status") == "failed":
+                        return _failed(ref, env.get("summary", f"{name}: failed"), env.get("issues", []))
+                    pending = {"node": name, "ref": ref, "attempt": attempt}
+                    return _await_review(ref, attempt)
+                if name in (node_results or {}):
+                    ref = node_results[name]
+                    if output_contract:                      # blocking validation (finding #2)
+                        try:
+                            valid = contracts.validate(artifacts.hydrate(ref, base=base), output_contract)
+                        except (OSError, ValueError, KeyError, IndexError):
+                            valid = {"ok": False, "errors": ["unreadable submitted ref"]}
+                        if not valid["ok"]:
+                            return _failed(ref, f"{name}: submitted artifact fails {output_contract}",
+                                           [{"severity": "blocker", "type": "contract",
+                                             "message": "; ".join(valid["errors"])}])
+                    log.append(name, "node_submitted", detail={"ref": ref, "attempt": attempt})
+                    pending = {"node": name, "ref": ref, "attempt": attempt}
+                    return _await_review(ref, attempt)
+                # nothing submitted yet -> ask the host to run the node
+                _save_checkpoint(spec.graph_id, token, _cp())
+                log.append(name, "awaiting_node", status="paused",
+                           detail={"run_token": token, "attempt": attempt})
+                payload = {"status": "awaiting_node", "run_token": token, "node": name,
+                           "input": hctx["input"], "upstream": hctx["upstream"],
+                           "output_contract": output_contract, "finalize_op": node.get("finalize_op")}
+                if "revision" in hctx:
+                    payload["revision"] = hctx["revision"]
+                return payload
+
+            policy = _policy_for(node, manifest)
             attempt, prior_findings, ref = 0, [], None
 
             while True:
@@ -267,24 +430,26 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
                 if not check["ok"]:
                     log.append(name, "invalid_envelope", status="failed", detail={"errors": check["errors"]})
 
-                artifact = envelope.get("artifact")
-                if artifact is not None and output_contract:
-                    av = contracts.validate(artifact, output_contract)
-                    if not av["ok"]:
-                        log.append(name, "invalid_artifact", status="failed",
-                                   detail={"contract": output_contract, "errors": av["errors"]})
+                ref, typed = _persist_node_output(spec, name, envelope, output_contract,
+                                                  attempt=attempt, base=base, log=log)
 
-                ref = artifacts.store(f"{spec.artifact_namespace}/{name}.json",
-                                      artifact if artifact is not None else envelope, base=base)
-                log.append(name, "persisted",
-                           detail={"ref": ref, "contract": output_contract,
-                                   "typed": artifact is not None, "attempt": attempt})
+                if envelope.get("status") == "failed":
+                    log.append(name, "failed_envelope", status="failed", detail={"ref": ref})
+                    return {
+                        "status": "failed",
+                        "graph": spec.graph_id,
+                        "node": name,
+                        "artifact_ref": ref,
+                        "summary": envelope.get("summary", f"{name}: failed"),
+                        "issues": envelope.get("issues", []),
+                    }
 
                 review = _review(reviewer, node, ref, attempt, prior_findings, node_runner, log, task_id)
                 review_decision = (review or {}).get("decision", (review or {}).get("verdict", "APPROVED"))
                 findings = (review or {}).get("findings", (review or {}).get("issues", []))
-                log.append(reviewer, "review", status=review_decision,
-                           detail={"target": name, "profile": node.get("review_profile"), "attempt": attempt})
+                if reviewer:
+                    log.append(reviewer, "review", status=review_decision,
+                               detail={"target": name, "profile": node.get("review_profile"), "attempt": attempt})
 
                 if review_decision in ("APPROVED", "APPROVED_WITH_WARNINGS"):
                     break
@@ -321,7 +486,7 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
                 if gate_handler is not None:                       # synchronous surface (terminal)
                     gate_decisions[gname] = gate_handler(payload)
                 elif pause_on_gate:                                # async surface (skill): pause + resume
-                    _save_checkpoint(spec.graph_id, token, input_ref, produced_refs, gate_decisions)
+                    _save_checkpoint(spec.graph_id, token, _cp())
                     log.append(gname, "awaiting_user", status="paused", detail={"resume_token": token})
                     return {"status": "awaiting_user", "resume_token": token, **payload}
                 else:                                              # default: auto-approve (wiring/harness)
@@ -349,6 +514,21 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
     return desc
 
 
+def _cli_gate_run(spec: EngineSpec, args, *, node_runner=None) -> dict:
+    """Shared run/run-codex gate handling: auto | prompt (terminal) | pause (resume token)."""
+    decisions = json.loads(args.decisions) if getattr(args, "decisions", None) else None
+    if getattr(args, "resume_token", None):
+        return run(spec, None, node_runner=node_runner, pause_on_gate=True,
+                   resume_token=args.resume_token, decisions=decisions)
+    if not args.context:
+        raise ValueError("context is required unless --resume-token is given")
+    ref = front_door(spec, args.context)["ref"]
+    if args.gates == "pause":
+        return run(spec, ref, node_runner=node_runner, pause_on_gate=True, decisions=decisions)
+    handler = terminal_gate_handler if args.gates == "prompt" else None
+    return run(spec, ref, node_runner=node_runner, gate_handler=handler, decisions=decisions)
+
+
 def make_cli(spec: EngineSpec, *, codex_runner=None) -> Callable[[list], int]:
     """Build the deterministic CLI (front-door / inputs / run / run-codex / finalize) for a graph."""
     def cli(argv: list[str]) -> int:
@@ -359,10 +539,15 @@ def make_cli(spec: EngineSpec, *, codex_runner=None) -> Callable[[list], int]:
         sub = p.add_subparsers(dest="cmd", required=True)
         sp = sub.add_parser("front-door"); sp.add_argument("context")
         sp = sub.add_parser("inputs"); sp.add_argument("context"); sp.add_argument("--node")
-        sp = sub.add_parser("run"); sp.add_argument("context")
-        sp.add_argument("--gates", choices=["auto", "prompt"], default="auto")
-        sp = sub.add_parser("run-codex"); sp.add_argument("context")
-        sp.add_argument("--gates", choices=["auto", "prompt"], default="prompt")
+        sp = sub.add_parser("run"); sp.add_argument("context", nargs="?")
+        sp.add_argument("--gates", choices=["auto", "prompt", "pause"], default="auto")
+        sp.add_argument("--resume-token")
+        sp.add_argument("--decisions", help='JSON gate decisions for --resume-token, '
+                        'e.g. \'{"user-intake-gate": {"auto": true}}\'')
+        sp = sub.add_parser("run-codex"); sp.add_argument("context", nargs="?")
+        sp.add_argument("--gates", choices=["auto", "prompt", "pause"], default="prompt")
+        sp.add_argument("--resume-token")
+        sp.add_argument("--decisions", help="JSON gate decisions for --resume-token")
         sp = sub.add_parser("finalize"); sp.add_argument("bundle")
         args = p.parse_args(argv)
         try:
@@ -377,15 +562,12 @@ def make_cli(spec: EngineSpec, *, codex_runner=None) -> Callable[[list], int]:
                     inputs = {args.node: inputs[args.node]}
                 out = inputs
             elif args.cmd == "run":
-                handler = terminal_gate_handler if args.gates == "prompt" else None
-                out = run(spec, front_door(spec, args.context)["ref"], gate_handler=handler)
+                out = _cli_gate_run(spec, args)
             elif args.cmd == "run-codex":
                 if codex_runner is None:
                     print("error: no codex runner wired for this graph", file=_sys.stderr)
                     return 1
-                handler = terminal_gate_handler if args.gates == "prompt" else None
-                out = run(spec, front_door(spec, args.context)["ref"],
-                          node_runner=codex_runner, gate_handler=handler)
+                out = _cli_gate_run(spec, args, node_runner=codex_runner)
             elif args.cmd == "finalize":
                 out = finalize(spec, args.bundle)
         except (OSError, ValueError, KeyError) as exc:

@@ -1,0 +1,133 @@
+{
+  "title": "PDF extraction result produced by G01 deterministic intake.",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "source_pdf_ref",
+    "filename",
+    "extraction_engine",
+    "extraction_status",
+    "page_count",
+    "pages",
+    "warnings",
+    "degraded"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": [
+        "pdf_extract_result@1"
+      ]
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "source_pdf_ref": {
+      "type": "string"
+    },
+    "filename": {
+      "type": "string"
+    },
+    "extraction_engine": {
+      "type": "string"
+    },
+    "extraction_status": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "degraded",
+        "failed",
+        "dependency_missing"
+      ]
+    },
+    "page_count": {
+      "type": "integer"
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "page_number",
+          "text",
+          "text_status",
+          "char_count",
+          "needs_ocr",
+          "has_visual_content",
+          "visual_description_status"
+        ],
+        "properties": {
+          "page_number": {
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          },
+          "text_status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "empty",
+              "extraction_error",
+              "unavailable"
+            ]
+          },
+          "char_count": {
+            "type": "integer"
+          },
+          "needs_ocr": {
+            "type": "boolean"
+          },
+          "has_visual_content": {
+            "type": "boolean"
+          },
+          "visual_description_status": {
+            "type": "string",
+            "enum": [
+              "not_requested",
+              "pending",
+              "available",
+              "unavailable"
+            ]
+          },
+          "image_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "visual_description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "warning": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "degraded": {
+      "type": "boolean"
+    },
+    "result_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

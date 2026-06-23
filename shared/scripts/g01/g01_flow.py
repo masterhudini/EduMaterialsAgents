@@ -18,7 +18,7 @@ import pathlib as _pl
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))
 
 from core import engine  # noqa: E402
-from g01 import intake  # noqa: E402
+from g01 import intake, pdf_extract  # noqa: E402
 
 GRAPH_ID = "g01"
 INPUT_CONTRACT = "intake_graph_input@1"
@@ -76,6 +76,38 @@ def _stub_intake_output() -> dict:
     }
 
 
+def _deterministic_node(node: dict, ctx: dict, log):
+    """In-process executor for deterministic g01 nodes; return None to defer a node to host/codex.
+
+    G01-A01 is a pure technical PDF->SlideViews conversion, so it runs in-process (no LLM, no
+    sandbox write) for both the codex runner and the host-driven (pause_on_node) path.
+    """
+    if node.get("name") != "g01-a01-pdf-intake":
+        return None
+    try:
+        views = pdf_extract.slide_views(ctx.get("input") or {}, store=True)
+    except Exception as exc:
+        return {"status": "failed", "produced": [],
+                "summary": f"{node['name']}: deterministic slide extraction failed",
+                "issues": [{"severity": "blocker", "type": "deterministic_pdf_intake",
+                            "message": str(exc)}]}
+    extraction_status = views.get("source_extraction_status")
+    issues = [] if extraction_status in {"ok", "degraded"} else [{
+        "severity": "blocker", "type": "pdf_text_extraction",
+        "message": "; ".join(views.get("warnings") or ["PDF text extraction did not complete."])}]
+    status = "ok" if extraction_status == "ok" else (
+        "degraded" if extraction_status == "degraded" else "failed")
+    return {
+        "status": status,
+        "produced": [{"type": "slide_views", "path": views.get("slide_views_ref", ""),
+                      "schema_version": "slide_views@1"}],
+        "summary": f"{node['name']}: produced {views.get('slide_count', 0)} slide views "
+                   f"from PDF extraction status {extraction_status}",
+        "issues": issues,
+        "artifact": views,
+    }
+
+
 SPEC = engine.EngineSpec(
     graph_id=GRAPH_ID,
     input_contract=INPUT_CONTRACT,
@@ -87,6 +119,7 @@ SPEC = engine.EngineSpec(
     artifact_namespace="g01",
     emit_name="intake_bundle",
     context_resolver=intake.resolve_context,   # a *.pdf path is uploaded into the store first
+    deterministic_node=_deterministic_node,    # a01 runs in-process; a02/a03 yield to the host
 )
 
 
@@ -121,6 +154,24 @@ def _load_any(path_or_ref, *, base=None):
 terminal_gate_handler = engine.terminal_gate_handler
 
 
+def make_g01_codex_runner(**options):
+    """Codex runner for g01 with deterministic technical PDF intake.
+
+    G01-A01 is a pure technical conversion step. Running it as an LLM worker makes Codex call back
+    into MCP for a deterministic operation and can be cancelled by the host. Execute it in-process
+    and reserve Codex workers for semantic/reviewer nodes.
+    """
+    from runners.codex import make_codex_runner
+
+    codex_runner = make_codex_runner(GRAPH_ID, **options)
+
+    def runner(node: dict, ctx: dict, log) -> dict:
+        env = _deterministic_node(node, ctx, log)   # g01-a01 in-process; others -> Codex worker
+        return env if env is not None else codex_runner(node, ctx, log)
+
+    return runner
+
+
 def _upload_cli(argv):
     import argparse
     import json
@@ -145,8 +196,7 @@ def _upload_cli(argv):
 def _cli(argv):
     if argv and argv[0] == "upload":      # g01-specific seam: a raw PDF -> boundary contract
         return _upload_cli(argv[1:])
-    from runners.codex import make_codex_runner
-    return engine.make_cli(SPEC, codex_runner=make_codex_runner(GRAPH_ID))(argv)
+    return engine.make_cli(SPEC, codex_runner=make_g01_codex_runner())(argv)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@
   "x-version": "1.0",
   "x-major": 1,
   "type": "object",
+  "additionalProperties": false,
   "required": ["status", "produced", "summary", "issues"],
   "properties": {
     "status": {"type": "string", "enum": ["ok", "needs_input", "degraded", "failed"]},
@@ -10,6 +11,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["type", "path", "schema_version"],
         "properties": {
           "type": {"type": "string"},
@@ -23,6 +25,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["severity", "type", "message"],
         "properties": {
           "severity": {"type": "string", "enum": ["blocker", "major", "minor"]},
@@ -31,7 +34,7 @@
         }
       }
     },
-    "metrics": {"type": "object"},
+    "metrics": {"type": "object", "additionalProperties": false},
     "resume_token": {"type": ["string", "null"]}
   }
 }

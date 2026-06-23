@@ -11,6 +11,9 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   resume_token?}`. Reusable, domain-agnostic. Do not change without bumping `x-major`.
 - `research_graph_input.schema.json` — approved Research Graph boundary input
   (`research_graph_input@1`, version 1.1 requires explicit recent-discovery policy).
+- `pdf_extract_result.schema.json` — optional local G01 PDF text extraction result
+  (`pdf_extract_result@1`). It is valid both for successful `pypdf` extraction and for explicit
+  dependency-missing or parser-failed states, so hosts do not silently fabricate slide text.
 - `research_planner_input.schema.json` — isolated G02-A01 input projected from the approved
   boundary (`research_planner_input@1`).
 - `research_plan.schema.json` — bounded, versioned G02-A01 output (`research_plan@1`, version 1.1

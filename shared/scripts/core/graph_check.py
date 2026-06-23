@@ -153,6 +153,15 @@ def check_manifest(
                     f"{manifest_path.name}: agent node {name!r} has no review_profile"
                 )
 
+        # Host-driven (pause_on_node) graphs: a node played by the host must declare the finalize
+        # MCP op it uses to persist its artifact; deterministic nodes run in-process instead.
+        if kind == "agent" and node.get("execution") == "hosted":
+            finalize_op = node.get("finalize_op")
+            if not isinstance(finalize_op, str) or not finalize_op.strip():
+                errors.append(
+                    f"{manifest_path.name}: hosted agent node {name!r} has no finalize_op"
+                )
+
         for field in ("input_contract", "output_contract"):
             if field not in node:
                 continue

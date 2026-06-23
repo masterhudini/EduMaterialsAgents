@@ -48,6 +48,10 @@ def test_runner_uses_output_schema_and_accepts_only_whole_json():
     def process(cmd, **kwargs):
         seen["cmd"] = cmd
         seen["prompt"] = kwargs["input"]
+        seen["env"] = kwargs["env"]
+        seen["schema"] = json.loads(Path(cmd[cmd.index("--output-schema") + 1]).read_text(
+            encoding="utf-8"
+        ))
         return _process_with(valid)(cmd, **kwargs)
 
     result = codex.codex_node_runner(
@@ -56,7 +60,13 @@ def test_runner_uses_output_schema_and_accepts_only_whole_json():
     )
     assert result == valid
     assert "--output-schema" in seen["cmd"]
-    assert seen["cmd"][seen["cmd"].index("--output-schema") + 1].endswith("envelope.schema.json")
+    schema_path = Path(seen["cmd"][seen["cmd"].index("--output-schema") + 1])
+    assert schema_path.name == "codex_worker_envelope.schema.json"
+    schema = seen["schema"]
+    assert schema["additionalProperties"] is False
+    assert set(schema["required"]) == set(schema["properties"])
+    assert seen["env"]["EMAGENTS_HOME"].endswith(".emagents")
+    assert seen["env"]["EMAGENTS_NODE_ID"] == "g02-a01-planner"
 
     rejected = codex.codex_node_runner(
         {"name": "g02-a01-planner", "output_contract": "research_plan@1"},
@@ -66,6 +76,14 @@ def test_runner_uses_output_schema_and_accepts_only_whole_json():
     assert rejected["status"] == "failed"
     assert contracts.validate_envelope(rejected)["ok"]
     assert rejected["issues"][0]["type"] == "codex_worker"
+
+
+def test_codex_output_schema_is_strict_for_response_format():
+    schema = codex._worker_output_schema()
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["produced"]["items"]["additionalProperties"] is False
+    assert schema["properties"]["issues"]["items"]["additionalProperties"] is False
+    assert set(schema["required"]) == set(schema["properties"])
 
 
 def test_invalid_worker_envelope_becomes_valid_failed_envelope():

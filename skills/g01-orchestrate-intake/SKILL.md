@@ -21,7 +21,10 @@ every required human action.
 ## Workflow
 
 1. Validate and register the input through the deterministic front door; stop on contract failure.
-2. Run `g01-a01-pdf-intake` to produce `SlideViews`, then `g01-a02-understanding` to produce
+2. Run `g01-a01-pdf-intake` to produce `SlideViews` through `intake_slide_views`. Its deterministic
+   first step may be `intake_pdf_extract`, which emits `pdf_extract_result@1` when the local host has
+   a PDF text backend such as `pypdf`; if the backend is missing, keep the dependency-missing state
+   explicit and do not invent slide text. Then run `g01-a02-understanding` to produce
    `IntakeUnderstanding`; persist each artifact and carry its ref.
 3. After every producer artifact, invoke `g01-a10-output-reviewer` with exactly one artifact, the
    node's review profile, the output contract, acceptance criteria and revision history. Handle
