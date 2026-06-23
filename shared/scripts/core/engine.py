@@ -52,6 +52,9 @@ class EngineSpec:
     # Graph-specific human-gate hooks (default None = standard auto/terminal/pause behavior):
     gate_prepare: Optional[Callable[[str, dict, Any], dict]] = None      # -> {"payload": {...}}
     gate_finalize: Optional[Callable[[str, dict, dict, Any], Optional[str]]] = None  # -> approved_ref
+    # Front-door normalizer: map a raw entry (e.g. a *.pdf path) to a boundary path/ref before
+    # validation (default None = the context is already a boundary path/ref).
+    context_resolver: Optional[Callable[[Any, Any], Any]] = None         # (path_or_ref, base) -> path_or_ref
 
 
 def default_stub_runner(node: dict, ctx: dict, log) -> dict:
@@ -92,6 +95,8 @@ def _load_any(spec: EngineSpec, path_or_ref, *, base=None) -> dict:
 
 def front_door(spec: EngineSpec, path_or_ref, *, base=None) -> dict:
     """Validate the input context and ensure it is in the artifact store. Returns {ref, task_id}."""
+    if spec.context_resolver is not None:
+        path_or_ref = spec.context_resolver(path_or_ref, base=base)
     ctx = _load_any(spec, path_or_ref, base=base)
     ref = (
         path_or_ref if str(path_or_ref).startswith("artifact://")

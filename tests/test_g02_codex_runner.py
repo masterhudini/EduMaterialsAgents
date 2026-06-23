@@ -11,7 +11,7 @@ SCRIPTS = ROOT / "shared" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from core import contracts  # noqa: E402
-from g02.runners import codex  # noqa: E402
+from runners import codex  # noqa: E402
 
 
 class Log:

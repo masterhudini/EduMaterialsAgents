@@ -1,0 +1,43 @@
+{
+  "title": "SlideViews \u2014 technical slide corpus produced by PDF intake (design \u00a76.5).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "slides"
+  ],
+  "properties": {
+    "slide_count": {
+      "type": "integer"
+    },
+    "slides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "slide_id"
+        ],
+        "properties": {
+          "slide_id": {
+            "type": "integer"
+          },
+          "title_candidate": {
+            "type": "string"
+          },
+          "normalized_text": {
+            "type": "string"
+          },
+          "image_ref": {
+            "type": "string"
+          },
+          "layout_type_hint": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "source_order_preserved": {
+      "type": "boolean"
+    }
+  }
+}

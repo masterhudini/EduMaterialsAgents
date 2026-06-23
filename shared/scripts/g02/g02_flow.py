@@ -19,10 +19,7 @@ import pathlib as _pl
 # Make `core` / `g02` importable whether run as a module or as a script.
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))
 
-from core import artifacts, contracts, engine, event_log, gate, graphs, handoff, paths  # noqa: E402
-from core import state as st  # noqa: E402
-from core import validate_state as vs  # noqa: E402
-from g02.runners.stub import stub_node_runner  # noqa: E402
+from core import artifacts, contracts, engine  # noqa: E402
 from g02 import planner  # noqa: E402
 from g02 import source_selection  # noqa: E402
 
@@ -121,6 +118,11 @@ SPEC = engine.EngineSpec(
 # ---- preserved public API (bound to the g02 spec) ------------------------
 
 def run(input_ref=None, **kwargs):
+    # Reviewed/partial Codex execution of the implemented A01–A06 frontier (through / topic_ids)
+    # lives in its own g02-specific module; the generic core.engine stays a stub/wiring walk.
+    if kwargs.pop("reviewed", False):
+        from g02 import reviewed_flow
+        return reviewed_flow.run(input_ref, **kwargs)
     return engine.run(SPEC, input_ref, **kwargs)
 
 
@@ -152,7 +154,7 @@ terminal_gate_handler = engine.terminal_gate_handler
 
 
 def _cli(argv):
-    from g02.runners.codex import codex_node_runner
+    from runners.codex import codex_node_runner
     return engine.make_cli(SPEC, codex_runner=codex_node_runner)(argv)
 
 
