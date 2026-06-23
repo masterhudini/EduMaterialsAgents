@@ -1,0 +1,24 @@
+{
+  "schema_version": "intake_graph_input@1",
+  "task_id": "INTAKE_MOCK_001",
+  "upload": {
+    "pdf_file_ref": "artifact://uploads/bayesian_lecture.pdf",
+    "filename": "bayesian_lecture.pdf",
+    "mime_type": "application/pdf",
+    "upload_id": "UPL_001"
+  },
+  "user_provided_context": {
+    "title_hint": "Bayesian Statistics",
+    "course_hint": "Bayesian Statistics",
+    "audience_hint": "master",
+    "language_hint": "English"
+  },
+  "ingestion_profile": {
+    "extract_text": true,
+    "render_slide_images": true,
+    "extract_assets": true,
+    "ocr_policy": "only_if_text_missing",
+    "keep_original_order": true
+  },
+  "output_language": "English"
+}

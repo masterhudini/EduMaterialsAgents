@@ -139,3 +139,32 @@ def store_text(relpath: str, content: str, *, base: str | Path | None = None) ->
     finally:
         temporary.unlink(missing_ok=True)
     return ref_for(relpath)
+
+
+def store_bytes(relpath: str, data: bytes, *, base: str | Path | None = None) -> str:
+    """Atomically store a BINARY artifact (e.g. an uploaded PDF) under the constrained root."""
+    if not isinstance(data, (bytes, bytearray)):
+        raise TypeError("binary artifact content must be bytes")
+    root = (Path(base) if base is not None else paths.artifacts_dir()).resolve()
+    path = (root / relpath).resolve()
+    try:
+        path.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"artifact write escapes artifact root: {relpath!r}") from exc
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return ref_for(relpath)
+
+
+def read_bytes(ref: str, base: str | Path | None = None) -> bytes:
+    """Read a binary artifact addressed by ``ref`` back as bytes."""
+    return resolve_path(ref, base=base).read_bytes()

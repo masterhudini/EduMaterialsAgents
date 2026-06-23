@@ -1,0 +1,99 @@
+{
+  "title": "Intake Graph boundary input \u2014 PDF upload + ingestion profile (design \u00a76.2).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "upload",
+    "ingestion_profile"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": [
+        "intake_graph_input@1"
+      ]
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "upload": {
+      "type": "object",
+      "required": [
+        "pdf_file_ref",
+        "filename"
+      ],
+      "properties": {
+        "pdf_file_ref": {
+          "type": "string"
+        },
+        "filename": {
+          "type": "string"
+        },
+        "mime_type": {
+          "type": "string"
+        },
+        "upload_id": {
+          "type": "string"
+        }
+      }
+    },
+    "user_provided_context": {
+      "type": "object",
+      "properties": {
+        "title_hint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "course_hint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "audience_hint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "language_hint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "ingestion_profile": {
+      "type": "object",
+      "required": [
+        "extract_text"
+      ],
+      "properties": {
+        "extract_text": {
+          "type": "boolean"
+        },
+        "render_slide_images": {
+          "type": "boolean"
+        },
+        "extract_assets": {
+          "type": "boolean"
+        },
+        "ocr_policy": {
+          "type": "string"
+        },
+        "keep_original_order": {
+          "type": "boolean"
+        }
+      }
+    },
+    "output_language": {
+      "type": "string"
+    }
+  }
+}

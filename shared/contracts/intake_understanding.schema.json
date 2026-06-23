@@ -1,0 +1,107 @@
+{
+  "title": "IntakeUnderstanding \u2014 concepts, claims, flow issues and inferred domains (thin \u00a76.6).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "concepts",
+    "claims",
+    "flow_issues",
+    "domains"
+  ],
+  "properties": {
+    "concepts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "concept_id",
+          "label"
+        ],
+        "properties": {
+          "concept_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "slide_ids": {
+            "type": "array"
+          }
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "claim_id",
+          "text"
+        ],
+        "properties": {
+          "claim_id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "slide_id": {
+            "type": "integer"
+          },
+          "verification_need": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "flow_issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "issue_id",
+          "summary"
+        ],
+        "properties": {
+          "issue_id": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "affected_slides": {
+            "type": "array"
+          }
+        }
+      }
+    },
+    "domains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "domain_id",
+          "label"
+        ],
+        "properties": {
+          "domain_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  }
+}
