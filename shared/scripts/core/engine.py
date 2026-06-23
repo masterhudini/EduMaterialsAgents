@@ -501,7 +501,24 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
                        detail={"keys": sorted(gate_decisions[gname])
                                if isinstance(gate_decisions[gname], dict) else None})
 
-    st.set_field(state, spec.output_state_field, spec.stub_exit_bundle(), "confirmed")
+    # Emit the REAL artifact a terminal producer made with the exit contract (e.g. g01-a03 ->
+    # research_graph_input@1); fall back to the thin stub only when no producer emitted it.
+    exit_bundle = None
+    for n in graphs.nodes(manifest):
+        if n.get("kind") != "agent" or n.get("output_contract") != spec.output_contract:
+            continue
+        rref = produced_refs.get(n["name"])
+        if not isinstance(rref, str):
+            continue
+        try:
+            candidate = artifacts.hydrate(rref, base=base)
+        except (OSError, ValueError, KeyError, IndexError):
+            continue
+        if isinstance(candidate, dict) and contracts.validate(candidate, spec.output_contract)["ok"]:
+            exit_bundle = candidate            # last matching producer wins
+    if exit_bundle is None:
+        exit_bundle = spec.stub_exit_bundle()
+    st.set_field(state, spec.output_state_field, exit_bundle, "confirmed")
 
     def _validator(s):
         return vs.validate_state(s, required=[spec.input_state_field, spec.output_state_field])

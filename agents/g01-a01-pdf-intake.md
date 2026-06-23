@@ -17,8 +17,8 @@ Returns `envelope@1`.
 
 ## Required Skills
 
-Deterministic extraction tools (`intake_pdf_extract` when available). No model-generated
-bibliography.
+Deterministic extraction tools (`intake_pdf_extract` when available). No separate skill is loaded
+for this thin Intake Graph producer. No model-generated bibliography.
 
 ## Workflow
 

@@ -17,7 +17,8 @@ Produce the compact, approved handoff to the Research Graph. Summarize; do not d
 
 ## Required Skills
 
-Card construction and lazy-hydration ref wiring. No new claims, concepts or flow issues.
+Card construction and lazy-hydration ref wiring. No separate skill is loaded for this thin Intake
+Graph producer. No new claims, concepts or flow issues.
 
 ## Workflow
 

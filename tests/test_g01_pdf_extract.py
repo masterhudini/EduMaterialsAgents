@@ -96,8 +96,102 @@ def test_intake_pdf_extract_tool_is_advertised():
     names = {tool["name"] for tool in tools["result"]["tools"]}
     assert "intake_pdf_extract" in names
     assert "intake_slide_views" in names
+    assert "intake_extract_images" in names
+    assert "intake_describe_slides" in names
+    assert "intake_image_path" in names
     schema = next(tool for tool in tools["result"]["tools"] if tool["name"] == "intake_pdf_extract")
     assert schema["inputSchema"]["properties"]["input"]["type"] == ["object", "string"]
+
+
+def test_describe_slides_merges_visual_pass_and_stores_new_result():
+    result = {
+        "schema_version": "pdf_extract_result@1",
+        "task_id": "INTAKE_VISUAL_TEST",
+        "source_pdf_ref": "artifact://uploads/source.pdf",
+        "filename": "source.pdf",
+        "extraction_engine": "test",
+        "extraction_status": "ok",
+        "page_count": 2,
+        "pages": [
+            pdf_extract._page_result(1, "Timeline T0 T1 T2"),
+            pdf_extract._page_result(2, "Common errors"),
+        ],
+        "warnings": [],
+        "degraded": False,
+        "result_ref": None,
+    }
+
+    described = pdf_extract.describe_slides(
+        result,
+        {
+            "1": {
+                "has_visual_content": True,
+                "visual_description": "A timeline links T0, T1 and T2 decision points.",
+                "image_ref": "artifact://g01/images/INTAKE_VISUAL_TEST/p001_0.png",
+            },
+            "2": {"has_visual_content": False},
+            "not-a-page": {"has_visual_content": True},
+        },
+        store=True,
+    )
+
+    assert described["result_ref"].startswith("artifact://g01/pdf-extract/")
+    assert result["result_ref"] is None
+    page1, page2 = described["pages"]
+    assert page1["visual_description_status"] == "available"
+    assert page1["visual_description"] == "A timeline links T0, T1 and T2 decision points."
+    assert page1["image_ref"] == "artifact://g01/images/INTAKE_VISUAL_TEST/p001_0.png"
+    assert page2["has_visual_content"] is False
+    assert page2["visual_description_status"] == "not_requested"
+    assert contracts.validate(described, "pdf_extract_result@1")["ok"]
+    assert artifacts.hydrate(described["result_ref"])["pages"][0]["visual_description_status"] == "available"
+
+
+def test_slide_views_carries_pdf_extract_ref_and_first_image_ref():
+    result = {
+        "schema_version": "pdf_extract_result@1",
+        "task_id": "INTAKE_IMAGE_REF_TEST",
+        "source_pdf_ref": "artifact://uploads/source.pdf",
+        "filename": "source.pdf",
+        "extraction_engine": "test",
+        "extraction_status": "ok",
+        "page_count": 1,
+        "pages": [
+            {
+                **pdf_extract._page_result(1, "Diagram slide"),
+                "image_refs": [
+                    "artifact://g01/images/INTAKE_IMAGE_REF_TEST/p001_0.png",
+                    "artifact://g01/images/INTAKE_IMAGE_REF_TEST/p001_1.png",
+                ],
+                "image_ref": "artifact://g01/images/INTAKE_IMAGE_REF_TEST/p001_0.png",
+            }
+        ],
+        "warnings": [],
+        "degraded": False,
+        "result_ref": "artifact://g01/pdf-extract/INTAKE_IMAGE_REF_TEST.json",
+    }
+
+    views = pdf_extract.slide_views(result, store=False)
+
+    assert views["source_pdf_extract_ref"] == "artifact://g01/pdf-extract/INTAKE_IMAGE_REF_TEST.json"
+    assert views["slides"][0]["image_ref"] == "artifact://g01/images/INTAKE_IMAGE_REF_TEST/p001_0.png"
+    assert contracts.validate(views, "slide_views@1")["ok"]
+
+
+def test_intake_image_path_resolves_stored_binary_artifact():
+    image_ref = artifacts.store_bytes("g01/images/INTAKE_PATH_TEST/p001_0.png", b"\x89PNG\r\n\x1a\n")
+
+    resolved = intake_server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": "intake_image_path", "arguments": {"ref": image_ref}},
+        }
+    )
+
+    assert resolved["result"]["content"][0]["text"]
+    assert "p001_0.png" in resolved["result"]["content"][0]["text"]
 
 
 @pytest.mark.skipif(importlib.util.find_spec("pypdf") is None, reason="pypdf not installed")

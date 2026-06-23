@@ -6,12 +6,16 @@ returns a valid dependency-missing result so hosts can fail closed or ask for a 
 """
 from __future__ import annotations
 
+import binascii
+import copy
 import io
 import json
 import pathlib
 import re
+import struct
 import sys
 import uuid
+import zlib
 from collections import Counter
 from typing import Any
 
@@ -247,6 +251,149 @@ def to_slide_views(result: dict[str, Any]) -> dict[str, Any]:
                       "text and titles"] if boilerplate else []),
     }
     return views
+
+
+def describe_slides(pdf_extract: object, descriptions: dict, *, store: bool = True,
+                    base=None) -> dict[str, Any]:
+    """Merge host-produced visual descriptions into a ``pdf_extract_result@1`` (the vision pass).
+
+    ``descriptions`` maps a page number to ``{has_visual_content?, visual_description?, image_ref?}``.
+    For a page with meaningful graphics, the description is stored and the status becomes
+    ``available``; a page marked ``has_visual_content: false`` is cleared to ``not_requested``. The
+    raw text and all deterministic fields are preserved. Returns a new, stored result (new ref).
+    """
+    result = _load_pdf_extract_result(pdf_extract, base=base)
+    if result is None and isinstance(pdf_extract, dict) and pdf_extract.get("schema_version") == CONTRACT:
+        result = pdf_extract
+    if result is None:
+        raise ValueError("describe_slides requires a pdf_extract_result@1 object or ref")
+    result = copy.deepcopy(result)
+    result["result_ref"] = None
+    by_page: dict[int, dict] = {}
+    for key, value in (descriptions or {}).items():
+        if not isinstance(value, dict):
+            continue
+        try:
+            by_page[int(key)] = value
+        except (TypeError, ValueError):
+            continue
+    for page in result.get("pages", []):
+        entry = by_page.get(page["page_number"])
+        if entry is None:
+            continue
+        if "has_visual_content" in entry:
+            page["has_visual_content"] = bool(entry["has_visual_content"])
+        if entry.get("image_ref"):
+            page["image_ref"] = entry["image_ref"]
+        desc = entry.get("visual_description")
+        if page["has_visual_content"] and isinstance(desc, str) and desc.strip():
+            page["visual_description"] = desc.strip()
+            page["visual_description_status"] = "available"
+        elif not page["has_visual_content"]:
+            page["visual_description"] = None
+            page["visual_description_status"] = "not_requested"
+    return _validate_and_store(result, store=store, base=base)
+
+
+def _png_chunk(tag: bytes, data: bytes) -> bytes:
+    return (struct.pack(">I", len(data)) + tag + data
+            + struct.pack(">I", binascii.crc32(tag + data) & 0xFFFFFFFF))
+
+
+def _samples_to_png(width: int, height: int, samples: bytes, *, channels: int) -> bytes:
+    """Build a PNG (pure stdlib) from raw 8-bit RGB (channels=3) or grayscale (channels=1) samples."""
+    color_type = 2 if channels == 3 else 0
+    row = width * channels
+    raw = bytearray()
+    for y in range(height):                      # each scanline prefixed with filter byte 0 (None)
+        raw.append(0)
+        raw += samples[y * row:(y + 1) * row]
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, color_type, 0, 0, 0)
+    return (b"\x89PNG\r\n\x1a\n" + _png_chunk(b"IHDR", ihdr)
+            + _png_chunk(b"IDAT", zlib.compress(bytes(raw), 6)) + _png_chunk(b"IEND", b""))
+
+
+def _image_blob(obj) -> tuple[bytes, str] | None:
+    """Return (bytes, ext) for a supported image XObject, or None. Pure stdlib (no Pillow):
+    DCTDecode is the embedded JPEG; FlateDecode 8-bit DeviceRGB/Gray (no predictor) -> built PNG."""
+    filt = str(obj.get("/Filter"))
+    width, height = int(obj.get("/Width", 0)), int(obj.get("/Height", 0))
+    bpc = int(obj.get("/BitsPerComponent", 8))
+    colorspace = str(obj.get("/ColorSpace"))
+    try:
+        data = obj.get_data()
+    except Exception:
+        return None
+    if "DCTDecode" in filt and data[:2] == b"\xff\xd8":
+        return data, "jpg"
+    if "FlateDecode" in filt and bpc == 8 and colorspace in ("/DeviceRGB", "/DeviceGray"):
+        channels = 3 if colorspace == "/DeviceRGB" else 1
+        if width and height and len(data) == width * height * channels:   # raw samples, no predictor
+            return _samples_to_png(width, height, data, channels=channels), "png"
+    return None
+
+
+def extract_images(pdf_extract: object, *, store: bool = True, base=None) -> dict[str, Any]:
+    """Extract EMBEDDED raster images per page (v1.5) and attach their refs to pdf_extract_result@1.
+
+    Decodes image XObjects with vendored pypdf navigation + stdlib (no Pillow, no renderer): JPEGs
+    are written as-is, raw RGB/Gray as built PNGs. Vector graphics (most slide diagrams/formulas) are
+    NOT captured. Sets per-page ``image_refs`` + ``image_ref`` and marks ``has_visual_content``.
+    """
+    result = _load_pdf_extract_result(pdf_extract, base=base)
+    if result is None and isinstance(pdf_extract, dict) and pdf_extract.get("schema_version") == CONTRACT:
+        result = pdf_extract
+    if result is None:
+        raise ValueError("extract_images requires a pdf_extract_result@1 object or ref")
+    from pypdf import PdfReader  # vendored on sys.path
+    from pypdf.generic import IndirectObject
+
+    pdf_ref = result["source_pdf_ref"]
+    data = (artifacts.read_bytes(pdf_ref, base=base) if str(pdf_ref).startswith(artifacts.SCHEME)
+            else pathlib.Path(pdf_ref).expanduser().read_bytes())
+    reader = PdfReader(io.BytesIO(data))
+    task = result.get("task_id", "INTAKE_UNKNOWN")
+
+    page_images: dict[int, list[str]] = {}
+    warnings: list[str] = []
+    for page_number, page in enumerate(reader.pages, start=1):
+        resources = page.get("/Resources")
+        resources = resources.get_object() if resources else {}
+        xobjects = resources.get("/XObject")
+        xobjects = xobjects.get_object() if xobjects else {}
+        seen, refs, index = set(), [], 0
+        for name in (xobjects or {}):
+            ref = xobjects.raw_get(name) if hasattr(xobjects, "raw_get") else None
+            key = ref.idnum if isinstance(ref, IndirectObject) else name
+            if key in seen:
+                continue
+            seen.add(key)
+            obj = xobjects[name].get_object()
+            if obj.get("/Subtype") != "/Image":
+                continue
+            blob = _image_blob(obj)
+            if blob is None:
+                warnings.append(f"page {page_number}: skipped unsupported image "
+                                f"({obj.get('/Filter')}, {obj.get('/ColorSpace')})")
+                continue
+            data_bytes, ext = blob
+            relpath = f"g01/images/{task}/p{page_number:03d}_{index}.{ext}"
+            refs.append(artifacts.store_bytes(relpath, data_bytes, base=base))
+            index += 1
+        if refs:
+            page_images[page_number] = refs
+
+    result = copy.deepcopy(result)
+    result["result_ref"] = None
+    for page in result.get("pages", []):
+        refs = page_images.get(page["page_number"])
+        if refs:
+            page["image_refs"] = refs
+            page["image_ref"] = refs[0]
+            page["has_visual_content"] = True
+    if warnings:
+        result["warnings"] = list(result.get("warnings") or []) + warnings
+    return _validate_and_store(result, store=store, base=base)
 
 
 def _load_pdf_extract_result(input_value: object, *, base=None) -> dict[str, Any] | None:
