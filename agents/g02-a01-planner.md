@@ -52,22 +52,31 @@ produced artifact.
    that envelope unchanged and stop.
 2. Apply `g02-a01-plan-research-scope`. Build a driver table before forming topics and preserve all
    driver and upstream IDs exactly.
-3. Group drivers only when they share an approved investigation purpose and compatible evidence
-   needs. Split a group when terminology, source roles, date window or coverage standard differs.
-4. Give each topic one operational purpose, priority no lower than its highest-priority driver and
+3. Score drivers before grouping. Prioritize high-priority claim drivers, high-severity flow
+   issues, drivers linked to multiple approved cards, central concepts used by several claims and
+   drivers that unblock downstream evidence or retrieval. Medium-priority drivers can ride inside
+   a higher-priority topic when they strengthen the same operational investigation.
+4. In the default fast profile, create no more than the scoped `constraints.max_topics` topics,
+   normally two. Select the highest-value topic groups by the driver score above. Do not keep the
+   first two groups merely because they appeared first in the input.
+5. Group drivers when they share an approved investigation purpose, compatible terminology and a
+   usable evidence route. If a lower-priority driver does not fit inside the selected fast-profile
+   topics, put it in `uncovered_driver_ids` with an `input_issues` entry explaining the prototype
+   scope tradeoff instead of creating another topic.
+6. Give each topic one operational purpose, priority no lower than its highest-priority driver and
    at least one approved domain.
-5. Define required source roles, provider-neutral core terms, bounded expansion areas, exclusions,
+7. Define required source roles, provider-neutral core terms, bounded expansion areas, exclusions,
    allowed dates, languages, work types and approved seed-source IDs. Make every expansion area
    specific enough that A02 can trace a generated synonym, acronym, spelling variant or established
    technical phrase back to it without reopening the intake. When recent discovery and preprints
    are approved, every topic requiring `current` sources must preserve `preprint` as an allowed
    work type.
-6. Define observable coverage units and a stop rule within configured limits. Every stop rule must
+8. Define observable coverage units and a stop rule within configured limits. Every stop rule must
    require a complementary search route before saturation.
-7. Account for every approved driver. A driver that cannot be planned must appear in both
+9. Account for every approved driver. A driver that cannot be planned must appear in both
    `uncovered_driver_ids` and an explicit `input_issues` entry. A blocking input gap returns
    `needs_input` without an artifact.
-8. Submit the structured plan to `research_planner_finalize` and return its envelope unchanged.
+10. Submit the structured plan to `research_planner_finalize` and return its envelope unchanged.
    The orchestrator builds the review task and invokes G02-A10.
 
 ## Acceptance Criteria

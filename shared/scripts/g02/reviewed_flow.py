@@ -1,16 +1,19 @@
-"""Fail-closed execution of the implemented G02 frontier (A01 through A06).
+"""Fail-closed execution of the implemented G02 fast frontier through reviewed A09.
 
 The historical ``g02_flow.run`` stub remains a wiring harness. This module is the real host-runner
 path: every producer receives a deterministically prepared scope, must return a finalized typed
 artifact, and receives at most one validated A10 decision. APPROVED continues directly, BLOCKED
 stops, and REVISE permits one producer correction without another reviewer invocation. The
 corrected artifact must pass deterministic finalization and receives an auditable revision receipt.
+Fast mode skips A08 explicitly, pauses at Human Research Gate after A09, and finalizes the compact
+Graph03 bundle only after a resume decision from the user.
 """
 from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
 import json
+import os
 import pathlib
 import re
 import uuid
@@ -21,11 +24,13 @@ from g02 import (
     canonical,
     domain,
     market_cases,
+    paper_review,
     planner,
     recent,
     retrieval,
     review,
     source_selection,
+    synthesis,
 )
 
 
@@ -33,6 +38,8 @@ GRAPH_ID = "g02"
 REPORT_CONTRACT = "research_run_report@1"
 REVIEWER = "g02-a10-output-reviewer"
 SOURCE_GATE = "user-source-selection-gate"
+RESEARCH_GATE = "user-research-gate"
+CLAIM_VERIFICATION_AGENT = "g02-a08-claim-verification"
 
 STAGES = (
     planner.PLANNER_AGENT,
@@ -43,6 +50,10 @@ STAGES = (
     candidate_index.AGENT,
     SOURCE_GATE,
     retrieval.AGENT,
+    paper_review.AGENT,
+    CLAIM_VERIFICATION_AGENT,
+    synthesis.AGENT,
+    RESEARCH_GATE,
 )
 TOPIC_STAGES = {
     domain.DOMAIN_AGENT,
@@ -61,15 +72,18 @@ ALLOWED_OPERATIONS = {
         "research_planner_prepare", "research_planner_finalize",
     ],
     domain.DOMAIN_AGENT: [
-        "research_provider_status", "research_domain_prepare", "research_metadata_search",
+        "research_provider_status", "research_domain_prepare",
+        "research_query_plan_generate_fast", "research_metadata_search",
         "research_doi_verify", "research_doi_verify_batch", "research_domain_finalize",
     ],
     canonical.CANONICAL_AGENT: [
-        "research_canonical_prepare", "research_citation_expand", "research_metadata_search",
+        "research_canonical_prepare", "research_query_plan_generate_fast",
+        "research_citation_expand", "research_metadata_search",
         "research_doi_verify", "research_doi_verify_batch", "research_canonical_finalize",
     ],
     recent.RECENT_AGENT: [
-        "research_recent_prepare", "research_metadata_search", "research_doi_verify",
+        "research_recent_prepare", "research_query_plan_generate_fast",
+        "research_metadata_search", "research_doi_verify",
         "research_doi_verify_batch", "research_recent_finalize",
     ],
     market_cases.MARKET_AGENT: [
@@ -85,6 +99,13 @@ ALLOWED_OPERATIONS = {
         "research_document_validate", "research_doi_verify", "research_doi_verify_batch",
         "research_web_case_extract", "research_retrieval_finalize",
     ],
+    paper_review.AGENT: [
+        "research_paper_review_prepare", "research_document_text_index",
+        "research_document_text_window", "research_paper_review_finalize",
+    ],
+    synthesis.AGENT: [
+        "research_synthesis_prepare", "research_synthesis_finalize",
+    ],
 }
 
 
@@ -98,6 +119,16 @@ def _record_key(node: str, topic_id: str | None = None) -> str:
 
 def _safe(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]+", "-", value).strip("-") or "run"
+
+
+def _next_artifact_version(value: object) -> str:
+    """Return a deterministic patch-version for the single allowed correction."""
+    text = str(value or "").strip()
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", text)
+    if match:
+        major, minor, patch = (int(part) for part in match.groups())
+        return f"{major}.{minor}.{patch + 1}"
+    return f"{text or '1.0.0'}.revision-1"
 
 
 def _checkpoint_path(token: str) -> pathlib.Path:
@@ -218,10 +249,98 @@ def _decision_from_envelope(task: dict, envelope: dict, *, base=None) -> tuple[d
     return decision, ref
 
 
+def _active_profile(manifest: dict) -> dict:
+    requested = os.environ.get("EMAGENTS_G02_PROFILE", "").strip()
+    name = requested or manifest.get("default_execution_profile", "strict")
+    profiles = manifest.get("execution_profiles")
+    if isinstance(name, str) and isinstance(profiles, dict):
+        profile = profiles.get(name)
+        if isinstance(profile, dict):
+            return profile
+    return {}
+
+
+def _requires_a10_review(manifest: dict, node_name: str, producer_envelope: dict) -> bool:
+    """Return whether the active profile requires a semantic A10 call for this artifact."""
+    policy = _active_profile(manifest).get("review_policy")
+    if not isinstance(policy, dict):
+        return True
+    required = set(policy.get("required", [])) if isinstance(policy.get("required"), list) else set()
+    conditional = set(policy.get("conditional", [])) \
+        if isinstance(policy.get("conditional"), list) else set()
+    if node_name in required:
+        return True
+    if node_name in conditional:
+        if producer_envelope.get("status") != "ok":
+            return True
+        if node_name == "g02-a07-paper-review":
+            metrics = producer_envelope.get("metrics")
+            metrics = metrics if isinstance(metrics, dict) else {}
+            count_fields = (
+                "missing_location_count", "conflicting_evidence_count",
+                "prompt_injection_flag_count",
+            )
+            if any(isinstance(metrics.get(field), int) and metrics[field] > 0
+                   for field in count_fields):
+                return True
+            if metrics.get("central_document") is True:
+                return True
+            issue_types = {
+                str(item.get("type", "")).casefold()
+                for item in producer_envelope.get("issues", []) if isinstance(item, dict)
+            }
+            triggers = ("missing_location", "conflict", "prompt_injection", "central_document")
+            if any(any(trigger in issue_type for trigger in triggers)
+                   for issue_type in issue_types):
+                return True
+        return False
+    return True
+
+
+def _fast_track_review_decision(task: dict, *, base=None) -> tuple[dict, str]:
+    """Persist a review_decision@1 proving deterministic fast-track approval without A10."""
+    decision = {
+        "schema_version": "review_decision@1",
+        "review_id": task["review_id"],
+        "task_id": task["task_id"],
+        "logical_review_node": task["logical_review_node"],
+        "reviewer_agent": REVIEWER,
+        "producer_agent": task["producer_agent"],
+        "artifact_ref": task["artifact"]["ref"],
+        "artifact_version": task["artifact"]["artifact_version"],
+        "review_profile": task["review_profile"],
+        "decision": "APPROVED",
+        "findings": [],
+        "advisories": [{
+            "criterion_id": "REVIEW_BASIS",
+            "location": "review_policy.fast",
+            "observation": (
+                "A10 semantic review was skipped by the fast execution profile because "
+                "deterministic finalization returned status ok."
+            ),
+        }],
+        "closed_finding_ids": [],
+        "revision_scope": None,
+        "root_cause": None,
+        "confidence": "medium",
+        "attempt": task["attempt"],
+        "summary": (
+            "Fast-track deterministic approval: artifact passed finalization with status ok; "
+            "A10 semantic review was not invoked."
+        ),
+    }
+    envelope = review.finalize_review_decision(task, decision, base=base)
+    return _decision_from_envelope(task, envelope, base=base)
+
+
 def _store_revision_completion(state: dict, node: dict, decision: dict, decision_ref: str,
                                original_descriptor: dict, revised_descriptor: dict, *,
                                base=None) -> str:
     """Persist proof that one producer correction passed deterministic finalization."""
+    if original_descriptor.get("path") == revised_descriptor.get("path"):
+        raise ValueError("a correction must produce a new artifact ref")
+    if original_descriptor.get("artifact_version") == revised_descriptor.get("artifact_version"):
+        raise ValueError("a correction must advance artifact_version")
     receipt = {
         "schema_version": "revision_completion@1",
         "review_decision_ref": decision_ref,
@@ -247,7 +366,8 @@ def _previous(records: dict[str, dict], node: str, topic_id: str | None) -> dict
     return records.get(_record_key(node, topic_id))
 
 
-def _prepare(node_name: str, topic_id: str | None, state: dict, rgi: dict, *, base=None,
+def _prepare(node_name: str, topic_id: str | None, state: dict, rgi: dict, *, manifest: dict,
+             base=None,
              previous: dict | None = None, findings: list[dict] | None = None) -> dict:
     records = state["records"]
     plan_record = records.get(planner.PLANNER_AGENT)
@@ -319,11 +439,24 @@ def _prepare(node_name: str, topic_id: str | None, state: dict, rgi: dict, *, ba
                 "review_decision_ref": item["review_decision_ref"],
                 "revision_completion_ref": item.get("revision_completion_ref"),
             })
+        active = _active_profile(manifest)
+        selection_profile = deepcopy(active.get("candidate_index")) \
+            if isinstance(active.get("candidate_index"), dict) else {}
+        if isinstance(active.get("required_stream_policy"), str):
+            selection_profile.setdefault(
+                "required_stream_policy", active["required_stream_policy"]
+            )
+        selection_profile = selection_profile or None
         prepared = candidate_index.prepare_candidate_index(
-            plan_ref, reviewed, previous_index_ref=previous_ref, artifact_base=base
+            plan_ref, reviewed, selection_profile=selection_profile,
+            previous_index_ref=previous_ref, artifact_base=base
         )
         scoped = prepared.get("candidate_index_input")
-        prepare_args = {"research_plan_ref": plan_ref, "reviewed_upstreams": reviewed}
+        prepare_args = {
+            "research_plan_ref": plan_ref,
+            "reviewed_upstreams": reviewed,
+            "selection_profile": deepcopy(selection_profile),
+        }
         finalize = {"operation": "research_candidate_index_finalize",
                     "fixed_arguments": deepcopy(prepare_args)}
     elif node_name == retrieval.AGENT:
@@ -336,12 +469,78 @@ def _prepare(node_name: str, topic_id: str | None, state: dict, rgi: dict, *, ba
         prepare_args = {"approved_source_set_ref": approved_ref}
         finalize = {"operation": "research_retrieval_finalize", "fixed_arguments": deepcopy(prepare_args),
                     "generated_argument": "result_refs"}
+    elif node_name == paper_review.AGENT:
+        corpus_record = records.get(retrieval.AGENT)
+        corpus_ref = corpus_record.get("artifact_ref") if corpus_record else None
+        candidate_record = records.get(candidate_index.AGENT)
+        candidate_ref = candidate_record.get("artifact_ref") if candidate_record else None
+        prepared = paper_review.prepare_paper_review(
+            corpus_ref, topic_id, research_plan_ref=plan_ref,
+            candidate_source_index_ref=candidate_ref, previous_review_ref=previous_ref,
+            revision_items=revision_items, artifact_base=base,
+        )
+        scoped = prepared.get("paper_review_input")
+        prepare_args = {
+            "retrieved_corpus_ref": corpus_ref,
+            "source_id": topic_id,
+            "research_plan_ref": plan_ref,
+            "candidate_source_index_ref": candidate_ref,
+        }
+        finalize = {"operation": "research_paper_review_finalize",
+                    "fixed_arguments": deepcopy(prepare_args),
+                    "generated_argument": "output"}
+    elif node_name == synthesis.AGENT:
+        candidate_record = records.get(candidate_index.AGENT)
+        gate_record = records.get(SOURCE_GATE)
+        corpus_record = records.get(retrieval.AGENT)
+        paper_records = sorted((
+            item for item in records.values()
+            if item.get("node") == paper_review.AGENT
+            and item.get("status") in {"approved", "revised_after_review"}
+            and isinstance(item.get("artifact_ref"), str)
+        ), key=lambda item: str(item.get("topic_id") or item.get("artifact_ref")))
+        paper_refs = [item["artifact_ref"] for item in paper_records]
+        reviewed_paper_reviews = [{
+            "paper_review_ref": item["artifact_ref"],
+            "review_decision_ref": item.get("review_decision_ref"),
+            "revision_completion_ref": item.get("revision_completion_ref"),
+        } for item in paper_records]
+        active = _active_profile(manifest)
+        prepared = synthesis.prepare_synthesis(
+            plan_ref,
+            candidate_record.get("artifact_ref") if candidate_record else None,
+            gate_record.get("artifact_ref") if gate_record else None,
+            corpus_record.get("artifact_ref") if corpus_record else None,
+            paper_refs,
+            profile=active,
+            reviewed_paper_reviews=reviewed_paper_reviews,
+            previous_state_ref=previous_ref,
+            revision_items=revision_items,
+            base=base,
+        )
+        scoped = prepared.get("synthesis_input")
+        prepare_args = {
+            "research_plan_ref": plan_ref,
+            "candidate_source_index_ref": candidate_record.get("artifact_ref") if candidate_record else None,
+            "approved_source_set_ref": gate_record.get("artifact_ref") if gate_record else None,
+            "retrieved_corpus_ref": corpus_record.get("artifact_ref") if corpus_record else None,
+            "paper_review_refs": paper_refs,
+            "reviewed_paper_reviews": reviewed_paper_reviews,
+            "profile": deepcopy(active),
+        }
+        finalize = {"operation": "research_synthesis_finalize",
+                    "fixed_arguments": deepcopy(prepare_args),
+                    "generated_argument": "output"}
     else:
         raise ValueError(f"no execution adapter for {node_name}")
 
     if previous_ref and node_name != planner.PLANNER_AGENT:
-        field = "previous_corpus_ref" if node_name == retrieval.AGENT else (
-            "previous_index_ref" if node_name == candidate_index.AGENT else "previous_candidates_ref"
+        field = (
+            "previous_corpus_ref" if node_name == retrieval.AGENT else
+            "previous_index_ref" if node_name == candidate_index.AGENT else
+            "previous_review_ref" if node_name == paper_review.AGENT else
+            "previous_state_ref" if node_name == synthesis.AGENT else
+            "previous_candidates_ref"
         )
         prepare_args[field] = previous_ref
         finalize["fixed_arguments"][field] = previous_ref
@@ -349,15 +548,25 @@ def _prepare(node_name: str, topic_id: str | None, state: dict, rgi: dict, *, ba
             prepare_args["revision_items"] = revision_items
             finalize["fixed_arguments"]["revision_items"] = revision_items
 
+    if previous_ref:
+        previous_artifact = artifacts.hydrate(previous_ref, base=base)
+        required_version = _next_artifact_version(previous_artifact.get("artifact_version"))
+        if node_name in {
+                candidate_index.AGENT, retrieval.AGENT, paper_review.AGENT, synthesis.AGENT}:
+            finalize["fixed_arguments"]["artifact_version"] = required_version
+
+    prepare_operation = (
+        "research_planner_prepare" if node_name == planner.PLANNER_AGENT else
+        "research_domain_prepare" if node_name == domain.DOMAIN_AGENT else
+        prepare_op if node_name in {canonical.CANONICAL_AGENT, recent.RECENT_AGENT,
+                                    market_cases.MARKET_AGENT} else
+        "research_candidate_index_prepare" if node_name == candidate_index.AGENT else
+        "research_retrieval_prepare" if node_name == retrieval.AGENT else
+        "research_paper_review_prepare" if node_name == paper_review.AGENT else
+        "research_synthesis_prepare"
+    )
     protocol = {
-        "prepare": {"operation": (
-            "research_planner_prepare" if node_name == planner.PLANNER_AGENT else
-            "research_domain_prepare" if node_name == domain.DOMAIN_AGENT else
-            prepare_op if node_name in {canonical.CANONICAL_AGENT, recent.RECENT_AGENT,
-                                        market_cases.MARKET_AGENT} else
-            "research_candidate_index_prepare" if node_name == candidate_index.AGENT else
-            "research_retrieval_prepare"
-        ), "arguments": prepare_args},
+        "prepare": {"operation": prepare_operation, "arguments": prepare_args},
         "allowed_operations": ALLOWED_OPERATIONS[node_name],
         "finalize": finalize,
         "rules": [
@@ -366,6 +575,11 @@ def _prepare(node_name: str, topic_id: str | None, state: dict, rgi: dict, *, ba
             "Return the exact envelope produced by finalize as the final message.",
         ],
     }
+    if previous_ref:
+        protocol["required_artifact_version"] = required_version
+        protocol["rules"].append(
+            f"This is the only correction attempt; emit artifact_version {required_version} and change only the listed revision items."
+        )
     return {"prepared": prepared, "input": scoped, "protocol": protocol}
 
 
@@ -398,6 +612,14 @@ def _build_review_task(node_name: str, prepared_input: dict, descriptor: dict, *
         )
     if node_name == retrieval.AGENT:
         return retrieval.build_retrieval_review_task(prepared_input, descriptor, base=base, **common)
+    if node_name == paper_review.AGENT:
+        return paper_review.build_paper_review_task(
+            prepared_input, descriptor, base=base, **common
+        )
+    if node_name == synthesis.AGENT:
+        return synthesis.build_synthesis_review_task(
+            prepared_input, descriptor, base=base, **common
+        )
     raise ValueError(f"no review adapter for {node_name}")
 
 
@@ -436,7 +658,7 @@ def _run_stage(node: dict, topic_id: str | None, state: dict, rgi: dict, node_ru
 
     for attempt in range(1, 3):
         execution = _prepare(
-            node["name"], topic_id, state, rgi, base=base,
+            node["name"], topic_id, state, rgi, manifest=manifest, base=base,
             previous=previous, findings=findings,
         )
         prepared = execution["prepared"]
@@ -507,6 +729,26 @@ def _run_stage(node: dict, topic_id: str | None, state: dict, rgi: dict, node_ru
             review_id=review_id, attempt=1, previous_decision_ref=None,
             findings=[], base=base,
         )
+        task = review.apply_review_mode(
+            task, _active_profile(manifest).get("review_mode", "standard")
+        )
+        if not _requires_a10_review(manifest, node["name"], envelope):
+            try:
+                decision, decision_ref = _fast_track_review_decision(task, base=base)
+            except (OSError, ValueError, KeyError, IndexError, TypeError) as exc:
+                return None, _issue("fast_track_review_rejected", f"{node['name']}: {exc}")
+            record = {
+                "node": node["name"], "topic_id": topic_id, "status": "approved",
+                "artifact_ref": descriptor["path"], "artifact_descriptor": descriptor,
+                "review_decision_ref": decision_ref,
+                "revision_completion_ref": None,
+            }
+            state["records"][key] = record
+            log.append(REVIEWER, "fast_track_review", status=decision["decision"], detail={
+                "target": node["name"], "topic_id": topic_id,
+                "artifact_ref": descriptor["path"], "review_decision_ref": decision_ref,
+            })
+            return record, None
 
         reviewer_node = {
             "name": REVIEWER,
@@ -526,7 +768,11 @@ def _run_stage(node: dict, topic_id: str | None, state: dict, rgi: dict, node_ru
                 "finalize": {"operation": "research_review_finalize",
                              "fixed_arguments": {"task": task},
                              "generated_argument": "decision"},
-                "rules": ["Review only the supplied artifact and return the exact finalize envelope."],
+                "rules": [
+                    "Call review prepare and use its deterministic preflight summary first.",
+                    "Follow review_mode and review_guidance from the supplied task.",
+                    "Review only the supplied artifact and return the exact finalize envelope.",
+                ],
             },
         }
         review_envelope = node_runner(reviewer_node, reviewer_ctx, log)
@@ -557,6 +803,12 @@ def _run_stage(node: dict, topic_id: str | None, state: dict, rgi: dict, node_ru
             )
         if decision["decision"] != "REVISE":
             return None, _issue("invalid_review_decision", f"unsupported decision {decision['decision']!r}")
+        if node["name"] == candidate_index.AGENT:
+            return None, _issue(
+                "deterministic_index_revision_requires_input_change",
+                "A05 is derived deterministically from reviewed upstreams and profile settings; "
+                "a REVISE decision requires an upstream/search/profile change, not an identical rerun.",
+            )
         original_descriptor = deepcopy(descriptor)
         previous = {"artifact_ref": artifact_ref}
         findings = deepcopy(decision["findings"])
@@ -578,6 +830,24 @@ def _topic_ids(plan: dict, requested: list[str] | None) -> list[str]:
         if item not in result:
             result.append(item)
     return result
+
+
+def _skip_nodes(manifest: dict) -> set[str]:
+    active = _active_profile(manifest)
+    values = active.get("skip_nodes") if isinstance(active, dict) else []
+    return {item for item in values if isinstance(item, str)}
+
+
+def _accepted_review_source_ids(corpus: dict) -> list[str]:
+    result = []
+    for field in ("documents", "market_cases"):
+        for item in corpus.get(field, []):
+            if not isinstance(item, dict):
+                continue
+            if item.get("status") in {"accepted", "duplicate"} \
+                    and isinstance(item.get("source_id"), str):
+                result.append(item["source_id"])
+    return list(dict.fromkeys(result))
 
 
 def _gate_payload(candidate_ref: str, state: dict, *, base=None) -> dict:
@@ -603,6 +873,14 @@ def _finalize_gate(candidate_ref: str, decision: dict, *, base=None) -> tuple[st
         checked = contracts.validate(approved, "human_approved_source_set@1")
         if not checked["ok"]:
             return None, _issue("invalid_human_approved_source_set", "; ".join(checked["errors"]))
+        candidate = artifacts.hydrate(candidate_ref, base=base)
+        if approved.get("candidate_source_index_ref") != candidate_ref \
+                or approved.get("task_id") != candidate.get("task_id") \
+                or approved.get("final_confirmation") is not True:
+            return None, _issue(
+                "invalid_human_approved_source_set",
+                "approved source set is not finally confirmed and bound to this candidate index",
+            )
         return approved_ref, None
     if not isinstance(decision, dict) or not isinstance(decision.get("selection"), dict) \
             or not isinstance(decision.get("confirmation_token"), str):
@@ -623,8 +901,37 @@ def _finalize_gate(candidate_ref: str, decision: dict, *, base=None) -> tuple[st
     return ref, None
 
 
-def terminal_gate_handler(payload: dict) -> dict:
-    """Two-step terminal gate with numbered sources and a separate final confirmation."""
+def _research_gate_payload(research_state_ref: str, state: dict, *, base=None) -> dict:
+    payload = synthesis.prepare_human_research_gate(research_state_ref, base=base)
+    payload["context"] = {**payload.get("context", {}), "run_id": state["run_id"]}
+    return payload
+
+
+def _finalize_research_gate(research_state_ref: str, decision: dict, *,
+                            base=None) -> tuple[str | None, dict | None]:
+    envelope = synthesis.finalize_research_bundle(research_state_ref, decision, base=base)
+    if envelope.get("status") == "needs_input":
+        return None, _issue(
+            "research_gate_not_approved",
+            envelope.get("summary", "Human Research Gate approval is required"),
+            "major",
+        )
+    if envelope.get("status") != "ok":
+        return None, _issue(
+            "research_bundle_finalize_failed",
+            envelope.get("summary", "research bundle finalization failed") + ": "
+            + "; ".join(item.get("message", "") for item in envelope.get("issues", [])),
+        )
+    ref = next((item.get("path") for item in envelope.get("produced", [])
+                if item.get("type") == "user_approved_research_bundle"), None)
+    if not isinstance(ref, str):
+        return None, _issue("research_gate_output_missing",
+                            "finalized research gate produced no bundle")
+    return ref, None
+
+
+def _source_terminal_gate_handler(payload: dict) -> dict:
+    """Two-step source gate with numbered sources and a separate confirmation."""
     import sys
 
     prompt = payload["source_selection"]
@@ -667,9 +974,86 @@ def terminal_gate_handler(payload: dict) -> dict:
     return {"selection": draft, "confirmation_token": validated["confirmation_token"]}
 
 
+def _research_terminal_gate_handler(payload: dict) -> dict:
+    """Collect the explicit decisions required to freeze the Graph03 research bundle."""
+    import sys
+
+    packet = payload.get("human_validation_packet", {})
+    language = str(packet.get("output_language") or "English")
+    polish = language.casefold().startswith("pl") or "pol" in language.casefold()
+    summary = {
+        "gate": payload.get("gate"),
+        "task_id": payload.get("context", {}).get("task_id"),
+        "instructions": packet.get("instructions"),
+        "required_updates": packet.get("required_updates", []),
+        "optional_improvements": packet.get("optional_improvements", []),
+        "unresolved_items": packet.get("unresolved", []),
+        "confidence": packet.get("confidence"),
+        "fast_mode_limitation": packet.get("fast_mode_limitation"),
+    }
+    sys.stderr.write(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
+
+    def ask(message: str) -> bool:
+        sys.stderr.write(message + " [yes/no]: ")
+        sys.stderr.flush()
+        answer = sys.stdin.readline().strip().casefold()
+        return answer in {"yes", "y", "tak", "t"}
+
+    required = ask(
+        "Zatwierdzić wszystkie wymagane aktualizacje?" if polish
+        else "Approve all required updates?"
+    )
+    optional = ask(
+        "Dołączyć opcjonalne usprawnienia?" if polish
+        else "Include optional improvements?"
+    )
+    sys.stderr.write(
+        ("Obsługa nierozstrzygniętych pozycji [keep/exclude/return]: " if polish else
+         "Unresolved item handling [keep/exclude/return]: ")
+    )
+    sys.stderr.flush()
+    action = sys.stdin.readline().strip().casefold()
+    actions = {
+        "keep": "keep_as_unresolved_items",
+        "zachowaj": "keep_as_unresolved_items",
+        "exclude": "exclude_from_graph03_handoff",
+        "pomiń": "exclude_from_graph03_handoff",
+        "return": "return_for_research",
+        "wróć": "return_for_research",
+    }
+    unresolved = actions.get(action)
+    if unresolved is None:
+        raise ValueError("unsupported unresolved item handling")
+    expected = "POTWIERDZAM" if polish else "CONFIRM"
+    sys.stderr.write(
+        (f"Wpisz {expected}, aby zatwierdzić tę decyzję końcową: " if polish else
+         f"Type {expected} to approve this final decision: ")
+    )
+    sys.stderr.flush()
+    confirmed = sys.stdin.readline().strip().upper() in {expected, "CONFIRM", "POTWIERDZAM"}
+    status = "approved" if confirmed and required and unresolved != "return_for_research" \
+        else "needs_changes"
+    return {
+        "status": status,
+        "approve_required_updates": required,
+        "approve_optional_improvements": optional,
+        "unresolved_claim_handling": unresolved,
+    }
+
+
+def terminal_gate_handler(payload: dict) -> dict:
+    """Dispatch the terminal UI to the source or final research gate."""
+    gate_name = payload.get("gate") if isinstance(payload, dict) else None
+    if gate_name == SOURCE_GATE:
+        return _source_terminal_gate_handler(payload)
+    if gate_name == RESEARCH_GATE:
+        return _research_terminal_gate_handler(payload)
+    raise ValueError(f"unsupported terminal gate {gate_name!r}")
+
+
 def run(input_ref=None, *, node_runner, base=None, gate_handler=None, pause_on_gate=False,
         resume_token: str | None = None, decisions: dict | None = None,
-        through: str = retrieval.AGENT, topic_ids: list[str] | None = None) -> dict:
+        through: str = synthesis.AGENT, topic_ids: list[str] | None = None) -> dict:
     """Run the implemented, reviewed G02 frontier and return research_run_report@1."""
     manifest = graphs.load(GRAPH_ID)
     _stage_rank(through)
@@ -678,7 +1062,7 @@ def run(input_ref=None, *, node_runner, base=None, gate_handler=None, pause_on_g
     if resume_token and input_ref is None:
         state = _load_checkpoint(resume_token)
         input_ref = state["input_ref"]
-        if through != retrieval.AGENT and through != state["through"]:
+        if through != synthesis.AGENT and through != state["through"]:
             raise ValueError("through cannot change while resuming a run")
         through = state["through"]
         topic_ids = state.get("requested_topic_ids")
@@ -732,48 +1116,51 @@ def run(input_ref=None, *, node_runner, base=None, gate_handler=None, pause_on_g
     if through == candidate_index.AGENT:
         return _report(state, "completed", output_ref=candidate_ref, base=base)
 
-    gate_payload = _gate_payload(candidate_ref, state, base=base)
-    supplied = (decisions or {}).get(SOURCE_GATE)
-    if supplied is None and gate_handler is not None:
-        supplied = gate_handler(gate_payload)
-    if supplied is None:
-        _save_checkpoint(state["resume_token"], state)
-        return _report(state, "awaiting_user", gate=gate_payload, base=base)
-    pending_status = supplied.get("selection", {}).get("status") \
-        if isinstance(supplied, dict) and isinstance(supplied.get("selection"), dict) else None
-    if pending_status in {"needs_more_search", "cancelled"}:
-        finalized = source_selection.finalize_source_selection(
-            candidate_ref, supplied["selection"], supplied.get("confirmation_token"), base=base
-        )
-        if finalized.get("status") == "failed":
-            message = finalized.get("summary", "source selection could not be validated")
-            return _failure_report(
-                state, _issue("source_gate_invalid", message), gate=gate_payload, base=base
+    if SOURCE_GATE in state["records"]:
+        approved_ref = state["records"][SOURCE_GATE]["artifact_ref"]
+    else:
+        gate_payload = _gate_payload(candidate_ref, state, base=base)
+        supplied = (decisions or {}).get(SOURCE_GATE)
+        if supplied is None and gate_handler is not None:
+            supplied = gate_handler(gate_payload)
+        if supplied is None:
+            _save_checkpoint(state["resume_token"], state)
+            return _report(state, "awaiting_user", gate=gate_payload, base=base)
+        pending_status = supplied.get("selection", {}).get("status") \
+            if isinstance(supplied, dict) and isinstance(supplied.get("selection"), dict) else None
+        if pending_status in {"needs_more_search", "cancelled"}:
+            finalized = source_selection.finalize_source_selection(
+                candidate_ref, supplied["selection"], supplied.get("confirmation_token"), base=base
             )
-        pending_gate = deepcopy(gate_payload)
-        pending_gate["last_decision"] = {
-            "status": pending_status,
-            "requested_search_extensions": deepcopy(
-                supplied["selection"].get("requested_search_extensions", [])
-            ),
-            "message": (
-                "Search extension was recorded; discovery must be resumed with the requested scope."
-                if pending_status == "needs_more_search" else
-                "Source selection was cancelled; no retrieval was authorized."
-            ),
+            if finalized.get("status") == "failed":
+                message = finalized.get("summary", "source selection could not be validated")
+                return _failure_report(
+                    state, _issue("source_gate_invalid", message), gate=gate_payload, base=base
+                )
+            pending_gate = deepcopy(gate_payload)
+            pending_gate["last_decision"] = {
+                "status": pending_status,
+                "requested_search_extensions": deepcopy(
+                    supplied["selection"].get("requested_search_extensions", [])
+                ),
+                "message": (
+                    "Search extension was recorded; discovery must be resumed with the requested scope."
+                    if pending_status == "needs_more_search" else
+                    "Source selection was cancelled; no retrieval was authorized."
+                ),
+            }
+            _save_checkpoint(state["resume_token"], state)
+            return _report(
+                state, "awaiting_user", output_ref=candidate_ref, gate=pending_gate, base=base
+            )
+        approved_ref, failure = _finalize_gate(candidate_ref, supplied, base=base)
+        if failure:
+            return _failure_report(state, failure, gate=gate_payload, base=base)
+        state["records"][SOURCE_GATE] = {
+            "node": SOURCE_GATE, "topic_id": None, "status": "approved",
+            "artifact_ref": approved_ref, "review_decision_ref": None,
+            "revision_completion_ref": None,
         }
-        _save_checkpoint(state["resume_token"], state)
-        return _report(
-            state, "awaiting_user", output_ref=candidate_ref, gate=pending_gate, base=base
-        )
-    approved_ref, failure = _finalize_gate(candidate_ref, supplied, base=base)
-    if failure:
-        return _failure_report(state, failure, gate=gate_payload, base=base)
-    state["records"][SOURCE_GATE] = {
-        "node": SOURCE_GATE, "topic_id": None, "status": "approved",
-        "artifact_ref": approved_ref, "review_decision_ref": None,
-        "revision_completion_ref": None,
-    }
     if through == SOURCE_GATE:
         _clear_checkpoint(state["resume_token"])
         return _report(state, "completed", output_ref=approved_ref, base=base)
@@ -782,6 +1169,94 @@ def run(input_ref=None, *, node_runner, base=None, gate_handler=None, pause_on_g
     _, failure = _run_stage(retrieval_node, None, state, rgi, node_runner, log, manifest, base=base)
     if failure:
         return _failure_report(state, failure, base=base)
-    output = state["records"][retrieval.AGENT]["artifact_ref"]
+    corpus_ref = state["records"][retrieval.AGENT]["artifact_ref"]
+    output = corpus_ref
+    if through == retrieval.AGENT:
+        _clear_checkpoint(state["resume_token"])
+        return _report(state, "completed", output_ref=output, base=base)
+
+    corpus = artifacts.hydrate(corpus_ref, base=base)
+    source_ids = _accepted_review_source_ids(corpus)
+    if _stage_rank(through) >= _stage_rank(paper_review.AGENT):
+        review_node = _node(manifest, paper_review.AGENT)
+        for source_id in source_ids:
+            _, failure = _run_stage(
+                review_node, source_id, state, rgi, node_runner, log, manifest, base=base
+            )
+            if failure:
+                return _failure_report(state, failure, base=base)
+        if through == paper_review.AGENT:
+            output = (
+                state["records"][_record_key(paper_review.AGENT, source_ids[-1])]["artifact_ref"]
+                if source_ids else corpus_ref
+            )
+            _clear_checkpoint(state["resume_token"])
+            return _report(state, "completed", output_ref=output, base=base)
+
+    if CLAIM_VERIFICATION_AGENT not in _skip_nodes(manifest) \
+            and _stage_rank(through) >= _stage_rank(CLAIM_VERIFICATION_AGENT):
+        return _report(state, "failed", issues=[_issue(
+            "unsupported_claim_verification_profile",
+            "A08 remains present in the graph but has no fast runtime; use a profile that skips it.",
+        )], output_ref=output, base=base)
+
+    synthesis_node = _node(manifest, synthesis.AGENT)
+    _, failure = _run_stage(synthesis_node, None, state, rgi, node_runner, log, manifest, base=base)
+    if failure:
+        return _failure_report(state, failure, base=base)
+    research_state_ref = state["records"][synthesis.AGENT]["artifact_ref"]
+    output = research_state_ref
+    if _stage_rank(through) < _stage_rank(RESEARCH_GATE):
+        research_gate = _research_gate_payload(research_state_ref, state, base=base)
+        supplied = (decisions or {}).get(RESEARCH_GATE)
+        if supplied is None and gate_handler is not None:
+            supplied = gate_handler(research_gate)
+        if supplied is None:
+            _save_checkpoint(state["resume_token"], state)
+            return _report(
+                state, "awaiting_user", output_ref=research_state_ref,
+                gate=research_gate, base=base
+            )
+        bundle_ref, failure = _finalize_research_gate(research_state_ref, supplied, base=base)
+        if failure:
+            pending_gate = deepcopy(research_gate)
+            pending_gate["last_decision"] = deepcopy(supplied)
+            _save_checkpoint(state["resume_token"], state)
+            return _report(
+                state, "awaiting_user", output_ref=research_state_ref,
+                issues=[failure], gate=pending_gate, base=base
+            )
+        state["records"][RESEARCH_GATE] = {
+            "node": RESEARCH_GATE, "topic_id": None, "status": "approved",
+            "artifact_ref": bundle_ref, "review_decision_ref": None,
+            "revision_completion_ref": None,
+        }
+        _clear_checkpoint(state["resume_token"])
+        return _report(state, "completed", output_ref=bundle_ref, base=base)
+
+    research_gate = _research_gate_payload(research_state_ref, state, base=base)
+    supplied = (decisions or {}).get(RESEARCH_GATE)
+    if supplied is None and gate_handler is not None:
+        supplied = gate_handler(research_gate)
+    if supplied is None:
+        _save_checkpoint(state["resume_token"], state)
+        return _report(
+            state, "awaiting_user", output_ref=research_state_ref,
+            gate=research_gate, base=base
+        )
+    bundle_ref, failure = _finalize_research_gate(research_state_ref, supplied, base=base)
+    if failure:
+        pending_gate = deepcopy(research_gate)
+        pending_gate["last_decision"] = deepcopy(supplied)
+        _save_checkpoint(state["resume_token"], state)
+        return _report(
+            state, "awaiting_user", output_ref=research_state_ref,
+            issues=[failure], gate=pending_gate, base=base
+        )
+    state["records"][RESEARCH_GATE] = {
+        "node": RESEARCH_GATE, "topic_id": None, "status": "approved",
+        "artifact_ref": bundle_ref, "review_decision_ref": None,
+        "revision_completion_ref": None,
+    }
     _clear_checkpoint(state["resume_token"])
-    return _report(state, "completed", output_ref=output, base=base)
+    return _report(state, "completed", output_ref=bundle_ref, base=base)

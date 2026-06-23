@@ -47,6 +47,7 @@ operates only on provider-resolvable seeds from the reviewed A02 artifact.
 
 - `research_domain_prepare`, scope the approved plan topic and validate provider startup.
 - `research_provider_status`, inspect enabled and ready services without exposing secrets.
+- `research_query_plan_generate_fast`, generate and validate the common bounded fast query plan.
 - `research_metadata_search`, execute one approved route through one provider and persist its
   result and raw-response provenance.
 - `research_doi_verify` / `research_doi_verify_batch`, persist Crossref registry and bibliographic
@@ -59,13 +60,18 @@ Never call provider endpoints, generic web tools or shell network commands direc
 ## Workflow
 
 1. Call `research_domain_prepare`. If it returns an envelope, return that envelope unchanged.
-2. Apply `g02-expand-research-query` to create one provider-neutral `query_plan@1`. Include a core
-   route, the required complementary route and a neutral qualifying-or-critical route when the
-   topic requires it. Give every generated term exactly one `generated_term_bases` entry grounded
-   in this route's approved origin terms and one approved expansion area.
-3. For every route, call `research_metadata_search` only for providers listed as ready and allowed
-   by that route. Use arXiv only when the topic permits `preprint`. Preserve valid zero-result,
-   unavailable and failed operations in the query log.
+2. In the default fast profile, call `research_query_plan_generate_fast` with the prepared
+   `domain_research_input@1`. Use its validated `query_plan` unchanged when `ready` is true. Apply
+   `g02-expand-research-query` manually only when the generator returns a structured gap, and
+   adjust only the fields named by that gap before deterministic validation. Keep at most three
+   routes: `core`, required `complementary` and required `qualifying_or_critical`.
+3. Immediately after the query plan is complete, call `research_metadata_search`; do not stop after
+   producing only `query_plan@1` and do not wait for a new orchestrator message. For each route use
+   one primary ready provider by default. Prefer OpenAlex for broad scholarly metadata, Semantic
+   Scholar when OpenAlex is unavailable or the route needs abstract/citation signals, and arXiv only
+   when `preprint` is allowed. Call a second provider only when the first operation fails, returns
+   zero usable records or leaves mandatory coverage open. Preserve valid zero-result, unavailable
+   and failed operations in the query log.
 4. Copy returned `source_record@1` objects without altering provider metadata. Retain a single
    occurrence of a repeated provider `source_id`; cross-provider deduplication belongs to G02-A05.
 5. Call `research_doi_verify` or `research_doi_verify_batch` for every DOI-bearing candidate. Store
@@ -78,7 +84,8 @@ Never call provider endpoints, generic web tools or shell network commands direc
 8. Stop on the topic limit, executed saturation rule, provider exhaustion or explicit provider
    unavailability. Record remaining coverage and all partial failures.
 9. Call `research_domain_finalize` with the complete current pool and return its envelope. The
-   orchestrator builds the review task and invokes G02-A10.
+   orchestrator either records fast-track approval or builds the review task and invokes G02-A10,
+   according to the active profile and finalizer status.
 
 ## Acceptance Criteria
 

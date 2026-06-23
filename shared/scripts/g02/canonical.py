@@ -159,6 +159,13 @@ def needs_input_envelope(issue_type: str, message: str, location: str) -> dict:
     )
 
 
+def _scope_not_requested() -> dict:
+    return _envelope(
+        "ok", "Canonical discovery is not requested for this approved topic.", [],
+        metrics={"skipped": True},
+    )
+
+
 def _provider_resolvable(record: dict) -> bool:
     identifiers = record.get("identifiers") if isinstance(record.get("identifiers"), dict) else {}
     return any(isinstance(identifiers.get(field), str) and identifiers[field].strip()
@@ -448,6 +455,15 @@ def prepare_canonical(research_plan_ref: str, domain_candidates_ref: str, topic_
             "unknown_or_duplicate_topic",
             f"expected exactly one topic {topic_id!r}, found {len(topics)}", "topic_id",
         )}
+    role_flags = topics[0].get("source_roles_required") \
+        if isinstance(topics[0].get("source_roles_required"), dict) else {}
+    canonical_requested = plan.get("approved_research_scope", {}).get(
+        "include_canonical_sources"
+    ) is True and any(role_flags.get(role) is True for role in (
+        "canonical", "survey", "didactic"
+    ))
+    if not canonical_requested:
+        return {"ready": False, "skipped": True, "envelope": _scope_not_requested()}
     if domain_pool.get("task_id") != plan.get("task_id") \
             or domain_pool.get("topic_id") != topic_id \
             or domain_pool.get("research_plan_ref") != research_plan_ref:

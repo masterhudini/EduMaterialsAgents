@@ -15,34 +15,45 @@ output language. The calling agent performs deterministic finalization and artif
 
 1. Build a driver table with `driver_id`, priority, purpose and all linked claim, concept,
    flow-issue and update-need IDs. Stop when a driver has no approved upstream link.
-2. Group drivers only when they support one operational investigation and require compatible
+2. Score drivers before grouping. Give strongest weight to high-priority claim drivers, high-
+   severity flow issues, drivers linked to multiple approved upstream cards, central concepts used
+   by more than one claim and drivers that unblock later evidence or retrieval. Medium-priority
+   drivers may be absorbed into a stronger group when they support the same investigation.
+3. In the default fast profile, respect the scoped `constraints.max_topics` limit, normally two.
+   Select the highest-value groups by the score above. Do not select the first groups merely
+   because they appear first in the input.
+4. Group drivers only when they support one operational investigation and require compatible
    terminology, evidence standards, source roles and time windows. Split mixed groups when any of
-   these differ materially.
-3. Assign a stable `TOPIC_*` ID, concise name and one bounded purpose to each group. Set topic
+   these differ materially, unless a lower-priority driver can be represented as a coverage unit
+   inside one of the selected high-value topics without broadening scope.
+5. If an approved driver cannot fit into the selected fast-profile topics, place it in
+   `uncovered_driver_ids` and add an `input_issues` entry with severity `minor` or `major`,
+   depending on downstream consequence. Do not create a third topic to avoid an explicit tradeoff.
+6. Assign a stable `TOPIC_*` ID, concise name and one bounded purpose to each group. Set topic
    priority to the highest priority among its linked drivers.
-4. Copy all related upstream IDs from the grouped drivers. Use only domain IDs present in
+7. Copy all related upstream IDs from the grouped drivers. Use only domain IDs present in
    `approved_domains`; do not infer an adjacent domain.
-5. Select source roles according to the approved need:
+8. Select source roles according to the approved need:
    - use `canonical` for foundations, definitions or historically established methods;
    - use `current` for explicit update needs, recency questions or state-of-the-art claims;
    - use `survey` when the task needs landscape coverage or method comparison;
    - use `didactic` for approved conceptual or flow needs requiring teachable exposition;
    - use `qualifying_or_critical` for claims that require limitations, counterevidence or boundary
      conditions.
-6. Form a provider-neutral search strategy. Core terms come from approved card wording and domain
+9. Form a provider-neutral search strategy. Core terms come from approved card wording and domain
    labels. Allowed expansions name bounded concepts rather than provider syntax and are specific
    enough to serve as the declared basis of later generated terms. Include separate areas for
    qualifying or critical terminology when that route is required. Exclusions prevent known
    ambiguity. Dates, languages and work types remain within global constraints. Seed sources use
    only approved `existing_source_cards.source_id` values.
-7. Create one or more observable `COV_*` units per topic. Each unit states what must be covered,
+10. Create one or more observable `COV_*` units per topic. Each unit states what must be covered,
    acceptable source roles, a positive minimum source count and whether it is mandatory. Avoid
    vague units such as "enough evidence".
-8. Copy configured saturation behavior into each stop rule. Keep `candidate_limit` within the
+11. Copy configured saturation behavior into each stop rule. Keep `candidate_limit` within the
    approved maximum and require a complementary route before declaring saturation.
-9. Reconcile all drivers. Put an unplannable driver in `uncovered_driver_ids` and link it to an
+12. Reconcile all drivers. Put an unplannable driver in `uncovered_driver_ids` and link it to an
    `input_issues` entry that states the missing decision and consequence. A blocker prevents output.
-10. Copy approved constraints to `global_constraints`, preserve `output_language`, set
+13. Copy approved constraints to `global_constraints`, preserve `output_language`, set
     `review_profile_ref: research_plan` and perform the output checks below.
 
 ## Output requirements

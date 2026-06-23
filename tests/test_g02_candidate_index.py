@@ -255,3 +255,20 @@ def test_mcp_inventory_and_candidate_index_prepare_parity():
     names = {tool["name"] for tool in srv.TOOLS}
     assert {"research_candidate_index_prepare", "research_candidate_index_finalize",
             "research_candidate_index_review_task"} <= names
+    assert "research_query_plan_generate_fast" in names
+
+
+def test_fast_available_stream_policy_keeps_optional_gaps_visible():
+    plan_ref, descriptors, profile = _prepared()
+    profile["required_stream_policy"] = "available_streams"
+    domain_only = [item for item in descriptors if item["stream"] == "domain"]
+    prepared = candidate_index.prepare_candidate_index(
+        plan_ref, domain_only, selection_profile=profile
+    )
+    assert prepared["ready"], prepared
+    scoped = prepared["candidate_index_input"]
+    assert scoped["selection_profile"]["required_stream_policy"] == "available_streams"
+    assert scoped["upstream_issues"]
+    assert all(not item["required"] for item in scoped["upstream_issues"])
+    index = candidate_index.build_candidate_index(scoped)
+    assert any(row["stream_warnings"] for row in index["coverage_matrix"])

@@ -239,7 +239,7 @@ def _build_output(prepared: dict) -> tuple[dict, list[dict]]:
             {"source_id": related["source_id"], "coverage_unit_ids": coverage,
              "basis": "citation_relation"},
         ],
-        "remaining_coverage_units": [],
+        "remaining_coverage_units": ["COV_LIKELIHOOD_POSTERIOR_SEQUENCE"],
         "provider_issues": [],
         "unresolved_seed_ids": canonical_input["unresolved_plan_seed_ids"],
         "stop_reason": "unresolved_seed",

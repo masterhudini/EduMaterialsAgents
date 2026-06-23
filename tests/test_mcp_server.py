@@ -28,16 +28,18 @@ def test_initialize_and_tools_list():
     init = srv.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                        "params": {"protocolVersion": "2024-11-05"}})
     assert init["result"]["serverInfo"]["name"] == "edu-materials-research"
-    assert init["result"]["serverInfo"]["version"] == "0.10.0"
+    assert init["result"]["serverInfo"]["version"] == "0.11.1"
     assert init["result"]["protocolVersion"] == "2024-11-05"
     assert "prompts" in init["result"]["capabilities"]
 
     tools = srv.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     names = {t["name"] for t in tools["result"]["tools"]}
+    assert len(names) == 51
     assert names == {"research_front_door", "research_node_input",
                      "research_planner_prepare", "research_planner_finalize",
                      "research_plan_review_task",
                      "research_provider_status", "research_domain_prepare",
+                     "research_query_plan_generate_fast",
                      "research_metadata_search", "research_doi_verify",
                      "research_doi_verify_batch", "research_domain_finalize",
                      "research_domain_review_task",
@@ -55,6 +57,11 @@ def test_initialize_and_tools_list():
                      "research_document_validate", "research_retrieval_finalize",
                      "research_retrieval_review_task",
                      "research_web_case_extract",
+                     "research_paper_review_prepare", "research_document_text_index",
+                     "research_document_text_window", "research_paper_review_finalize",
+                     "research_paper_review_task",
+                     "research_synthesis_prepare", "research_synthesis_finalize",
+                     "research_synthesis_review_task", "research_bundle_finalize",
                      "research_review_prepare", "research_review_finalize",
                      "research_finalize", "research_run_stub", "research_run_codex"}
     run_codex = next(t for t in tools["result"]["tools"] if t["name"] == "research_run_codex")

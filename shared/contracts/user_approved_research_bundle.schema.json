@@ -1,10 +1,19 @@
 {
-  "title": "User-approved research bundle — Research Graph output / handoff to Solution (design §9.3).",
-  "x-version": "1.0",
+  "title": "User-approved research bundle for Research Graph handoff to Solution.",
+  "x-version": "1.2",
   "x-major": 1,
   "type": "object",
-  "required": ["approved_research_summary_ref", "approved_update_findings"],
+  "required": [
+    "schema_version", "artifact_version", "task_id", "research_state_ref",
+    "approved_research_summary_ref", "approved_update_findings",
+    "approved_optional_findings", "rejected_findings", "unresolved_claim_policy",
+    "human_gate_decision", "solution_handoff", "approved_at"
+  ],
   "properties": {
+    "schema_version": {"type": "string", "enum": ["user_approved_research_bundle@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "research_state_ref": {"type": "string"},
     "approved_research_summary_ref": {"type": "string"},
     "approved_update_findings": {
       "type": "array",
@@ -15,14 +24,36 @@
           "finding_id": {"type": "string"},
           "impact": {"type": "string"},
           "priority": {"type": "string"},
+          "status": {"type": "string"},
           "related_claims": {"type": "array", "items": {"type": "string"}},
-          "evidence_cards": {"type": "array"}
+          "related_topics": {"type": "array", "items": {"type": "string"}},
+          "evidence_refs": {"type": "array", "items": {"type": "string"}},
+          "source_refs": {"type": "array", "items": {"type": "string"}},
+          "evidence_cards": {"type": "array"},
+          "confidence": {"type": "string"}
         }
       }
     },
-    "approved_optional_findings": {"type": "array"},
+    "approved_optional_findings": {"type": "array", "items": {"type": "object"}},
     "rejected_findings": {"type": "array"},
     "unresolved_claim_policy": {"type": "object"},
-    "solution_handoff": {"type": "object"}
+    "human_gate_decision": {
+      "type": "object",
+      "required": [
+        "status", "approve_required_updates", "approve_optional_improvements",
+        "unresolved_claim_handling"
+      ],
+      "properties": {
+        "status": {"type": "string", "enum": ["approved"]},
+        "approve_required_updates": {"type": "boolean", "enum": [true]},
+        "approve_optional_improvements": {"type": "boolean"},
+        "unresolved_claim_handling": {
+          "type": "string",
+          "enum": ["keep_as_unresolved_items", "exclude_from_graph03_handoff"]
+        }
+      }
+    },
+    "solution_handoff": {"type": "object"},
+    "approved_at": {"type": "string"}
   }
 }

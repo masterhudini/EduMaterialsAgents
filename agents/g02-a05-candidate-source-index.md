@@ -19,6 +19,11 @@ upstream artifacts that passed their single A10 review, either `APPROVED` or cor
 their reviewed annotations and mappings, selection limits, output language and prior search
 extensions, not whole producer outputs or review transcripts.
 
+In `strict`, all streams required by the plan remain mandatory. In the default `fast` profile,
+the reviewed A02 domain stream is mandatory for every topic. A03, A04 and A11 are consumed when
+available and become mandatory only when `mandatory_streams` explicitly names them. Missing
+optional streams remain visible in the coverage matrix, search summary and review document.
+
 **Output artifacts:**
 
 - `CandidateSourceIndex` (`candidate_source_index@1`);
@@ -91,8 +96,9 @@ is the number of unique IDs assigned `DOWNLOAD`, split into scholarly PDFs and m
 
 ## Failure handling
 
-Use `degraded` when one reviewed stream is unavailable but a useful index and explicit gaps can be
-produced. Use `needs_input` only when a required human-approved selection policy is absent. Use
+Use `degraded` when a required stream is unavailable or mandatory coverage remains open. Missing
+optional fast streams produce visible warnings without degrading an otherwise complete index. Use
+`needs_input` only when a required human-approved selection policy is absent. Use
 `failed` if records cannot be given stable identity or the two required artifacts cannot be formed.
 
 ## Resume

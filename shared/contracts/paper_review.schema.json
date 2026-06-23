@@ -1,37 +1,73 @@
 {
-  "title": "PaperReview \u2014 per-document evidence extraction (design 02 \u00a75.7).",
-  "x-version": "1.0",
+  "title": "PaperReview per-document evidence extraction.",
+  "x-version": "1.2",
   "x-major": 1,
   "type": "object",
   "required": [
-    "source_id",
-    "relevance_to_lecture",
-    "limitations"
+    "schema_version", "artifact_version", "task_id", "source_id", "source_kind",
+    "reviewed_document_ref", "reviewed_document_sha256", "topic_ids", "claim_ids",
+    "relevance_to_lecture", "limitations", "contribution", "method",
+    "method_or_source_basis", "findings", "evidence_cards", "review_status",
+    "confidence", "evidence_access_level", "review_profile_ref", "location_flags",
+    "conflict_flags", "prompt_injection_flags"
   ],
   "properties": {
-    "source_id": {
-      "type": "string"
-    },
-    "relevance_to_lecture": {
-      "type": "string"
-    },
-    "limitations": {
-      "type": "string"
-    },
-    "contribution": {
-      "type": "string"
-    },
-    "method": {
-      "type": "string"
-    },
-    "findings": {
-      "type": "string"
-    },
+    "schema_version": {"type": "string", "enum": ["paper_review@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "source_id": {"type": "string"},
+    "source_kind": {"type": "string", "enum": ["scholarly", "market_case"]},
+    "reviewed_document_ref": {"type": "string"},
+    "reviewed_document_sha256": {"type": "string"},
+    "topic_ids": {"type": "array", "items": {"type": "string"}},
+    "claim_ids": {"type": "array", "items": {"type": "string"}},
+    "relevance_to_lecture": {"type": "string"},
+    "limitations": {"type": "string"},
+    "contribution": {"type": "string"},
+    "method": {"type": "string"},
+    "method_or_source_basis": {"type": "string"},
+    "findings": {"type": "string"},
+    "finding_cards": {"type": "array", "items": {"type": "object"}},
     "evidence_cards": {
-      "type": "array"
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "evidence_id", "source_id", "topic_ids", "claim_ids", "relation",
+          "summary", "locations", "confidence"
+        ],
+        "properties": {
+          "evidence_id": {"type": "string"},
+          "card_id": {"type": "string"},
+          "source_id": {"type": "string"},
+          "topic_ids": {"type": "array", "items": {"type": "string"}},
+          "claim_ids": {"type": "array", "items": {"type": "string"}},
+          "relation": {
+            "type": "string",
+            "enum": ["supports", "contradicts", "qualifies", "contextualizes", "method_only", "unclear"]
+          },
+          "summary": {"type": "string"},
+          "quote": {"type": "string"},
+          "locations": {"type": "array", "items": {"type": "object"}},
+          "confidence": {"type": "string", "enum": ["low", "medium", "high"]}
+        }
+      }
     },
+    "review_status": {"type": "string", "enum": ["sufficient", "partial", "insufficient"]},
+    "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
     "evidence_access_level": {
-      "type": "string"
-    }
+      "type": "string",
+      "enum": [
+        "full_text_window",
+        "partial_text_window",
+        "metadata_or_abstract_only",
+        "market_case_bundle",
+        "unavailable"
+      ]
+    },
+    "review_profile_ref": {"type": "string", "enum": ["paper_evidence"]},
+    "location_flags": {"type": "object"},
+    "conflict_flags": {"type": "array", "items": {"type": ["object", "string"]}},
+    "prompt_injection_flags": {"type": "array", "items": {"type": "string"}}
   }
 }

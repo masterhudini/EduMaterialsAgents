@@ -12,32 +12,42 @@
   "topics": [
     {
       "topic_id": "TOPIC_BAYESIAN_COMPUTATION",
-      "name": "Bayesian computation, MCMC and scale",
-      "purpose": "Bound the computational-cost claim and position MCMC among posterior methods.",
+      "name": "Bayesian computation, MCMC, scale and posterior foundations",
+      "purpose": "Bound the computational-cost claim, position MCMC among posterior methods and support the likelihood-to-posterior teaching bridge.",
       "priority": "high",
-      "linked_driver_ids": ["DRV_001", "DRV_003"],
+      "linked_driver_ids": ["DRV_001", "DRV_003", "DRV_004"],
       "related_claims": ["CLM_001", "CLM_003"],
-      "related_concepts": ["C1"],
-      "related_flow_issues": [],
+      "related_concepts": ["C1", "C2"],
+      "related_flow_issues": ["F_001"],
       "related_update_needs": [],
       "approved_domains": ["D1", "D3"],
       "source_roles_required": {
         "canonical": true,
         "current": true,
         "survey": true,
-        "didactic": false,
+        "didactic": true,
         "qualifying_or_critical": true
       },
       "search_strategy": {
-        "core_terms": ["Bayesian computation", "MCMC computational cost", "posterior sampling"],
+        "core_terms": [
+          "Bayesian computation",
+          "MCMC computational cost",
+          "posterior sampling",
+          "likelihood posterior teaching",
+          "Bayesian inference conceptual sequence"
+        ],
         "allowed_expansion_areas": [
           "scalable inference",
           "gradient-based MCMC",
           "MCMC limitations",
           "MCMC diagnostics",
-          "MCMC efficiency"
+          "MCMC efficiency",
+          "Bayes theorem pedagogy"
         ],
-        "excluded_terms": ["generic Bayesian applications without computational analysis"],
+        "excluded_terms": [
+          "generic Bayesian applications without computational analysis",
+          "advanced computation without conceptual exposition"
+        ],
         "year_from": null,
         "year_to": null,
         "languages": ["en"],
@@ -58,10 +68,17 @@
           "source_roles": ["canonical", "current"],
           "minimum_sources": 2,
           "mandatory": true
+        },
+        {
+          "coverage_id": "COV_LIKELIHOOD_POSTERIOR_SEQUENCE",
+          "description": "Support the conceptual sequence from likelihood to posterior for a master's audience.",
+          "source_roles": ["canonical", "didactic"],
+          "minimum_sources": 2,
+          "mandatory": true
         }
       ],
       "stop_rule": {
-        "candidate_limit": 24,
+        "candidate_limit": 12,
         "no_new_coverage_passes": 2,
         "complementary_search_route_required": true
       }
@@ -85,7 +102,10 @@
         "qualifying_or_critical": true
       },
       "search_strategy": {
-        "core_terms": ["variational inference posterior variance", "variational approximation limitations"],
+        "core_terms": [
+          "variational inference posterior variance",
+          "variational approximation limitations"
+        ],
         "allowed_expansion_areas": ["calibration", "uncertainty quantification"],
         "excluded_terms": ["optimization papers without posterior approximation"],
         "year_from": null,
@@ -111,50 +131,7 @@
         }
       ],
       "stop_rule": {
-        "candidate_limit": 24,
-        "no_new_coverage_passes": 2,
-        "complementary_search_route_required": true
-      }
-    },
-    {
-      "topic_id": "TOPIC_LIKELIHOOD_POSTERIOR_BRIDGE",
-      "name": "Likelihood to posterior conceptual bridge",
-      "purpose": "Find didactic and canonical support for explaining likelihood before posterior use.",
-      "priority": "high",
-      "linked_driver_ids": ["DRV_004"],
-      "related_claims": [],
-      "related_concepts": ["C1", "C2"],
-      "related_flow_issues": ["F_001"],
-      "related_update_needs": [],
-      "approved_domains": ["D1"],
-      "source_roles_required": {
-        "canonical": true,
-        "current": false,
-        "survey": false,
-        "didactic": true,
-        "qualifying_or_critical": false
-      },
-      "search_strategy": {
-        "core_terms": ["likelihood posterior teaching", "Bayesian inference conceptual sequence"],
-        "allowed_expansion_areas": ["Bayes theorem pedagogy"],
-        "excluded_terms": ["advanced computation without conceptual exposition"],
-        "year_from": null,
-        "year_to": null,
-        "languages": ["en"],
-        "work_types": ["book", "chapter", "article"],
-        "seed_sources": ["SRC_EXISTING_001"]
-      },
-      "coverage_requirements": [
-        {
-          "coverage_id": "COV_LIKELIHOOD_POSTERIOR_SEQUENCE",
-          "description": "Support the conceptual sequence from likelihood to posterior for a master's audience.",
-          "source_roles": ["canonical", "didactic"],
-          "minimum_sources": 2,
-          "mandatory": true
-        }
-      ],
-      "stop_rule": {
-        "candidate_limit": 16,
+        "candidate_limit": 12,
         "no_new_coverage_passes": 2,
         "complementary_search_route_required": true
       }
@@ -163,8 +140,8 @@
   "uncovered_driver_ids": [],
   "input_issues": [],
   "global_constraints": {
-    "max_topics": 6,
-    "candidate_limit_per_topic": 24,
+    "max_topics": 2,
+    "candidate_limit_per_topic": 12,
     "no_new_coverage_passes": 2,
     "allowed_languages": ["en"],
     "allowed_work_types": ["article", "review", "book", "chapter", "preprint"],

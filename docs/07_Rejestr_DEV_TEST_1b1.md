@@ -318,8 +318,12 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
   `g02-a01-planner`, profilem `research_plan` i kryteriami `RP-01`–`RP-06`.
 - [x] Deskryptor innego typu, kontraktu, bez artifact version lub bez `artifact://` nie pozwala
   zbudować review task.
+- [ ] Deskryptor artefaktu przekazywany do `research_plan_review_task` musi zawierać jawne pole  — Runda 11: **F-E (blocker)**. Adapter wymaga `type: "research_plan"` (brak → `artifact descriptor type must be research_plan`) oraz `ref` (nie `artifact_ref`) z wartością `artifact://`. Prompt orkiestratora i dokumentacja MCP nie komunikują tych wymagań. Fix: zaktualizować schemat deskryptora lub prompt orkiestratora; dodać test dla deskryptora bez `type` i bez `ref`.
+  `type` i `ref` (a nie `artifact_ref`); brak któregokolwiek jest odrzucany.
+- [ ] `research_review_prepare` i `research_review_finalize` wymagają przekazania pełnego obiektu  — Runda 11: **F-F (blocker)**. Prepare zwraca BLOCKED kolejno na `missing original_task`, `missing producer_input` i `evidence_requirements[n]: missing requirement_id` (błędny klucz `criterion_id`). Orkiestrator musi przekazywać cały obiekt z `research_plan_review_task` bez modyfikacji. Fix: zaktualizować prompt orkiestratora; sprawdzić schemat `evidence_requirements[].requirement_id` jako required.
+  `review_task@1` z `producer_input`; klucz w `evidence_requirements` to `requirement_id` (nie `criterion_id`).
 - [x] Próba review większa niż 1 wymaga `previous_decision_ref` i poprawnej historii reviewera.
-- [ ] Poprawny plan może otrzymać `APPROVED`; brak coverage, zbyt szeroki plan i uncovered
+- [x] Poprawny plan może otrzymać `APPROVED`; brak coverage, zbyt szeroki plan i uncovered  — Runda 11: PASS (po korekcie task). Reviewer: 0 findings, confidence high, RP-01–RP-06 i RP-E01–RP-E04 zaliczone. Artefakt: `artifact://reviews/REV_A01_001-attempt-1.json`.
   high-priority driver prowadzą do `REVISE` albo `BLOCKED` zgodnie z root cause.
 - [x] Reviewer pozostaje read-only i nie zmienia ResearchPlan podczas oceny.
 
@@ -503,8 +507,10 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
 
 ### TEST 3, agent, MCP, packaging i regresja
 
-- [ ] Forward test G02-A02 tworzy QueryPlan, wywołuje wyłącznie narzędzia MCP, zachowuje neutralność  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
+- [ ] Forward test G02-A02 tworzy QueryPlan, wywołuje wyłącznie narzędzia MCP, zachowuje neutralność  — `⏳ KOŃCOWY`. Runda 11: **F-G (blocker)**. Agent zatrzymuje się po zakończeniu skilla `g02-expand-research-query` i nie wywołuje `research_metadata_search` bez kolejnej wiadomości od orkiestratora. Fix: wzmocnić prompt agenta G02-A02 o jawny krok „po skill natychmiast wywołaj search dla każdej trasy bez oczekiwania".
   stanowisk i nie wykonuje pracy A03-A09.
+- [ ] `query_plan@1` wygenerowany przez agenta G02-A02 jest akceptowany przez `research_metadata_search`  — Runda 11: **F-H (blocker)**. Agenty generują `routes[].queries[]` (zagnieżdżona tablica), pole `providers` i `route_type`; adapter oczekuje: jedno query płasko na route (`canonical_query`, `origin_terms`, `generated_terms`), `preferred_providers`, `purpose` (`"core"/"complementary"/"qualifying_or_critical"`), `artifact_version`. Fix: zaktualizować skill `g02-expand-research-query` (schemat i przykład w SKILL.md) do flat-route struktury; zaktualizować `mocks/g02/query_plan.json`; dodać offline test dry-run.
+  bez iteracji: flat-route struktura, `preferred_providers`, `purpose`, `artifact_version`.
 - [ ] Forward test G02-A02 zachowuje pełną ścieżkę `driver → topic → origin term → generated term  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   basis → route → coverage unit`; reviewer odrzuca semantycznie nieuzasadniony basis nawet wtedy,
   gdy jego shape przechodzi kontrakt.
@@ -1179,6 +1185,16 @@ się bez pokazania sparsowanego podsumowania i osobnego finalnego potwierdzenia.
 > Dodano `--through`, `--topic-id`, `research_run_report@1` oraz dwustopniową bramkę bez trybu auto.
 > Lokalna regresja DEV: 115 PASS / 1 SKIP; realny Codex forward i osobna Runda 11 nadal wymagane.
 
+> **DEV fast prototype po Rundzie 11 (2026-06-23):** ustawiono `fast` jako domyślny profil
+> wykonania. A01 dostaje ograniczony scoped input (`max_topics: 2`,
+> `candidate_limit_per_topic: 12`, target źródeł 8) i ma wybierać dwa topic groups według
+> priorytetu driverów, centralności claimów/konceptów oraz wpływu na flow, a nie według kolejności
+> wejścia. A02 otrzymał jawny flat-route `query_plan@1`, natychmiastowe przejście do
+> `research_metadata_search` i budżet jednego primary providera per route z fallbackiem tylko przy
+> luce. A10 jest obowiązkowy dla A01/A05/A06; A02/A03/A04/A11 dostają deterministyczny fast-track
+> approval przy czystej finalizacji `ok`, a `degraded` nadal kieruje do A10. Nie zaznaczono nowych
+> checkboxów TEST; wymagany osobny forward fast A01→A02 i następnie A01→A06.
+
 > **Runda 9 (2026-06-23):** próba forward A01→A06 na hoście Claude (headless `claude -p` + MCP). Mechanizm i ścieżka ref-owa `prepare` potwierdzone, ale wykryto **systemowy blocker F-A** (`*_prepare.input` bez `type` → agent wysyła string JSON → serwer traktuje go jako ścieżkę pliku → crash; `research_server.py:90-98`). Podejście `claude -p` uznane za nieodpowiednie do testów (blokada bypass, globalny tool-deferral, koszt/kruchość). **Żaden węzeł forward nie domknięty — nic nie zaznaczono.** Forward/końcowe powtórzymy w środowisku **Codex** (`run-codex`). Szczegóły: 08 Runda 9.
 
 - [ ] Pełna regresja A01, A02 i A10 oraz wszystkie nowe testy kontraktowe i offline.  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
@@ -1313,3 +1329,59 @@ spisane niżej jako batch TEST. W DEV nie uruchamiano `pytest`, venv, live API a
    wykonać dopiero w pełnym łańcuchu A11→A05→final confirmation→A06.
 6. Wynik dopisać jako nową rundę na górze `docs/08_Log_wynikow_TEST.md`; checkboxy powyżej
    zaznaczyć wyłącznie na podstawie faktycznie wykonanych asercji i inspekcji dokumentu.
+
+## DEV fast P0-P5, 2026-06-23
+
+Zakres implementacji i dalsza kolejność są zamrożone w
+[`10_Plan_fast_prototyp_G02_do_Graph03.md`](10_Plan_fast_prototyp_G02_do_Graph03.md).
+Wdrożono P0-P5 bez uruchamiania lokalnych testów: semantykę profilu fast, deterministyczny
+generator query planu, `available_streams` dla A05, limity kosztowe oraz szybki preflight A10.
+Nie zmieniono checkboxów TEST ani wyników w dokumencie 08. P6-P8 pozostają zakresem przyszłych
+sesji dla A07, A09 i przełączenia domyślnego terminala runnera z A06 na A09.
+
+## DEV fast P6-P8, 2026-06-23
+
+Wdrożono P6-P8 bez uruchamiania lokalnych testów: A07 Paper Review z deterministycznym indeksem
+tekstu i bounded windows, A09 fast synthesis bez A08, mandatory A10 dla A09, Human Research Gate z
+checkpointem oraz finalizację `user_approved_research_bundle@1` po decyzji człowieka. Domyślny
+terminal runnera Codex ustawiono na reviewed A09, a `fast` zachowuje jawne `skip_nodes` dla A08.
+
+Przygotowano testy i mocki dla PDF/window indexing, A07 PDF, A07 market case bez sieci, fabricated
+locations, identity mismatch, prompt injection flags, conditional A10 dla A07, A09 bez A08, jawnej
+limitation fast, blokady A09 bez evidence refs, mandatory A10 dla A09, skip A08, pause/resume Human
+Research Gate, przepływu A06 -> A07 -> A09, Graph03 handoff candidate i inventory MCP. Testy P6-P8
+czekają na osobne środowisko TEST; nie zmieniono checkboxów TEST ani wyników w dokumencie 08.
+
+## DEV audyt gotowości P0-P8 przed P9, 2026-06-23
+
+Przeprowadzono statyczny audyt dokumentów 07-10, runtime, grafu, kontraktów, MCP, agentów, skilli i
+przygotowanych testów. Bez uruchamiania testów poprawiono obsługę obu bramek terminalowych,
+trzyczęściową decyzję Human Research Gate, wersjonowanie pojedynczej korekty, reviewed provenance
+A07 -> A09, przebieg A09 przy zerowej liczbie pobranych dokumentów, agregację evidence statusów,
+kontrakty pomocniczych artefaktów A09 oraz budżet i lokacje A07. P9 nadal oznacza wykonanie pełnej
+weryfikacji w osobnym środowisku; historyczne wyniki w dokumencie 08 pozostają bez zmian.
+
+## DEV deterministyczny pytest w sandboxie (Runda 12), 2026-06-23
+
+Po raz pierwszy uruchomiono przygotowaną, deterministyczną część testów (P6-P8/P9) niezależnie od
+środowiska pluginowego i MCP. Szczegóły, środowisko i tabela findingów w `08_Log_wynikow_TEST.md`,
+Runda 12. Skrót:
+
+- Pełny `tests/` przeszedł na zielono: **146 passed / 1 skipped / 0 failed** (1 skip = live PDF smoke).
+- Pierwszy przebieg dał 12 failed; ustalono **4 przyczyny źródłowe** i wszystkie naprawiono:
+  - F-12-1 (fixture, 8 testów A11): deterministyczne testy market-case były dławione przez globalny
+    cap profilu `fast` (P4); przypięto `EMAGENTS_G02_PROFILE=strict` w fixture, jak w
+    `test_g02_domain.py`. Pliki: `tests/test_g02_market_cases.py`.
+  - F-12-2 (fixture, 2 testy A03): hand-built output deklarował puste `remaining_coverage_units` mimo
+    niepokrytej mandatory coverage unit; uzupełniono. Plik: `tests/test_g02_canonical.py`.
+  - F-12-3 (kod, 1 test A07): komunikat odrzucenia sfabrykowanej lokacji nie zawierał słowa
+    „fabricated"; rozszerzono komunikat. Plik: `shared/scripts/g02/paper_review.py`.
+  - F-12-4 (kod, REALNY BŁĄD, 1 test A07): dla market case offsety sekcji liczone na surowym
+    markdownie kolidowały z bezwarunkowym doszywaniem abstractu w `document_text_window` (okno
+    15-znakowe zamiast faktu); abstract doszywany teraz tylko dla `scholarly`, a market-case okno
+    obejmuje cały bundel A06. Plik: `shared/scripts/g02/paper_review.py`.
+- Status scenariuszy: deterministyczne A01-A11, A07, A09, reviewed_flow, MCP inventory i plugin build
+  są PASS w sandboxie. Forward przez plugin/MCP (Rundy 9-11, F-A...F-H) oraz live API pozostają
+  `⏳ KOŃCOWY` do osobnego środowiska TEST.
+- Uwaga przenośności: runtime używa `datetime.UTC` (Python >= 3.11). TEST na 3.11+ (dotychczas 3.14)
+  jest OK; przy 3.10 wymagany fallback lub `python_requires>=3.11`.

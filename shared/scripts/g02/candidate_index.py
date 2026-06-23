@@ -32,6 +32,8 @@ DEFAULT_PROFILE = {
     "display_limit": 18,
     "reserve_limit": 12,
     "per_topic_limit": 8,
+    "required_stream_policy": "strict",
+    "mandatory_streams": [],
     "ranking_weights": {
         "coverage_contribution": 0.30,
         "role_fit": 0.18,
@@ -79,8 +81,14 @@ SEVERITY_RULES = {
 }
 
 
-def _issue(severity: str, kind: str, message: str, location: str) -> dict:
-    return {"severity": severity, "type": kind, "message": message, "location": location}
+def _issue(severity: str, kind: str, message: str, location: str, *, required=True) -> dict:
+    return {
+        "severity": severity,
+        "type": kind,
+        "message": message,
+        "location": location,
+        "required": required,
+    }
 
 
 def _envelope(status: str, summary: str, issues: list[dict], *, produced=None,
@@ -133,6 +141,21 @@ def _validate_profile(value: object) -> dict:
             if not isinstance(item, int) or isinstance(item, bool) or item < 1:
                 raise ValueError(f"selection_profile.{field} must be a positive integer")
             profile[field] = item
+    if "required_stream_policy" in value:
+        policy = value["required_stream_policy"]
+        if policy not in {"strict", "available_streams"}:
+            raise ValueError(
+                "selection_profile.required_stream_policy must be strict or available_streams"
+            )
+        profile["required_stream_policy"] = policy
+    if "mandatory_streams" in value:
+        mandatory = value["mandatory_streams"]
+        if not isinstance(mandatory, list) or any(
+                not isinstance(item, str) or item not in STREAM_PROFILE for item in mandatory):
+            raise ValueError(
+                "selection_profile.mandatory_streams must contain supported stream names"
+            )
+        profile["mandatory_streams"] = _unique(mandatory)
     if "ranking_weights" in value:
         weights = value["ranking_weights"]
         if not isinstance(weights, dict) or set(weights) != set(profile["ranking_weights"]):
@@ -144,19 +167,32 @@ def _validate_profile(value: object) -> dict:
     return profile
 
 
-def _required_streams(plan: dict) -> set[tuple[str, str]]:
-    required = {("domain", topic["topic_id"]) for topic in plan["topics"]}
+def _planned_streams(plan: dict) -> set[tuple[str, str]]:
+    planned = {("domain", topic["topic_id"]) for topic in plan["topics"]}
     scope = plan.get("approved_research_scope", {})
     for topic in plan["topics"]:
         topic_id = topic["topic_id"]
         roles = topic.get("source_roles_required", {})
         if scope.get("include_canonical_sources") and any(
                 roles.get(role) for role in ("canonical", "survey", "didactic")):
-            required.add(("canonical", topic_id))
+            planned.add(("canonical", topic_id))
         if scope.get("include_recent_developments") and roles.get("current"):
-            required.add(("recent", topic_id))
+            planned.add(("recent", topic_id))
         if scope.get("include_didactic_examples") and roles.get("didactic"):
-            required.add(("market_cases", topic_id))
+            planned.add(("market_cases", topic_id))
+    return planned
+
+
+def _required_streams(plan: dict, profile: dict) -> set[tuple[str, str]]:
+    planned = _planned_streams(plan)
+    if profile["required_stream_policy"] == "strict":
+        return planned
+    required = {("domain", topic["topic_id"]) for topic in plan["topics"]}
+    mandatory = set(profile.get("mandatory_streams", []))
+    required.update(
+        (stream, topic["topic_id"])
+        for stream in mandatory for topic in plan["topics"]
+    )
     return required
 
 
@@ -294,12 +330,22 @@ def prepare_candidate_index(research_plan_ref: str, reviewed_upstreams: list[dic
         topic_ids = {topic["topic_id"] for topic in plan["topics"]}
         if any(topic_id not in topic_ids for _, topic_id in seen):
             raise ValueError("upstream topic is outside the approved ResearchPlan")
+        required_streams = _required_streams(plan, profile)
+        missing_required = required_streams - seen
+        missing_optional = (_planned_streams(plan) - required_streams) - seen
         upstream_issues = [
             _issue("major", "missing_reviewed_stream",
-                   f"No approved {stream} artifact is available for {topic_id}.",
+                   f"No approved required {stream} artifact is available for {topic_id}.",
                    f"reviewed_upstreams.{stream}.{topic_id}")
-            for stream, topic_id in sorted(_required_streams(plan) - seen)
+            for stream, topic_id in sorted(missing_required)
         ]
+        upstream_issues.extend(
+            _issue("minor", "missing_optional_reviewed_stream",
+                   f"No approved optional {stream} artifact is available for {topic_id}; "
+                   "the fast index continues with available streams.",
+                   f"reviewed_upstreams.{stream}.{topic_id}", required=False)
+            for stream, topic_id in sorted(missing_optional)
+        )
         previous_source_id_map = {}
         if previous_index_ref is not None:
             if not isinstance(previous_index_ref, str) or not previous_index_ref.startswith(artifacts.SCHEME):
@@ -591,6 +637,10 @@ def build_candidate_index(candidate_input: dict, *, artifact_version: str = "1.0
     by_id = {item["source_id"]: item for item in sources}
     matrix = []
     for topic in candidate_input["topics"]:
+        stream_warnings = [
+            deepcopy(issue) for issue in candidate_input["upstream_issues"]
+            if issue.get("location", "").endswith(f".{topic['topic_id']}")
+        ]
         for req in topic["coverage_requirements"]:
             display_hits = [sid for sid in displayed if req["coverage_id"] in by_id[sid]["coverage_unit_ids"]
                             and _roles_support_requirement(by_id[sid], req)]
@@ -602,7 +652,8 @@ def build_candidate_index(candidate_input: dict, *, artifact_version: str = "1.0
                            "description": req["description"], "required_roles": req["source_roles"],
                            "minimum_sources": req["minimum_sources"], "mandatory": req["mandatory"],
                            "status": status, "displayed_source_ids": display_hits,
-                           "reserve_source_ids": reserve_hits})
+                           "reserve_source_ids": reserve_hits,
+                           "stream_warnings": deepcopy(stream_warnings)})
     streams = Counter(entry["stream"] for entry in candidate_input["source_entries"])
     return {
         "schema_version": OUTPUT_CONTRACT, "artifact_version": artifact_version,
@@ -678,6 +729,12 @@ def render_review_document(index: dict, output_language: str, *, index_ref: str 
             lines.append(f"- `{item['status'].upper()}` {item['description']}")
     else:
         lines.append("- Brak luk według kandydackiej macierzy pokrycia." if pl else "- No gaps in the candidate-stage coverage matrix.")
+    upstream_issues = index.get("search_summary", {}).get("upstream_issues", [])
+    if upstream_issues:
+        lines += ["", "### Brakujące strumienie" if pl else "### Missing streams", ""]
+        for issue in upstream_issues:
+            marker = "REQUIRED" if issue.get("required", True) else "OPTIONAL"
+            lines.append(f"- `{marker}` {issue.get('message', '')}")
     lines += ["", "## Szablon decyzji" if pl else "## Decision template", "", "```text",
               "DOWNLOAD: SRC_...", "LIBRARY: SRC_...", "CITATION: SRC_...", "RESERVE: SRC_...",
               "EXCLUDE: SRC_... | reason=...", "SEARCH_MORE: coverage_id=... | request=...",
@@ -705,7 +762,9 @@ def finalize_candidate_index(candidate_input: dict, *, artifact_version: str = "
         return _envelope("failed", "CandidateSourceIndex failed deterministic finalization.",
                          [_issue("blocker", "candidate_index_finalize_failed", str(exc), "candidate_index")])
     incomplete = any(item["status"] != "covered" and item["mandatory"] for item in index["coverage_matrix"])
-    incomplete = incomplete or bool(candidate_input["upstream_issues"])
+    incomplete = incomplete or any(
+        issue.get("required", True) for issue in candidate_input["upstream_issues"]
+    )
     status = "degraded" if incomplete else "ok"
     descriptors = [
         {"type": "candidate_source_index", "path": index_ref, "schema_version": OUTPUT_CONTRACT,

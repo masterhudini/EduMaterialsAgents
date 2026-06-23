@@ -54,15 +54,26 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   document is rendered from reviewed A11 semantics and the gated untrusted extraction.
 - `retrieval_directory.schema.json` describes the stable A06 run folder, its manifest, scholarly
   document directory and gated market-case directory without embedding local filesystem paths.
+- `paper_review.schema.json` version 1.2 is the compact A07 per-source evidence review. It binds
+  source ID, reviewed document ref, topic and claim IDs, evidence cards, locations, confidence,
+  evidence access level, prompt-injection flags and `review_profile_ref: paper_evidence`.
+- `research_state.schema.json` version 1.2 is the A09 fast synthesis artifact. It keeps conservative
+  finding statuses, compact evidence refs, the human validation packet, SolutionInputCandidate and
+  an explicit `claim_assessment_performed: false` limitation when A08 is skipped.
+- `evidence_map.schema.json`, `user_research_validation_packet.schema.json`,
+  `solution_input_candidate.schema.json` and `research_summary.schema.json` freeze the compact
+  auxiliary A09 artifacts emitted beside `research_state@1`.
 - `review_task.schema.json` — one universal reviewer invocation (`review_task@1`) with one
   artifact, an explicit profile and observable review criteria.
 - `review_decision.schema.json` — auditable universal reviewer result (`review_decision@1`).
 - `revision_completion.schema.json` proves deterministic completion of the one allowed producer
   correction after a `REVISE` decision, without a second reviewer invocation.
 - `research_run_report.schema.json` — fail-closed status and approved artifact/review refs for a
-  bounded real-host run of the implemented A01–A06 frontier (`research_run_report@1`).
-- `user_approved_research_bundle.schema.json` — compact Research Graph handoff to Solution
-  (`user_approved_research_bundle@1`).
+  bounded real-host run of the implemented fast frontier through reviewed A09
+  (`research_run_report@1`).
+- `user_approved_research_bundle.schema.json` version 1.2 is the compact Research Graph handoff to
+  Solution/Graph03 (`user_approved_research_bundle@1`). It stores the exact three-part Human
+  Research Gate decision and is created only after explicit approval.
 
 For `envelope@1.produced[]`, `path` carries the `artifact://` URI of the produced artifact.
 Typed handoff descriptors returned by `core/handoff.py` remain a separate boundary shape using

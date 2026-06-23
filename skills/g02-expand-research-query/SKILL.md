@@ -14,31 +14,78 @@ coverage-unit links, provider preferences, unchanged filters and per-route limit
 
 ## Workflow
 
-1. Copy the topic's core terms as the only allowed `origin_terms`. Preserve every approved
+1. For a scholarly input in the default fast profile, call
+   `research_query_plan_generate_fast` first. Return its validated plan unchanged when `ready` is
+   true. Continue with manual query construction only for a structured generator gap, changing
+   only the named part of the plan. A11 keeps its dedicated controlled web route construction.
+2. Copy the topic's core terms as the only allowed `origin_terms`. Preserve every approved
    exclusion.
-2. Generate synonyms, spelling variants, acronyms and established technical phrases only within
+3. Generate synonyms, spelling variants, acronyms and established technical phrases only within
    `allowed_expansion_areas`. Keep generated terms separate from origin terms. For each generated
    term add exactly one `generated_term_bases` entry containing the term, one or more source origin
    terms used by this route, the exact approved expansion-area value and one relation from
    `synonym`, `spelling_variant`, `acronym` or `established_technical_phrase`.
-3. Create a `core` route for the direct investigation.
-4. Create a `complementary` route whenever the topic stop rule requires one. Change terminology or
+4. Create a `core` route for the direct investigation.
+5. Create a `complementary` route whenever the topic stop rule requires one. Change terminology or
    provider route, while preserving purpose and coverage.
-5. Create a neutral `qualifying_or_critical` route when that source role is required. Use boundary,
+6. Create a neutral `qualifying_or_critical` route when that source role is required. Use boundary,
    limitation, counterexample or comparative terminology without asserting that criticism exists.
-6. Link every route to approved `COV_*` units. Cover all mandatory units across the full plan.
-7. Copy year, language and work-type filters from the topic without expansion. Keep each route
+7. Link every route to approved `COV_*` units. Cover all mandatory units across the full plan.
+8. Copy year, language and work-type filters from the topic without expansion. Keep each route
    limit within the topic candidate limit.
-8. Select only ready providers listed in `provider_capabilities`. Provider-specific syntax is added
-   later by deterministic adapters. Authorize arXiv only when `preprint` is included in the topic's
-   approved work types.
-9. For A04, copy `recency_window.year_from` and `year_to` exactly into every route. Preserve at
+9. Select only ready providers listed in `provider_capabilities`. In the default fast profile, put
+   one primary provider in `preferred_providers` for each scholarly route. Prefer `openalex` for
+   broad coverage, use `semantic_scholar` when abstract/citation signals are more important or
+   OpenAlex is unavailable, and use `arxiv` only when `preprint` is included in the topic's approved
+   work types. Add a second provider only when the route explicitly needs fallback coverage.
+   Provider-specific syntax is added later by deterministic adapters.
+10. For A04, copy `recency_window.year_from` and `year_to` exactly into every route. Preserve at
    least one preprint route when preprints are approved; never recalculate the window.
-10. For A11, map routes to `market_case_needs`; use exactly `provider_mode`, the prepared web work
+11. For A11, map routes to `market_case_needs`; use exactly `provider_mode`, the prepared web work
     types and include domains from `source_tier_policy.allowed_domains`. Exclude domains only when
     present in the prepared exclusion policy. Do not invent an endpoint or provider fallback.
 
 ## Output requirements
+
+- Use the flat route shape below. Do not create `routes[].queries[]`, `providers` or
+  `route_type`; deterministic adapters expect one query directly on each route.
+
+```json
+{
+  "schema_version": "query_plan@1",
+  "artifact_version": "1.0.0",
+  "task_id": "TASK_ID",
+  "topic_id": "TOPIC_ID",
+  "routes": [
+    {
+      "route_id": "ROUTE_TOPIC_CORE",
+      "query_id": "QUERY_TOPIC_CORE",
+      "purpose": "core",
+      "canonical_query": "approved origin term generated term",
+      "origin_terms": ["approved origin term"],
+      "generated_terms": ["generated term"],
+      "generated_term_bases": [
+        {
+          "term": "generated term",
+          "source_origin_terms": ["approved origin term"],
+          "expansion_area": "approved expansion area",
+          "relation": "established_technical_phrase"
+        }
+      ],
+      "coverage_unit_ids": ["COV_APPROVED"],
+      "preferred_providers": ["openalex"],
+      "filters": {
+        "year_from": null,
+        "year_to": null,
+        "languages": ["en"],
+        "work_types": ["article", "review"]
+      },
+      "limit": 8
+    }
+  ],
+  "excluded_terms": []
+}
+```
 
 - Use unique `ROUTE_[A-Z0-9_]+` and `QUERY_[A-Z0-9_]+` IDs.
 - Keep `canonical_query` provider-neutral and between 1 and 500 characters.

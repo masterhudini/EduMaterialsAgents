@@ -58,17 +58,28 @@ _POLICY_SEVERITY_ALIASES = {
 def _stub_bundle() -> dict:
     """Minimal UserApprovedResearchBundle that satisfies the output contract."""
     return {
+        "schema_version": OUTPUT_CONTRACT,
+        "artifact_version": "1.0.0",
+        "task_id": "STUB_RESEARCH_TASK",
+        "research_state_ref": "artifact://g02/synthesis/stub.research-state.json",
         "approved_research_summary_ref": "artifact://g02/research_summary.approved.md",
         "approved_update_findings": [],
         "approved_optional_findings": [],
         "rejected_findings": [],
-        "unresolved_claim_policy": {"action": "move_to_speaker_note_or_remove"},
+        "unresolved_claim_policy": {"action": "keep_as_unresolved_items"},
+        "human_gate_decision": {
+            "status": "approved",
+            "approve_required_updates": True,
+            "approve_optional_improvements": False,
+            "unresolved_claim_handling": "keep_as_unresolved_items",
+        },
         "solution_handoff": {
             "evidence_cards": [],
             "slide_impact_cards": [],
             "source_cards": [],
             "unresolved_claim_cards": [],
         },
+        "approved_at": "1970-01-01T00:00:00Z",
     }
 
 
@@ -571,7 +582,7 @@ def run(
     resume_token=None,
     decisions=None,
     reviewed=False,
-    through="g02-a06-paper-retrieval",
+    through="g02-a09-synthesizer",
     topic_ids=None,
 ) -> dict:
     """Dispatch to the no-op wiring harness or the fail-closed reviewed frontier.
@@ -609,6 +620,20 @@ def run(
 def _cli(argv: list[str]) -> int:
     import argparse
 
+    def decision_payload(value: str | None) -> dict | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if stripped.startswith("{"):
+            raw = stripped
+        else:
+            candidate = _pl.Path(value)
+            raw = candidate.read_text(encoding="utf-8") if candidate.is_file() else value
+        parsed = json.loads(raw)
+        if not isinstance(parsed, dict):
+            raise ValueError("--decisions must be a JSON object or a path to one")
+        return parsed
+
     p = argparse.ArgumentParser(
         prog="g02_flow.py",
         description=(
@@ -638,23 +663,32 @@ def _cli(argv: list[str]) -> int:
         "run-codex",
         help="run the whole graph with Codex workers (codex exec) + terminal gates",
     )
-    sp.add_argument("context", help="path or artifact:// ref to a research_graph_input bundle")
+    sp.add_argument(
+        "context", nargs="?",
+        help="path or artifact:// ref to research_graph_input; omit when --resume-token is used",
+    )
     sp.add_argument(
         "--gates",
         choices=["prompt", "pause"],
         default="prompt",
-        help="prompt for the two-step gate on stdin (default) or return a pause/resume token",
+        help="prompt for both gates on stdin (default) or return a pause/resume token",
+    )
+    sp.add_argument("--resume-token", help="resume token returned by an awaiting_user report")
+    sp.add_argument(
+        "--decisions",
+        help="gate decisions as a JSON object or a path to JSON, keyed by gate name",
     )
     sp.add_argument(
         "--through",
-        default="g02-a06-paper-retrieval",
+        default="g02-a09-synthesizer",
         choices=[
             "g02-a01-planner", "g02-a02-domain", "g02-a03-canonical-sources",
             "g02-a04-recent-developments", "g02-a11-market-cases",
             "g02-a05-candidate-source-index", "user-source-selection-gate",
-            "g02-a06-paper-retrieval",
+            "g02-a06-paper-retrieval", "g02-a07-paper-review",
+            "g02-a09-synthesizer", "user-research-gate",
         ],
-        help="stop after this implemented stage (default: A06)",
+        help="stop after this implemented stage (default: reviewed A09, then Human Research Gate)",
     )
     sp.add_argument(
         "--topic-id",
@@ -689,12 +723,19 @@ def _cli(argv: list[str]) -> int:
             from g02.runners.codex import codex_node_runner
             from g02.reviewed_flow import terminal_gate_handler as reviewed_terminal_gate
 
+            if args.resume_token and args.context:
+                raise ValueError("omit context when resuming with --resume-token")
+            if not args.resume_token and not args.context:
+                raise ValueError("context is required for a new run")
             handler = reviewed_terminal_gate if args.gates == "prompt" else None
+            input_ref = None if args.resume_token else front_door(args.context)["ref"]
             out = run(
-                front_door(args.context)["ref"],
+                input_ref,
                 node_runner=codex_node_runner,
                 gate_handler=handler,
                 pause_on_gate=(args.gates == "pause"),
+                resume_token=args.resume_token,
+                decisions=decision_payload(args.decisions),
                 reviewed=True,
                 through=args.through,
                 topic_ids=args.topic_ids,
