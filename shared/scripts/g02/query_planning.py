@@ -69,6 +69,13 @@ def _stable_id(value: object) -> str:
 
 def _ready_scholarly_provider(discovery_input: dict, strategy: dict,
                                 discovery_profile: dict) -> str | None:
+    providers = _all_ready_scholarly_providers(discovery_input, strategy, discovery_profile)
+    return providers[0] if providers else None
+
+
+def _all_ready_scholarly_providers(discovery_input: dict, strategy: dict,
+                                    discovery_profile: dict) -> list:
+    """Return all ready scholarly providers ordered by preference."""
     ready = {
         item.get("provider") for item in discovery_input.get("provider_capabilities", [])
         if isinstance(item, dict) and item.get("enabled") is True and item.get("ready") is True
@@ -76,13 +83,14 @@ def _ready_scholarly_provider(discovery_input: dict, strategy: dict,
     preferred = discovery_profile.get("default_provider", "openalex")
     order = [preferred, "openalex", "semantic_scholar", "arxiv"]
     work_types = set(_strings(strategy.get("work_types")))
+    result = []
     for provider in dict.fromkeys(order):
         if provider not in ready:
             continue
         if provider == "arxiv" and "preprint" not in work_types:
             continue
-        return provider
-    return None
+        result.append(provider)
+    return result
 
 
 def _route_filters(discovery_input: dict, strategy: dict) -> dict:
@@ -235,12 +243,13 @@ def generate_fast_query_plan(discovery_input: object, profile: dict | None = Non
             "route_id": f"ROUTE_{topic_token}_{suffix}",
             "query_id": f"QUERY_{topic_token}_{suffix}",
             "purpose": purpose,
-            "canonical_query": " AND ".join(f'"{term}"' for term in declared),
+            "canonical_query": " OR ".join(f'"{term}"' for term in declared),
             "origin_terms": deepcopy(origins),
             "generated_terms": deepcopy(generated),
             "generated_term_bases": bases,
             "coverage_unit_ids": deepcopy(coverage_ids),
-            "preferred_providers": [provider],
+            "preferred_providers": _all_ready_scholarly_providers(
+                discovery_input, strategy, discovery_profile),
             "filters": deepcopy(filters),
             "limit": route_limit,
         })

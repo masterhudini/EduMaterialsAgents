@@ -52,7 +52,10 @@ operates only on provider-resolvable seeds from the reviewed A02 artifact.
   result and raw-response provenance.
 - `research_doi_verify` / `research_doi_verify_batch`, persist Crossref registry and bibliographic
   comparisons for unchanged DOI-bearing records.
-- `research_domain_finalize`, validate all provider references and store the output artifact.
+- `research_domain_finalize_from_results`, hydrate persisted search and DOI results, derive the
+  technical output fields and store the validated artifact. `research_domain_finalize` remains a
+  compatibility seam for already complete producer outputs; do not hand-build that output in the
+  normal workflow.
 - `research_domain_review_task`, freeze the `domain_candidates` review basis.
 
 Never call provider endpoints, generic web tools or shell network commands directly.
@@ -72,20 +75,24 @@ Never call provider endpoints, generic web tools or shell network commands direc
    when `preprint` is allowed. Call a second provider only when the first operation fails, returns
    zero usable records or leaves mandatory coverage open. Preserve valid zero-result, unavailable
    and failed operations in the query log.
-4. Copy returned `source_record@1` objects without altering provider metadata. Retain a single
-   occurrence of a repeated provider `source_id`; cross-provider deduplication belongs to G02-A05.
-5. Call `research_doi_verify` or `research_doi_verify_batch` for every DOI-bearing candidate. Store
-   the returned compact bindings in `doi_verifications`. Treat Crossref as an independent DOI and
-   bibliographic check: never overwrite provider metadata, and expose conflicts or unavailability.
+4. Keep every returned `literature_tool_result@1` artifact ref. Select candidate `source_id` values
+   without copying or editing their records; `research_domain_finalize_from_results` hydrates the
+   exact provider records. Cross-provider deduplication belongs to G02-A05.
+5. Call `research_doi_verify` or `research_doi_verify_batch` for every DOI-bearing selected
+   candidate. Keep the returned `artifact_ref` values; the finalizer projects exact compact
+   bindings. Treat Crossref as an independent DOI and bibliographic check: never overwrite
+   provider metadata, and expose conflicts or unavailability.
 6. Map candidates to approved coverage units using only provider metadata, title or abstract.
    State the basis explicitly. Do not infer claim stance or scientific quality.
 7. Include neutral candidates that may support, qualify or challenge the investigation. Do not
    optimize the pool toward an expected conclusion.
-8. Stop on the topic limit, executed saturation rule, provider exhaustion or explicit provider
-   unavailability. Record remaining coverage and all partial failures.
-9. Call `research_domain_finalize` with the complete current pool and return its envelope. The
-   orchestrator either records fast-track approval or builds the review task and invokes G02-A10,
-   according to the active profile and finalizer status.
+8. Call `research_domain_finalize_from_results` with the unchanged `query_plan`, every executed
+   literature result ref, DOI verification refs, selected source IDs and only the semantic
+   `coverage_assignments` objects (`source_id`, `coverage_unit_ids`, `basis`). Do not construct
+   `query_log`, `candidates`, `doi_verifications`, `provider_issues`, `remaining_coverage_units` or
+   `stop_reason`; the tool derives them deterministically.
+9. Return the exact finalizer envelope. The orchestrator either records fast-track approval or
+   builds the review task and invokes G02-A10 according to the active profile and finalizer status.
 
 ## Acceptance Criteria
 

@@ -75,6 +75,176 @@ FORBIDDEN_PLAN_KEYS = {
     "slide_edits",
 }
 
+GENERIC_SEARCH_TERMS = {
+    "applications", "development", "developments", "foundation", "foundations",
+    "introduction", "overview", "recent", "research", "tutorial", "tutorials",
+}
+SEARCH_STOPWORDS = {
+    "about", "after", "against", "among", "and", "before", "between", "from", "into",
+    "methods", "models", "relative", "study", "that", "the", "their", "this", "through",
+    "using", "with", "without",
+}
+
+
+def research_plan_output_template(planner_input: dict) -> dict:
+    """Return the exact output skeleton A01 must fill.
+
+    Fixed boundary-owned values are already populated. The single topic entry is
+    a structural template, not a valid topic, and must be repeated 4--6 times in
+    the Scout profile. This removes contract-key recall from model reasoning.
+    """
+    constraints = planner_input.get("constraints", {})
+    selection = planner_input.get("selection_profile", {})
+    minimum_sources = selection.get("minimum_sources_per_required_role", 1)
+    return {
+        "schema_version": RESEARCH_PLAN_CONTRACT,
+        "artifact_version": "1.0.0",
+        "task_id": planner_input.get("task_id"),
+        "approved_research_scope": deepcopy(planner_input.get("approved_research_scope")),
+        "topics": [{
+            "topic_id": "TOPIC_<STABLE_TECHNICAL_ID>",
+            "name": "<domain-anchored bibliographic query>",
+            "purpose": "<intake-anchored investigation purpose>",
+            "priority": "high|medium|low",
+            "linked_driver_ids": [],
+            "related_claims": [],
+            "related_concepts": [],
+            "related_flow_issues": [],
+            "related_update_needs": [],
+            "approved_domains": [],
+            "source_roles_required": {
+                "canonical": False,
+                "current": False,
+                "survey": False,
+                "didactic": False,
+                "qualifying_or_critical": False,
+            },
+            "search_strategy": {
+                "core_terms": [],
+                "allowed_expansion_areas": [],
+                "excluded_terms": [],
+                "year_from": constraints.get("year_from"),
+                "year_to": constraints.get("year_to"),
+                "languages": deepcopy(constraints.get("allowed_languages", [])),
+                "work_types": deepcopy(constraints.get("allowed_work_types", [])),
+                "seed_sources": [],
+            },
+            "coverage_requirements": [{
+                "coverage_id": "COV_<STABLE_ID>",
+                "description": "<observable evidence requirement>",
+                "source_roles": [],
+                "minimum_sources": minimum_sources,
+                "mandatory": True,
+            }],
+            "stop_rule": {
+                "candidate_limit": constraints.get("candidate_limit_per_topic"),
+                "no_new_coverage_passes": constraints.get("no_new_coverage_passes"),
+                "complementary_search_route_required": True,
+            },
+        }],
+        "uncovered_driver_ids": [],
+        "input_issues": [],
+        "global_constraints": deepcopy(constraints),
+        "output_language": planner_input.get("output_language"),
+        "review_profile_ref": REVIEW_PROFILE,
+    }
+
+
+def _rename_key(payload: dict, canonical: str, aliases: tuple[str, ...]) -> None:
+    if canonical in payload:
+        return
+    for alias in aliases:
+        if alias in payload:
+            payload[canonical] = payload.pop(alias)
+            return
+
+
+def normalize_research_plan(planner_input: dict, plan: object, *,
+                            previous_plan: dict | None = None) -> object:
+    """Normalize only contract mechanics; never invent semantic research content."""
+    if not isinstance(plan, dict):
+        return plan
+    normalized = deepcopy(plan)
+    normalized["schema_version"] = RESEARCH_PLAN_CONTRACT
+    normalized["task_id"] = planner_input.get("task_id")
+    normalized["approved_research_scope"] = deepcopy(
+        planner_input.get("approved_research_scope")
+    )
+    normalized["global_constraints"] = deepcopy(planner_input.get("constraints"))
+    normalized["output_language"] = planner_input.get("output_language")
+    normalized["review_profile_ref"] = REVIEW_PROFILE
+    if previous_plan is None:
+        normalized["artifact_version"] = "1.0.0"
+    elif not isinstance(normalized.get("artifact_version"), str):
+        normalized["artifact_version"] = str(normalized.get("artifact_version") or "")
+    normalized.setdefault("uncovered_driver_ids", [])
+    normalized.setdefault("input_issues", [])
+
+    constraints = planner_input.get("constraints", {})
+    for topic in normalized.get("topics", []):
+        if not isinstance(topic, dict):
+            continue
+        _rename_key(topic, "linked_driver_ids", ("driver_ids", "linked_drivers"))
+        _rename_key(topic, "related_claims", ("related_claim_ids", "claim_ids"))
+        _rename_key(topic, "related_concepts", ("related_concept_ids", "concept_ids"))
+        _rename_key(topic, "related_flow_issues", ("related_flow_issue_ids", "flow_issue_ids"))
+        _rename_key(topic, "related_update_needs", ("related_update_need_ids", "update_need_ids"))
+        _rename_key(topic, "approved_domains", ("approved_domain_ids", "domain_ids"))
+        _rename_key(topic, "source_roles_required", ("required_source_roles",))
+        roles = topic.get("source_roles_required")
+        if isinstance(roles, list):
+            enabled = set(item for item in roles if isinstance(item, str))
+            topic["source_roles_required"] = {
+                role: role in enabled for role in sorted(SOURCE_ROLES)
+            }
+        if not isinstance(topic.get("stop_rule"), dict):
+            topic["stop_rule"] = {
+                "candidate_limit": constraints.get("candidate_limit_per_topic"),
+                "no_new_coverage_passes": constraints.get("no_new_coverage_passes"),
+                "complementary_search_route_required": True,
+            }
+        for requirement in topic.get("coverage_requirements", []):
+            if not isinstance(requirement, dict):
+                continue
+            _rename_key(requirement, "coverage_id", ("id", "requirement_id"))
+            _rename_key(requirement, "source_roles", ("acceptable_source_roles",))
+            _rename_key(requirement, "minimum_sources", ("min_sources",))
+            _rename_key(requirement, "mandatory", ("must_cover", "required"))
+    return normalized
+
+
+def _search_tokens(value: object) -> set[str]:
+    if not isinstance(value, str):
+        return set()
+    return {
+        token for token in re.findall(r"[A-Za-z0-9]+", value.casefold())
+        if len(token) >= 3 and token not in SEARCH_STOPWORDS
+    }
+
+
+def _topic_anchor_tokens(planner_input: dict, topic: dict) -> set[str]:
+    anchors: set[str] = set()
+    selected = set(_string_list(topic.get("approved_domains")))
+    for domain in planner_input.get("approved_domains", []):
+        if isinstance(domain, dict) and domain.get("domain_id") in selected:
+            anchors.update(_search_tokens(domain.get("label")))
+    relations = (
+        ("related_claims", "claim_cards", "claim_id", "text"),
+        ("related_concepts", "concept_context_cards", "concept_id", "label"),
+        ("related_flow_issues", "selected_flow_issue_cards", "issue_id", "summary"),
+        ("related_update_needs", "selected_update_need_cards", "update_need_id", "summary"),
+    )
+    for topic_field, input_field, id_field, text_field in relations:
+        ids = set(_string_list(topic.get(topic_field)))
+        for card in planner_input.get(input_field, []):
+            if isinstance(card, dict) and card.get(id_field) in ids:
+                anchors.update(_search_tokens(card.get(text_field)))
+    driver_ids = set(_string_list(topic.get("linked_driver_ids")))
+    for driver in planner_input.get("research_drivers", []):
+        if isinstance(driver, dict) and driver.get("driver_id") in driver_ids:
+            anchors.update(_search_tokens(driver.get("purpose")))
+    return anchors - GENERIC_SEARCH_TERMS
+
 RESEARCH_PLAN_ACCEPTANCE_CRITERIA = [
     {
         "criterion_id": "RP-01",
@@ -121,6 +291,14 @@ RESEARCH_PLAN_ACCEPTANCE_CRITERIA = [
         "description": (
             "The plan preserves approved scope and contains no publication records, claim "
             "verdicts or slide solutions."
+        ),
+        "mandatory": True,
+    },
+    {
+        "criterion_id": "RP-07",
+        "description": (
+            "Scout-profile topic names and core terms retain intake-approved domain anchors and "
+            "avoid generic tutorial, overview or foundations queries."
         ),
         "mandatory": True,
     },
@@ -213,7 +391,7 @@ def _shape_issues(payload: object, contract_ref: str, issue_type: str) -> list[d
     ]
 
 
-def scope_planner_input(graph_input: object) -> dict:
+def scope_planner_input(graph_input: object, *, execution_profile: str | None = None) -> dict:
     """Validate the boundary shape and copy only fields authorized for G02-A01."""
     issues = _shape_issues(
         graph_input, GRAPH_INPUT_CONTRACT, "invalid_research_graph_input_contract"
@@ -227,11 +405,11 @@ def scope_planner_input(graph_input: object) -> dict:
     }
     for field in PLANNER_FIELDS:
         scoped[field] = deepcopy(graph_input[field])
-    _apply_execution_profile_limits(scoped)
+    _apply_execution_profile_limits(scoped, execution_profile=execution_profile)
     return scoped
 
 
-def _execution_profile_config() -> tuple[str, dict]:
+def _execution_profile_config(execution_profile: str | None = None) -> tuple[str, dict]:
     env_profile = os.environ.get("EMAGENTS_G02_PROFILE")
     try:
         manifest = graphs.load("g02")
@@ -239,7 +417,10 @@ def _execution_profile_config() -> tuple[str, dict]:
         manifest = {}
     manifest_profile = manifest.get("default_execution_profile") \
         if isinstance(manifest, dict) else None
-    name = env_profile if isinstance(env_profile, str) and env_profile.strip() else manifest_profile
+    explicit = execution_profile if isinstance(execution_profile, str) \
+        and execution_profile.strip() else None
+    name = explicit or (env_profile if isinstance(env_profile, str) and env_profile.strip()
+                        else manifest_profile)
     name = name if isinstance(name, str) and name.strip() else DEFAULT_EXECUTION_PROFILE
     profiles = manifest.get("execution_profiles") if isinstance(manifest, dict) else {}
     profile = profiles.get(name) if isinstance(profiles, dict) else {}
@@ -250,17 +431,23 @@ def _limit_value(value: object, fallback: int) -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else fallback
 
 
-def _apply_execution_profile_limits(scoped: dict) -> None:
-    """Apply default fast-prototype limits before A01 reasoning.
+def _apply_execution_profile_limits(scoped: dict, *, execution_profile: str | None = None) -> None:
+    """Apply the selected execution profile before A01 reasoning.
 
-    The original boundary input remains immutable. Fast limits are applied only to the scoped
-    planner input so downstream validators can enforce the prototype budget.
+    The original boundary input remains immutable. ``fast`` retains its existing ceilings.
+    ``scout`` deliberately replaces ``max_topics`` with its profile value so the dedicated
+    4--6-topic planning path is not constrained by the fast prototype's two-topic boundary.
     """
-    profile_name, profile = _execution_profile_config()
-    if profile_name != "fast":
+    profile_name, profile = _execution_profile_config(execution_profile)
+    if profile_name not in {"fast", "scout"}:
         return
     planner_limits = profile.get("planner") if isinstance(profile.get("planner"), dict) else {}
     max_topics = _limit_value(planner_limits.get("max_topics"), FAST_MAX_TOPICS)
+    constraints = scoped.get("constraints")
+    if profile_name == "scout":
+        if isinstance(constraints, dict):
+            constraints["max_topics"] = max_topics
+        return
     candidate_limit = _limit_value(
         planner_limits.get("candidate_limit_per_topic"),
         FAST_CANDIDATE_LIMIT_PER_TOPIC,
@@ -269,7 +456,6 @@ def _apply_execution_profile_limits(scoped: dict) -> None:
         planner_limits.get("candidate_pool_target_per_topic"),
         FAST_CANDIDATE_POOL_TARGET_PER_TOPIC,
     )
-    constraints = scoped.get("constraints")
     if isinstance(constraints, dict):
         current_topics = constraints.get("max_topics")
         if isinstance(current_topics, int) and not isinstance(current_topics, bool):
@@ -685,6 +871,12 @@ def validate_research_plan(plan: object, planner_input: dict, *,
             f"plan has {len(topics)} topics but max_topics is {constraints['max_topics']}",
             "topics",
         ))
+    if constraints.get("max_topics") == 6 and not 4 <= len(topics) <= 6:
+        issues.append(_issue(
+            "major", "scout_topic_count",
+            "the Scout profile requires 4 to 6 intake-anchored topics",
+            "topics",
+        ))
 
     topic_ids = _card_ids(topics, "topic_id")
     for duplicate in sorted(_duplicates(topic_ids)):
@@ -808,6 +1000,35 @@ def validate_research_plan(plan: object, planner_input: dict, *,
                     "major", "missing_core_terms", "search strategy needs core terms",
                     f"{location}.search_strategy.core_terms",
                 ))
+            scout_profile = constraints.get("max_topics") == 6
+            if scout_profile and not 3 <= len(core_terms) <= 6:
+                issues.append(_issue(
+                    "major", "scout_core_term_count",
+                    "Scout topics require 3 to 6 precise technical core terms",
+                    f"{location}.search_strategy.core_terms",
+                ))
+            if scout_profile:
+                anchor_tokens = _topic_anchor_tokens(planner_input, topic)
+                search_tokens = _search_tokens(topic.get("name"))
+                for term in core_terms:
+                    search_tokens.update(_search_tokens(term))
+                if not anchor_tokens or not search_tokens.intersection(anchor_tokens):
+                    issues.append(_issue(
+                        "major", "scout_search_not_intake_anchored",
+                        "Scout topic name and core terms must retain a technical token from its "
+                        "approved domain or linked intake cards",
+                        f"{location}.search_strategy",
+                    ))
+                for term_index, term in enumerate(core_terms):
+                    tokens = _search_tokens(term)
+                    non_generic = tokens - GENERIC_SEARCH_TERMS
+                    if tokens.intersection(GENERIC_SEARCH_TERMS) and len(non_generic) <= 2:
+                        issues.append(_issue(
+                            "major", "generic_scout_core_term",
+                            "Scout core terms cannot use tutorial/overview/foundations/recent "
+                            "language as a short primary query",
+                            f"{location}.search_strategy.core_terms[{term_index}]",
+                        ))
             for field in ("core_terms", "allowed_expansion_areas", "excluded_terms"):
                 raw_values = strategy.get(field)
                 clean_values = _string_list(raw_values)
@@ -1102,13 +1323,14 @@ def needs_input_envelope(issues: list[dict]) -> dict:
 
 
 def prepare_planner(payload: object, *, previous_plan_ref: str | None = None,
-                    revision_items: list[dict] | None = None, base=None) -> dict:
+                    revision_items: list[dict] | None = None, base=None,
+                    execution_profile: str | None = None) -> dict:
     """Prepare a first run or revision without invoking the reasoning agent."""
     try:
         if isinstance(payload, dict) and payload.get("schema_version") == PLANNER_INPUT_CONTRACT:
             planner_input = deepcopy(payload)
         else:
-            planner_input = scope_planner_input(payload)
+            planner_input = scope_planner_input(payload, execution_profile=execution_profile)
     except (KeyError, ValueError) as exc:
         issue = _issue(
             "blocker", "invalid_research_graph_input", str(exc), "research_graph_input"
@@ -1150,6 +1372,7 @@ def prepare_planner(payload: object, *, previous_plan_ref: str | None = None,
     return {
         "ready": True,
         "planner_input": planner_input,
+        "plan_output_template": research_plan_output_template(planner_input),
         "previous_plan": previous_plan,
         "previous_plan_ref": previous_plan_ref,
         "revision_items": deepcopy(revision_items or []),
@@ -1165,6 +1388,9 @@ def finalize_research_plan(planner_input: dict, plan: object, *, base=None,
                            previous_plan: dict | None = None,
                            revision_items: list[dict] | None = None) -> dict:
     """Validate and persist one plan, then return its universal agent envelope."""
+    plan = normalize_research_plan(
+        planner_input, plan, previous_plan=previous_plan
+    )
     validation = validate_research_plan(
         plan, planner_input, previous_plan=previous_plan, revision_items=revision_items
     )

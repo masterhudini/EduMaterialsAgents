@@ -69,6 +69,20 @@
         "max_windows_per_source": 4,
         "max_chars_per_window": 1600
       }
+    },
+    "scout": {
+      "terminal_stage": "g02-a01-planner",
+      "implemented_terminal_stage": "g02-a01-planner",
+      "skip_nodes": [],
+      "review_mode": "standard",
+      "planner": {
+        "min_topics": 4,
+        "max_topics": 6
+      },
+      "scout": {
+        "total_target": 50,
+        "max_parallel_topics": 6
+      }
     }
   },
   "retry_matrix": {
@@ -89,7 +103,7 @@
     "cross_artifact_reconciliation": {"claude": {"model": "sonnet", "effort": "medium"}}
   },
   "agent_host_bindings": {
-    "g02-a01-planner": {"claude": {"model": "sonnet", "effort": "xhigh"}},
+    "g02-a01-planner": {"claude": {"model": "opus", "effort": "medium"}},
     "g02-a02-domain": {"claude": {"model": "sonnet", "effort": "medium"}},
     "g02-a03-canonical-sources": {"claude": {"model": "sonnet", "effort": "medium"}},
     "g02-a04-recent-developments": {"claude": {"model": "sonnet", "effort": "medium"}},

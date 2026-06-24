@@ -1,0 +1,24 @@
+{
+  "title": "Persistent index of one parallel A01 to Scout run",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "status", "execution_profile",
+    "total_target", "allocated_target", "plan_ref", "topics", "deduplicated_works",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["scout_run_index@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "status": {"type": "string", "enum": ["completed", "partial", "failed"]},
+    "execution_profile": {"type": "string", "enum": ["scout"]},
+    "total_target": {"type": "integer"},
+    "allocated_target": {"type": "integer"},
+    "plan_ref": {"type": "string"},
+    "topics": {"type": "array", "items": {"type": "object"}},
+    "deduplicated_works": {"type": "array", "items": {"type": "object"}},
+    "summary": {"type": "object"}
+  }
+}

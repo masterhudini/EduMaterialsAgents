@@ -18,6 +18,10 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   boundary (`research_planner_input@1`).
 - `research_plan.schema.json` — bounded, versioned G02-A01 output (`research_plan@1`, version 1.1
   preserves the unchanged approved research scope used by downstream discovery).
+- `scout_search_request.schema.json` is the deterministic per-topic request derived from A01.
+  `scout_retrieved_corpus.schema.json` and `scout_run_index.schema.json` describe the persistent
+  pre-A07 PDF handoff produced by the parallel Scout profile. They are deliberately distinct from
+  A06 `retrieved_corpus@1`, which remains tied to human source selection and validated A06 policy.
 - `literature_provider_config.schema.json` defines the secret-free G02 provider profile. Version
   1.2 adds Crossref readiness and rate policy beside the web and retrieval sections; credentials
   and the required contact email remain environment-only.

@@ -30,7 +30,7 @@ research_paper_review_task, research_synthesis_prepare,
 research_synthesis_finalize, research_synthesis_review_task,
 research_bundle_finalize,
 research_review_prepare, research_review_finalize,
-research_finalize, research_run_stub, research_run_codex.
+research_finalize, research_scout_fanout, research_run_stub, research_run_codex.
 """
 from __future__ import annotations
 
@@ -56,6 +56,7 @@ from g02 import web_cases  # noqa: E402
 from g02 import paper_review  # noqa: E402
 from g02 import synthesis  # noqa: E402
 from g02 import planner  # noqa: E402
+from g02 import scout_fanout  # noqa: E402
 from g02 import provider_config  # noqa: E402
 from g02 import providers  # noqa: E402
 from g02 import query_planning  # noqa: E402
@@ -64,7 +65,7 @@ from g02 import review as reviewer  # noqa: E402
 from core import artifacts, event_log, graphs, handoff  # noqa: E402
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "edu-materials-research", "version": "0.11.1"}
+SERVER_INFO = {"name": "edu-materials-research", "version": "0.13.0"}
 
 
 # ---- tool implementations (return JSON-serializable values) --------------
@@ -128,6 +129,7 @@ def _planner_prepare(args: dict):
         _planner_payload(args["input"]),
         previous_plan_ref=args.get("previous_plan_ref"),
         revision_items=args.get("revision_items"),
+        execution_profile=args.get("execution_profile"),
     )
 
 
@@ -136,6 +138,7 @@ def _planner_finalize(args: dict):
         _planner_payload(args["input"]),
         previous_plan_ref=args.get("previous_plan_ref"),
         revision_items=args.get("revision_items"),
+        execution_profile=args.get("execution_profile"),
     )
     if not prepared["ready"]:
         return prepared["envelope"]
@@ -148,7 +151,10 @@ def _planner_finalize(args: dict):
 
 
 def _plan_review_task(args: dict):
-    prepared = planner.prepare_planner(_planner_payload(args["input"]))
+    prepared = planner.prepare_planner(
+        _planner_payload(args["input"]),
+        execution_profile=args.get("execution_profile"),
+    )
     if not prepared["ready"]:
         return prepared["envelope"]
     return planner.build_research_plan_review_task(
@@ -644,6 +650,15 @@ def _run_stub(args: dict):
     return rf.run(rf.front_door(args["context"])["ref"])
 
 
+def _scout_fanout(args: dict):
+    return scout_fanout.run_scout_fanout(
+        args["research_plan_ref"],
+        workspace=args.get("workspace"),
+        total_target=args.get("total_target"),
+        max_workers=args.get("max_workers"),
+    )
+
+
 def _run_codex(args: dict):
     """Run or resume the graph through Codex workers.
 
@@ -714,8 +729,9 @@ TOOLS = [
         "name": "research_planner_prepare",
         "description": "Validate and scope research_graph_input@1 for G02-A01 Planner. For a "
                        "revision, also validate and hydrate only the named previous ResearchPlan. "
-                       "Returns the isolated research_planner_input@1 or a completed failure "
-                       "envelope without invoking an agent.",
+                       "Returns the isolated research_planner_input@1 plus an exact "
+                       "plan_output_template, or a completed failure envelope without invoking "
+                       "an agent.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -725,6 +741,7 @@ TOOLS = [
                 },
                 "previous_plan_ref": {"type": "string"},
                 "revision_items": {"type": "array", "items": {"type": "object"}},
+                "execution_profile": {"type": "string", "enum": ["fast", "scout"]},
             },
             "required": ["input"],
         },
@@ -744,6 +761,7 @@ TOOLS = [
                 "plan": {"type": "object"},
                 "previous_plan_ref": {"type": "string"},
                 "revision_items": {"type": "array", "items": {"type": "object"}},
+                "execution_profile": {"type": "string", "enum": ["fast", "scout"]},
             },
             "required": ["input", "plan"],
         },
@@ -774,6 +792,7 @@ TOOLS = [
                 "attempt": {"type": "integer"},
                 "previous_decision_ref": {"type": "string"},
                 "producer_revision_response": {"type": "object"},
+                "execution_profile": {"type": "string", "enum": ["fast", "scout"]},
             },
             "required": ["input", "artifact", "review_id"],
         },
@@ -1542,6 +1561,32 @@ TOOLS = [
         },
     },
     {
+        "name": "research_scout_fanout",
+        "description": "Run the dedicated deterministic Scout profile from one persisted "
+                       "research_plan@1. Starts one process per topic, requires OPENALEX_API_KEY "
+                       "from env, and persists plan, requests, PDFs, manifests, per-topic Scout "
+                       "corpora and index.json. Does not run A07, A09, run or run-codex.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_plan_ref": {
+                    "type": "string",
+                    "description": "Path or artifact:// ref to a finalized research_plan@1"
+                },
+                "workspace": {
+                    "type": "string",
+                    "description": "Optional exact Scout workspace; defaults under .emagents"
+                },
+                "total_target": {
+                    "type": "integer",
+                    "description": "Optional override; profile default is 50"
+                },
+                "max_workers": {"type": "integer"}
+            },
+            "required": ["research_plan_ref"]
+        }
+    },
+    {
         "name": "research_run_stub",
         "description": "Run the whole Research Graph with STUB nodes (no LLM) — wiring test. "
                        "Returns the output handoff descriptor.",
@@ -1613,6 +1658,18 @@ PROMPTS = [
             },
         ],
     },
+    {
+        "name": "research-scout",
+        "description": "Run the bounded Claude-hosted A01 (Opus/medium) -> parallel Scout -> "
+                       "persistent PDF/JSON workflow, stopping before A07.",
+        "arguments": [
+            {
+                "name": "context",
+                "description": "Path or artifact:// ref to a research_graph_input bundle.",
+                "required": True,
+            },
+        ],
+    },
 ]
 
 
@@ -1635,6 +1692,31 @@ def _research_prompt(context: str) -> dict:
                 },
             },
         ],
+    }
+
+
+def _research_scout_prompt(context: str) -> dict:
+    return {
+        "description": "Claude-hosted A01 to deterministic Scout workflow.",
+        "messages": [{
+            "role": "user",
+            "content": {
+                "type": "text",
+                "text": (
+                    "Run only the Edu Materials scout milestone for this research_graph_input: "
+                    f"{context}\n\n"
+                    "Call research_planner_prepare with execution_profile='scout'. Delegate the "
+                    "returned research_planner_input@1 and plan_output_template together to the "
+                    "g02-a01-planner agent; its manifest "
+                    "binding is Claude Opus with medium effort. The agent must create 4-6 intake-"
+                    "anchored, bibliographically searchable topics and finalize the plan with "
+                    "research_planner_finalize using execution_profile='scout'. Take the produced "
+                    "research_plan artifact ref and call research_scout_fanout. Report the returned "
+                    "run_directory and index summary. Stop before A07 and A09. Do not call "
+                    "research_run_stub or research_run_codex."
+                ),
+            },
+        }],
     }
 
 
@@ -1688,6 +1770,7 @@ DISPATCH = {
     "research_review_prepare": _review_prepare,
     "research_review_finalize": _review_finalize,
     "research_finalize": _finalize,
+    "research_scout_fanout": _scout_fanout,
     "research_run_stub": _run_stub,
     "research_run_codex": _run_codex,
 }
@@ -1725,13 +1808,15 @@ def handle(msg: dict):
         return _result(mid, {"prompts": PROMPTS})
     if method == "prompts/get":
         name = params.get("name")
-        if name != "research":
+        if name not in {"research", "research-scout"}:
             return _error(mid, -32602, f"unknown prompt {name!r}")
         args = params.get("arguments") or {}
         context = args.get("context")
         if not context:
             return _error(mid, -32602, "missing required prompt argument 'context'")
-        return _result(mid, _research_prompt(context))
+        prompt = _research_scout_prompt(context) if name == "research-scout" \
+            else _research_prompt(context)
+        return _result(mid, prompt)
     if method == "tools/list":
         return _result(mid, {"tools": TOOLS})
     if method == "tools/call":

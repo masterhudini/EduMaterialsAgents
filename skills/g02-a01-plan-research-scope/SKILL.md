@@ -9,7 +9,8 @@ description: Convert research_planner_input@1 into bounded topics, source-role s
 
 Consume one validated `research_planner_input@1`. Produce the structured content of one
 `research_plan@1` while preserving task identity, approved scope, all upstream IDs, constraints and
-output language. The calling agent performs deterministic finalization and artifact storage.
+output language. Use the `plan_output_template` returned by preparation as the immutable structural
+base. The calling agent performs deterministic finalization and artifact storage.
 
 ## Workflow
 
@@ -20,8 +21,9 @@ output language. The calling agent performs deterministic finalization and artif
    by more than one claim and drivers that unblock later evidence or retrieval. Medium-priority
    drivers may be absorbed into a stronger group when they support the same investigation.
 3. In the default fast profile, respect the scoped `constraints.max_topics` limit, normally two.
-   Select the highest-value groups by the score above. Do not select the first groups merely
-   because they appear first in the input.
+   When that scoped limit is six (the `scout` profile), choose 4–6 groups based on actual intake
+   coverage rather than filling a quota mechanically. Select the highest-value groups by the score
+   above. Do not select the first groups merely because they appear first in the input.
 4. Group drivers only when they support one operational investigation and require compatible
    terminology, evidence standards, source roles and time windows. Split mixed groups when any of
    these differ materially, unless a lower-priority driver can be represented as a coverage unit
@@ -29,8 +31,11 @@ output language. The calling agent performs deterministic finalization and artif
 5. If an approved driver cannot fit into the selected fast-profile topics, place it in
    `uncovered_driver_ids` and add an `input_issues` entry with severity `minor` or `major`,
    depending on downstream consequence. Do not create a third topic to avoid an explicit tradeoff.
-6. Assign a stable `TOPIC_*` ID, concise name and one bounded purpose to each group. Set topic
-   priority to the highest priority among its linked drivers.
+6. Assign a stable `TOPIC_*` ID, concise name and one bounded purpose to each group. The name must
+   be an established research field, method family or technical problem usable directly in an
+   academic search. Ground it in the linked drivers and their approved claim, concept, update-need,
+   flow-issue and teaching-context wording; reject generic planning labels. Set topic priority to
+   the highest priority among its linked drivers.
 7. Copy all related upstream IDs from the grouped drivers. Use only domain IDs present in
    `approved_domains`; do not infer an adjacent domain.
 8. Select source roles according to the approved need:
@@ -46,6 +51,11 @@ output language. The calling agent performs deterministic finalization and artif
    qualifying or critical terminology when that route is required. Exclusions prevent known
    ambiguity. Dates, languages and work types remain within global constraints. Seed sources use
    only approved `existing_source_cards.source_id` values.
+   In the Scout profile, write 3–6 core terms and keep at least one technical intake/domain anchor
+   in the topic name and term set. Put teaching intent in `purpose`. Never use `tutorial`,
+   `overview`, `foundations`, `introduction`, `applications` or `recent developments` as a short
+   primary query. Reframe didactic needs as domain-specific research phenomena such as conceptual
+   understanding, misconceptions or instructional sequencing.
 10. Create one or more observable `COV_*` units per topic. Each unit states what must be covered,
    acceptable source roles, a positive minimum source count and whether it is mandatory. Avoid
    vague units such as "enough evidence".
@@ -57,6 +67,11 @@ output language. The calling agent performs deterministic finalization and artif
     `review_profile_ref: research_plan` and perform the output checks below.
 
 ## Output requirements
+
+- Copy `plan_output_template` and preserve every key exactly. Never rename canonical fields to
+  plausible aliases. In particular use `linked_driver_ids`, `related_claims`,
+  `source_roles_required`, `coverage_requirements[].source_roles`,
+  `coverage_requirements[].mandatory` and `stop_rule`.
 
 - Use unique stable `TOPIC_[A-Z0-9_]+` and `COV_[A-Z0-9_]+` identifiers.
 - Every topic has a non-empty purpose, priority, driver links, approved domain, required source

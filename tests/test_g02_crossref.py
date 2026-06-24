@@ -152,6 +152,21 @@ def test_crossref_not_found_and_http_unavailable_remain_distinct():
     assert unavailable["issues"][0]["retryable"] is True
 
 
+def test_crossref_plain_text_404_is_not_misclassified_as_json_failure():
+    def plain_404(url, headers, timeout, max_bytes):
+        return {
+            "status_code": 404, "headers": {"content-type": "text/plain"},
+            "body": b"Resource not found.", "final_url": url,
+        }
+
+    result = crossref.verify_source_record(
+        _record(), config_path=CONFIG, transport=plain_404,
+    )
+    assert result["status"] == "not_found"
+    assert result["registry_status"] == "not_found_crossref"
+    assert result["issues"][0]["code"] == "doi_not_found_crossref"
+
+
 def test_batch_limit_is_enforced_before_any_request():
     with pytest.raises(ValueError, match="more than 60"):
         crossref.verify_source_records([_record()] * 61, config_path=CONFIG)
@@ -167,3 +182,20 @@ def test_pre_crossref_provider_config_migrates_disabled_in_memory(tmp_path):
     config = provider_config.load_config(legacy)
     assert config.enabled("crossref") is False
     assert config.data["rate_limits"]["crossref_min_interval_seconds"] == 0.2
+    crossref_status = next(
+        item for item in config.public_status()["capabilities"]
+        if item["provider"] == "crossref"
+    )
+    assert crossref_status == {
+        "provider": "crossref", "enabled": False, "ready": False,
+        "authentication": "disabled",
+    }
+
+    result = crossref.verify_source_record(
+        _record(), config_path=legacy,
+        transport=lambda *args: (_ for _ in ()).throw(
+            AssertionError("disabled Crossref must not perform a request")
+        ),
+    )
+    assert result["status"] == "unavailable"
+    assert result["issues"][0]["code"] == "crossref_disabled"
