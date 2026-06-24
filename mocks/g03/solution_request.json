@@ -1,0 +1,63 @@
+{
+  "task_id": "SOLUTION_MOCK_001",
+  "output_language": "English",
+  "lecture_baseline": {
+    "schema_version": "lecture_baseline@1",
+    "task_id": "SOLUTION_MOCK_001",
+    "output_language": "English",
+    "lecture": {"title": "Interest Rate Derivatives", "course": "Financial Engineering"},
+    "slides": [
+      {"slide_id": "p012", "order": 12, "title": "FRA payoff", "gist": "Definition of the FRA payoff convention.",
+       "claim_ids": ["CLM_001"], "concept_ids": ["C_FRA"], "locked": false},
+      {"slide_id": "p014", "order": 14, "title": "FRA worked example", "gist": "Numeric illustration.",
+       "claim_ids": [], "concept_ids": ["C_FRA"], "locked": false},
+      {"slide_id": "p022", "order": 22, "title": "Volatility", "gist": "Volatility figure used downstream.",
+       "claim_ids": ["CLM_009"], "concept_ids": ["C_VOL"], "locked": false}
+    ],
+    "sections": [
+      {"section_id": "S1", "title": "Forward Rate Agreements", "slide_ids": ["p012", "p014"]},
+      {"section_id": "S2", "title": "Risk measures", "slide_ids": ["p022"]}
+    ],
+    "flow_issues": [
+      {"issue_id": "FI_1", "summary": "FRA example precedes its definition.", "related_slide_ids": ["p012", "p014"]}
+    ],
+    "locked_sections": [],
+    "slide_views_ref": "artifact://g01/slide_views/SOLUTION_MOCK_001.slide_views.json"
+  },
+  "research_bundle": {
+    "schema_version": "user_approved_research_bundle@1",
+    "artifact_version": "1.0.0",
+    "task_id": "SOLUTION_MOCK_001",
+    "research_state_ref": "artifact://g02/synthesis/mock.research-state.json",
+    "approved_research_summary_ref": "artifact://g02/research_summary.approved.md",
+    "approved_update_findings": [
+      {"finding_id": "F1", "impact": "Slide 12's FRA payoff definition is outdated; replace with the current convention.",
+       "priority": "high", "status": "approved", "related_claims": ["CLM_001"], "related_topics": ["T1"],
+       "evidence_refs": ["artifact://g02/evidence/F1.card.json"], "source_refs": ["SRC_001"], "confidence": "high"}
+    ],
+    "approved_optional_findings": [
+      {"finding_id": "F2", "impact": "Add a worked numeric example after slide 14.", "related_claims": []}
+    ],
+    "rejected_findings": [
+      {"finding_id": "F3", "impact": "Rewrite the entire interest-rate section.", "reason": "out of scope"}
+    ],
+    "unresolved_claim_policy": {"action": "keep_as_unresolved_items"},
+    "human_gate_decision": {
+      "status": "approved", "approve_required_updates": true,
+      "approve_optional_improvements": true, "unresolved_claim_handling": "keep_as_unresolved_items"
+    },
+    "solution_handoff": {
+      "evidence_cards": [
+        {"evidence_id": "EV_001", "claim_id": "CLM_001", "source_ref": "SRC_001",
+         "summary": "Current FRA payoff convention confirmed by canonical source."}
+      ],
+      "source_cards": [
+        {"source_ref": "SRC_001", "title": "Interest Rate Derivatives — canonical reference", "access": "open_access"}
+      ],
+      "unresolved_claim_cards": [
+        {"claim_id": "CLM_009", "text": "Slide 22's volatility figure could not be verified.", "status": "unresolved"}
+      ]
+    },
+    "approved_at": "2026-06-24T00:00:00Z"
+  }
+}

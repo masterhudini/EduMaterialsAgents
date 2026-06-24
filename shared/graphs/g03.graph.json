@@ -1,6 +1,6 @@
 {
   "graph_id": "g03",
-  "description": "Solution Graph (thin). Turns the user-approved research bundle into the approved Solution deliverable (solution_blueprint@1): a lecture outline, the applied update plan and deferred items. SINGLE SOURCE OF TRUTH for the node sequence — g03_flow.py and the orchestrator prompt must agree with this manifest. Reviewers are runs of ONE physical agent (g03-a10-output-reviewer) with a per-node review_profile; the user solution gate is an orchestrator step. The producer uses the finalize-op write path; the thin exit bundle is a minimal valid solution_blueprint@1.",
+  "description": "Solution Graph (thin). Joins the two upstream sides — g01's lecture_baseline@1 (the lecture skeleton + claim/concept join keys) and g02's user-approved research bundle — into the approved Solution deliverable (solution_blueprint@1): a lecture outline, the applied update plan (each mapped to a real slide), deferred items and source attribution. The boundary input is a thin composite (solution_graph_input@1) of those two refs; g03 is the first place both sides meet, so the finding<->slide mapping (slide_impact) is produced HERE, not in g02. SINGLE SOURCE OF TRUTH for the node sequence — g03_flow.py and the orchestrator prompt must agree with this manifest. Reviewers are runs of ONE physical agent (g03-a10-output-reviewer) with a per-node review_profile; the user solution gate is an orchestrator step. The producer uses the finalize-op write path; the thin exit bundle is a minimal valid solution_blueprint@1.",
   "orchestrator": "g03-orchestrate-solution",
   "reviewer": "g03-a10-output-reviewer",
   "review_task_contract": "review_task@1",
@@ -20,7 +20,7 @@
     "cross_artifact_reconciliation": {"claude": "opus"}
   },
   "entry_node": "g03-a01-solution-architect",
-  "input_contract": "user_approved_research_bundle@1",
+  "input_contract": "solution_graph_input@1",
   "exit_artifact": "solution_blueprint@1",
   "nodes": [
     {"name": "g03-a01-solution-architect", "kind": "agent", "execution": "hosted", "finalize_op": "solution_blueprint_finalize", "complexity_class": "synthesis_decision", "review_profile": "solution_blueprint", "output_contract": "solution_blueprint@1", "produces": ["SolutionBlueprint"]},

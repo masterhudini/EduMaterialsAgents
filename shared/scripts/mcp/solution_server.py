@@ -76,8 +76,12 @@ def _blueprint_finalize(args: dict):
     return solution.finalize_blueprint(args["task_id"], args["blueprint"])
 
 
-_CONTEXT = {"type": "string",
-            "description": "path or artifact:// ref to a user_approved_research_bundle@1 bundle"}
+_CONTEXT = {"type": ["object", "string"],
+            "description": "the g03 boundary: a request object {lecture_baseline_ref|lecture_baseline, "
+                           "research_bundle_ref|research_bundle, task_id?, output_language?} joining "
+                           "g01's lecture_baseline@1 and g02's user_approved_research_bundle@1, a path "
+                           "to such a request JSON, or an artifact:// ref to an existing "
+                           "solution_graph_input@1"}
 
 TOOLS = [
     {"name": "solution_front_door",

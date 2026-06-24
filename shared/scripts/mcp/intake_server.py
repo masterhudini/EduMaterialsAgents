@@ -113,6 +113,10 @@ def _synthesis_finalize(args: dict):
     return intake.finalize_synthesis(args["task_id"], args["research_graph_input"])
 
 
+def _lecture_baseline_finalize(args: dict):
+    return intake.finalize_lecture_baseline(args["task_id"], args["lecture_baseline"])
+
+
 _CONTEXT = {"type": "string", "description": "path or artifact:// ref to an intake_graph_input bundle"}
 
 TOOLS = [
@@ -236,6 +240,15 @@ TOOLS = [
                      "properties": {"task_id": {"type": "string"},
                                     "research_graph_input": {"type": "object",
                                                              "description": "the research_graph_input@1 artifact"}}}},
+    {"name": "intake_lecture_baseline_finalize",
+     "description": "G01-A04 write path: validate the produced lecture_baseline@1 (the targeted "
+                    "01->03 context: slide skeleton + claim/concept join keys) and store it "
+                    "server-side; returns envelope@1 with the artifact ref in produced[]. This is "
+                    "g01's SECOND boundary output (g03 consumes it; g02 never gets the slides).",
+     "inputSchema": {"type": "object", "required": ["task_id", "lecture_baseline"],
+                     "properties": {"task_id": {"type": "string"},
+                                    "lecture_baseline": {"type": "object",
+                                                         "description": "the lecture_baseline@1 artifact"}}}},
     {"name": "intake_finalize",
      "description": "Validate a result bundle (path or inline) against research_graph_input@1 and emit the handoff.",
      "inputSchema": {"type": "object", "required": ["bundle"],
@@ -259,6 +272,7 @@ DISPATCH = {
     "intake_describe_slides": _describe_slides,
     "intake_understanding_finalize": _understanding_finalize,
     "intake_synthesis_finalize": _synthesis_finalize,
+    "intake_lecture_baseline_finalize": _lecture_baseline_finalize,
     "intake_finalize": _finalize,
 }
 

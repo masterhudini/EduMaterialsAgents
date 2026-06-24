@@ -61,8 +61,7 @@ def _stub_bundle() -> dict:
             "unresolved_claim_handling": "keep_as_unresolved_items",
         },
         "solution_handoff": {
-            "evidence_cards": [], "slide_impact_cards": [],
-            "source_cards": [], "unresolved_claim_cards": [],
+            "evidence_cards": [], "source_cards": [], "unresolved_claim_cards": [],
         },
         "approved_at": "1970-01-01T00:00:00Z",
     }

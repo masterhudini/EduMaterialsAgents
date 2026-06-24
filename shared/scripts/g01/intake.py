@@ -101,6 +101,17 @@ def finalize_synthesis(task_id: str, research_graph_input: dict, *, base=None) -
                               type_name="research_graph_input", subdir="synthesis", base=base)
 
 
+def finalize_lecture_baseline(task_id: str, lecture_baseline: dict, *, base=None) -> dict:
+    """G01-A04 write path: persist a validated lecture_baseline@1 (the targeted 01->03 context).
+
+    This is g01's SECOND boundary artifact: research_graph_input@1 feeds g02, lecture_baseline@1
+    feeds g03 with the lecture skeleton (slides + claim_id/concept_id join keys) that g02 never
+    carried. Persisted server-side; the worker forwards only the returned envelope@1.
+    """
+    return _finalize_artifact(task_id, lecture_baseline, contract="lecture_baseline@1",
+                              type_name="lecture_baseline", subdir="baseline", base=base)
+
+
 def resolve_context(path_or_ref, *, base=None):
     """Front-door normalizer: a ``*.pdf`` path is uploaded first; anything else passes through."""
     if isinstance(path_or_ref, str) and path_or_ref.lower().endswith(".pdf"):

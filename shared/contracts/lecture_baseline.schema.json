@@ -1,0 +1,61 @@
+{
+  "title": "LectureBaseline — targeted 01->03 context: the lecture skeleton g03 edits (thin).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": ["schema_version", "task_id", "output_language", "slides"],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["lecture_baseline@1"]},
+    "task_id": {"type": "string"},
+    "output_language": {"type": "string"},
+    "lecture": {
+      "type": "object",
+      "properties": {
+        "title": {"type": "string"},
+        "course": {"type": "string"}
+      }
+    },
+    "slides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slide_id", "order", "title"],
+        "properties": {
+          "slide_id": {"type": "string"},
+          "order": {"type": "integer"},
+          "title": {"type": "string"},
+          "gist": {"type": "string"},
+          "claim_ids": {"type": "array", "items": {"type": "string"}},
+          "concept_ids": {"type": "array", "items": {"type": "string"}},
+          "locked": {"type": "boolean"}
+        }
+      }
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["section_id", "title"],
+        "properties": {
+          "section_id": {"type": "string"},
+          "title": {"type": "string"},
+          "slide_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "flow_issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["issue_id", "summary"],
+        "properties": {
+          "issue_id": {"type": "string"},
+          "summary": {"type": "string"},
+          "related_slide_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "locked_sections": {"type": "array"},
+    "slide_views_ref": {"type": "string"}
+  }
+}
