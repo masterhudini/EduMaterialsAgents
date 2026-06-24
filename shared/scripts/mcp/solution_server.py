@@ -76,6 +76,11 @@ def _blueprint_finalize(args: dict):
     return solution.finalize_blueprint(args["task_id"], args["blueprint"])
 
 
+def _trace(args: dict):
+    from core import event_log
+    return event_log.open_log(gf.GRAPH_ID, run_id=args["run_id"]).summary()
+
+
 _CONTEXT = {"type": ["object", "string"],
             "description": "the g03 boundary: a request object {lecture_baseline_ref|lecture_baseline, "
                            "research_bundle_ref|research_bundle, task_id?, output_language?} joining "
@@ -129,7 +134,18 @@ TOOLS = [
                                     "node_failures": {"type": "object",
                                                       "description": "{node_name: {summary, issues}}"},
                                     "decisions": {"type": "object",
-                                                  "description": "{gate_name: decision} for a user gate"}}}},
+                                                  "description": "{gate_name: decision} for a user gate"},
+                                    "usage_reports": {"type": "object",
+                                                      "description": "OPTIONAL token tracing: {node_name: "
+                                                                     "{input_tokens, output_tokens, model}}. Attach "
+                                                                     "the model usage YOU spent playing the node — "
+                                                                     "only the host knows it. Omit if unavailable."}}}},
+    {"name": "solution_trace",
+     "description": "Return the trace summary for a run: per-agent/per-tool durations and per-node "
+                    "token usage (input/output) rolled up, plus run totals. Pass the run_token "
+                    "(= resume_token) as run_id.",
+     "inputSchema": {"type": "object", "required": ["run_id"],
+                     "properties": {"run_id": {"type": "string", "description": "the run's resume_token"}}}},
     {"name": "solution_get_artifact",
      "description": "Hydrate (read) an artifact:// ref, e.g. an upstream card bundle the current "
                     "hosted node needs as input.",
@@ -158,6 +174,7 @@ DISPATCH = {
     "solution_run_hosted": _HOSTED["run_hosted"],
     "solution_resume": _HOSTED["resume"],
     "solution_get_artifact": _HOSTED["get_artifact"],
+    "solution_trace": _trace,
     "solution_blueprint_finalize": _blueprint_finalize,
     "solution_finalize": _finalize,
 }

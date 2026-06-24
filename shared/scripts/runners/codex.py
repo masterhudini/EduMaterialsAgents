@@ -19,6 +19,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import pathlib as _pl
 
 sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))  # -> shared/scripts
@@ -168,6 +169,30 @@ def _build_prompt(node_name: str, ctx: dict, output_contract: str | None) -> str
     )
 
 
+def _parse_codex_usage(text: str) -> dict | None:
+    """Best-effort extraction of token usage from a `codex exec` run's stderr/stdout.
+
+    Codex's usage line format is not contractual, so this is tolerant: it tries a few shapes and
+    returns ``{input, output}`` (either may be None) or ``None`` if nothing token-like is found.
+    A miss is fine — the caller then logs usage as ``unavailable`` (graceful degradation)."""
+    if not text:
+        return None
+    inp = out = None
+    m = re.search(r'"?input_tokens"?\s*[:=]\s*(\d+)', text) or \
+        re.search(r'(?:input|prompt)\s+tokens?\s*[:=]?\s*(\d+)', text, re.IGNORECASE)
+    if m:
+        inp = int(m.group(1))
+    m = re.search(r'"?output_tokens"?\s*[:=]\s*(\d+)', text) or \
+        re.search(r'(?:output|completion)\s+tokens?\s*[:=]?\s*(\d+)', text, re.IGNORECASE)
+    if m:
+        out = int(m.group(1))
+    if inp is None and out is None:
+        m = re.search(r'(?:total\s+)?tokens?\s+used\s*[:=]?\s*(\d+)', text, re.IGNORECASE)
+        if m:                                  # only a total available -> book it as output
+            out = int(m.group(1))
+    return {"input": inp, "output": out} if (inp is not None or out is not None) else None
+
+
 def _fail(name: str, message: str) -> dict:
     return {"status": "failed", "produced": [],
             "summary": f"{name}: codex worker failed",
@@ -198,6 +223,7 @@ def codex_node_runner(node: dict, ctx: dict, log, *, graph_id: str = DEFAULT_GRA
             "--output-schema", str(schema_path),
             "--output-last-message", str(last), "-",
         ]
+        t0 = time.perf_counter()
         try:
             environment = os.environ.copy()
             if isinstance(ctx.get("run_id"), str):
@@ -209,7 +235,19 @@ def codex_node_runner(node: dict, ctx: dict, log, *, graph_id: str = DEFAULT_GRA
                 env=environment,
             )
         except subprocess.TimeoutExpired:
+            log.span(name, name, kind="agent", status="failed",
+                     duration_ms=(time.perf_counter() - t0) * 1000.0, detail={"reason": "timeout"})
             return _fail(name, f"codex exec timed out after {timeout}s")
+        # Plane A: the runtime brackets this subprocess, so we own its duration. Plane B: codex
+        # reports its own token usage on stderr/stdout, so for the NESTED path we can auto-parse it.
+        log.span(name, name, kind="agent", status=("ok" if proc.returncode == 0 else "failed"),
+                 duration_ms=(time.perf_counter() - t0) * 1000.0)
+        parsed = _parse_codex_usage((proc.stderr or "") + "\n" + (proc.stdout or ""))
+        if parsed:
+            log.usage(name, input_tokens=parsed.get("input"), output_tokens=parsed.get("output"),
+                      model=model, source="codex_nested")
+        else:
+            log.usage(name, model=model, source="unavailable")
         if proc.returncode != 0:
             return _fail(name, f"codex exec exited with rc={proc.returncode}; stderr: {proc.stderr[-400:]}")
         if not last.exists() or not last.read_text(encoding="utf-8").strip():

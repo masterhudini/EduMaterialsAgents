@@ -16,6 +16,7 @@ import json
 import os
 import pathlib
 import re
+import time
 import uuid
 
 from core import artifacts, contracts, event_log, graphs, paths
@@ -179,6 +180,7 @@ def _report(state: dict, status: str, *, issues: list[dict] | None = None,
         "output_ref": output_ref,
         "resume_token": state.get("resume_token") if status == "awaiting_user" else None,
         "gate": deepcopy(gate),
+        "trace": event_log.open_log(f"{GRAPH_ID}-reviewed", run_id=state["resume_token"]).summary(),
     }
     checked = contracts.validate(payload, REPORT_CONTRACT)
     if not checked["ok"]:
@@ -690,6 +692,7 @@ def _run_stage(node: dict, topic_id: str | None, state: dict, rgi: dict, node_ru
             "input": execution["input"],
             "upstream": _upstream_refs(state["records"]),
             "protocol": execution["protocol"],
+            "topic_id": topic_id, "role": "producer", "target": node["name"], "attempt": attempt,
         }
         if findings:
             ctx["revision"] = {
@@ -697,7 +700,10 @@ def _run_stage(node: dict, topic_id: str | None, state: dict, rgi: dict, node_ru
                 "prior_artifact_ref": previous["artifact_ref"],
                 "items": findings,
             }
-        envelope = node_runner(node, ctx, log)
+        try:
+            envelope = node_runner(node, ctx, log)
+        except _Pause as pause:
+            return None, {"__pause__": True, "payload": pause.payload}
         try:
             descriptor, _ = _artifact_descriptor(
                 envelope, node, rgi["task_id"], base=base
@@ -770,6 +776,7 @@ def _run_stage(node: dict, topic_id: str | None, state: dict, rgi: dict, node_ru
             "input": {"task_id": rgi["task_id"]},
             "upstream": {node["name"]: descriptor["path"]},
             "review_task": task,
+            "topic_id": topic_id, "role": "reviewer", "target": node["name"], "attempt": attempt,
             "protocol": {
                 "prepare": {"operation": "research_review_prepare", "arguments": {"task": task}},
                 "allowed_operations": ["research_review_prepare", "research_review_finalize"],
@@ -783,7 +790,10 @@ def _run_stage(node: dict, topic_id: str | None, state: dict, rgi: dict, node_ru
                 ],
             },
         }
-        review_envelope = node_runner(reviewer_node, reviewer_ctx, log)
+        try:
+            review_envelope = node_runner(reviewer_node, reviewer_ctx, log)
+        except _Pause as pause:
+            return None, {"__pause__": True, "payload": pause.payload}
         try:
             decision, decision_ref = _decision_from_envelope(task, review_envelope, base=base)
         except (OSError, ValueError, KeyError, IndexError, TypeError) as exc:
@@ -1062,13 +1072,74 @@ def terminal_gate_handler(payload: dict) -> dict:
     raise ValueError(f"unsupported terminal gate {gate_name!r}")
 
 
-def run(input_ref=None, *, node_runner, base=None, gate_handler=None, pause_on_gate=False,
-        resume_token: str | None = None, decisions: dict | None = None,
+class _Pause(Exception):
+    """Raised by the host-driven node_runner to hand control back to the host for one node."""
+
+    def __init__(self, payload: dict):
+        self.payload = payload
+        super().__init__(payload.get("status"))
+
+
+def _hd_key(target: str, topic_id, role: str, attempt) -> str:
+    return f"{_record_key(target, topic_id)}::{role}::{attempt}"
+
+
+def _awaiting_payload(node: dict, ctx: dict, role: str, target: str, token: str) -> dict:
+    """The pause descriptor handed to the host — tells it exactly which node to play and which
+    deterministic ops to call (from the node's protocol)."""
+    if role == "reviewer":
+        return {"status": "awaiting_review", "resume_token": token, "node": target,
+                "topic_id": ctx.get("topic_id"),
+                "artifact_ref": (ctx.get("upstream") or {}).get(target),
+                "review_task": ctx.get("review_task"), "protocol": ctx.get("protocol")}
+    return {"status": "awaiting_node", "resume_token": token, "node": target,
+            "topic_id": ctx.get("topic_id"), "input": ctx.get("input"),
+            "upstream": ctx.get("upstream"), "output_contract": node.get("output_contract"),
+            "finalize_op": (ctx.get("protocol") or {}).get("finalize", {}).get("operation"),
+            "protocol": ctx.get("protocol")}
+
+
+def _host_driven_runner(state: dict, token: str):
+    """A node_runner that, instead of executing the node, returns the host-played result the host
+    injected on resume — or raises _Pause to ask the host to play it. Producer AND reviewer results
+    are the exact envelope@1 the node's finalize op (research_<stage>_finalize / research_review_
+    finalize) returned, so no synthesis is needed. Keyed by (node, topic, role, attempt) so a REVISE
+    re-asks the producer rather than replaying its cached artifact."""
+    def runner(node: dict, ctx: dict, log) -> dict:
+        role = ctx.get("role", "producer")
+        target = ctx.get("target", node["name"])
+        key = _hd_key(target, ctx.get("topic_id"), role, ctx.get("attempt", 1))
+        store = state.setdefault("host_results", {})
+        if key in store:
+            return store[key]            # injected on resume; do NOT pop (replay re-reads it)
+        state["pending"] = {"node": target, "topic_id": ctx.get("topic_id"),
+                            "role": role, "key": key, "since": time.time()}
+        raise _Pause(_awaiting_payload(node, ctx, role, target, token))
+    return runner
+
+
+def _pause_or_fail(state: dict, failure: dict, *, base=None) -> dict:
+    """A stage either failed normally, or the host-driven runner paused it. The pause is carried up
+    the (record, failure) channel as a marker; convert it to the checkpointed awaiting descriptor."""
+    if isinstance(failure, dict) and failure.get("__pause__"):
+        _save_checkpoint(state["resume_token"], state)
+        return failure["payload"]
+    return _failure_report(state, failure, base=base)
+
+
+def run(input_ref=None, *, node_runner=None, base=None, gate_handler=None, pause_on_gate=False,
+        pause_on_node=False, resume_token: str | None = None, decisions: dict | None = None,
+        node_results: dict | None = None, node_failures: dict | None = None,
+        review_results: dict | None = None, usage_reports: dict | None = None,
         through: str = synthesis.AGENT, topic_ids: list[str] | None = None) -> dict:
-    """Run the implemented, reviewed G02 frontier and return research_run_report@1."""
+    """Run the implemented, reviewed G02 frontier and return research_run_report@1.
+
+    Host-driven mode (``pause_on_node=True``): no nested ``codex exec``. Each producer/reviewer yields
+    ``awaiting_node``/``awaiting_review``; the host plays it (calling the node's finalize op) and
+    resumes with ``node_results``/``review_results`` (the finalize envelope) — optionally
+    ``usage_reports`` for token tracing. ``node_failures`` reports a node the host cannot produce."""
     manifest = graphs.load(GRAPH_ID)
     _stage_rank(through)
-    log = event_log.open_log(f"{GRAPH_ID}-reviewed")
 
     if resume_token and input_ref is None:
         state = _load_checkpoint(resume_token)
@@ -1084,16 +1155,51 @@ def run(input_ref=None, *, node_runner, base=None, gate_handler=None, pause_on_g
             "run_id": uuid.uuid4().hex[:12], "input_ref": input_ref,
             "through": through, "requested_topic_ids": deepcopy(topic_ids),
             "records": {}, "resume_token": resume_token or uuid.uuid4().hex[:12],
+            "host_results": {}, "pending": None,
         }
+    # Trace log keyed by the resume_token (what the host holds during the run, matching g01/g03) so
+    # spans/usage land in one file across resume processes and research_trace can read it live, and
+    # _report can roll the whole run up into research_run_report@1.
+    log = event_log.open_log(f"{GRAPH_ID}-reviewed", run_id=state["resume_token"])
     rgi = artifacts.hydrate(input_ref, base=base)
     checked = contracts.validate(rgi, "research_graph_input@1")
     if not checked["ok"]:
         raise ValueError("invalid research graph input: " + "; ".join(checked["errors"]))
 
+    # Host-driven mode: inject the result the host played for the node we paused on, log its trace
+    # (Plane A: yield->resume duration; Plane B: host-reported tokens), then replay — recorded stages
+    # skip, the paused stage re-prepares deterministically and the runner returns the injected result.
+    if pause_on_node:
+        pend = state.get("pending")
+        if pend:
+            name, key, role = pend["node"], pend["key"], pend["role"]
+            store = state.setdefault("host_results", {})
+            if name in (node_failures or {}):
+                nf = node_failures[name]
+                store[key] = {"status": "failed", "produced": [],
+                              "summary": nf.get("summary", f"{name}: host could not produce"),
+                              "issues": nf.get("issues", [])}
+            elif role == "reviewer" and name in (review_results or {}):
+                store[key] = review_results[name]
+            elif role != "reviewer" and name in (node_results or {}):
+                store[key] = node_results[name]
+            if isinstance(pend.get("since"), (int, float)):
+                log.span(name, name, kind=("reviewer" if role == "reviewer" else "agent"),
+                         duration_ms=(time.time() - pend["since"]) * 1000.0)
+            rep = (usage_reports or {}).get(name)
+            if isinstance(rep, dict):
+                log.usage(name, input_tokens=rep.get("input_tokens"),
+                          output_tokens=rep.get("output_tokens"), model=rep.get("model"),
+                          source="host_reported")
+            state["pending"] = None
+        runner = _host_driven_runner(state, state["resume_token"])
+    else:
+        runner = node_runner
+
     plan_node = _node(manifest, planner.PLANNER_AGENT)
-    _, failure = _run_stage(plan_node, None, state, rgi, node_runner, log, manifest, base=base)
+    _, failure = _run_stage(plan_node, None, state, rgi, runner, log, manifest, base=base)
     if failure:
-        return _failure_report(state, failure, base=base)
+        return _pause_or_fail(state, failure, base=base)
     if through == planner.PLANNER_AGENT:
         return _report(state, "completed", output_ref=state["records"][planner.PLANNER_AGENT]["artifact_ref"], base=base)
 
@@ -1112,17 +1218,17 @@ def run(input_ref=None, *, node_runner, base=None, gate_handler=None, pause_on_g
             break
         node = _node(manifest, stage)
         for topic_id in selected_topics:
-            _, failure = _run_stage(node, topic_id, state, rgi, node_runner, log, manifest, base=base)
+            _, failure = _run_stage(node, topic_id, state, rgi, runner, log, manifest, base=base)
             if failure:
-                return _failure_report(state, failure, base=base)
+                return _pause_or_fail(state, failure, base=base)
         if through == stage:
             output = state["records"][_record_key(stage, selected_topics[-1])].get("artifact_ref")
             return _report(state, "completed", output_ref=output, base=base)
 
     index_node = _node(manifest, candidate_index.AGENT)
-    _, failure = _run_stage(index_node, None, state, rgi, node_runner, log, manifest, base=base)
+    _, failure = _run_stage(index_node, None, state, rgi, runner, log, manifest, base=base)
     if failure:
-        return _failure_report(state, failure, base=base)
+        return _pause_or_fail(state, failure, base=base)
     candidate_ref = state["records"][candidate_index.AGENT]["artifact_ref"]
     if through == candidate_index.AGENT:
         return _report(state, "completed", output_ref=candidate_ref, base=base)
@@ -1177,9 +1283,9 @@ def run(input_ref=None, *, node_runner, base=None, gate_handler=None, pause_on_g
         return _report(state, "completed", output_ref=approved_ref, base=base)
 
     retrieval_node = _node(manifest, retrieval.AGENT)
-    _, failure = _run_stage(retrieval_node, None, state, rgi, node_runner, log, manifest, base=base)
+    _, failure = _run_stage(retrieval_node, None, state, rgi, runner, log, manifest, base=base)
     if failure:
-        return _failure_report(state, failure, base=base)
+        return _pause_or_fail(state, failure, base=base)
     corpus_ref = state["records"][retrieval.AGENT]["artifact_ref"]
     output = corpus_ref
     if through == retrieval.AGENT:
@@ -1195,7 +1301,7 @@ def run(input_ref=None, *, node_runner, base=None, gate_handler=None, pause_on_g
                 review_node, source_id, state, rgi, node_runner, log, manifest, base=base
             )
             if failure:
-                return _failure_report(state, failure, base=base)
+                return _pause_or_fail(state, failure, base=base)
         if through == paper_review.AGENT:
             output = (
                 state["records"][_record_key(paper_review.AGENT, source_ids[-1])]["artifact_ref"]
@@ -1212,9 +1318,9 @@ def run(input_ref=None, *, node_runner, base=None, gate_handler=None, pause_on_g
         )], output_ref=output, base=base)
 
     synthesis_node = _node(manifest, synthesis.AGENT)
-    _, failure = _run_stage(synthesis_node, None, state, rgi, node_runner, log, manifest, base=base)
+    _, failure = _run_stage(synthesis_node, None, state, rgi, runner, log, manifest, base=base)
     if failure:
-        return _failure_report(state, failure, base=base)
+        return _pause_or_fail(state, failure, base=base)
     research_state_ref = state["records"][synthesis.AGENT]["artifact_ref"]
     output = research_state_ref
     if _stage_rank(through) < _stage_rank(RESEARCH_GATE):
