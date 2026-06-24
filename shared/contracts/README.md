@@ -22,6 +22,23 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   `scout_retrieved_corpus.schema.json` and `scout_run_index.schema.json` describe the persistent
   pre-A07 PDF handoff produced by the parallel Scout profile. They are deliberately distinct from
   A06 `retrieved_corpus@1`, which remains tied to human source selection and validated A06 policy.
+- `scout_a07_reviews.schema.json` describes the bounded Scout-to-A07 light-review handoff. It
+  records per-topic/source work items, parallel partial-output locations, presentation update
+  candidates, lookup pointers, coverage gaps and irrelevant sources before A09 prepares the final
+  Graph03 handoff.
+- `scout_a07_partial_review.schema.json` is the single-worker A07 result for one Scout
+  `(topic_id, source_id)` work item. Workers write these under `partial/<topic>/<source>.review.json`;
+  the parent aggregator rebuilds `scout_a07_reviews@1` from them.
+- `scout_a07_model_task.schema.json` is the compact host-model task for one Scout A07 light review.
+  It carries one immutable work item, selected PDF windows and only the linked intake cards needed
+  to decide whether the source adds presentation-facing substance.
+- `scout_a07_deep_dive.schema.json` is the bounded A09 follow-up package for at most five selected
+  A07 lookup pointers. It records the selection criterion, up to twelve additional windows per
+  source and explicit fail-open limitations before deterministic finalization.
+- `scout_a09_model_task.schema.json` is the compact host-model task for the obligatory G02-A09
+  scout_fast pass (opus/medium). It carries the deterministic baseline plan to verify and refine,
+  the A07 candidates, linked intake cards and bounded deep-dive windows (at most five sources,
+  eight windows and 1200 characters per window), with full-PDF reading forbidden.
 - `literature_provider_config.schema.json` defines the secret-free G02 provider profile. Version
   1.2 adds Crossref readiness and rate policy beside the web and retrieval sections; credentials
   and the required contact email remain environment-only.
@@ -69,7 +86,10 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   an explicit `claim_assessment_performed: false` limitation when A08 is skipped.
 - `evidence_map.schema.json`, `user_research_validation_packet.schema.json`,
   `solution_input_candidate.schema.json` and `research_summary.schema.json` freeze the compact
-  auxiliary A09 artifacts emitted beside `research_state@1`.
+  auxiliary A09 artifacts emitted beside `research_state@1`. Version 1.2 of
+  `solution_input_candidate.schema.json` gives every Scout `slide_update_plan` item a concrete
+  target with backward-compatible `affected_slides`/`section_hint` and canonical
+  `slide_ids`/`section`/`placement` fields, plus A09 model-pass audit fields.
 - `review_task.schema.json` — one universal reviewer invocation (`review_task@1`) with one
   artifact, an explicit profile and observable review criteria.
 - `review_decision.schema.json` — auditable universal reviewer result (`review_decision@1`).

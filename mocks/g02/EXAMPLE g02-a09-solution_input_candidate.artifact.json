@@ -10,6 +10,9 @@
   "generated_at": "2026-06-24T12:00:00Z",
   "claim_assessment_performed": false,
   "a08_status": "skipped_scout_fast",
+  "a09_model_pass": true,
+  "synthesis_engine": "a09_opus_medium",
+  "confidence": "medium",
 
   "presentation_context": {
     "course_name": "Bayesian Statistics",

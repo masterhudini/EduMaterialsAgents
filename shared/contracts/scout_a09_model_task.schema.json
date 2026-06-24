@@ -1,0 +1,92 @@
+{
+  "title": "One host-model G02-A09 scout_fast synthesis task (verify and refine the deterministic baseline)",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "synthesis_mode",
+    "deterministic_baseline", "a07_candidates", "deep_dive", "intake_context",
+    "presentation_context", "model_policy", "expected_output", "rules"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["scout_a09_model_task@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "synthesis_mode": {"type": "string", "enum": ["scout_fast"]},
+    "scout_a07_reviews_ref": {"type": ["string", "null"]},
+    "plan_ref": {"type": ["string", "null"]},
+    "intake_ref": {"type": ["string", "null"]},
+    "deterministic_baseline": {
+      "type": "object",
+      "required": [
+        "slide_update_plan", "slide_revision_priorities", "optional_improvements",
+        "unresolved_items", "coverage_gaps", "confidence"
+      ],
+      "properties": {
+        "slide_update_plan": {"type": "array", "items": {"type": "object"}},
+        "slide_revision_priorities": {"type": "array", "items": {"type": "object"}},
+        "optional_improvements": {"type": "array", "items": {"type": "object"}},
+        "unresolved_items": {"type": "array", "items": {"type": "object"}},
+        "coverage_gaps": {"type": "array", "items": {"type": "object"}},
+        "confidence": {"type": "string"}
+      }
+    },
+    "a07_candidates": {"type": "array", "items": {"type": "object"}},
+    "deep_dive": {
+      "type": "object",
+      "required": [
+        "schema_version", "max_windows_per_source", "max_chars_per_window", "requests"
+      ],
+      "properties": {
+        "schema_version": {"type": "string", "enum": ["scout_a07_deep_dive@1"]},
+        "max_windows_per_source": {"type": "integer"},
+        "max_chars_per_window": {"type": "integer"},
+        "requests": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "intake_context": {
+      "type": "object",
+      "required": [
+        "available", "intake_ref", "research_drivers", "claim_cards",
+        "concept_context_cards", "selected_flow_issue_cards",
+        "selected_update_need_cards", "locked_sections", "output_language"
+      ],
+      "properties": {
+        "available": {"type": "boolean"},
+        "intake_ref": {"type": ["string", "null"]},
+        "research_drivers": {"type": "array", "items": {"type": "object"}},
+        "claim_cards": {"type": "array", "items": {"type": "object"}},
+        "concept_context_cards": {"type": "array", "items": {"type": "object"}},
+        "selected_flow_issue_cards": {"type": "array", "items": {"type": "object"}},
+        "selected_update_need_cards": {"type": "array", "items": {"type": "object"}},
+        "locked_sections": {"type": "array"},
+        "output_language": {"type": ["string", "null"]}
+      }
+    },
+    "presentation_context": {"type": "object"},
+    "model_policy": {
+      "type": "object",
+      "required": [
+        "recommended_model", "reasoning_effort", "max_deep_dive_sources",
+        "max_windows_per_source", "max_chars_per_window", "full_pdf_forbidden"
+      ],
+      "properties": {
+        "recommended_model": {"type": "string"},
+        "reasoning_effort": {"type": "string"},
+        "max_deep_dive_sources": {"type": "integer"},
+        "max_windows_per_source": {"type": "integer"},
+        "max_chars_per_window": {"type": "integer"},
+        "full_pdf_forbidden": {"type": "boolean"}
+      }
+    },
+    "expected_output": {
+      "type": "object",
+      "required": ["finalizer", "return_fields"],
+      "properties": {
+        "finalizer": {"type": "string"},
+        "return_fields": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "rules": {"type": "array", "items": {"type": "string"}}
+  }
+}

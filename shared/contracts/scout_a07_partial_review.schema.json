@@ -1,0 +1,36 @@
+{
+  "title": "One parallel G02-A07 light review result for a Scout topic/source work item",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "topic_id", "source_id",
+    "review_status", "presentation_update_candidates", "lookup_pointers",
+    "coverage_gaps", "limitations", "confidence", "created_from"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["scout_a07_partial_review@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "topic_id": {"type": "string"},
+    "source_id": {"type": "string"},
+    "review_status": {
+      "type": "string",
+      "enum": ["useful_for_update", "context_only", "irrelevant", "insufficient"]
+    },
+    "presentation_update_candidates": {"type": "array", "items": {"type": "object"}},
+    "lookup_pointers": {"type": "array", "items": {"type": "object"}},
+    "coverage_gaps": {"type": "array", "items": {"type": "object"}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+    "created_from": {
+      "type": "object",
+      "required": ["work_input_ref", "topic_id", "source_id"],
+      "properties": {
+        "work_input_ref": {"type": "string"},
+        "topic_id": {"type": "string"},
+        "source_id": {"type": "string"}
+      }
+    }
+  }
+}
