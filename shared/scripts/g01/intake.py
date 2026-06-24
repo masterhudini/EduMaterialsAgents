@@ -15,7 +15,7 @@ import uuid
 
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))  # -> shared/scripts
 
-from core import artifacts, contracts  # noqa: E402
+from core import artifacts, contracts, finalize  # noqa: E402
 
 INPUT_CONTRACT = "intake_graph_input@1"
 DEFAULT_INGESTION = {
@@ -68,7 +68,7 @@ def upload(pdf_path, *, hints: dict | None = None, ingestion_profile: dict | Non
             "language_hint": h.get("language"),
         },
         "ingestion_profile": _merged_ingestion_profile(ingestion_profile),
-        "output_language": h.get("output_language", "English"),
+        "output_language": h.get("output_language") or h.get("language") or "English",
     }
     res = contracts.validate(bundle, INPUT_CONTRACT)
     if not res["ok"]:
@@ -83,29 +83,10 @@ def upload(pdf_path, *, hints: dict | None = None, ingestion_profile: dict | Non
 
 def _finalize_artifact(task_id: str, payload: dict, *, contract: str, type_name: str,
                        subdir: str, base=None) -> dict:
-    """Validate + atomically store a producer artifact server-side; return an envelope@1.
-
-    This is the g02-style write path: the deterministic op (run in the unsandboxed MCP/engine
-    process) persists the typed artifact and hands back only its ref in ``produced[]`` — so a
-    read-only/sandboxed Codex worker never needs filesystem write access.
-    """
-    if not isinstance(payload, dict):
-        return {"status": "failed", "produced": [],
-                "summary": f"{type_name}: payload must be an object",
-                "issues": [{"severity": "blocker", "type": "contract",
-                            "message": "finalize payload is not a JSON object"}]}
-    res = contracts.validate(payload, contract)
-    if not res["ok"]:
-        return {"status": "failed", "produced": [],
-                "summary": f"{type_name}: invalid {contract}",
-                "issues": [{"severity": "blocker", "type": "contract",
-                            "message": "; ".join(res["errors"])}]}
-    tid = task_id if isinstance(task_id, str) and task_id else "INTAKE_UNKNOWN"
-    rel = f"g01/{subdir}/{tid}.{uuid.uuid4().hex[:8]}.json"
-    ref = artifacts.store(rel, payload, base=base)
-    return {"status": "ok",
-            "produced": [{"type": type_name, "path": ref, "schema_version": contract}],
-            "summary": f"{type_name} finalized to {ref}", "issues": []}
+    """Validate + store a producer artifact server-side; return envelope@1 (see core.finalize)."""
+    return finalize.artifact_envelope(task_id, payload, contract=contract, type_name=type_name,
+                                      subdir=subdir, namespace="g01", base=base,
+                                      unknown_task="INTAKE_UNKNOWN")
 
 
 def finalize_understanding(task_id: str, understanding: dict, *, base=None) -> dict:

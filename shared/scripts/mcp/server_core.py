@@ -97,7 +97,7 @@ def hosted_handlers(flow) -> dict:
         return flow.run(flow.front_door(args["context"])["ref"], pause_on_node=True, pause_on_gate=True)
 
     def resume(args: dict):
-        return flow.run(resume_token=args["run_token"], pause_on_node=True, pause_on_gate=True,
+        return flow.run(resume_token=args["resume_token"], pause_on_node=True, pause_on_gate=True,
                         node_results=args.get("node_results"), node_failures=args.get("node_failures"),
                         review_decisions=args.get("review_decisions"), decisions=args.get("decisions"))
 

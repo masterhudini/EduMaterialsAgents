@@ -275,7 +275,7 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
     ``run(spec, resume_token=..., decisions={gate: ...})``.
 
     Host-driven mode (``pause_on_node=True``): deterministic nodes (``spec.deterministic_node``) run
-    in-process; every other agent node yields ``{"status":"awaiting_node", "run_token", "node",
+    in-process; every other agent node yields ``{"status":"awaiting_node", "resume_token", "node",
     "input", "upstream", "finalize_op", ...}``. The host runs the node, persists via its finalize op
     and resumes with ``node_results={node: ref}`` (or ``node_failures={node: {...}}`` if it cannot).
     The engine then yields ``{"status":"awaiting_review", ...}`` for EVERY producer; the host plays
@@ -332,8 +332,8 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
                 def _await_review(ref, attempt):
                     _save_checkpoint(spec.graph_id, token, _cp())
                     log.append(name, "awaiting_review", status="paused",
-                               detail={"run_token": token, "attempt": attempt})
-                    return {"status": "awaiting_review", "run_token": token, "node": name,
+                               detail={"resume_token": token, "attempt": attempt})
+                    return {"status": "awaiting_review", "resume_token": token, "node": name,
                             "artifact_ref": ref, "review_profile": review_profile,
                             "output_contract": output_contract, "attempt": attempt}
 
@@ -409,8 +409,8 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
                 # nothing submitted yet -> ask the host to run the node
                 _save_checkpoint(spec.graph_id, token, _cp())
                 log.append(name, "awaiting_node", status="paused",
-                           detail={"run_token": token, "attempt": attempt})
-                payload = {"status": "awaiting_node", "run_token": token, "node": name,
+                           detail={"resume_token": token, "attempt": attempt})
+                payload = {"status": "awaiting_node", "resume_token": token, "node": name,
                            "input": hctx["input"], "upstream": hctx["upstream"],
                            "output_contract": output_contract, "finalize_op": node.get("finalize_op")}
                 if "revision" in hctx:
@@ -501,7 +501,24 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
                        detail={"keys": sorted(gate_decisions[gname])
                                if isinstance(gate_decisions[gname], dict) else None})
 
-    st.set_field(state, spec.output_state_field, spec.stub_exit_bundle(), "confirmed")
+    # Emit the REAL artifact a terminal producer made with the exit contract (e.g. g01-a03 ->
+    # research_graph_input@1); fall back to the thin stub only when no producer emitted it.
+    exit_bundle = None
+    for n in graphs.nodes(manifest):
+        if n.get("kind") != "agent" or n.get("output_contract") != spec.output_contract:
+            continue
+        rref = produced_refs.get(n["name"])
+        if not isinstance(rref, str):
+            continue
+        try:
+            candidate = artifacts.hydrate(rref, base=base)
+        except (OSError, ValueError, KeyError, IndexError):
+            continue
+        if isinstance(candidate, dict) and contracts.validate(candidate, spec.output_contract)["ok"]:
+            exit_bundle = candidate            # last matching producer wins
+    if exit_bundle is None:
+        exit_bundle = spec.stub_exit_bundle()
+    st.set_field(state, spec.output_state_field, exit_bundle, "confirmed")
 
     def _validator(s):
         return vs.validate_state(s, required=[spec.input_state_field, spec.output_state_field])

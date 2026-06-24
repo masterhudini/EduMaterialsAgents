@@ -80,6 +80,28 @@ def _slide_views(args: dict):
     return pdf_extract.slide_views(args["input"], visual_policy=args.get("visual_policy", "pending"))
 
 
+def _describe_slides(args: dict):
+    res = pdf_extract.describe_slides(args["pdf_extract_ref"], args["descriptions"])
+    return {"status": "ok",
+            "produced": [{"type": "pdf_extract_result", "path": res["result_ref"],
+                          "schema_version": "pdf_extract_result@1"}],
+            "summary": f"visual descriptions applied ({res.get('filename', 'pdf')})", "issues": []}
+
+
+def _extract_images(args: dict):
+    res = pdf_extract.extract_images(args["pdf_extract_ref"])
+    pages = [p["page_number"] for p in res.get("pages", []) if p.get("image_refs")]
+    return {"status": "ok",
+            "produced": [{"type": "pdf_extract_result", "path": res["result_ref"],
+                          "schema_version": "pdf_extract_result@1"}],
+            "summary": f"embedded images extracted on pages {pages}", "issues": []}
+
+
+def _image_path(args: dict):
+    from core import artifacts
+    return {"ref": args["ref"], "path": str(artifacts.resolve_path(args["ref"]))}
+
+
 _HOSTED = server_core.hosted_handlers(gf)   # run_hosted / resume / get_artifact, shared across graphs
 
 
@@ -144,7 +166,7 @@ TOOLS = [
     {"name": "intake_run_hosted",
      "description": "Start a HOST-DRIVEN Intake run (no nested codex): deterministic nodes run "
                     "in-process; for each LLM node the engine pauses and returns "
-                    "{status:'awaiting_node', run_token, node, input, upstream, finalize_op}. You run "
+                    "{status:'awaiting_node', resume_token, node, input, upstream, finalize_op}. You run "
                     "that node, call its finalize_op, then intake_resume with node_results. The engine "
                     "then returns {status:'awaiting_review', node, artifact_ref, review_profile} for "
                     "EVERY producer — you play the reviewer and resume with review_decisions. User "
@@ -158,8 +180,8 @@ TOOLS = [
                     "produce the node); or decisions={gate: ...} (for a user gate). Returns the next "
                     "awaiting_node / awaiting_review / awaiting_user, the research_graph_input@1 "
                     "handoff when done, or a failed descriptor.",
-     "inputSchema": {"type": "object", "required": ["run_token"],
-                     "properties": {"run_token": {"type": "string"},
+     "inputSchema": {"type": "object", "required": ["resume_token"],
+                     "properties": {"resume_token": {"type": "string"},
                                     "node_results": {"type": "object",
                                                      "description": "{node_name: artifact:// ref from its finalize_op}"},
                                     "review_decisions": {"type": "object",
@@ -173,6 +195,31 @@ TOOLS = [
                     "hosted node needs as input.",
      "inputSchema": {"type": "object", "required": ["ref"],
                      "properties": {"ref": {"type": "string"}}}},
+    {"name": "intake_extract_images",
+     "description": "v1.5 vision aid: extract EMBEDDED raster images (JPEG/PNG) per page from the PDF "
+                    "into the store and attach per-page image_refs to pdf_extract_result@1. No new "
+                    "dependency, but captures only embedded bitmaps — vector diagrams/formulas are not "
+                    "extracted. Returns envelope@1 with the new pdf_extract_result ref.",
+     "inputSchema": {"type": "object", "required": ["pdf_extract_ref"],
+                     "properties": {"pdf_extract_ref": {"type": "string",
+                                                        "description": "artifact:// ref to pdf_extract_result@1"}}}},
+    {"name": "intake_image_path",
+     "description": "Resolve an artifact:// image ref (from a page's image_refs) to an absolute "
+                    "filesystem path so a vision-capable host can open/view the image.",
+     "inputSchema": {"type": "object", "required": ["ref"],
+                     "properties": {"ref": {"type": "string"}}}},
+    {"name": "intake_describe_slides",
+     "description": "Visual pass: merge per-page visual descriptions into pdf_extract_result@1 and "
+                    "store a new version server-side. descriptions = {page_number: {has_visual_content, "
+                    "visual_description, image_ref?}}. Sets status 'available' for described graphics and "
+                    "'not_requested' for pages marked has_visual_content:false. Returns envelope@1 with "
+                    "the new pdf_extract_result ref in produced[].",
+     "inputSchema": {"type": "object", "required": ["pdf_extract_ref", "descriptions"],
+                     "properties": {"pdf_extract_ref": {"type": "string",
+                                                        "description": "artifact:// ref to pdf_extract_result@1 "
+                                                                       "(slide_views.source_pdf_extract_ref)"},
+                                    "descriptions": {"type": "object",
+                                                     "description": "{page_number: {has_visual_content, visual_description}}"}}}},
     {"name": "intake_understanding_finalize",
      "description": "G01-A02 write path: validate the produced intake_understanding@1 and store it "
                     "server-side; returns envelope@1 with the artifact ref in produced[]. Use this as "
@@ -207,6 +254,9 @@ DISPATCH = {
     "intake_run_hosted": _HOSTED["run_hosted"],
     "intake_resume": _HOSTED["resume"],
     "intake_get_artifact": _HOSTED["get_artifact"],
+    "intake_extract_images": _extract_images,
+    "intake_image_path": _image_path,
+    "intake_describe_slides": _describe_slides,
     "intake_understanding_finalize": _understanding_finalize,
     "intake_synthesis_finalize": _synthesis_finalize,
     "intake_finalize": _finalize,

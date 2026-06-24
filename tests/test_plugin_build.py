@@ -55,7 +55,8 @@ EXPECTED_GLOBAL_SETTINGS = {
 
 
 EXPECTED_SKILL_SETTINGS = {
-    "g02-a01-plan-research-scope": ("sonnet", "xhigh"),
+    "g01-orchestrate-intake": ("opus", "low"),
+    "g02-a01-plan-research-scope": ("opus", "medium"),
     "g02-a05-annotate-source-candidates": ("opus", "medium"),
     "g02-a05-deduplicate-source-records": ("opus", "medium"),
     "g02-a05-rank-source-candidates": ("opus", "medium"),
@@ -143,6 +144,9 @@ def test_every_agent_required_skill_exists():
         text = agent.read_text(encoding="utf-8")
         section = re.search(r"^## Required Skills\s*$\n(.*?)(?=^## |\Z)", text, re.MULTILINE | re.DOTALL)
         assert section, f"{agent.name}: missing Required Skills section"
+        section_text = re.sub(r"\s+", " ", section.group(1)).casefold()
+        if "no separate skill is loaded" in section_text:
+            continue
         required = set(re.findall(r"`([a-z0-9-]+)`", section.group(1)))
         assert required, f"{agent.name}: no skill references"
         assert required <= available, f"{agent.name}: unknown skills {sorted(required - available)}"
