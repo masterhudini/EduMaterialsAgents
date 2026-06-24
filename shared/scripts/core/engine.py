@@ -275,7 +275,7 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
     ``run(spec, resume_token=..., decisions={gate: ...})``.
 
     Host-driven mode (``pause_on_node=True``): deterministic nodes (``spec.deterministic_node``) run
-    in-process; every other agent node yields ``{"status":"awaiting_node", "run_token", "node",
+    in-process; every other agent node yields ``{"status":"awaiting_node", "resume_token", "node",
     "input", "upstream", "finalize_op", ...}``. The host runs the node, persists via its finalize op
     and resumes with ``node_results={node: ref}`` (or ``node_failures={node: {...}}`` if it cannot).
     The engine then yields ``{"status":"awaiting_review", ...}`` for EVERY producer; the host plays
@@ -332,8 +332,8 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
                 def _await_review(ref, attempt):
                     _save_checkpoint(spec.graph_id, token, _cp())
                     log.append(name, "awaiting_review", status="paused",
-                               detail={"run_token": token, "attempt": attempt})
-                    return {"status": "awaiting_review", "run_token": token, "node": name,
+                               detail={"resume_token": token, "attempt": attempt})
+                    return {"status": "awaiting_review", "resume_token": token, "node": name,
                             "artifact_ref": ref, "review_profile": review_profile,
                             "output_contract": output_contract, "attempt": attempt}
 
@@ -409,8 +409,8 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
                 # nothing submitted yet -> ask the host to run the node
                 _save_checkpoint(spec.graph_id, token, _cp())
                 log.append(name, "awaiting_node", status="paused",
-                           detail={"run_token": token, "attempt": attempt})
-                payload = {"status": "awaiting_node", "run_token": token, "node": name,
+                           detail={"resume_token": token, "attempt": attempt})
+                payload = {"status": "awaiting_node", "resume_token": token, "node": name,
                            "input": hctx["input"], "upstream": hctx["upstream"],
                            "output_contract": output_contract, "finalize_op": node.get("finalize_op")}
                 if "revision" in hctx:

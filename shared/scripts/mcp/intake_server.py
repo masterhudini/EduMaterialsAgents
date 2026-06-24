@@ -166,7 +166,7 @@ TOOLS = [
     {"name": "intake_run_hosted",
      "description": "Start a HOST-DRIVEN Intake run (no nested codex): deterministic nodes run "
                     "in-process; for each LLM node the engine pauses and returns "
-                    "{status:'awaiting_node', run_token, node, input, upstream, finalize_op}. You run "
+                    "{status:'awaiting_node', resume_token, node, input, upstream, finalize_op}. You run "
                     "that node, call its finalize_op, then intake_resume with node_results. The engine "
                     "then returns {status:'awaiting_review', node, artifact_ref, review_profile} for "
                     "EVERY producer — you play the reviewer and resume with review_decisions. User "
@@ -180,8 +180,8 @@ TOOLS = [
                     "produce the node); or decisions={gate: ...} (for a user gate). Returns the next "
                     "awaiting_node / awaiting_review / awaiting_user, the research_graph_input@1 "
                     "handoff when done, or a failed descriptor.",
-     "inputSchema": {"type": "object", "required": ["run_token"],
-                     "properties": {"run_token": {"type": "string"},
+     "inputSchema": {"type": "object", "required": ["resume_token"],
+                     "properties": {"resume_token": {"type": "string"},
                                     "node_results": {"type": "object",
                                                      "description": "{node_name: artifact:// ref from its finalize_op}"},
                                     "review_decisions": {"type": "object",
