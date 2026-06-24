@@ -1,0 +1,396 @@
+{
+  "schema_version": "research_graph_input@1",
+  "task_id": "awif_2025_wyk_09_fra",
+  "user_approved_context": {
+    "audience_level": "university finance / quantitative finance students",
+    "course_name": "Analiza i wycena instrumentów finansowych",
+    "teaching_goal": "Zweryfikować i wesprzeć wykład o kontraktach FRA: definicje, rozliczenie, wycena stopy FRA, wartość pozycji, przykłady rachunkowe oraz typowe błędy dydaktyczne."
+  },
+  "approved_domains": [
+    {
+      "domain_id": "D01",
+      "label": "Finance: derivatives and interest-rate risk management"
+    },
+    {
+      "domain_id": "D02",
+      "label": "Fixed income and money market instruments"
+    },
+    {
+      "domain_id": "D03",
+      "label": "Financial mathematics: forward rates, discounting and day-count conventions"
+    },
+    {
+      "domain_id": "D04",
+      "label": "Corporate treasury hedging practice"
+    }
+  ],
+  "approved_research_scope": {
+    "verify_claims": {
+      "priority": [
+        "high",
+        "medium"
+      ],
+      "claim_ids": [
+        "CL01",
+        "CL02",
+        "CL03",
+        "CL04",
+        "CL05",
+        "CL06",
+        "CL07",
+        "CL08",
+        "CL09",
+        "CL10",
+        "CL11",
+        "CL12"
+      ],
+      "focus": "canonical definitions, no-arbitrage pricing logic, settlement timing, day-count conventions, payoff direction, and arithmetic consistency of worked examples"
+    },
+    "include_recent_developments": true,
+    "include_canonical_sources": true,
+    "include_didactic_examples": true,
+    "recency_window_years": 5
+  },
+  "research_drivers": [
+    {
+      "driver_id": "DRV01",
+      "driver_type": "mixed",
+      "priority": "high",
+      "purpose": "Ustalić kanoniczny opis konstrukcji FRA: instrument bazowy, brak fizycznej dostawy, OTC charakter, notional jako baza rozliczenia i rozliczenie różnicy odsetkowej.",
+      "related_claims": [
+        "CL01",
+        "CL02",
+        "CL10",
+        "CL11"
+      ],
+      "related_concepts": [
+        "C01",
+        "C02",
+        "C04"
+      ],
+      "related_flow_issues": [],
+      "related_update_needs": []
+    },
+    {
+      "driver_id": "DRV02",
+      "driver_type": "mixed",
+      "priority": "high",
+      "purpose": "Zweryfikować znaki wypłat i zastosowania hedgingowe pozycji długiej oraz krótkiej w FRA dla pożyczkobiorcy i pożyczkodawcy.",
+      "related_claims": [
+        "CL04",
+        "CL09"
+      ],
+      "related_concepts": [
+        "C03",
+        "C08"
+      ],
+      "related_flow_issues": [],
+      "related_update_needs": []
+    },
+    {
+      "driver_id": "DRV03",
+      "driver_type": "mixed",
+      "priority": "high",
+      "purpose": "Zweryfikować formuły: stopa FRA z krzywej spot, rozliczenie w T1, dyskontowanie płatności i wartość pozycji po zawarciu kontraktu.",
+      "related_claims": [
+        "CL03",
+        "CL05",
+        "CL06"
+      ],
+      "related_concepts": [
+        "C04",
+        "C05",
+        "C06",
+        "C09"
+      ],
+      "related_flow_issues": [
+        "FI01",
+        "FI05"
+      ],
+      "related_update_needs": []
+    },
+    {
+      "driver_id": "DRV04",
+      "driver_type": "claim",
+      "priority": "high",
+      "purpose": "Sprawdzić arytmetykę i konwencje w przykładach FRA 6x9, FRA 1x4 oraz wycenie pozycji po 20 dniach, ze szczególną kontrolą potencjalnej niespójności na slajdzie 27.",
+      "related_claims": [
+        "CL07",
+        "CL08",
+        "CL12"
+      ],
+      "related_concepts": [
+        "C05",
+        "C06",
+        "C09"
+      ],
+      "related_flow_issues": [
+        "FI03"
+      ],
+      "related_update_needs": []
+    },
+    {
+      "driver_id": "DRV05",
+      "driver_type": "flow_issue",
+      "priority": "medium",
+      "purpose": "Zebrać materiały dydaktyczne lub źródła kanoniczne, które pomagają rozdzielić: oś czasu FRA, wycenę początkową, rozliczenie i wycenę pozycji po zawarciu.",
+      "related_claims": [
+        "CL05",
+        "CL06"
+      ],
+      "related_concepts": [
+        "C02",
+        "C04",
+        "C05",
+        "C06",
+        "C10"
+      ],
+      "related_flow_issues": [
+        "FI01",
+        "FI02",
+        "FI04",
+        "FI05"
+      ],
+      "related_update_needs": []
+    }
+  ],
+  "claim_cards": [
+    {
+      "claim_id": "CL01",
+      "text": "Kontrakt FRA jest instrumentem pochodnym rynku pieniężnego, którego instrumentem bazowym jest stopa procentowa.",
+      "type": "definition",
+      "verification_need": "medium",
+      "artifact_ref": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json"
+    },
+    {
+      "claim_id": "CL02",
+      "text": "FRA jest nierozliczany fizycznie i rozliczany wyłącznie przez różnicę odsetkową.",
+      "type": "definition",
+      "verification_need": "high",
+      "artifact_ref": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json"
+    },
+    {
+      "claim_id": "CL03",
+      "text": "Wartość prawidłowo wycenionego FRA w momencie zawarcia wynosi zero.",
+      "type": "valuation principle",
+      "verification_need": "high",
+      "artifact_ref": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json"
+    },
+    {
+      "claim_id": "CL04",
+      "text": "Długa pozycja w FRA zyskuje przy wzroście rzeczywistej stopy ponad stopę FRA, a krótka przy spadku stóp.",
+      "type": "payoff interpretation",
+      "verification_need": "high",
+      "artifact_ref": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json"
+    },
+    {
+      "claim_id": "CL05",
+      "text": "Rozliczenie FRA następuje na początku okresu bazowego, dlatego różnica odsetkowa powinna być zdyskontowana.",
+      "type": "settlement mechanics",
+      "verification_need": "high",
+      "artifact_ref": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json"
+    },
+    {
+      "claim_id": "CL06",
+      "text": "Stopę FRA można wyznaczyć ze struktury stóp spot r(s) i r(s+v) przy zadanej konwencji kapitalizacji.",
+      "type": "pricing formula",
+      "verification_need": "high",
+      "artifact_ref": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json"
+    },
+    {
+      "claim_id": "CL07",
+      "text": "W przykładzie FRA 6x9 dla r182=3,5% i r273=4,0% przy ACT/365 i prostej kapitalizacji otrzymano około 4,9142%.",
+      "type": "worked calculation",
+      "verification_need": "medium",
+      "artifact_ref": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json"
+    },
+    {
+      "claim_id": "CL08",
+      "text": "W przykładzie FRA 1x4 przy 30/360 i stopach 4% oraz 5% otrzymano stopę FRA około 5,32%.",
+      "type": "worked calculation",
+      "verification_need": "high",
+      "artifact_ref": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json"
+    },
+    {
+      "claim_id": "CL09",
+      "text": "FRA służy głównie do zabezpieczenia ryzyka stopy procentowej, a nie do inwestycji; spekulacja jest możliwa, ale zwiększa ryzyko finansowe.",
+      "type": "practice interpretation",
+      "verification_need": "medium",
+      "artifact_ref": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json"
+    },
+    {
+      "claim_id": "CL10",
+      "text": "Nominał FRA nie jest przekazywany między stronami i służy tylko jako baza rozliczenia różnicy odsetkowej.",
+      "type": "settlement mechanics",
+      "verification_need": "high",
+      "artifact_ref": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json"
+    },
+    {
+      "claim_id": "CL11",
+      "text": "FRA jest instrumentem OTC i zwykle nie jest standaryzowany.",
+      "type": "market structure",
+      "verification_need": "medium",
+      "artifact_ref": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json"
+    },
+    {
+      "claim_id": "CL12",
+      "text": "Wartość pozycji długiej po 20 dniach w przykładzie z FRA 6x9 wynosi około -1 764,70 dla nominału 1 000 000.",
+      "type": "worked calculation",
+      "verification_need": "medium",
+      "artifact_ref": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json"
+    }
+  ],
+  "concept_context_cards": [
+    {
+      "concept_id": "C01",
+      "label": "Kontrakt FRA jako pochodny instrument stopy procentowej",
+      "role": "core",
+      "related_claims": [
+        "CL01",
+        "CL02",
+        "CL10",
+        "CL11"
+      ]
+    },
+    {
+      "concept_id": "C02",
+      "label": "Oś czasu FRA: T0, T1/TR, T2 oraz okres bazowy",
+      "role": "core",
+      "related_claims": [
+        "CL05"
+      ]
+    },
+    {
+      "concept_id": "C03",
+      "label": "Pozycja długa i krótka w FRA oraz znak rozliczenia",
+      "role": "core",
+      "related_claims": [
+        "CL04"
+      ]
+    },
+    {
+      "concept_id": "C04",
+      "label": "Rozliczenie różnicy odsetkowej i dyskontowanie płatności do T1",
+      "role": "core",
+      "related_claims": [
+        "CL02",
+        "CL05",
+        "CL10"
+      ]
+    },
+    {
+      "concept_id": "C05",
+      "label": "Wycena przed zawarciem: wyznaczanie stopy FRA z krzywej spot",
+      "role": "core",
+      "related_claims": [
+        "CL03",
+        "CL06",
+        "CL07",
+        "CL08"
+      ]
+    },
+    {
+      "concept_id": "C06",
+      "label": "Wycena pozycji po zawarciu kontraktu i przed rozliczeniem",
+      "role": "core",
+      "related_claims": [
+        "CL12"
+      ]
+    },
+    {
+      "concept_id": "C07",
+      "label": "Analogia do wyceny kontraktu forward na akcje",
+      "role": "supporting prerequisite",
+      "related_claims": []
+    },
+    {
+      "concept_id": "C08",
+      "label": "Zastosowanie FRA do zabezpieczania ryzyka stopy procentowej",
+      "role": "application",
+      "related_claims": [
+        "CL04",
+        "CL09"
+      ]
+    },
+    {
+      "concept_id": "C09",
+      "label": "Konwencje dni ACT/365 i 30/360 w obliczeniach FRA",
+      "role": "calculation convention",
+      "related_claims": [
+        "CL07",
+        "CL08",
+        "CL12"
+      ]
+    },
+    {
+      "concept_id": "C10",
+      "label": "Typowe błędy w zadaniach z FRA",
+      "role": "didactic checkpoint",
+      "related_claims": [
+        "CL05",
+        "CL08"
+      ]
+    }
+  ],
+  "selected_flow_issue_cards": [
+    {
+      "issue_id": "FI01",
+      "summary": "Rozliczenie FRA pojawia się przed formalnym rozdzieleniem wyceny początkowej i rozliczenia, co może utrudniać interpretację wzorów.",
+      "severity": "medium"
+    },
+    {
+      "issue_id": "FI02",
+      "summary": "Oznaczenia T0, T1 i T2 są krytyczne, ale jeden gęsty slajd łączy zbyt wiele funkcji czasowych naraz.",
+      "severity": "medium"
+    },
+    {
+      "issue_id": "FI03",
+      "summary": "Przykład FRA 1x4 może zawierać niespójność zapisu mianownika i wymaga kontroli rachunkowej przed użyciem.",
+      "severity": "high"
+    },
+    {
+      "issue_id": "FI04",
+      "summary": "Analogia do forwardu na akcje pojawia się po złożonych wzorach wartości FRA; może być lepsza jako wcześniejszy pomost.",
+      "severity": "low"
+    },
+    {
+      "issue_id": "FI05",
+      "summary": "W przykładach po 20 dniach trzeba wyraźniej oddzielić nową stopę FRA, pierwotną stopę i wartość pozycji.",
+      "severity": "medium"
+    }
+  ],
+  "selected_update_need_cards": [],
+  "existing_source_cards": [],
+  "constraints": {
+    "max_topics": 4,
+    "candidate_limit_per_topic": 12,
+    "no_new_coverage_passes": 2,
+    "allowed_languages": [
+      "pl",
+      "en"
+    ],
+    "allowed_work_types": [
+      "article",
+      "book",
+      "book-chapter",
+      "report",
+      "standard",
+      "web-resource"
+    ],
+    "year_from": null,
+    "year_to": null
+  },
+  "selection_profile": {
+    "candidate_pool_target_per_topic": 8,
+    "minimum_sources_per_required_role": 1,
+    "open_access_preference": "preferred"
+  },
+  "locked_sections": [],
+  "artifact_refs_for_lazy_hydration": {
+    "slide_views": "artifact://g01/g01-a01-pdf-intake.json",
+    "pdf_extract_with_visual_descriptions": "artifact://g01/pdf-extract/awif_2025_wyk_09_fra.539c31c7.json",
+    "intake_understanding": "artifact://g01/understanding/awif_2025_wyk_09_fra.f9e3fdba.json",
+    "source_pdf": "artifact://uploads/sha256-c17d87eb7fcc.pdf"
+  },
+  "output_language": "pl"
+}

@@ -1077,6 +1077,10 @@ def _dedup_versions(cands: list["Candidate"]) -> tuple[list["Candidate"], int]:
                     extra_urls.append(u)
         primary.alt_pdf_urls = extra_urls
         primary.is_oa = any_oa
+        if any(member.source == "snowball" for member in members):
+            # Preserve discovery provenance used by canonical classification even
+            # when the downloadable primary version came from the direct search.
+            primary.source = "snowball"
         merged += len(members) - 1
         out.append(primary)
     return out + singletons, merged
@@ -1282,6 +1286,150 @@ def _apply_lang_quota(ranked: list["Candidate"], lang_map: dict[str, set],
     return chosen
 
 
+
+_CANONICAL_WORK_TYPES = {"book", "book-chapter", "chapter"}
+
+
+def classify_source_metadata(*, year: int | None, fwci: float | None,
+                             source: str, work_type: str,
+                             year_from: int | None) -> tuple[str, str]:
+    """Classify source metadata and return an auditable, persisted basis."""
+    reasons: list[str] = []
+    if source == "snowball":
+        reasons.append("snowball discovery")
+    if year_from is not None and year is not None and year < year_from:
+        reasons.append(f"pre-window year {year} < {year_from}")
+    if fwci is not None and fwci > 2.0:
+        reasons.append(f"fwci={fwci:g} > 2.0")
+    if (work_type or "").strip().lower() in _CANONICAL_WORK_TYPES:
+        reasons.append(f"work_type={work_type}")
+    # Older callers may not provide an intake-derived boundary. Keep a documented,
+    # conservative fallback so source_type remains useful outside the A01 seam.
+    if year_from is None and year is not None \
+            and year < datetime.now().year - 10:
+        reasons.append("older than 10-year fallback window")
+    if reasons:
+        return "canonical", "; ".join(reasons)
+    if year_from is not None and year is not None:
+        return "recent", f"year {year} >= {year_from}; no canonical signal"
+    return "recent", "no canonical signal in available metadata"
+
+
+def _source_type_details(cand: "Candidate", year_from: int | None) -> tuple[str, str]:
+    """Classify from already fetched metadata and return an auditable basis."""
+    return classify_source_metadata(
+        year=cand.year,
+        fwci=cand.fwci,
+        source=cand.source,
+        work_type=cand.work_type,
+        year_from=year_from,
+    )
+
+
+def _classify_source_type(cand: "Candidate", year_from: int | None) -> str:
+    return _source_type_details(cand, year_from)[0]
+
+
+def _apply_recency_quota(ranked: list["Candidate"], year_from: int | None,
+                         quota_canonical: float, target: int) -> list["Candidate"]:
+    """Przeporzadkuj pule OA tak, by udzial prac kanonicznych w pierwszych `target`
+    pozycjach wynosil ~quota_canonical (reszta = recent), z PRZELEWEM identycznym
+    jak w _apply_lang_quota: gdy jedna pula sie wyczerpie, druga wypelnia reszte.
+
+    quota_canonical=0 → same recent z przodu; =1 → same canonical z przodu.
+    Wartość spoza [0,1] jest błędem kontraktu.
+    """
+    if not 0.0 <= quota_canonical <= 1.0:
+        raise ValueError("quota_canonical must be between 0 and 1")
+
+    canonical_bucket = [c for c in ranked if _classify_source_type(c, year_from) == "canonical"]
+    recent_bucket = [c for c in ranked if _classify_source_type(c, year_from) == "recent"]
+
+    n_canonical = math.ceil(quota_canonical * max(1, target))
+    chosen: list[Candidate] = []
+    used: set[str] = set()
+
+    for c in canonical_bucket[:n_canonical]:
+        chosen.append(c); used.add(c.doi)
+    for c in recent_bucket:
+        if len(chosen) >= target:
+            break
+        if c.doi not in used:
+            chosen.append(c); used.add(c.doi)
+    for c in canonical_bucket:
+        if c.doi not in used:
+            chosen.append(c); used.add(c.doi)
+    for c in ranked:
+        if c.doi not in used:
+            chosen.append(c); used.add(c.doi)
+    return chosen
+
+
+def _apply_joint_quotas(ranked: list["Candidate"], lang_map: dict[str, set],
+                        split_pl: float, year_from: int | None,
+                        quota_canonical: float, target: int) -> list["Candidate"]:
+    """Meet language and canonical margins together when the pool permits it.
+
+    A sequential reorder can silently destroy the first quota.  This small
+    deterministic 2x2 allocator chooses counts for canonical/recent × PL/non-PL,
+    minimizes margin shortfalls, and keeps the original ranking within and across
+    the selected cells.  Exhausted cells roll over to the best feasible margin.
+    """
+    if not 0.0 <= quota_canonical <= 1.0:
+        raise ValueError("quota_canonical must be between 0 and 1")
+    if not ranked or target <= 0:
+        return ranked
+    wanted = min(target, len(ranked))
+    desired_canonical = math.ceil(quota_canonical * wanted)
+    desired_pl = round(min(1.0, max(0.0, split_pl)) * wanted)
+    cells: dict[tuple[bool, bool], list[Candidate]] = {
+        (canonical, polish): []
+        for canonical in (False, True) for polish in (False, True)
+    }
+    for cand in ranked:
+        canonical = _classify_source_type(cand, year_from) == "canonical"
+        polish = "pl" in lang_map.get(cand.doi, set())
+        cells[(canonical, polish)].append(cand)
+
+    rank_value = {cand.doi: len(ranked) - index for index, cand in enumerate(ranked)}
+    prefix: dict[tuple[bool, bool], list[int]] = {}
+    for key, bucket in cells.items():
+        values = [0]
+        for cand in bucket:
+            values.append(values[-1] + rank_value[cand.doi])
+        prefix[key] = values
+
+    best: tuple[tuple[int, int], tuple[int, int, int, int]] | None = None
+    # Counts are (canonical+PL, canonical+nonPL, recent+PL, recent+nonPL).
+    for cp in range(min(len(cells[(True, True)]), wanted) + 1):
+        for ce in range(min(len(cells[(True, False)]), wanted - cp) + 1):
+            for rp in range(min(len(cells[(False, True)]), wanted - cp - ce) + 1):
+                re = wanted - cp - ce - rp
+                if re < 0 or re > len(cells[(False, False)]):
+                    continue
+                canonical_count = cp + ce
+                pl_count = cp + rp
+                error = abs(canonical_count - desired_canonical) + abs(pl_count - desired_pl)
+                quality = (
+                    prefix[(True, True)][cp] + prefix[(True, False)][ce]
+                    + prefix[(False, True)][rp] + prefix[(False, False)][re]
+                )
+                score = (-error, quality)
+                counts = (cp, ce, rp, re)
+                if best is None or score > best[0]:
+                    best = (score, counts)
+
+    if best is None:
+        return ranked
+    selected: set[str] = set()
+    for key, count in zip(
+            ((True, True), (True, False), (False, True), (False, False)),
+            best[1]):
+        selected.update(cand.doi for cand in cells[key][:count])
+    return ([cand for cand in ranked if cand.doi in selected]
+            + [cand for cand in ranked if cand.doi not in selected])
+
+
 # -- Prestiz venue: summary_stats zrodla OpenAlex (cache per zrodlo) ------
 OPENALEX_SOURCE = "https://api.openalex.org/sources/"
 
@@ -1347,6 +1495,8 @@ def run_student(
     min_intent_match: float = 0.1,
     s2_api_key: str = "",
     reject_mode: str = "flag",
+    quota_canonical: float | None = None,
+    recency_year_from: int | None = None,
     relevance_threshold: float = 0.5,
     model_price_usd_per_m: float = 0.075,
     max_cost_usd: float = 1.0,
@@ -1524,11 +1674,32 @@ def run_student(
     target = max(n, math.ceil(oversample * n))  # oversampling: pobierz ~1.5N, wybor robi czlowiek
     # Kwota jezykowa (P1): w trybie PL+ENG ustaw udzial PL w pierwszych `target`
     # pozycjach na ~split_pl (reszta ENG), z przelewem gdy ktoras pula nie wypelni slotu.
-    if sl == "both":
+    classification_year_from = recency_year_from \
+        if recency_year_from is not None else year_from
+    if sl == "both" and quota_canonical is not None:
+        oa = _apply_joint_quotas(
+            oa, lang_map, search_lang_split_pl, classification_year_from,
+            quota_canonical, target,
+        )
+        if progress:
+            pct = round(search_lang_split_pl * 100)
+            progress("lang", f"Kwota jezykowa: ~{pct}% PL / {100 - pct}% ENG w docelowych {target}.")
+    elif sl == "both":
         oa = _apply_lang_quota(oa, lang_map, search_lang_split_pl, target)
         if progress:
             pct = round(search_lang_split_pl * 100)
             progress("lang", f"Kwota jezykowa: ~{pct}% PL / {100 - pct}% ENG w docelowych {target}.")
+    # Kwota kanoniczne/świeże: gdy plan deklaruje include_canonical_sources + include_recent,
+    # przeporzadkuj pule tak, by ~quota_canonical trafień to prace fundamentalne (starsze/high-fwci),
+    # reszta to recent. Identyczny mechanizm przelewu co kwota językowa.
+    if quota_canonical is not None and sl != "both":
+        oa = _apply_recency_quota(
+            oa, classification_year_from, quota_canonical, target
+        )
+    if quota_canonical is not None:
+        if progress:
+            pct_c = round(quota_canonical * 100)
+            progress("recency", f"Kwota canonical/recent: ~{pct_c}% kanoniczne / {100 - pct_c}% swieże w docelowych {target}.")
     # Dedup cross-RUN (koncepcja §7, decyzja #3): nie pobieramy ponownie pracy juz
     # sciagnietej w poprzednim przebiegu, gdy jej plik nadal istnieje. Tozsamosc =
     # clean_title (ten sam klucz co dedup cross-wersji). Skip nie liczy sie do
@@ -1628,6 +1799,9 @@ def run_student(
         manifest_rows.append((cand, "preprint" if "__preprint" in dest.name else "pdf", dest.name))
         if cand.is_retracted:
             result.n_retracted += 1
+        source_type, source_type_basis = _source_type_details(
+            cand, classification_year_from
+        )
         result.items.append({
             "filename": dest.name, "doi": cand.doi, "title": cand.title,
             "year": cand.year, "cited_by": cand.cited_by, "work_type": cand.work_type,
@@ -1644,6 +1818,9 @@ def run_student(
             "is_top10": cand.is_top10, "source_id": cand.source_id, "issn_l": cand.issn_l,
             "intent_match": (round(_relevance_multi(token_sets, f"{cand.title} {cand.abstract}"), 3) if any(token_sets) else None),
             "retrieved_at": datetime.now().isoformat(timespec="seconds"),
+            # Klasyfikacja kanoniczne/świeże: na podstawie sygnałów z metadanych OA (zero nowych callów).
+            "source_type": source_type,
+            "source_type_basis": source_type_basis,
         })
         time.sleep(polite_sleep)
 
@@ -1949,4 +2126,3 @@ def export_references(items: list, pdf_dir: "Path", *, topic: str = "",
     bib.write_text(build_bibtex(rows, pdf_dir), encoding="utf-8")
     csl.write_text(build_csl_json(rows, pdf_dir), encoding="utf-8")
     return {"bib": str(bib), "csl": str(csl), "count": len(rows), "base": base}
-

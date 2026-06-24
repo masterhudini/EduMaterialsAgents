@@ -143,6 +143,13 @@ def test_prompts_list_and_get_research():
     scout_text = scout["result"]["messages"][0]["content"]["text"]
     assert "execution_profile='scout'" in scout_text
     assert "research_scout_fanout" in scout_text
+    assert "research_review_prepare" in scout_text
+    assert "schema_version='review_decision@1'" in scout_text
+    assert "reviewer_agent='g02-a10-output-reviewer'" in scout_text
+    assert "confidence ('low', 'medium' or 'high')" in scout_text
+    assert "descriptor.path" in scout_text
+    assert "advance artifact_version" in scout_text
+    assert "maximum is exactly one review" in scout_text
     assert "Stop before A07 and A09" in scout_text
 
 

@@ -15,7 +15,13 @@ sys.path.insert(0, str(SCRIPTS))
 from core import contracts  # noqa: E402
 from g02 import scout_request  # noqa: E402
 from g02.scout import _smoke  # noqa: E402
-from g02.scout.engine import RunResult  # noqa: E402
+from g02.scout.engine import (  # noqa: E402
+    Candidate,
+    RunResult,
+    _apply_joint_quotas,
+    _apply_recency_quota,
+    _source_type_details,
+)
 
 
 FIXTURE = ROOT / "mocks" / "g02" / "EXAMPLE g02-a01-planner.artifact.json"
@@ -58,17 +64,20 @@ class ScoutRequestTests(unittest.TestCase):
             self.assertTrue(checked["ok"], checked["errors"])
             self.assertEqual(request["task_id"], "RESEARCH_MOCK_001")
             self.assertEqual(request["target_n"], 15)
-            self.assertEqual(request["year_from"], 2021)
+            self.assertIsNone(request["year_from"])
+            self.assertEqual(request["recency_year_from"], 2021)
             self.assertIsNone(request["year_to"])
             self.assertEqual(request["lang"], "en")
             self.assertEqual(request["work_type"], "")
+            self.assertEqual(request["quota_canonical"], 0.4)
+            self.assertTrue(request["snowball"])
             self.assertEqual(request["created_from"], {
                 "task_id": request["task_id"],
                 "topic_id": request["topic_id"],
             })
 
         first = requests[0]
-        self.assertEqual(first["query"], "Bayesian computational cost and posterior sampling methods")
+        self.assertEqual(first["query"], "Bayesian computation MCMC scalability posterior sampling")
         self.assertIn("Bayesian computation", first["keywords"])
         self.assertIn("Hamiltonian Monte Carlo", first["keywords"])
         self.assertEqual(first["excluded_terms"], ["frequentist inference", "classical statistics"])
@@ -95,6 +104,9 @@ class ScoutRequestTests(unittest.TestCase):
         self.assertEqual(request["keywords"], [])
         self.assertEqual(request["target_n"], 5)
         self.assertIsNone(request["year_from"])
+        self.assertIsNone(request["recency_year_from"])
+        self.assertIsNone(request["quota_canonical"])
+        self.assertFalse(request["snowball"])
         self.assertEqual(request["lang"], "both")
 
     def test_year_language_and_single_work_type_mapping(self) -> None:
@@ -130,6 +142,7 @@ class ScoutRequestTests(unittest.TestCase):
         request = scout_request.build_scout_search_requests(plan, current_year=2026)[0]
 
         self.assertEqual(request["year_from"], 2018)
+        self.assertEqual(request["recency_year_from"], 2018)
         self.assertEqual(request["year_to"], 2024)
         self.assertEqual(request["lang"], "pl")
         self.assertEqual(request["work_type"], "review")
@@ -177,19 +190,68 @@ class ScoutRequestTests(unittest.TestCase):
                 ])
 
         self.assertEqual(status, 0)
-        self.assertEqual(captured["topic"], "Bayesian computational cost and posterior sampling methods")
+        self.assertEqual(captured["topic"], "Bayesian computation MCMC scalability posterior sampling")
         self.assertEqual(captured["n"], 15)
         self.assertEqual(captured["email"], "research@example.edu")
         kwargs = captured["kwargs"]
         self.assertEqual(kwargs["openalex_api_key"], "oa-test-key")
         self.assertEqual(kwargs["search_lang"], "en")
-        self.assertEqual(kwargs["year_from"], 2021)
+        self.assertIsNone(kwargs["year_from"])
+        self.assertEqual(kwargs["recency_year_from"], 2021)
         self.assertIsNone(kwargs["year_to"])
         self.assertEqual(kwargs["work_type"], "")
-        self.assertEqual(kwargs["facets_required"], ["Bayesian computational cost and posterior sampling methods"])
+        self.assertEqual(kwargs["facets_required"], ["Bayesian computation MCMC scalability posterior sampling"])
         self.assertIn("Bayesian computation", kwargs["facets"])
+        self.assertEqual(kwargs["quota_canonical"], 0.4)
+        self.assertTrue(kwargs["snowball"])
         self.assertFalse(kwargs["verify_llm"])
         self.assertFalse(kwargs["query_expansion"])
+
+    def test_source_type_uses_all_approved_metadata_signals(self) -> None:
+        def candidate(doi: str, *, year=2025, fwci=None, source="openalex",
+                      work_type="article") -> Candidate:
+            return Candidate(doi, doi, year, "Author", True, "https://example/pdf", source,
+                             fwci=fwci, work_type=work_type)
+
+        cases = [
+            candidate("10.1/year", year=2019),
+            candidate("10.1/fwci", fwci=2.1),
+            candidate("10.1/snowball", source="snowball"),
+            candidate("10.1/book", work_type="book"),
+        ]
+        for item in cases:
+            source_type, basis = _source_type_details(item, 2021)
+            self.assertEqual(source_type, "canonical")
+            self.assertTrue(basis)
+        self.assertEqual(_source_type_details(candidate("10.1/recent"), 2021)[0], "recent")
+
+    def test_recency_quota_handles_edges_and_uses_ceiling(self) -> None:
+        recent = [Candidate(f"10.1/r{i}", f"r{i}", 2025, "A", True, "u", "openalex")
+                  for i in range(6)]
+        canonical = [Candidate(f"10.1/c{i}", f"c{i}", 2010, "A", True, "u", "openalex")
+                     for i in range(4)]
+        ranked = recent + canonical
+
+        selected = _apply_recency_quota(ranked, 2021, 0.4, 9)[:9]
+        self.assertEqual(sum(item.year < 2021 for item in selected), 4)
+        self.assertTrue(all(item.year >= 2021 for item in
+                            _apply_recency_quota(ranked, 2021, 0.0, 6)[:6]))
+        self.assertTrue(all(item.year < 2021 for item in
+                            _apply_recency_quota(ranked, 2021, 1.0, 4)[:4]))
+
+    def test_joint_quota_preserves_language_and_recency_margins(self) -> None:
+        ranked = []
+        lang_map = {}
+        for source_type, year in (("c", 2010), ("r", 2025)):
+            for lang in ("pl", "en"):
+                for index in range(3):
+                    doi = f"10.1/{source_type}-{lang}-{index}"
+                    ranked.append(Candidate(doi, doi, year, "A", True, "u", "openalex"))
+                    lang_map[doi] = {lang}
+
+        selected = _apply_joint_quotas(ranked, lang_map, 0.25, 2021, 0.5, 8)[:8]
+        self.assertEqual(sum(item.year < 2021 for item in selected), 4)
+        self.assertEqual(sum("pl" in lang_map[item.doi] for item in selected), 2)
 
 
 if __name__ == "__main__":
