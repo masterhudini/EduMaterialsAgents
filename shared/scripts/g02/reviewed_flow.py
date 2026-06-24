@@ -75,6 +75,7 @@ ALLOWED_OPERATIONS = {
         "research_provider_status", "research_domain_prepare",
         "research_query_plan_generate_fast", "research_metadata_search",
         "research_doi_verify", "research_doi_verify_batch", "research_domain_finalize",
+        "research_domain_finalize_from_results",
     ],
     canonical.CANONICAL_AGENT: [
         "research_canonical_prepare", "research_query_plan_generate_fast",
@@ -396,8 +397,15 @@ def _prepare(node_name: str, topic_id: str | None, state: dict, rgi: dict, *, ma
         )
         scoped = prepared.get("domain_input")
         prepare_args = {"research_plan_ref": plan_ref, "topic_id": topic_id}
-        finalize = {"operation": "research_domain_finalize", "fixed_arguments": deepcopy(prepare_args),
-                    "generated_argument": "output"}
+        finalize = {
+            "operation": "research_domain_finalize_from_results",
+            "fixed_arguments": deepcopy(prepare_args),
+            "generated_arguments": [
+                "query_plan", "literature_tool_result_refs",
+                "doi_verification_result_refs", "coverage_assignments",
+                "selected_source_ids", "artifact_version",
+            ],
+        }
     elif node_name in {canonical.CANONICAL_AGENT, recent.RECENT_AGENT, market_cases.MARKET_AGENT}:
         domain_record = records.get(_record_key(domain.DOMAIN_AGENT, topic_id))
         domain_ref = domain_record.get("artifact_ref") if domain_record else None

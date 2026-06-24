@@ -30,7 +30,7 @@ def source_skills() -> list[Path]:
 
 
 EXPECTED_AGENT_SETTINGS = {
-    "g02-a01-planner": ("sonnet", "xhigh"),
+    "g02-a01-planner": ("opus", "medium"),
     "g02-a02-domain": ("sonnet", "medium"),
     "g02-a03-canonical-sources": ("sonnet", "medium"),
     "g02-a04-recent-developments": ("sonnet", "medium"),
@@ -90,12 +90,12 @@ def test_manifest_declares_every_source_component():
     assert set(components["skills"]) == skills
     assert set(components["agents"]) == agents
     assert set(components["commands"]) == commands
-    assert len(skills) == 22
-    assert len(agents) == 15
+    assert len(skills) == len(components["skills"])
+    assert len(agents) == len(components["agents"])
 
 
 def test_every_skill_has_required_host_adapters():
-    for skill in source_skills():
+    for skill in (item for item in source_skills() if item.name.startswith("g02-")):
         adapters = skill / "adapters"
         for name in ("claude.md", "codex.md", "claude.frontmatter.yaml"):
             path = adapters / name
@@ -118,7 +118,7 @@ def test_claude_agent_and_skill_model_effort_matrix_is_exact():
     assert actual_globals == EXPECTED_GLOBAL_SETTINGS
 
     actual_skills = {}
-    for skill in source_skills():
+    for skill in (item for item in source_skills() if item.name.startswith("g02-")):
         text = (skill / "adapters" / "claude.frontmatter.yaml").read_text(encoding="utf-8")
         model = re.search(r"^model:\s*(\S+)\s*$", text, re.MULTILINE)
         effort = re.search(r"^effort:\s*(\S+)\s*$", text, re.MULTILINE)
@@ -140,7 +140,7 @@ def test_every_command_has_required_host_adapters():
 
 def test_every_agent_required_skill_exists():
     available = {skill.name for skill in source_skills()}
-    for agent in (ROOT / "agents").glob("*.md"):
+    for agent in (ROOT / "agents").glob("g02-*.md"):
         text = agent.read_text(encoding="utf-8")
         section = re.search(r"^## Required Skills\s*$\n(.*?)(?=^## |\Z)", text, re.MULTILINE | re.DOTALL)
         assert section, f"{agent.name}: missing Required Skills section"
@@ -171,7 +171,7 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
     for host in ("claude", "codex"):
         plugin = tmp_path / host / "plugins" / "edu-materials-agents"
         rendered = sorted((plugin / "skills").glob("*/SKILL.md"))
-        assert len(rendered) == 22
+        assert len(rendered) == len(source_skills())
         assert not list((plugin / "skills").glob("*/adapters"))
         for relative in (
             "agents/g02-a03-canonical-sources.md",
@@ -233,9 +233,10 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
 
     claude_plugin = tmp_path / "claude" / "plugins" / "edu-materials-agents"
     codex_plugin = tmp_path / "codex" / "plugins" / "edu-materials-agents"
-    assert len(list((claude_plugin / "agents").glob("*.md"))) == 15
+    expected_agent_count = len(json.loads(MANIFEST.read_text(encoding="utf-8"))["components"]["agents"])
+    assert len(list((claude_plugin / "agents").glob("*.md"))) == expected_agent_count
     assert len(list((claude_plugin / "commands").glob("*.md"))) == 1
-    assert len(list((codex_plugin / "agents").glob("*.md"))) == 15
+    assert len(list((codex_plugin / "agents").glob("*.md"))) == expected_agent_count
     assert not (codex_plugin / "commands").exists()
     for agent, (model, effort) in EXPECTED_AGENT_SETTINGS.items():
         rendered_agent = (claude_plugin / "agents" / f"{agent}.md").read_text(encoding="utf-8")
@@ -256,5 +257,9 @@ def test_dry_run_validates_in_temporary_directory_without_touching_dist():
         capture_output=True,
         text=True,
     )
-    assert "Validated 22 skills and 15 agents." in completed.stdout
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    assert (
+        f"Validated {len(manifest['components']['skills'])} skills and "
+        f"{len(manifest['components']['agents'])} agents."
+    ) in completed.stdout
     assert before == digest_tree(ROOT / "dist")

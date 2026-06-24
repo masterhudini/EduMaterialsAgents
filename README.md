@@ -99,7 +99,8 @@ administrator's `max_documents_per_task` and cannot add sources. A07 reads only 
 bounded text windows from accepted PDFs or A06 market-case bundles. In `fast`, A08 remains skipped
 by graph policy, and A09 produces `research_state@1`, a compact evidence map, a human validation
 packet and a SolutionInputCandidate before pausing at the Human Research Gate. The MCP server
-exposes 51 operations at version `0.11.1`.
+exposes 52 operations at version `0.13.0`, including the dedicated pre-A07
+`research_scout_fanout` operation.
 
 Before the first G02-A02 or A11 run, copy `shared/config/g02.providers.example.json` to
 `.emagents/config/g02-providers.json`, set `EMAGENTS_RESEARCH_CONTACT_EMAIL` and provide the

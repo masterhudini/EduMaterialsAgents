@@ -28,13 +28,13 @@ def test_initialize_and_tools_list():
     init = srv.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                        "params": {"protocolVersion": "2024-11-05"}})
     assert init["result"]["serverInfo"]["name"] == "edu-materials-research"
-    assert init["result"]["serverInfo"]["version"] == "0.11.1"
+    assert init["result"]["serverInfo"]["version"] == "0.13.0"
     assert init["result"]["protocolVersion"] == "2024-11-05"
     assert "prompts" in init["result"]["capabilities"]
 
     tools = srv.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     names = {t["name"] for t in tools["result"]["tools"]}
-    assert len(names) == 51
+    assert len(names) == 52
     assert names == {"research_front_door", "research_node_input",
                      "research_planner_prepare", "research_planner_finalize",
                      "research_plan_review_task",
@@ -63,7 +63,8 @@ def test_initialize_and_tools_list():
                      "research_synthesis_prepare", "research_synthesis_finalize",
                      "research_synthesis_review_task", "research_bundle_finalize",
                      "research_review_prepare", "research_review_finalize",
-                     "research_finalize", "research_run_stub", "research_run_codex"}
+                     "research_finalize", "research_scout_fanout",
+                     "research_run_stub", "research_run_codex"}
     run_codex = next(t for t in tools["result"]["tools"] if t["name"] == "research_run_codex")
     a11_tools = [t for t in tools["result"]["tools"] if t["name"] in {
         "research_market_cases_prepare", "research_web_case_search",
@@ -82,6 +83,9 @@ def test_planner_input_schema_and_loader_accept_object_ref_path_and_json(tmp_pat
     for name in ("research_planner_prepare", "research_planner_finalize",
                  "research_plan_review_task"):
         assert tools[name]["inputSchema"]["properties"]["input"]["type"] == ["object", "string"]
+        assert tools[name]["inputSchema"]["properties"]["execution_profile"]["enum"] == [
+            "fast", "scout"
+        ]
 
     payload = json.loads(Path(SEED).read_text(encoding="utf-8"))
     assert srv._planner_payload(payload) == payload
@@ -94,6 +98,9 @@ def test_planner_input_schema_and_loader_accept_object_ref_path_and_json(tmp_pat
     assert srv._planner_payload(ref) == payload
     with pytest.raises(ValueError, match="neither inline JSON nor a safe path"):
         srv._planner_payload("x" * 5000)
+
+    prepared = srv._planner_prepare({"input": payload, "execution_profile": "scout"})
+    assert prepared["plan_output_template"]["global_constraints"]["max_topics"] == 6
 
 
 def test_reviewed_run_disallows_auto_gate_and_mcp_audit_logs_keys_only(monkeypatch):
@@ -129,6 +136,14 @@ def test_prompts_list_and_get_research():
     text = prompt["result"]["messages"][0]["content"]["text"]
     assert "research_graph_input bundle" in text
     assert SEED in text
+
+    scout = srv.handle({"jsonrpc": "2.0", "id": 4, "method": "prompts/get",
+                        "params": {"name": "research-scout",
+                                   "arguments": {"context": SEED}}})
+    scout_text = scout["result"]["messages"][0]["content"]["text"]
+    assert "execution_profile='scout'" in scout_text
+    assert "research_scout_fanout" in scout_text
+    assert "Stop before A07 and A09" in scout_text
 
 
 def test_notifications_get_no_reply():

@@ -298,6 +298,18 @@ def prepare_domain(research_plan_ref: str, topic_id: str, *,
         return {"ready": False, "envelope": failed_envelope(
             "provider_configuration_error", str(exc), "provider_config"
         )}
+    crossref_capability = next((
+        item for item in config.public_status()["capabilities"]
+        if item.get("provider") == "crossref"
+    ), None)
+    if not isinstance(crossref_capability, dict) \
+            or crossref_capability.get("enabled") is not True \
+            or crossref_capability.get("ready") is not True:
+        return {"ready": False, "envelope": failed_envelope(
+            "crossref_not_ready",
+            "A02 requires Crossref to be enabled and ready before scholarly discovery",
+            "provider_capabilities.crossref",
+        )}
     domain_input = {
         "schema_version": DOMAIN_INPUT_CONTRACT,
         "task_id": plan["task_id"],
@@ -403,6 +415,240 @@ def _hydrate_tool_results(output: dict, *, base=None) -> tuple[list[dict], list[
                 ))
         results.append(result)
     return results, issues
+
+
+def assemble_domain_candidates(
+    domain_input: dict,
+    query_plan: dict,
+    literature_tool_result_refs: list[str],
+    doi_verification_result_refs: list[str],
+    coverage_assignments: list[dict],
+    *,
+    artifact_version: str = "1.0.0",
+    selected_source_ids: list[str] | None = None,
+    base=None,
+) -> dict:
+    """Build the technical A02 output from persisted results and minimal semantic coverage.
+
+    The caller chooses which real provider records to retain and supplies only source-to-coverage
+    judgments. Query logs, unchanged candidates, Crossref bindings, provider issues, remaining
+    coverage and the stop reason are projected deterministically.
+    """
+    checked_input = validate_domain_input(domain_input)
+    if not checked_input["ok"]:
+        raise ValueError("invalid domain input: " + "; ".join(
+            item["message"] for item in checked_input["issues"]
+        ))
+    plan_check = query_planning.validate_query_plan(query_plan, domain_input)
+    if not plan_check["ok"]:
+        raise ValueError("invalid query plan: " + "; ".join(
+            item["message"] for item in plan_check["issues"]
+        ))
+    if not isinstance(artifact_version, str) or not artifact_version.strip():
+        raise ValueError("artifact_version must be a non-empty string")
+    if not isinstance(literature_tool_result_refs, list) or not literature_tool_result_refs:
+        raise ValueError("literature_tool_result_refs must be a non-empty array")
+    if not isinstance(doi_verification_result_refs, list):
+        raise ValueError("doi_verification_result_refs must be an array")
+    if not isinstance(coverage_assignments, list):
+        raise ValueError("coverage_assignments must be an array")
+
+    topic = domain_input["topic"]
+    expected_scope = {
+        "input_contract": DOMAIN_INPUT_CONTRACT,
+        "task_id": domain_input["task_id"],
+        "topic_id": topic["topic_id"],
+        "research_plan_ref": domain_input["research_plan_ref"],
+        "domain_candidates_ref": None,
+    }
+    query_log: list[dict] = []
+    provider_issues: list[dict] = []
+    provider_records: list[dict] = []
+    seen_operations: set[str] = set()
+    for index, ref in enumerate(literature_tool_result_refs):
+        if not isinstance(ref, str) or not ref.startswith(artifacts.SCHEME):
+            raise ValueError(f"literature_tool_result_refs[{index}] must use artifact://")
+        result = artifacts.hydrate(ref, base=base)
+        shape = contracts.validate(result, TOOL_RESULT_CONTRACT)
+        if not shape["ok"]:
+            raise ValueError(f"invalid literature result {ref}: " + "; ".join(shape["errors"]))
+        if result.get("operation_type") != "metadata_search":
+            raise ValueError(f"literature result {ref} is not a metadata_search operation")
+        operation_id = result.get("operation_id")
+        if operation_id in seen_operations:
+            raise ValueError(f"duplicate literature operation {operation_id!r}")
+        seen_operations.add(operation_id)
+        request = result.get("request") if isinstance(result.get("request"), dict) else {}
+        if request.get("scope") != expected_scope:
+            raise ValueError(f"literature result {ref} belongs to another discovery scope")
+        entry = {
+            "operation_id": operation_id,
+            "route_id": request.get("route_id"),
+            "query_id": request.get("query_id"),
+            "provider": result.get("provider"),
+            "status": result.get("status"),
+            "result_count": len(result.get("records", [])),
+            "literature_tool_result_ref": ref,
+        }
+        query_log.append(entry)
+        if result.get("status") in {"partial", "unavailable", "failed"}:
+            provider_issues.append({
+                "operation_id": operation_id,
+                "provider": result.get("provider"),
+                "status": result.get("status"),
+                "issues": deepcopy(result.get("issues", [])),
+            })
+        provider_records.extend(
+            deepcopy(item) for item in result.get("records", []) if isinstance(item, dict)
+        )
+
+    records_by_id: dict[str, dict] = {}
+    record_order: list[str] = []
+    for record in provider_records:
+        source_id = record.get("source_id")
+        if not isinstance(source_id, str) or not source_id:
+            raise ValueError("provider result contains a record without source_id")
+        if source_id not in records_by_id:
+            records_by_id[source_id] = record
+            record_order.append(source_id)
+        # The same provider source may be returned by multiple routes with route-specific query
+        # provenance. Keep the first exact provider record; A05 performs cross-provider dedupe.
+
+    if selected_source_ids is None:
+        candidate_limit = topic.get("stop_rule", {}).get("candidate_limit")
+        limit = candidate_limit if isinstance(candidate_limit, int) and candidate_limit > 0 \
+            else len(record_order)
+        selected = record_order[:limit]
+    else:
+        if not isinstance(selected_source_ids, list) \
+                or any(not isinstance(item, str) for item in selected_source_ids):
+            raise ValueError("selected_source_ids must be an array of strings")
+        if _duplicates(selected_source_ids):
+            raise ValueError(f"selected_source_ids contains duplicates {sorted(_duplicates(selected_source_ids))}")
+        unknown = set(selected_source_ids) - set(records_by_id)
+        if unknown:
+            raise ValueError(f"selected_source_ids contains unknown provider records {sorted(unknown)}")
+        selected = list(selected_source_ids)
+    candidates = [deepcopy(records_by_id[source_id]) for source_id in selected]
+    selected_set = set(selected)
+
+    verification_by_source: dict[str, dict] = {}
+    for index, ref in enumerate(doi_verification_result_refs):
+        if not isinstance(ref, str) or not ref.startswith(artifacts.SCHEME):
+            raise ValueError(f"doi_verification_result_refs[{index}] must use artifact://")
+        result = artifacts.hydrate(ref, base=base)
+        shape = contracts.validate(result, crossref.RESULT_CONTRACT)
+        if not shape["ok"]:
+            raise ValueError(f"invalid DOI verification {ref}: " + "; ".join(shape["errors"]))
+        source_id = result.get("source_id")
+        if source_id in verification_by_source:
+            raise ValueError(f"duplicate DOI verification for {source_id!r}")
+        if source_id in selected_set:
+            verification_by_source[source_id] = crossref.descriptor({
+                **result, "artifact_ref": ref,
+            })
+    doi_verifications = [
+        verification_by_source[source_id]
+        for source_id in selected if source_id in verification_by_source
+    ]
+
+    coverage_map: list[dict] = []
+    coverage_ids = {
+        item.get("coverage_id") for item in topic.get("coverage_requirements", [])
+        if isinstance(item, dict) and isinstance(item.get("coverage_id"), str)
+    }
+    seen_assignments: set[str] = set()
+    for index, assignment in enumerate(coverage_assignments):
+        if not isinstance(assignment, dict):
+            raise ValueError(f"coverage_assignments[{index}] must be an object")
+        if set(assignment) != {"source_id", "coverage_unit_ids", "basis"}:
+            raise ValueError(
+                f"coverage_assignments[{index}] must contain only source_id, coverage_unit_ids and basis"
+            )
+        source_id = assignment.get("source_id")
+        units = assignment.get("coverage_unit_ids")
+        basis = assignment.get("basis")
+        if source_id not in selected_set:
+            raise ValueError(f"coverage assignment references unknown selected source {source_id!r}")
+        if source_id in seen_assignments:
+            raise ValueError(f"duplicate coverage assignment for {source_id!r}")
+        if not isinstance(units, list) or not units \
+                or any(not isinstance(item, str) for item in units):
+            raise ValueError(f"coverage assignment for {source_id!r} requires coverage_unit_ids")
+        unknown_units = set(units) - coverage_ids
+        if unknown_units:
+            raise ValueError(f"coverage assignment uses unknown units {sorted(unknown_units)}")
+        if basis not in {"metadata", "title", "abstract"}:
+            raise ValueError(f"coverage assignment for {source_id!r} has invalid basis")
+        seen_assignments.add(source_id)
+        coverage_map.append(deepcopy(assignment))
+
+    coverage_sources: dict[str, set[str]] = {}
+    for mapping in coverage_map:
+        for coverage_id in mapping["coverage_unit_ids"]:
+            coverage_sources.setdefault(coverage_id, set()).add(mapping["source_id"])
+    remaining_coverage_units = [
+        item["coverage_id"] for item in topic.get("coverage_requirements", [])
+        if isinstance(item, dict) and isinstance(item.get("coverage_id"), str)
+        and len(coverage_sources.get(item["coverage_id"], set()))
+        < (item.get("minimum_sources") if isinstance(item.get("minimum_sources"), int) else 1)
+    ]
+    candidate_limit = topic.get("stop_rule", {}).get("candidate_limit")
+    if not candidates and query_log and all(
+            item["status"] in {"unavailable", "failed"} for item in query_log):
+        stop_reason = "provider_unavailable"
+    elif isinstance(candidate_limit, int) and len(candidates) >= candidate_limit:
+        stop_reason = "candidate_limit"
+    elif remaining_coverage_units or provider_issues:
+        stop_reason = "partial_coverage"
+    else:
+        stop_reason = "completed"
+
+    return {
+        "schema_version": DOMAIN_OUTPUT_CONTRACT,
+        "artifact_version": artifact_version,
+        "task_id": domain_input["task_id"],
+        "topic_id": topic["topic_id"],
+        "research_plan_ref": domain_input["research_plan_ref"],
+        "query_plan": deepcopy(query_plan),
+        "candidates": candidates,
+        "doi_verifications": doi_verifications,
+        "query_log": query_log,
+        "coverage_map": coverage_map,
+        "stop_reason": stop_reason,
+        "remaining_coverage_units": remaining_coverage_units,
+        "provider_issues": provider_issues,
+        "review_profile_ref": REVIEW_PROFILE,
+    }
+
+
+def finalize_domain_from_results(
+    domain_input: dict,
+    query_plan: dict,
+    literature_tool_result_refs: list[str],
+    doi_verification_result_refs: list[str],
+    coverage_assignments: list[dict],
+    *,
+    artifact_version: str = "1.0.0",
+    selected_source_ids: list[str] | None = None,
+    base=None,
+    previous_candidates: dict | None = None,
+    revision_items: list[dict] | None = None,
+) -> dict:
+    """Assemble and finalize A02 without an LLM-authored technical wrapper."""
+    try:
+        output = assemble_domain_candidates(
+            domain_input, query_plan, literature_tool_result_refs,
+            doi_verification_result_refs, coverage_assignments,
+            artifact_version=artifact_version, selected_source_ids=selected_source_ids,
+            base=base,
+        )
+    except (OSError, ValueError, KeyError, IndexError, TypeError) as exc:
+        return failed_envelope("domain_assembly_failed", str(exc), "domain_results")
+    return finalize_domain_candidates(
+        domain_input, output, base=base, previous_candidates=previous_candidates,
+        revision_items=revision_items,
+    )
 
 
 def validate_domain_candidates(output: object, domain_input: dict, *, base=None,

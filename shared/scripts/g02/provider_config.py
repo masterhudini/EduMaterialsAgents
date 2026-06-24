@@ -184,7 +184,11 @@ class ProviderRuntimeConfig:
             elif provider == "arxiv":
                 authentication = "none"
             else:
-                authentication = "configured_email" if ready else "required_email_missing"
+                authentication = (
+                    "disabled" if not enabled else
+                    "configured_email" if self.contact_email is not None else
+                    "required_email_missing"
+                )
             capabilities.append({
                 "provider": provider,
                 "enabled": enabled,

@@ -1,0 +1,30 @@
+{
+  "title": "Scout search request generated from one G02-A01 research topic",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": ["task_id", "topic_id", "query"],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["scout_search_request@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "topic_id": {"type": "string"},
+    "query": {"type": "string"},
+    "keywords": {"type": "array", "items": {"type": "string"}},
+    "intent": {"type": "string"},
+    "target_n": {"type": "integer"},
+    "year_from": {"type": ["integer", "null"]},
+    "year_to": {"type": ["integer", "null"]},
+    "lang": {"type": "string", "enum": ["en", "pl", "both"]},
+    "work_type": {"type": "string"},
+    "output_language": {"type": "string"},
+    "excluded_terms": {"type": "array", "items": {"type": "string"}},
+    "created_from": {
+      "type": "object",
+      "properties": {
+        "task_id": {"type": "string"},
+        "topic_id": {"type": "string"}
+      }
+    }
+  }
+}

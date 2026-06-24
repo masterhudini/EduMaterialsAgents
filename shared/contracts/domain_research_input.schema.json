@@ -29,7 +29,7 @@
           "ready": {"type": "boolean"},
           "authentication": {
             "type": "string",
-            "enum": ["none", "optional_key", "required_key_missing", "configured_key", "configured_email", "required_email_missing"]
+            "enum": ["none", "optional_key", "required_key_missing", "configured_key", "configured_email", "required_email_missing", "disabled"]
           }
         }
       }

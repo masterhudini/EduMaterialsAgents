@@ -511,6 +511,14 @@ Checkbox wolno zaznaczyć tylko po wykonaniu odpowiadającego mu scenariusza.
   stanowisk i nie wykonuje pracy A03-A09.
 - [ ] `query_plan@1` wygenerowany przez agenta G02-A02 jest akceptowany przez `research_metadata_search`  — Runda 11: **F-H (blocker)**. Agenty generują `routes[].queries[]` (zagnieżdżona tablica), pole `providers` i `route_type`; adapter oczekuje: jedno query płasko na route (`canonical_query`, `origin_terms`, `generated_terms`), `preferred_providers`, `purpose` (`"core"/"complementary"/"qualifying_or_critical"`), `artifact_version`. Fix: zaktualizować skill `g02-expand-research-query` (schemat i przykład w SKILL.md) do flat-route struktury; zaktualizować `mocks/g02/query_plan.json`; dodać offline test dry-run.
   bez iteracji: flat-route struktura, `preferred_providers`, `purpose`, `artifact_version`.
+- [ ] Orkiestrator przekazuje do A02 cały `domain_research_input@1`, łącznie ze wszystkimi
+  `provider_capabilities`, bez ręcznej rekonstrukcji. — Runda 13: **F-I**, poprawka DEV w skillu
+  orkiestratora; wymagany retest forward.
+- [ ] A02 nie składa ręcznie technicznego `domain_candidate_sources@1`. Persisted search/DOI refs,
+  selected source IDs i minimalne coverage assignments trafiają do
+  `research_domain_finalize_from_results`, który deterministycznie buduje query log, niezmienione
+  candidates, DOI bindings, provider issues, remaining coverage i stop reason. — Runda 15:
+  **F-J**, poprawka DEV wdrożona; wymagany retest forward obu topiców.
 - [ ] Forward test G02-A02 zachowuje pełną ścieżkę `driver → topic → origin term → generated term  — `⏳ KOŃCOWY` (forward na realnym hoście / test integracyjny batcha; patrz 08 Runda 7)
   basis → route → coverage unit`; reviewer odrzuca semantycznie nieuzasadniony basis nawet wtedy,
   gdy jego shape przechodzi kontrakt.
@@ -1385,3 +1393,37 @@ Runda 12. Skrót:
   `⏳ KOŃCOWY` do osobnego środowiska TEST.
 - Uwaga przenośności: runtime używa `datetime.UTC` (Python >= 3.11). TEST na 3.11+ (dotychczas 3.14)
   jest OK; przy 3.10 wymagany fallback lub `python_requires>=3.11`.
+## Faza B2 Scout — live Claude Code CLI, Runda 18
+
+Źródło pełnego wyniku: `docs/08_Log_wynikow_TEST.md`, Runda 18. Projekt i layout:
+`docs/11_Plan_integracji_Scout_tryb_deterministyczny.md`, sekcje 15–17.
+
+### Wynik pierwszego live runu
+
+- [x] Claude Code uruchomił A01 jako Opus i wygenerował cztery intake-anchored topici.
+- [x] Cztery procesy Scouta zakończyły się `completed` bez LLM/OpenRouter.
+- [x] Zapisano 70 PDF, 66 unikalnych prac, cztery membershipy cross-topic.
+- [x] Powstały `plan.json`, cztery requesty, cztery manifesty, cztery
+  `scout_retrieved_corpus@1` i `scout_run_index@1`; brak sekretów w JSON.
+- [ ] One-shot A01 → finalize: **PARTIAL**, ponieważ draft wymagał dwóch ręcznych korekt po błędach
+  kontraktu (Finding F-L).
+- [ ] Jakość didactic query: **PARTIAL**, ponieważ szerokie terminy zebrały szum z innych domen
+  (Finding F-M).
+
+### DEV po Rundzie 18
+
+- [x] `plan_output_template` przekazuje A01 dokładny kształt kontraktu.
+- [x] Finalizer przejął stałe boundary fields i bezpieczne aliasy zaobserwowane live.
+- [x] Dodano walidację 3–6 core terms, kotwicy intake/domain i krótkich ogólnych query.
+- [x] Fan-out używa jawnego `oversample=1.2` zgodnie z decyzją właściciela.
+- [x] Dodano testy regresyjne dla F-L, F-M i oversample.
+- [x] Offline po poprawkach: 27 dedykowanych PASS; pełna regresja 177 PASS / 1 SKIP / 1 znany FAIL
+  starego stub harnessu poza zakresem Fazy B2.
+
+### Retest zamykający Fazę B2
+
+- [ ] Reinstall/reload pluginu i nowa sesja Claude Code CLI.
+- [ ] A01 przechodzi `research_planner_finalize` za pierwszym razem bez ręcznej edycji.
+- [ ] Wszystkie 4–6 topiców przechodzą walidację wyszukiwalności i są dziedzinowo trafne.
+- [ ] Scout kończy wszystkie topici z `oversample=1.2` i zachowuje kompletny trwały layout.
+- [ ] Po retest PASS można uznać wejście G02 → plan → PDF/index za zamknięte i przejść do A07/A09.

@@ -49,7 +49,9 @@ produced artifact.
 ## Workflow
 
 1. Consume only a prepared `research_planner_input@1`. If preparation returns an envelope, return
-   that envelope unchanged and stop.
+   that envelope unchanged and stop. Preparation also supplies `plan_output_template`; treat its
+   keys as immutable. Copy the template, replace placeholders and repeat its single topic and
+   coverage entries as needed. Never invent, rename or translate contract keys.
 2. Apply `g02-a01-plan-research-scope`. Build a driver table before forming topics and preserve all
    driver and upstream IDs exactly.
 3. Score drivers before grouping. Prioritize high-priority claim drivers, high-severity flow
@@ -57,20 +59,42 @@ produced artifact.
    drivers that unblock downstream evidence or retrieval. Medium-priority drivers can ride inside
    a higher-priority topic when they strengthen the same operational investigation.
 4. In the default fast profile, create no more than the scoped `constraints.max_topics` topics,
-   normally two. Select the highest-value topic groups by the driver score above. Do not keep the
-   first two groups merely because they appeared first in the input.
+   normally two. When the scoped limit is six (the `scout` profile), choose **four to six** distinct,
+   evidence-searchable topic groups; do not mechanically emit six when four or five cover the
+   approved intake better. Select the highest-value groups by the driver score above. Do not keep
+   the first groups merely because they appeared first in the input.
 5. Group drivers when they share an approved investigation purpose, compatible terminology and a
    usable evidence route. If a lower-priority driver does not fit inside the selected fast-profile
    topics, put it in `uncovered_driver_ids` with an `input_issues` entry explaining the prototype
    scope tradeoff instead of creating another topic.
 6. Give each topic one operational purpose, priority no lower than its highest-priority driver and
-   at least one approved domain.
+   at least one approved domain. Its name must be a concise established research field, method
+   family or technical problem that can be used directly as an academic search query. Derive it
+   from the linked drivers and their claim/concept/update/flow cards in the approved teaching
+   context. Never use generic labels such as "recent developments", "literature overview" or
+   "improving the lecture".
 7. Define required source roles, provider-neutral core terms, bounded expansion areas, exclusions,
    allowed dates, languages, work types and approved seed-source IDs. Make every expansion area
    specific enough that A02 can trace a generated synonym, acronym, spelling variant or established
    technical phrase back to it without reopening the intake. When recent discovery and preprints
    are approved, every topic requiring `current` sources must preserve `preprint` as an allowed
    work type.
+   - `core_terms` must be **short technical search phrases (1–4 words each)** that appear verbatim
+     in academic paper titles or abstracts. Use established field vocabulary, e.g. "Markov chain
+     Monte Carlo", "variational inference", "approximate Bayesian computation", "posterior
+     sampling". Do NOT use full descriptive sentences or multi-clause phrases. Wrong:
+     "alternative posterior sampling algorithms beyond MCMC such as sequential Monte Carlo and
+     importance sampling". Correct: "sequential Monte Carlo", "importance sampling", "MCMC
+     scalability".
+   - `allowed_expansion_areas` must also be **concise technical phrases (≤5 words)** that describe
+     a real bibliographic search direction. Each entry will be used as-is in an academic database
+     search — a sentence-length description will never match any paper.
+   - In the `scout` profile, use 3–6 `core_terms`. Every topic name and term set must retain a
+     technical anchor from its approved domain or linked claim/concept/update/flow cards. Put the
+     teaching intention in `purpose`, not in the search query. Do not use `tutorial`, `overview`,
+     `foundations`, `introduction`, `applications` or `recent developments` as short primary terms.
+     A didactic need must become a researchable phenomenon such as conceptual understanding,
+     misconceptions or instructional sequencing within the intake-approved domain.
 8. Define observable coverage units and a stop rule within configured limits. Every stop rule must
    require a complementary search route before saturation.
 9. Account for every approved driver. A driver that cannot be planned must appear in both
@@ -79,10 +103,21 @@ produced artifact.
 10. Submit the structured plan to `research_planner_finalize` and return its envelope unchanged.
    The orchestrator builds the review task and invokes G02-A10.
 
+## Exact output keys
+
+The topic object uses exactly: `topic_id`, `name`, `purpose`, `priority`, `linked_driver_ids`,
+`related_claims`, `related_concepts`, `related_flow_issues`, `related_update_needs`,
+`approved_domains`, `source_roles_required`, `search_strategy`, `coverage_requirements`,
+`stop_rule`. A coverage item uses exactly: `coverage_id`, `description`, `source_roles`,
+`minimum_sources`, `mandatory`. Never emit aliases such as `driver_ids`, `related_claim_ids`,
+`acceptable_source_roles`, `min_sources` or `must_cover`. The deterministic finalizer owns the
+top-level schema/version/task/scope/constraints/language/review fields.
+
 ## Acceptance Criteria
 
 - `RP-01`: Every topic has a stable `TOPIC_*` ID, bounded purpose, priority and at least one
-  approved research driver.
+  approved research driver; under the `scout` profile the plan has 4–6 topics with bibliographically
+  searchable technical names.
 - `RP-02`: Every approved driver is covered or declared as an input issue. All high-priority
   drivers are covered before approval.
 - `RP-03`: Every topic declares required source roles and observable `COV_*` coverage units linked
@@ -93,6 +128,8 @@ produced artifact.
   requires a complementary search route.
 - `RP-06`: The plan preserves approved scope and contains no publication records, claim verdicts
   or slide solutions.
+- `RP-07`: Every Scout topic is domain-anchored and bibliographically discriminating; generic
+  teaching/search labels cannot be primary query terms.
 
 ## Boundaries
 

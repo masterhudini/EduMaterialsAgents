@@ -1,0 +1,51 @@
+{
+  "title": "Per-topic Scout PDF corpus prepared for a future A07 adapter",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "topic_id", "run_id",
+    "research_plan_ref", "request_ref", "documents", "retrieval_summary"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["scout_retrieved_corpus@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "topic_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "research_plan_ref": {"type": "string"},
+    "request_ref": {"type": "string"},
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id", "local_ref", "sha256", "byte_count", "doi", "title",
+          "year", "topic_ids"
+        ],
+        "properties": {
+          "source_id": {"type": "string"},
+          "local_ref": {"type": "string"},
+          "sha256": {"type": "string"},
+          "byte_count": {"type": "integer"},
+          "doi": {"type": ["string", "null"]},
+          "title": {"type": "string"},
+          "year": {"type": ["integer", "null"]},
+          "venue": {"type": ["string", "null"]},
+          "work_type": {"type": ["string", "null"]},
+          "topic_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "retrieval_summary": {
+      "type": "object",
+      "required": ["target_count", "downloaded_count", "stub_count", "rejected_count"],
+      "properties": {
+        "target_count": {"type": "integer"},
+        "downloaded_count": {"type": "integer"},
+        "stub_count": {"type": "integer"},
+        "rejected_count": {"type": "integer"}
+      }
+    }
+  }
+}

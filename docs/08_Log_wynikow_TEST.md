@@ -24,6 +24,312 @@ scenariusze, wyniki i werdykty historycznych rund pozostają niezmienne.
 
 ## Wpisy
 
+### Runda 18 — 2026-06-24 — LIVE Claude Code CLI: profil Scout A01 → równoległe PDF-y
+
+**Środowisko:** Claude Code CLI, live MCP `edu-materials-research` `0.13.0`, prompt
+`research-scout`, aktywny `OPENALEX_API_KEY`, profil `scout`. A07 i A09 nie były uruchamiane.
+
+**Werdykt zgłoszony przez środowisko TEST:** PASS.
+
+**Ocena DEV po analizie raportu:** PARTIAL. Pobieranie, równoległość i persistencja przeszły, ale
+A01 wymagał dwóch korekt po błędach finalizera; pełny przepływ nie był jeszcze one-shot. Ten finding
+jest podstawą poprawek opisanych poniżej i wymaga jednego retestu live po reinstalacji pluginu.
+
+#### Czasy i tokeny
+
+| Etap | Model/proces | Czas | Tokeny | Status |
+|---|---|---:|---:|---|
+| A01 Planner | Claude Opus, subagent | 96 s | `subagent_tokens=31 589`; brak podziału input/output | OK semantycznie |
+| Finalize MCP | deterministyczny | około 10 s | 0 | OK przy trzeciej próbie |
+| Scout fan-out | deterministyczny MCP + 4 procesy | około 288 s | 0 | completed |
+| Cały przebieg | Claude host + MCP | 418 s (około 7 min) | telemetria hosta niedostępna | zakończony |
+
+Scout działał z `verify_llm=false`, `query_expansion=false` i pustym `openrouter_key`, dlatego jego
+zużycie tokenów LLM wyniosło 0. Claude Code podał dla A01 tylko łączny licznik subagenta.
+
+#### Plan A01
+
+Plan zawierał cztery topici, wszystkie pięć driverów zostało pokrytych, a
+`uncovered_driver_ids=[]`:
+
+| topic_id | Nazwa / zakres | Zakotwiczenie |
+|---|---|---|
+| `TOPIC_BAYESIAN_SCALABILITY` | skalowalne wnioskowanie bayesowskie | `DRV_001`, `DRV_005`, claim kosztu MCMC i flow issue |
+| `TOPIC_VI_ACCURACY` | dokładność aproksymacji variational inference | `DRV_002`, claim o niedoszacowaniu wariancji |
+| `TOPIC_POSTERIOR_SAMPLING_METHODS` | metody próbkowania posterior poza wyłącznym MCMC | `DRV_003`, claim o MCMC jako jedynej metodzie |
+| `TOPIC_LIKELIHOOD_POSTERIOR_DIDACTICS` | likelihood/posterior i porządek pojęciowy | `DRV_004`, high-severity flow issue |
+
+Każdy topic miał `TOPIC_*`, approved domains, strategię wyszukiwania, coverage requirement i role
+źródeł. Podział czterech topiców oceniono jako sensowny dla pięciu driverów.
+
+#### Pobrania i budżet
+
+- `total_target=50`; `target_n=round(50/4)=12`; `allocated_target=48`.
+- Scout używał w tym przebiegu odziedziczonego `oversample=1.5`, dlatego zapisał 70 PDF zamiast 48.
+- Pula łączna: OpenAlex 230, po dedupie 227, OA 219.
+- PDF per topic: 18 / 18 / 18 / 16.
+- Stuby per topic: 13 / 10 / 7 / 15; razem 45.
+- Rejected: 0; wszystkie cztery przebiegi `completed`.
+
+Decyzja właściciela po teście: ustawić jawnie `oversample=1.2` i zaakceptować wynikowy nadmiar bez
+dodatkowej selekcji.
+
+#### Artefakty
+
+Faktyczny katalog był zgodny z layoutem `.emagents/g02/scout/runs/<task_id>/`; ścieżka `g01`
+widoczna w przeklejonym raporcie była wyłącznie uszkodzeniem formatowania. Potwierdzono:
+
+- `plan.json` (`research_plan@1` po korekcie),
+- `index.json` (`scout_run_index@1`),
+- cztery `requests/<topic_id>.json` (`scout_search_request@1`),
+- 70 lokalnych PDF,
+- cztery `topics/<topic_id>/MANIFEST.md` z poprawnym niezmiennikiem,
+- cztery `topics/<topic_id>/retrieved_corpus.json` (`scout_retrieved_corpus@1`),
+- wszystkie `local_ref` wskazywały na istniejące pliki,
+- brak sekretów w dziesięciu plikach JSON.
+
+W środowisku TEST przeliczono SHA-256 dla próbki 12 PDF (po trzy na topic), wszystkie były zgodne.
+Właściciel zdecydował nie rozszerzać obecnie tej kontroli; nie zapisujemy twierdzenia, że test
+przeliczył wszystkie 70 checksum.
+
+#### Deduplikacja
+
+- 70 lokalnych PDF, 66 unikalnych prac, cztery prace cross-topic.
+- Każda z czterech zachowała oba `topic_ids` i oba `local_refs`.
+- Zgłoszone pary obejmowały: *A survey of uncertainty in deep neural networks*, *Revisiting
+  Bayesian Autoencoders With MCMC*, *Neural posterior estimation for exoplanetary atmospheric
+  retrieval* oraz *Auto-Encoding Variational Bayes*.
+- Właściciel zaakceptował bieżące zachowanie DOI/`clean_title` i odroczył dodatkową kontrolę
+  tożsamości bibliograficznej.
+
+#### Finding F-L: A01 nie trzymał mechanicznego kontraktu `research_plan@1`
+
+Pierwszy draft użył m.in. `driver_ids` zamiast `linked_driver_ids`, `related_claim_ids` zamiast
+`related_claims`, `acceptable_source_roles` zamiast `source_roles`, `must_cover` zamiast pól
+kanonicznych oraz liczbowego `artifact_version=1`. Pierwsza finalizacja zwróciła 75 błędów, druga
+jeden błąd, trzecia po ręcznej korekcie przeszła.
+
+Naprawa DEV po teście:
+
+- `research_planner_prepare` zwraca literalny `plan_output_template` z kanonicznymi kluczami;
+- finalizer deterministycznie ustawia pola należące do boundary i normalizuje wyłącznie znane aliasy;
+- agent i skill A01 zabraniają zmiany nazw kluczy i wskazują dokładny kształt topic/coverage/stop;
+- dodano regresję odtwarzającą aliasy i liczbową wersję z live runu.
+
+#### Finding F-M: zbyt szeroki didactic search topic
+
+`TOPIC_LIKELIHOOD_POSTERIOR_DIDACTICS` zebrał także materiały z filogenetyki, astronomii i NLP.
+Źródłem były ogólne terminy w rodzaju `Bayesian inference tutorial`, przy wyłączonym filtrze LLM.
+
+Naprawa DEV po teście:
+
+- Scout-profile A01 musi używać 3–6 technicznych core terms;
+- nazwa i terminy muszą zachować kotwicę approved domain/intake;
+- teaching goal trafia do `purpose`, nie do głównego query;
+- krótkie query oparte na `tutorial`, `overview`, `foundations`, `introduction`, `applications` lub
+  `recent developments` są odrzucane deterministycznie;
+- didactic topic ma opisywać badalne zjawisko: conceptual understanding, misconceptions albo
+  instructional sequencing w zatwierdzonej domenie.
+
+#### Retest wymagany przed zamknięciem Fazy B2
+
+- [ ] A01 finalizuje poprawny plan przy pierwszym wywołaniu, bez ręcznej zmiany JSON.
+- [ ] Plan ma 4–6 topiców i przechodzi nowe kontrole wyszukiwalności.
+- [ ] Fan-out raportuje `oversample=1.2`, wszystkie topici kończą `completed`.
+- [ ] Layout plan/request/PDF/manifest/corpus/index pozostaje zgodny.
+
+#### Walidacja offline poprawek DEV
+
+- Dedykowany zestaw planner/Scout/MCP/build po zmianach: **27 PASS**.
+- Pełna regresja repo: **177 PASS, 1 SKIP, 1 FAIL**.
+- Jedyny FAIL pozostaje wcześniejszym, niezależnym testem stub harnessu
+  `test_stub_harness_revise_runs_one_correction_without_second_review` (reviewer A01 liczony dwa
+  razy). Zgodnie z granicą Fazy B2 nie zmieniano `run`/`run-codex` ani tego harnessu.
+- Test live nie został automatycznie powtórzony po poprawkach; pozostaje jawna bramka powyżej.
+
+#### Mapa „co zmienić w 07"
+
+Dodać osobną bramkę Fazy B2 Scout z wynikiem tego live runu, findingami F-L/F-M oraz odznaczonym
+retestem one-shot. Nie oznaczać całej Fazy B2 jako zamkniętej do czasu powtórki po poprawkach.
+
+### Runda 17 — 2026-06-24 — A02 forward BLOCKED: Finding F-K (hardkodowane provider_capabilities nieaktualne po reload)
+
+**Środowisko:** WSL Claude Code, live MCP po `/reload-plugins`, OPENALEX_API_KEY poprawny
+**Zakres:** G02-A02 TOPIC_BAYESIAN_COMPUTATION (jeden agent testowy)
+
+#### Wynik
+
+| Node | Status | Uwagi |
+|------|--------|-------|
+| g02-a02 TOPIC_BAYESIAN_COMPUTATION | **BLOCKED** | F-K: invalid_discovery_input_basis — crossref config mismatch |
+
+#### Finding F-K: provider_capabilities hardkodowane w prompcie agenta stają się nieaktualne
+
+Po przeładowaniu pluginu (`/reload-plugins`) serwer ma nową konfigurację Crossref:
+`enabled=true, ready=true` (naprawione w Rundzie 16 przez devów).
+
+Prompt A02 zawierał hardkodowane `provider_capabilities` z poprzedniej sesji:
+`{"provider": "crossref", "enabled": false, "ready": false}`.
+
+`research_metadata_search` robi equality check między `domain_input.provider_capabilities`
+a aktywną konfiguracją serwera. Różnica → `invalid_discovery_input_basis` na każdej trasie.
+
+**Naprawa:** A02 agent (lub orchestrator) musi zawsze wywoływać `research_domain_prepare`
+na początku żeby uzyskać AKTUALNE `provider_capabilities` — nigdy nie hardkodować wartości
+z poprzedniej sesji. Stałe promptowanie z `provider_capabilities` jest antywzorcem.
+
+#### Co zmienić
+- `agents/g02-a02-domain.md`: agent powinien zaczynać od `research_domain_prepare`, nie od gotowego domain_input
+- SKILL.md krok 3: orchestrator wywołuje `research_domain_prepare` fresh przy każdym uruchomieniu (już jest, ale forward testy muszą to respektować)
+- Fixture finding files: zaktualizowane
+
+---
+
+### Runda 16 — 2026-06-24 — F-J i Crossref naprawione, deterministyczne A02 canary x2
+
+**Środowisko:** WSL, lokalny runtime `.emagents`, live OpenAlex/Crossref, profil `fast`.
+
+#### Wynik
+
+- Pełna regresja po zmianach: **157 passed, 1 skipped, 0 failed**.
+- Build Claude i Codex: **PASS**; `graph_check` source/Claude/Codex: **PASS**.
+- Crossref preflight: `enabled=true`, `ready=true`, `configured_email`; wartości sekretów nie
+  zostały wypisane.
+- Live Crossref DOI PLOS: pierwszy request `confirmed_crossref`, drugi `cache_hit=true`.
+- Ujawniono i naprawiono dodatkowy błąd klasyfikacji: prawidłowy plain-text HTTP 404 Crossref był
+  parsowany jako JSON i kończył się `crossref_request_failed`; teraz daje `not_found_crossref`.
+- A02 `TOPIC_BAYESIAN_COMPUTATION`: 3 search operations po 8 rekordów, 4 DOI potwierdzone,
+  deterministyczna finalizacja **ok**.
+- A02 `TOPIC_VARIATIONAL_INFERENCE`: 3 search operations po 8 rekordów, 2 DOI potwierdzone i 2
+  `not_found_crossref`; artefakt poprawnie zapisany jako **degraded**, bez błędów kontraktu.
+
+#### Naprawy
+
+- Dodano `research_domain_finalize_from_results`: agent przekazuje persisted search/DOI refs,
+  selected source IDs i minimalne coverage assignments; kod sam buduje wszystkie pola techniczne.
+- Crossref został jawnie włączony w lokalnym configu; status rozróżnia `disabled` od
+  `required_email_missing`, a A02 zatrzymuje się przed discovery, jeśli Crossref nie jest ready.
+- Usunięto stary zdublowany harness `g02_flow.py`, naprawiono stop po `BLOCKED` i brak drugiego A10
+  po deterministycznie poprawnej rewizji.
+- Packaging po merge G01/G02 używa aktualnego inventory 22 skille / 15 agentów.
+- MCP: `0.12.0`, 52 operacje; plugin manifest: `0.6.0`.
+
+#### Pozostała bramka
+
+Canary wykonał realne deterministic seams bez ponownego kosztu A01. Pełny forward agenta A02 na
+Claude/Codex pozostaje osobnym testem hosta; dopiero on pozwala zaznaczyć forward checkboxy w `07`.
+
+---
+
+### Runda 15 — 2026-06-24 — G02 A02 BLOCKED: Finding F-J (finalize payload contract — 7 błędów struktury)
+
+**Środowisko:** WSL Claude Code, live MCP, OPENALEX_API_KEY poprawny (klucz naprawiony po restarcie)
+**Zakres:** G02-A02 x2 (TOPIC_BAYESIAN_COMPUTATION, TOPIC_VARIATIONAL_INFERENCE)
+
+#### Wynik
+
+| Node | Status | Uwagi |
+|------|--------|-------|
+| g02-a02 TOPIC_BAYESIAN_COMPUTATION | **BLOCKED** | F-J: finalize odrzuca payload |
+| g02-a02 TOPIC_VARIATIONAL_INFERENCE | **BLOCKED** | F-J: identyczne błędy |
+
+OpenAlex działa (klucz i OR-query poprawne — kandydaci są znajdywani).
+Blokada dopiero na etapie `research_domain_finalize`.
+
+#### Finding F-J: G02-A02 buduje błędny payload do `research_domain_finalize`
+
+Agent konstruuje payload ręcznie po zebraniu wyników i popełnia systematyczne błędy.
+Szczegóły w `mocks/g02/forward-run/g02-a02-domain.TOPIC_BAYESIAN_COMPUTATION.finding.md`.
+
+**7 błędów struktury (oba tematy):**
+
+| # | Pole | Problem | Oczekiwane |
+|---|------|---------|-----------|
+| BŁ-1 | `coverage_map` | `dict` zamiast `array` | `[{"source_id":"SRC_...","coverage_unit_ids":["COV_A1"],"basis":"abstract"}]` |
+| BŁ-2 | `query_log[]` | pola `artifact_ref`/`records_returned` | `operation_id`, `route_id`, `query_id`, `provider`, `status`, `result_count`, `literature_tool_result_ref` |
+| BŁ-3 | `doi_verifications[]` | pole `doi`/`status` | `source_id`, `normalized_doi`, `status`, `registry_status`, `match_status`, `result_ref` |
+| BŁ-4 | `stop_reason` | `"candidate_limit_reached"` | `"candidate_limit"` |
+| BŁ-5 | `provider_issues` | zawiera `crossref`, zły format | per-operacja, tylko openalex/ss/arxiv, `[]` gdy ok |
+| BŁ-6 | `candidates` | agent modyfikuje `inclusion.coverage_units` w rekordach providerów | DOKŁADNE kopie z provider tool result |
+| BŁ-7 | `remaining_coverage_units` | lista wszystkich units | `[]` gdy coverage spełniona |
+
+#### Rekomendacja dla devów
+
+**Opcja A (preferowana, deterministyczna):** dodaj MCP helper
+`research_domain_finalize_from_results`, który przyjmuje ref-y do poprzednich wyników, wybór
+source IDs i minimalne semantyczne coverage assignments. Helper sam buduje pola techniczne i od
+razu finalizuje artefakt — agent nie musi wykonywać drugiego round-tripu ani konstruować wrappera.
+Eliminuje wszystkie 7 klas błędów jednocześnie.
+
+**Opcja B (szybsza):** zaktualizuj `agents/g02-a02-domain.md` z explicit przykładem poprawnego
+payload — ryzyko regresji przy przyszłych zmianach kontraktu.
+
+#### Co zmienić w 07
+- A02: zmień status na BLOCKED, dodaj F-J jako nowy bloker
+- Dodaj F-J do sekcji aktywnych findinów
+
+---
+
+### Runda 14 — 2026-06-23 — G02 Forward-run: A01 v2 PASS (short core_terms), OpenAlex klucz zaktualizowany, fixes OR-query i multi-provider
+
+**Środowisko:** WSL Claude Code, live MCP (edu-materials-research plugin), OPENALEX_API_KEY nowy klucz
+**Zakres:** G02 pipeline A01 (v2 re-run) + przygotowanie wejść do A02
+
+#### Zrealizowane w tej rundzie
+
+| Node | Status | Tokens | Tool Uses | Duration | Artifact |
+|------|--------|--------|-----------|----------|---------|
+| g02-a01-planner v2 | **PASS** | 36 979 | 10 | 148 814 ms | RESEARCH_MOCK_001.1.0.0.json |
+| OpenAlex klucz test | **PASS** | — | — | — | konfiguracja ~/.bashrc |
+
+#### Naprawy wdrożone
+
+**Fix klucza OPENALEX_API_KEY:**
+- Stary klucz zwracał HTTP 401 na każdym zapytaniu
+- Nowy klucz wpisany do ~/.bashrc, stare zduplikowane wpisy usunięte
+- Test bezpośredni: prosty query → 137 190 wyników, OR-query → 124 507 wyników
+
+**Fix F-G: core_terms A01 — zbyt długie frazy:**
+- Stary: `"alternative posterior sampling algorithms beyond MCMC such as sequential Monte Carlo"`
+- Nowy: `"sequential Monte Carlo"`, `"importance sampling"`, `"MCMC scalability"`
+- Poprawka w: `agents/g02-a01-planner.md` step 7 (explicit short-term instruction)
+
+**Fix OR-query (query_planning.py):**
+- `" AND ".join(...)` → `" OR ".join(...)` (line 238)
+- AND: 0 wyników, OR: 124k+ wyników
+- Poprawka w: `shared/scripts/g02/query_planning.py`
+
+**Fix multi-provider (query_planning.py):**
+- `"preferred_providers": [provider]` → `"preferred_providers": _all_ready_scholarly_providers(...)`
+- Teraz: `['openalex', 'semantic_scholar', 'arxiv']` zamiast `['openalex']`
+- Dodana funkcja `_all_ready_scholarly_providers()`
+
+#### A02 — nie uruchomiony (context limit)
+
+READY_TO_RUN: obydwa tematy z nowym planem A01 v2:
+- `research_domain_prepare(RESEARCH_MOCK_001.1.0.0.json, TOPIC_BAYESIAN_COMPUTATION)` → gotowe
+- `research_domain_prepare(RESEARCH_MOCK_001.1.0.0.json, TOPIC_VARIATIONAL_INFERENCE)` → gotowe
+- Fixture: mocks/g02/forward-run/manifest.json nodes READY_TO_RUN
+
+#### Metryki tokenów — system trackingu
+- Dodano `metrics` field do manifest.json per node: `{tokens, tool_uses, duration_ms}`
+- Format tracked od Rundy 13/14, wstecznie uzupełniony dla A01 i A10
+
+#### Co zmienić w 07
+- Scenariusz A01 (v2): zmień status na PASS w rejestrze
+- Nota o OR-query i multi-provider fix: dodaj do sekcji naprawione błędy G02
+
+---
+
+### Runda 13 — 2026-06-23 — G02 Forward-run: A01 PASS, A10 PASS, A02 FAILED (F-I + F-J diagnostics)
+
+`research_front_door`, A01, review-task/prepare i A10 przeszły. A02 ujawnił F-I: orkiestrator
+przycinał `domain_research_input@1` i usuwał disabled Crossref z `provider_capabilities`, przez co
+każdy search kończył się `invalid_discovery_input_basis`. Poprawka: przekazywać cały obiekt prepare
+bez wybierania lub zmiany pól. Kolejna próba ujawniła F-J opisany w Rundzie 15.
+
+---
+
 ### Runda 12 — 2026-06-23 — Deterministyczny pytest w sandboxie (bez pluginu/MCP/live API): 4 przyczyny źródłowe (12 testów) zdiagnozowane i naprawione; suite zielony 146 passed / 1 skipped
 
 Środowisko: sandbox Cowork (Linux), Python **3.10.12**, vendored `pytest 9.1.1` z `.emagents/pytest-deps`

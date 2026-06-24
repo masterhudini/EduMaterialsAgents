@@ -47,8 +47,15 @@ extend its fields inside the orchestrator.
    each authorized route through
    `research_metadata_search`; the agent never sends HTTP itself. Verify every returned valid DOI
    through `research_doi_verify` or `research_doi_verify_batch`, preserving conflicts and registry
-   failures without overwriting provider metadata. The producer returns the exact envelope from
-   `research_domain_finalize`; build review or fast-track approval from that descriptor.
+   failures without overwriting provider metadata. The producer passes persisted search/DOI refs,
+   selected source IDs and minimal semantic coverage assignments to
+   `research_domain_finalize_from_results`; it never hand-builds the technical A02 wrapper. Build
+   review or fast-track approval from the returned descriptor.
+   - Pass the **entire `domain_research_input@1`** object from `research_domain_prepare` to the
+     A02 agent without selecting, renaming or removing any field. In particular, never truncate
+     `provider_capabilities`: include every entry returned by `research_domain_prepare`, including
+     disabled providers (e.g. crossref with `enabled: false`). Omitting any entry causes
+     `invalid_discovery_input_basis` on every `research_metadata_search` call.
 4. From the reviewed A02 ref, run A03 through `research_canonical_prepare`, A04 through
    `research_recent_prepare`, and A11 through `research_market_cases_prepare`, with their matching
    finalize and review-task operations. A03 and A04 reuse exact upstream Crossref bindings and
@@ -60,9 +67,17 @@ extend its fields inside the orchestrator.
    them.
 5. Review only through the deterministic review-task builders. Do not hand-build, trim or rename
    fields inside `review_task@1`. For A01 call `research_plan_review_task`; for other reviewed
-   stages call the matching `*_review_task` operation. Pass the entire returned object unchanged to
-   `research_review_prepare`. The artifact descriptor given to a review-task builder must contain
-   `type`, `ref`, `schema_version` and `artifact_version`; use `ref`, not `artifact_ref`.
+   stages call the matching `*_review_task` operation.
+   - Pass the **entire object** returned by any `*_review_task` call to `research_review_prepare`
+     without selecting, renaming or removing any field. Never build a partial review-task object
+     from scratch. Note: `evidence_requirements` entries use the key `requirement_id`
+     (not `criterion_id`); using the wrong key causes `research_review_prepare` to return BLOCKED.
+   - The artifact descriptor passed to any review-task builder must be **extracted directly from
+     `envelope.produced[]`**: find the entry whose `schema_version` matches the producer output
+     contract, then pass `{"type": <value>, "ref": <entry.path>, "schema_version": <value>,
+     "artifact_version": <value>}`. Never hand-build a descriptor or use `artifact_ref` in place
+     of `ref`. For `research_plan_review_task` the descriptor `type` must be the exact string
+     `"research_plan"` — any other value causes the builder to reject the descriptor.
 6. In the default fast profile, invoke G02-A10 for A01 Planner, A05 Candidate Source Index, A06
    Paper Retrieval and A09 Synthesizer. A07 review is conditional on degraded output, missing
    evidence locations, conflicts, prompt-injection flags or a central-document marker. For A02,

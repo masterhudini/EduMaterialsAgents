@@ -13,13 +13,14 @@ Run it directly:
 """
 from __future__ import annotations
 
+import json
 import sys as _sys
 import pathlib as _pl
 
 # Make `core` / `g02` importable whether run as a module or as a script.
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))
 
-from core import artifacts, contracts, engine  # noqa: E402
+from core import artifacts, contracts, engine, graphs  # noqa: E402
 from g02 import planner  # noqa: E402
 from g02 import source_selection  # noqa: E402
 
@@ -128,14 +129,6 @@ SPEC = engine.EngineSpec(
 
 # ---- preserved public API (bound to the g02 spec) ------------------------
 
-def run(input_ref=None, **kwargs):
-    # Reviewed/partial Codex execution of the implemented A01–A06 frontier (through / topic_ids)
-    # lives in its own g02-specific module; the generic core.engine stays a stub/wiring walk.
-    if kwargs.pop("reviewed", False):
-        from g02 import reviewed_flow
-        return reviewed_flow.run(input_ref, **kwargs)
-    return engine.run(SPEC, input_ref, **kwargs)
-
 
 def front_door(path_or_ref, *, base=None):
     return engine.front_door(SPEC, path_or_ref, base=base)
@@ -164,295 +157,6 @@ def _load_any(path_or_ref, *, base=None):
 terminal_gate_handler = engine.terminal_gate_handler
 
 
-def _run_stub_harness(
-    input_ref=None,
-    *,
-    base=None,
-    node_runner=None,
-    gate_handler=None,
-    pause_on_gate=False,
-    resume_token=None,
-    decisions=None,
-) -> dict:
-    """Run the Research Graph; return the output handoff descriptor, or an awaiting_user request.
-
-    ``node_runner(node, ctx, log) -> envelope`` is the per-host executor (default: no-op stub).
-    Gates (one spec per ``user-gate`` node in the manifest, two surfaces):
-      - default: auto-approved (wiring/harness);
-      - ``gate_handler(payload) -> decision``: synchronous surface (e.g. terminal);
-      - ``pause_on_gate=True``: checkpoint and return ``{"status": "awaiting_user", "resume_token",
-        "gate", "required_decisions", ...}``; resume via ``run(resume_token=..., decisions={gate: ...})``.
-    """
-    log = event_log.open_log(GRAPH_ID)
-    node_runner = node_runner or stub_node_runner
-
-    if resume_token and input_ref is None:
-        cp = _load_checkpoint(resume_token)
-        input_ref = cp["input_ref"]
-        produced_refs = dict(cp["produced_refs"])
-        gate_decisions = dict(cp["gate_decisions"])
-        token = resume_token
-        log.append("ENTRY", "resume", detail={"resume_token": token, "done": sorted(produced_refs)})
-    else:
-        produced_refs, gate_decisions = {}, {}
-        token = resume_token or uuid.uuid4().hex[:12]
-
-    gate_decisions.update(decisions or {})
-
-    # Front door — load + RE-validate the boundary contract; graph never starts on bad input.
-    rgi = handoff.load_handoff(input_ref, contract_ref=INPUT_CONTRACT, base=base)
-    ref0 = input_ref.get("ref") if isinstance(input_ref, dict) else input_ref
-    log.append("ENTRY", "load_input", detail={"ref": ref0, "task_id": rgi.get("task_id")})
-
-    state = st.new_state(GRAPH_ID)
-    st.set_field(state, "research_graph_input", rgi, "confirmed")
-
-    # Walk the manifest — pass the context to each node; agents get a reviewer pass.
-    manifest = graphs.load(GRAPH_ID)
-    reviewer = manifest.get("reviewer", "g02-a10-output-reviewer")
-    task_id = rgi.get("task_id")
-
-    for node in graphs.nodes(manifest):
-        kind = node.get("kind")
-
-        if kind == "agent":
-            name = node["name"]
-            if name in produced_refs:  # resume: this node already completed
-                continue
-
-            policy = _policy_for(node, manifest)
-            output_contract = node.get("output_contract")
-            attempt, prior_findings, ref = 0, [], None
-
-            while True:
-                # F1: scoped graph input + refs to upstream artifacts (lazy hydration). On a
-                # revision, also hand back the prior artifact ref + the reviewer's findings.
-                ctx = {"input": scoped_input(node, rgi), "upstream": dict(produced_refs)}
-                if attempt:
-                    ctx["revision"] = {
-                        "attempt": attempt,
-                        "prior_artifact_ref": ref,
-                        "items": prior_findings,
-                    }
-
-                envelope = node_runner(node, ctx, log)
-                check = contracts.validate_envelope(envelope)
-                if not check["ok"]:
-                    log.append(
-                        name,
-                        "invalid_envelope",
-                        status="failed",
-                        detail={"errors": check["errors"]},
-                    )
-
-                # F1: persist the TYPED artifact (envelope["artifact"]) validated against the
-                # node's output_contract; stubs carry no artifact -> persist the envelope.
-                artifact = envelope.get("artifact")
-                if artifact is not None and output_contract:
-                    av = contracts.validate(artifact, output_contract)
-                    if not av["ok"]:
-                        log.append(
-                            name,
-                            "invalid_artifact",
-                            status="failed",
-                            detail={"contract": output_contract, "errors": av["errors"]},
-                        )
-
-                ref = artifacts.store(
-                    f"research/{name}.json",
-                    artifact if artifact is not None else envelope,
-                    base=base,
-                )
-                log.append(
-                    name,
-                    "persisted",
-                    detail={
-                        "ref": ref,
-                        "contract": output_contract,
-                        "typed": artifact is not None,
-                        "attempt": attempt,
-                    },
-                )
-
-                # A REVISE verdict permits one producer correction. The corrected artifact is
-                # accepted after deterministic validation and is never sent to A10 again.
-                if attempt == 1:
-                    log.append(
-                        name,
-                        "revision_completed",
-                        status="ok",
-                        detail={"ref": ref, "finding_count": len(prior_findings)},
-                    )
-                    break
-
-                # F2: review the artifact; the universal reviewer runs via the same node_runner.
-                review = _review(
-                    reviewer,
-                    node,
-                    ref,
-                    attempt,
-                    prior_findings,
-                    node_runner,
-                    log,
-                    task_id,
-                )
-
-                # Current contract: decision/findings. Legacy compatibility: verdict/issues.
-                review_decision = (review or {}).get("decision", (review or {}).get("verdict", "APPROVED"))
-                findings = (review or {}).get("findings", (review or {}).get("issues", []))
-
-                log.append(
-                    reviewer,
-                    "review",
-                    status=review_decision,
-                    detail={
-                        "target": name,
-                        "profile": node.get("review_profile"),
-                        "attempt": attempt,
-                    },
-                )
-
-                if review_decision in ("APPROVED", "APPROVED_WITH_WARNINGS"):
-                    break
-
-                severity = _max_severity(findings)
-                policy_severity = _severity_for_policy(severity, policy)
-
-                if review_decision == "BLOCKED":
-                    log.append(
-                        name,
-                        "escalated",
-                        status="blocked",
-                        detail={
-                            "to": policy.get("escalation_after_exhaustion"),
-                            "severity": severity,
-                            "policy_severity": policy_severity,
-                        },
-                    )
-                    return {
-                        "status": "blocked", "node": name,
-                        "review_decision": review_decision, "findings": findings,
-                    }
-
-                if review_decision == "REVISE":
-                    attempt = 1
-                    prior_findings = findings
-                    continue
-
-                log.append(
-                    name,
-                    "escalated",
-                    status="blocked",
-                    detail={
-                        "to": policy.get("escalation_after_exhaustion"),
-                        "severity": severity,
-                        "policy_severity": policy_severity,
-                    },
-                )
-                return {
-                    "status": "blocked", "node": name,
-                    "review_decision": review_decision, "findings": findings,
-                }
-
-            produced_refs[name] = ref
-
-        elif kind == "user-gate":
-            gname = node["name"]
-            source_index_ref = None
-            if gname == "user-source-selection-gate":
-                stored = produced_refs.get("g02-a05-candidate-source-index")
-                if isinstance(stored, str):
-                    source_index_ref = _produced_artifact_ref(
-                        stored, "candidate_source_index", "candidate_source_index@1", base=base
-                    )
-            if gname not in gate_decisions:
-                payload = {
-                    "graph": GRAPH_ID,
-                    "gate": gname,
-                    "required_decisions": node.get("required_decisions", []),
-                    "context": {"artifacts": dict(produced_refs)},
-                }
-                if source_index_ref:
-                    prepared_gate = source_selection.prepare_source_selection(
-                        source_index_ref, base=base
-                    )
-                    if prepared_gate.get("ready"):
-                        payload["source_selection"] = prepared_gate["gate_prompt"]
-
-                if gate_handler is not None:
-                    # Synchronous surface, e.g. terminal.
-                    gate_decisions[gname] = gate_handler(payload)
-                elif pause_on_gate:
-                    # Async surface, e.g. skill: pause + resume.
-                    _save_checkpoint(token, input_ref, produced_refs, gate_decisions)
-                    log.append(
-                        gname,
-                        "awaiting_user",
-                        status="paused",
-                        detail={"resume_token": token},
-                    )
-                    return {"status": "awaiting_user", "resume_token": token, **payload}
-                else:
-                    # Default: auto-approve for wiring/harness.
-                    gate_decisions[gname] = {"auto": True}
-
-            if gname == "user-source-selection-gate" and source_index_ref:
-                decision = gate_decisions[gname]
-                approved_ref = decision.get("human_approved_source_set_ref") \
-                    if isinstance(decision, dict) else None
-                if isinstance(decision, dict) and not approved_ref \
-                        and isinstance(decision.get("selection"), dict) \
-                        and isinstance(decision.get("confirmation_token"), str):
-                    finalized = source_selection.finalize_source_selection(
-                        source_index_ref, decision["selection"], decision["confirmation_token"],
-                        base=base,
-                    )
-                    approved_ref = next((
-                        item.get("path") for item in finalized.get("produced", [])
-                        if item.get("type") == "human_approved_source_set"
-                    ), None)
-                if isinstance(approved_ref, str):
-                    approved_set = artifacts.hydrate(approved_ref, base=base)
-                    validation = contracts.validate(
-                        approved_set, "human_approved_source_set@1"
-                    )
-                    if not validation["ok"]:
-                        raise ValueError("invalid human approved source set: "
-                                         + "; ".join(validation["errors"]))
-                    produced_refs[gname] = approved_ref
-
-            log.append(
-                gname,
-                "user_decision",
-                status="APPROVED",
-                detail={
-                    "keys": sorted(gate_decisions[gname])
-                    if isinstance(gate_decisions[gname], dict)
-                    else None
-                },
-            )
-
-    # Freeze a stub output bundle and emit it as the typed handoff to Solution.
-    st.set_field(state, "user_approved_research_bundle", _stub_bundle(), "confirmed")
-
-    def _validator(s):
-        return vs.validate_state(
-            s,
-            required=["research_graph_input", "user_approved_research_bundle"],
-        )
-
-    spec = gate.pass_gate_and_freeze(state, _validator, drop={"research_graph_input"})
-    desc = handoff.emit_handoff(
-        spec["user_approved_research_bundle"],
-        OUTPUT_CONTRACT,
-        name="research_bundle",
-        base=base,
-    )
-    log.append("EXIT", "emit_handoff", detail=desc)
-    _clear_checkpoint(token)
-    return desc
-
-
 def run(
     input_ref=None,
     *,
@@ -472,14 +176,10 @@ def run(
     tests. Every real host entrypoint must pass ``reviewed=True``.
     """
     if not reviewed:
-        return _run_stub_harness(
-            input_ref,
-            base=base,
-            node_runner=node_runner,
-            gate_handler=gate_handler,
-            pause_on_gate=pause_on_gate,
-            resume_token=resume_token,
-            decisions=decisions,
+        return engine.run(
+            SPEC, input_ref, base=base, node_runner=node_runner,
+            gate_handler=gate_handler, pause_on_gate=pause_on_gate,
+            resume_token=resume_token, decisions=decisions,
         )
     if node_runner is None:
         raise ValueError("reviewed execution requires a real host node_runner")
@@ -601,7 +301,7 @@ def _cli(argv: list[str]) -> int:
             handler = terminal_gate_handler if args.gates == "prompt" else None
             out = run(front_door(args.context)["ref"], gate_handler=handler)
         elif args.cmd == "run-codex":
-            from g02.runners.codex import codex_node_runner
+            from runners.codex import codex_node_runner
             from g02.reviewed_flow import terminal_gate_handler as reviewed_terminal_gate
 
             if args.resume_token and args.context:

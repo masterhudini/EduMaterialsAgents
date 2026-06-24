@@ -277,11 +277,17 @@ def verify_source_record(record: dict, *, config_path=None, transport: Transport
                          "issues": [_issue("invalid_doi", "DOI syntax is invalid")]}, base=base)
 
     config = provider_config.load_config(config_path)
-    if not config.enabled("crossref") or not config.contact_email:
+    if not config.enabled("crossref"):
         return _persist({**base_result, "status": "unavailable",
                          "registry_status": "unavailable", "match_status": "not_assessed",
-                         "issues": [_issue("crossref_not_ready",
-                                           "Crossref is disabled or contact email is missing")]},
+                         "issues": [_issue("crossref_disabled",
+                                           "Crossref is disabled in provider configuration")]},
+                        base=base)
+    if not config.contact_email:
+        return _persist({**base_result, "status": "unavailable",
+                         "registry_status": "unavailable", "match_status": "not_assessed",
+                         "issues": [_issue("crossref_contact_missing",
+                                           "Crossref requires a configured contact email")]},
                         base=base)
     cached = _cache_read(config, doi)
     cache_hit = cached is not None
@@ -309,8 +315,17 @@ def verify_source_record(record: dict, *, config_path=None, transport: Transport
                 body = response.get("body", b"")
                 if isinstance(body, bytes) and len(body) > int(request_cfg["max_response_bytes"]):
                     raise ValueError("Crossref response exceeded configured byte limit")
-                payload = json.loads(body.decode("utf-8") if isinstance(body, bytes) else str(body)) \
-                    if body else {}
+                # Crossref legitimately returns a plain-text 404 for an unregistered DOI.
+                # Decode JSON only when a response can carry registry metadata; non-200 bodies
+                # are not trusted or persisted as structured provider data.
+                if status_code != 200:
+                    payload = {}
+                elif body:
+                    payload = json.loads(
+                        body.decode("utf-8") if isinstance(body, bytes) else str(body)
+                    )
+                else:
+                    payload = {}
                 if status_code not in RETRYABLE or attempt == int(request_cfg["max_retries"]):
                     break
             except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:

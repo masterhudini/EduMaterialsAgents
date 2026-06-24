@@ -1,0 +1,256 @@
+{
+  "schema_version": "research_plan@1",
+  "artifact_version": "1.0.0",
+  "task_id": "RESEARCH_MOCK_001",
+  "output_language": "English",
+  "review_profile_ref": "research_plan",
+  "approved_research_scope": {
+    "verify_claims": {
+      "priority": [
+        "high",
+        "medium"
+      ]
+    },
+    "include_recent_developments": true,
+    "include_canonical_sources": true,
+    "include_didactic_examples": true,
+    "recency_window_years": 5
+  },
+  "topics": [
+    {
+      "topic_id": "TOPIC_BAYESIAN_COMPUTATION",
+      "name": "Bayesian computational cost and posterior sampling methods",
+      "purpose": "Find evidence on the computational cost of Bayesian inference at scale, position MCMC among posterior sampling alternatives, and locate didactic material establishing the likelihood function as a prerequisite to the posterior.",
+      "priority": "high",
+      "linked_driver_ids": [
+        "DRV_001",
+        "DRV_003",
+        "DRV_004"
+      ],
+      "related_claims": [
+        "CLM_001",
+        "CLM_003"
+      ],
+      "related_concepts": [
+        "C1",
+        "C2"
+      ],
+      "related_flow_issues": [
+        "F_001"
+      ],
+      "related_update_needs": [],
+      "approved_domains": [
+        "D1",
+        "D3"
+      ],
+      "source_roles_required": {
+        "canonical": true,
+        "current": true,
+        "survey": true,
+        "didactic": true,
+        "qualifying_or_critical": true
+      },
+      "search_strategy": {
+        "core_terms": [
+          "Bayesian computation",
+          "MCMC scalability",
+          "posterior sampling",
+          "Markov chain Monte Carlo",
+          "computational cost",
+          "likelihood function",
+          "posterior distribution"
+        ],
+        "allowed_expansion_areas": [
+          "Hamiltonian Monte Carlo",
+          "sequential Monte Carlo",
+          "importance sampling",
+          "MCMC convergence",
+          "approximate Bayesian computation",
+          "scalable Bayesian methods",
+          "Bayes theorem pedagogy"
+        ],
+        "excluded_terms": [
+          "frequentist inference",
+          "classical statistics"
+        ],
+        "year_from": null,
+        "year_to": null,
+        "languages": [
+          "en"
+        ],
+        "work_types": [
+          "article",
+          "review",
+          "book",
+          "chapter",
+          "preprint"
+        ],
+        "seed_sources": [
+          "SRC_EXISTING_001"
+        ]
+      },
+      "coverage_requirements": [
+        {
+          "coverage_id": "COV_A1",
+          "description": "Evidence on what drives computational cost in Bayesian inference: model complexity, method and data scale.",
+          "source_roles": [
+            "canonical",
+            "current",
+            "survey"
+          ],
+          "minimum_sources": 2,
+          "mandatory": true
+        },
+        {
+          "coverage_id": "COV_A2",
+          "description": "Characterization of MCMC among posterior sampling alternatives, including evidence qualifying or refuting exclusivity claims.",
+          "source_roles": [
+            "survey",
+            "current",
+            "qualifying_or_critical"
+          ],
+          "minimum_sources": 2,
+          "mandatory": true
+        },
+        {
+          "coverage_id": "COV_A3",
+          "description": "Didactic exposition of the likelihood function as a prerequisite concept before posterior use, suitable for a master-level audience.",
+          "source_roles": [
+            "didactic",
+            "canonical"
+          ],
+          "minimum_sources": 1,
+          "mandatory": true
+        }
+      ],
+      "stop_rule": {
+        "candidate_limit": 12,
+        "no_new_coverage_passes": 2,
+        "complementary_search_route_required": true
+      }
+    },
+    {
+      "topic_id": "TOPIC_VARIATIONAL_INFERENCE",
+      "name": "Variational inference: variance properties and motivation relative to MCMC",
+      "purpose": "Find evidence qualifying the claim that variational inference always underestimates posterior variance, and locate material motivating variational inference as a response to MCMC computational cost.",
+      "priority": "high",
+      "linked_driver_ids": [
+        "DRV_002",
+        "DRV_005"
+      ],
+      "related_claims": [
+        "CLM_001",
+        "CLM_002"
+      ],
+      "related_concepts": [
+        "C3"
+      ],
+      "related_flow_issues": [
+        "F_002"
+      ],
+      "related_update_needs": [],
+      "approved_domains": [
+        "D1",
+        "D3"
+      ],
+      "source_roles_required": {
+        "canonical": true,
+        "current": true,
+        "survey": true,
+        "didactic": false,
+        "qualifying_or_critical": true
+      },
+      "search_strategy": {
+        "core_terms": [
+          "variational inference",
+          "mean-field approximation",
+          "ELBO",
+          "KL divergence",
+          "posterior variance",
+          "approximate inference"
+        ],
+        "allowed_expansion_areas": [
+          "mean field variational Bayes",
+          "variance underestimation",
+          "VI limitations",
+          "normalizing flows",
+          "amortized variational inference",
+          "black-box variational inference",
+          "MCMC vs variational inference"
+        ],
+        "excluded_terms": [
+          "frequentist variance estimation",
+          "neural network training"
+        ],
+        "year_from": null,
+        "year_to": null,
+        "languages": [
+          "en"
+        ],
+        "work_types": [
+          "article",
+          "review",
+          "book",
+          "chapter",
+          "preprint"
+        ],
+        "seed_sources": [
+          "SRC_EXISTING_001"
+        ]
+      },
+      "coverage_requirements": [
+        {
+          "coverage_id": "COV_B1",
+          "description": "Evidence on whether variational inference systematically underestimates posterior variance and under what conditions this holds or fails.",
+          "source_roles": [
+            "canonical",
+            "current",
+            "qualifying_or_critical"
+          ],
+          "minimum_sources": 2,
+          "mandatory": true
+        },
+        {
+          "coverage_id": "COV_B2",
+          "description": "Sources providing a cost-versus-accuracy comparison between MCMC and variational inference, suitable for motivating VI after MCMC limitations are introduced.",
+          "source_roles": [
+            "survey",
+            "current"
+          ],
+          "minimum_sources": 1,
+          "mandatory": true
+        }
+      ],
+      "stop_rule": {
+        "candidate_limit": 12,
+        "no_new_coverage_passes": 2,
+        "complementary_search_route_required": true
+      }
+    }
+  ],
+  "uncovered_driver_ids": [],
+  "input_issues": [],
+  "global_constraints": {
+    "max_topics": 2,
+    "candidate_limit_per_topic": 12,
+    "no_new_coverage_passes": 2,
+    "allowed_languages": [
+      "en"
+    ],
+    "allowed_work_types": [
+      "article",
+      "review",
+      "book",
+      "chapter",
+      "preprint"
+    ],
+    "year_from": null,
+    "year_to": null
+  },
+  "locked_sections": [
+    {
+      "section_id": "S1",
+      "reason": "Author wants to keep the opening narrative"
+    }
+  ]
+}
