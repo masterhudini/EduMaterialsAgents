@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import UTC, datetime
+try:
+    from datetime import UTC, datetime
+except ImportError:  # Python < 3.11
+    from datetime import datetime, timezone
+    UTC = timezone.utc
 import hashlib
 import json
 import re

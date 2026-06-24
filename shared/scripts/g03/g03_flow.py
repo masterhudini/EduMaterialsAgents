@@ -2,13 +2,14 @@
 
 The engine drives the manifest (single source of truth: shared/graphs/g03.graph.json) and the
 reviewer/gate/checkpoint machinery. This module supplies only what is g03-specific: the boundary
-contracts and the thin exit bundle. Solution consumes exactly what the Research Graph approved
-(``user_approved_research_bundle@1``) and produces the approved deliverable
-(``solution_blueprint@1``). Unlike g01 there is no upload/PDF seam — the input is already a typed
-bundle — so g03 has no ``context_resolver`` and no ``deterministic_node``.
+contracts and the thin exit bundle. g03 is the first place the two upstream sides meet, so its
+boundary input is a thin composite (``solution_graph_input@1``): a ref to g01's
+``lecture_baseline@1`` (the lecture skeleton) plus a ref to g02's
+``user_approved_research_bundle@1`` (the approved research). The ``context_resolver`` builds that
+composite from a front-door request. It produces the approved deliverable (``solution_blueprint@1``).
 
 Run it directly:
-    python3 shared/scripts/g03/g03_flow.py run mocks/g03/user_approved_research_bundle.json
+    python3 shared/scripts/g03/g03_flow.py run mocks/g03/solution_request.json
 """
 from __future__ import annotations
 
@@ -19,14 +20,16 @@ import pathlib as _pl
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))
 
 from core import engine  # noqa: E402
+from g03 import solution  # noqa: E402
 
 GRAPH_ID = "g03"
-INPUT_CONTRACT = "user_approved_research_bundle@1"
+INPUT_CONTRACT = "solution_graph_input@1"
 OUTPUT_CONTRACT = "solution_blueprint@1"
 
 
 def _scoped_input(node: dict, inp: dict) -> dict:
-    """Thin harness: the architect receives the approved research bundle (compact cards + refs)."""
+    """Thin harness: the architect receives the composite boundary (the two upstream refs); it
+    hydrates lecture_baseline (01) and the research bundle (02) and joins them itself."""
     return inp
 
 
@@ -52,10 +55,11 @@ SPEC = engine.EngineSpec(
     output_contract=OUTPUT_CONTRACT,
     scoped_input=_scoped_input,
     stub_exit_bundle=_stub_solution_output,
-    input_state_field="user_approved_research_bundle",
+    input_state_field="solution_graph_input",
     output_state_field="solution_blueprint",
     artifact_namespace="g03",
     emit_name="solution_blueprint",
+    context_resolver=solution.resolve_context,   # build the {01 ref, 02 ref} composite at the door
 )
 
 

@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import UTC, datetime
+try:
+    from datetime import UTC, datetime
+except ImportError:  # Python < 3.11
+    from datetime import datetime, timezone
+    UTC = timezone.utc
 import hashlib
 import json
 import re
@@ -975,10 +979,17 @@ def prepare_human_research_gate(research_state_ref: str, *, base=None) -> dict:
     packet = artifacts.hydrate(packet_ref, base=base) \
         if isinstance(packet_ref, str) and packet_ref.startswith(artifacts.SCHEME) \
         else state.get("human_validation_packet", {})
+    # Surface the clean executive digest (research_summary@1) so the human reads the summary, not
+    # the raw research state. This is the "light gate over a digest": A09 already produced it.
+    summary_ref = state.get("research_summary_ref")
+    research_summary = artifacts.hydrate(summary_ref, base=base) \
+        if isinstance(summary_ref, str) and summary_ref.startswith(artifacts.SCHEME) else {}
     return {
         "graph": "g02",
         "gate": "user-research-gate",
         "research_state_ref": research_state_ref,
+        "research_summary_ref": summary_ref,
+        "research_summary": research_summary,
         "human_validation_packet_ref": packet_ref,
         "human_validation_packet": packet,
         "required_decisions": [

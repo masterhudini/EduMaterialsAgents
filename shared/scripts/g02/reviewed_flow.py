@@ -987,17 +987,20 @@ def _research_terminal_gate_handler(payload: dict) -> dict:
     import sys
 
     packet = payload.get("human_validation_packet", {})
+    # Prefer the canonical executive digest (research_summary@1); fall back to the validation packet.
+    digest = payload.get("research_summary") or {}
     language = str(packet.get("output_language") or "English")
     polish = language.casefold().startswith("pl") or "pol" in language.casefold()
     summary = {
         "gate": payload.get("gate"),
         "task_id": payload.get("context", {}).get("task_id"),
+        "synthesis_mode": digest.get("synthesis_mode") or payload.get("context", {}).get("synthesis_mode"),
         "instructions": packet.get("instructions"),
-        "required_updates": packet.get("required_updates", []),
-        "optional_improvements": packet.get("optional_improvements", []),
-        "unresolved_items": packet.get("unresolved", []),
-        "confidence": packet.get("confidence"),
-        "fast_mode_limitation": packet.get("fast_mode_limitation"),
+        "required_updates": digest.get("required_updates", packet.get("required_updates", [])),
+        "optional_improvements": digest.get("optional_improvements", packet.get("optional_improvements", [])),
+        "unresolved_items": digest.get("unresolved", packet.get("unresolved", [])),
+        "confidence": digest.get("confidence", packet.get("confidence")),
+        "fast_mode_limitation": digest.get("fast_mode_limitation", packet.get("fast_mode_limitation")),
     }
     sys.stderr.write(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
 
