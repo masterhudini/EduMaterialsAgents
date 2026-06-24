@@ -1257,3 +1257,135 @@ kontrakt `scout_cases@1` obok `scout_retrieved_corpus@1`, (b) jeden rozszerzony 
 **Kolejność implementacji:** Tavily-in-Scout (sekcja 19.4) należy zaimplementować w tym samym bloku
 co reszta Fazy B2 (sekcja 16), żeby A07 dostał oba typy wejść od razu i schemat kart był kompletny
 od początku. Wdrożenie WebFetch w A07 (sekcja 19.5) należy do bloku implementacji A07, nie Scouta.
+
+
+## 20. Dziennik retest Fazy B2 — Runda 19 (2026-06-24)
+
+**Status:** PASS — infrastruktura B2 zamknięta.
+
+Retest wykonany na `mocks/g02/KP_intake_bundle.json` (`task_id: awif_2025_wyk_09_fra`).
+
+### Wyniki kluczowych punktów kontrolnych
+
+- `research_front_door`: ref `artifact://handoffs/g02_input.json` — OK.
+- `research_planner_prepare` (scout): `ready=True`, `max_topics=6` — OK.
+- A01 plan: 5 topiców, all drivers covered, 0 issues, `validate_research_plan` OK.
+- `research_planner_finalize` (scout): status=ok, one-shot — **PASS**.
+- `research_scout_fanout` (total_target=50, oversample=1.2): 5/5 completed, no crash — OK.
+- `index.json` (scout_run_index@1): valid — OK.
+- `retrieved_corpus.json` × 5 (scout_retrieved_corpus@1): valid — OK.
+- Sekrety w artefaktach: brak — OK.
+- A07/A09 nie uruchomione: OK.
+
+### Finding F-N — 0 PDF przy FRA domain
+
+OpenAlex znalazł 27 prac w puli (openalex_pool łącznie), ale downloaded=0.
+Przyczyna 1: temat FRA (Forward Rate Agreement) to literatura głównie paywallowa — większość
+artykułów w JFE, RFS, JBF nie jest open access. Przyczyna 2: query = `topic.name` (długi opis
+wielosłowny) trafia gorzej w OpenAlex niż krótkie terminy akademickie.
+
+**Rekomendacja:** `scout_request.build_scout_search_requests` powinien używać `search_strategy.core_terms[0]`
+jako primary query do OpenAlex zamiast `topic.name`. To jest improvement backlog — nie blokuje B2.
+
+---
+
+## 21. Dziennik retest Fazy B2 — Runda 20 (2026-06-24) — Fix 1–4
+
+**Status:** PASS — Fix 1–4 skuteczne, PDF yield 0→29.
+
+### Fix 1–4 zaimplementowane
+
+| Fix | Plik | Istota |
+|-----|------|--------|
+| Fix 1 | `shared/scripts/g02/scout_request.py` | query = `core_terms[:3]` joined, fallback: `topic.name` |
+| Fix 2 | `shared/scripts/g02/scout_request.py` | `_year_bounds`: `year_from=None` gdy `include_canonical_sources=True` |
+| Fix 3 | `shared/scripts/g02/scout_fanout.py` | `facets_required = keywords[:2]` (nie pełne query) |
+| Fix 4 | `shared/scripts/g02/scout_fanout.py` | `snowball=True` |
+
+### Wyniki Rundy 20
+
+Dane wejściowe bez zmian: `mocks/g02/KP_intake_bundle.json`, ten sam plan `awif_2025_wyk_09_fra.1.0.0.json`.
+
+| topic_id | OA pool | deduped | downloaded | stubs |
+|----------|--------:|--------:|-----------:|------:|
+| TOPIC_FRA_OTC_CASH_SETTLEMENT | 73 | 102 | 8 | 5 |
+| TOPIC_FRA_NAARB_PRICING_SPOT_CURVE | 85 | 111 | 12 | 7 |
+| TOPIC_FRA_PAYOFF_LONG_SHORT_HEDGING | 65 | 85 | 6 | 3 |
+| TOPIC_FRA_SETTLEMENT_DAY_COUNT_EXAMPLES | 37 | 96 | 2 | 2 |
+| TOPIC_FRA_TIMELINE_PEDAGOGY | 69 | 119 | 1 | 0 |
+| **SUMA** | **329** | **513** | **29** | **17** |
+
+Unique_work_count=28 (jeden PDF pobrany dla 2 tematów).
+
+### Finding F-O — szum przy rozszerzonym recall
+
+Wzrost puli (27→329 OA) generuje szum: 3 pobrane prace spoza dziedziny FRA
+(`ΛCDM` astrofizyka, `day care` psychiatria, `nonlinear pedagogy` sport). Przyczyna:
+genericne tokeny (`day`, `count`, `pedagogy`) w query matchują niepowiązane dziedziny.
+
+**Backlog Fix 5:** bramka trafności dla prac bez abstraktu (obniżony próg zamiast score=0).
+**Backlog Fix 6:** `verify_llm=True` selektywnie dla prac poniżej threshold domeny.
+
+
+---
+
+## 22. Runda 21 — Live test: Canonical/Recent Quota + A10 Review Loop (2026-06-24)
+
+### Cel
+
+Przetestować live całą nową ścieżkę: `research_graph_input@1` → A01 → A10 review (max 1) → Scout fanout z `quota_canonical=0.4` i `source_type` w corpus.
+
+### Nowe funkcje wdrożone przed Rundą 21
+
+| Komponent | Zmiany |
+|-----------|--------|
+| `scout/engine.py` | `_classify_source_type()`, `_apply_recency_quota()`, `quota_canonical`+`recency_year_from` w `run_student` |
+| `scout_fanout.py` | `quota_canonical`, `recency_year_from`, `snowball=request.get()`, `source_type`+`source_type_basis` w corpus |
+| `scout_request.py` | `_recency_year_from()`, `_year_bounds()` nulling, pola `recency_year_from`+`snowball`+`quota_canonical` |
+| `research_server.py` | `_research_scout_prompt()` → 6-krokowy flow z A10 loop |
+
+### A10 review — wynik
+
+- Werdykt: **APPROVED** (1 wywołanie, findings=0, confidence=high)
+- Decision spersystowany: `artifact://reviews/plan-review-live-001-attempt-1.json`
+- Krok 5 (conditional revision): pominięty
+
+### Walidacja requestów
+
+Wszystkie 5 topiców: `quota_canonical=0.4` ✓, `recency_year_from=2021` ✓, `year_from=null` ✓, `snowball=True` ✓
+
+### Wyniki per topic
+
+| topic_id | downloaded | canonical | recent | OA pool |
+|----------|------------|-----------|--------|---------|
+| TOPIC_FRA_OTC_CASH_SETTLEMENT | 8 | 8 | 0 | 73 |
+| TOPIC_FRA_NAARB_PRICING_SPOT_CURVE | 12 | 11 | 1 | 85 |
+| TOPIC_FRA_PAYOFF_LONG_SHORT_HEDGING | 6 | 5 | 1 | 65 |
+| TOPIC_FRA_SETTLEMENT_DAY_COUNT_EXAMPLES | 2 | 2 | 0 | 37 |
+| TOPIC_FRA_TIMELINE_PEDAGOGY | 1 | 1 | 0 | 69 |
+| **SUMA** | **29** | **27 (93%)** | **2 (7%)** | 329 |
+
+### Analiza proporcji canonical/recent
+
+Cel kwoty: 40% canonical. Wynik: 93% canonical.
+Przyczyna: rollover — pula OA domeny FRA jest zdominowana przez starsze (canonical) prace.
+Mechanizm kwoty działa poprawnie (canonical→recent rollover potwierdza implementację _apply_recency_quota).
+
+### Finding F-P (info): Rollover OA pool
+
+Proporcja końcowych PDF nie odzwierciedla kwoty 40/60 bo brakuje recent OA papers w tej niszy.
+Mechanizm implementacji PASS. Dane do monitorowania w kolejnych rundach.
+
+### Finding F-R (major, backlog): Brak adaptera A07
+
+A07 (`synthesis.py`) oczekuje `retrieved_corpus@1` z polami: `approved_source_set_ref`,
+`candidate_source_index_ref`, `run_directory_ref`, `policy`, `review_profile_ref` — których Scout nie dostarcza.
+**Backlog Fix 7:** adapter `scout_retrieved_corpus@1` → `retrieved_corpus@1`.
+
+### Testy regresyjne
+
+37 targeted PASS, 1 pre-existing fail (test_plugin_build — niezwiązane).
+
+### Werdykt Rundy 21: PARTIAL
+
+Nowe funkcje canonical/recent i pętla A10 wdrożone i zweryfikowane. Blokada E2E: Fix 7 (adapter A07).

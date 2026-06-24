@@ -21,7 +21,7 @@
         "type": "object",
         "required": [
           "source_id", "local_ref", "sha256", "byte_count", "doi", "title",
-          "year", "topic_ids"
+          "year", "fwci", "source_type", "source_type_basis", "topic_ids"
         ],
         "properties": {
           "source_id": {"type": "string"},
@@ -31,8 +31,11 @@
           "doi": {"type": ["string", "null"]},
           "title": {"type": "string"},
           "year": {"type": ["integer", "null"]},
+          "fwci": {"type": ["number", "null"]},
           "venue": {"type": ["string", "null"]},
           "work_type": {"type": ["string", "null"]},
+          "source_type": {"type": "string", "enum": ["canonical", "recent"]},
+          "source_type_basis": {"type": "string", "minLength": 1},
           "topic_ids": {"type": "array", "items": {"type": "string"}}
         }
       }

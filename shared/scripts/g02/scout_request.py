@@ -88,17 +88,13 @@ def scout_profile_settings(profile_name: str = "scout") -> dict:
     }
 
 
-def _year_bounds(plan: dict, topic: dict, *, current_year: int | None = None) -> tuple[int | None, int | None]:
+def _recency_year_from(plan: dict, topic: dict, *,
+                       current_year: int | None = None) -> int | None:
     search_strategy = topic.get("search_strategy") if isinstance(topic.get("search_strategy"), dict) else {}
     global_constraints = plan.get("global_constraints") if isinstance(plan.get("global_constraints"), dict) else {}
-
     year_from = _int_or_none(search_strategy.get("year_from"))
-    year_to = _int_or_none(search_strategy.get("year_to"))
     if year_from is None:
         year_from = _int_or_none(global_constraints.get("year_from"))
-    if year_to is None:
-        year_to = _int_or_none(global_constraints.get("year_to"))
-
     approved_scope = plan.get("approved_research_scope")
     if year_from is None and isinstance(approved_scope, dict):
         recency_window = _positive_int(approved_scope.get("recency_window_years"))
@@ -106,6 +102,23 @@ def _year_bounds(plan: dict, topic: dict, *, current_year: int | None = None) ->
         if recency_window is not None and include_recent:
             anchor_year = current_year if current_year is not None else date.today().year
             year_from = anchor_year - recency_window
+    return year_from
+
+
+def _year_bounds(plan: dict, topic: dict, *, current_year: int | None = None) -> tuple[int | None, int | None]:
+    search_strategy = topic.get("search_strategy") if isinstance(topic.get("search_strategy"), dict) else {}
+    global_constraints = plan.get("global_constraints") if isinstance(plan.get("global_constraints"), dict) else {}
+    year_from = _recency_year_from(plan, topic, current_year=current_year)
+    year_to = _int_or_none(search_strategy.get("year_to"))
+    if year_to is None:
+        year_to = _int_or_none(global_constraints.get("year_to"))
+    approved_scope = plan.get("approved_research_scope")
+    if isinstance(approved_scope, dict) \
+            and approved_scope.get("include_canonical_sources") is True \
+            and approved_scope.get("include_recent_developments") is True:
+        # The boundary classifies the two pools; it must not be sent to providers
+        # as a hard lower-year filter or canonical candidates become unreachable.
+        year_from = None
     return year_from, year_to
 
 
@@ -179,11 +192,29 @@ def build_scout_search_requests(
         if not isinstance(topic, dict):
             continue
         topic_id = str(topic.get("topic_id") or f"topic_{index}").strip()
-        query = str(topic.get("name") or "").strip()
-        if not topic_id or not query:
+        if not topic_id or not str(topic.get("name") or "").strip():
             continue
         search_strategy = topic.get("search_strategy") if isinstance(topic.get("search_strategy"), dict) else {}
+        # Fix 1: użyj core_terms jako zapytania — krótsze i bardziej trafne niż topic.name.
+        # Fallback na topic.name gdy brak core_terms (zachowanie wstecznie kompatybilne).
+        core_terms = _strings(search_strategy.get("core_terms"))
+        query = " ".join(core_terms[:3]) if core_terms else str(topic.get("name") or "").strip()
         year_from, year_to = _year_bounds(research_plan, topic, current_year=current_year)
+        recency_year_from = _recency_year_from(
+            research_plan, topic, current_year=current_year
+        )
+        # Kwota canonical/recent: gdy plan deklaruje oba flagi, zarezerwuj 40% slotów
+        # dla źródeł kanonicznych (starszych / high-fwci / snowball). Proporcja 40/60
+        # jest rozsądnym domyślem — wystarczy starych podręczników i nowych artykułów.
+        # None oznacza brak kwoty (tylko jeden z flagów aktywny lub żaden).
+        approved_scope = research_plan.get("approved_research_scope")
+        approved_scope = approved_scope if isinstance(approved_scope, dict) else {}
+        include_canonical = approved_scope.get("include_canonical_sources") is True
+        include_recent = approved_scope.get("include_recent_developments") is True
+        if include_canonical and include_recent:
+            quota_canonical: float | None = 0.4
+        else:
+            quota_canonical = None
         request = {
             "schema_version": SCOUT_SEARCH_REQUEST_CONTRACT,
             "artifact_version": "1.0.0",
@@ -194,11 +225,14 @@ def build_scout_search_requests(
             "intent": str(topic.get("purpose") or "").strip(),
             "target_n": per_topic_target,
             "year_from": year_from,
+            "recency_year_from": recency_year_from,
             "year_to": year_to,
             "lang": _lang(research_plan, topic),
             "work_type": _work_type(research_plan, topic),
             "output_language": output_language,
             "excluded_terms": _strings(search_strategy.get("excluded_terms")),
+            "quota_canonical": quota_canonical,
+            "snowball": include_canonical,
             "created_from": {
                 "task_id": task_id,
                 "topic_id": topic_id,

@@ -59,8 +59,12 @@ def _fake_topic_runner(job: dict) -> dict:
             "doi": doi,
             "title": title,
             "year": 2025,
+            "fwci": 0.8,
             "venue": "Journal of Offline Tests",
             "work_type": "article",
+            "source": "openalex",
+            "source_type": "recent",
+            "source_type_basis": "year 2025 >= 2021; no canonical signal",
         }],
         "manifest_ok": True,
     }
@@ -97,6 +101,9 @@ def test_fanout_persists_complete_layout_and_cross_topic_membership(tmp_path, mo
         document = corpus["documents"][0]
         assert (run_root / document["local_ref"]).is_file()
         assert len(document["sha256"]) == 64
+        assert document["source_type"] == "recent"
+        assert document["source_type_basis"]
+        assert document["fwci"] == 0.8
 
     shared = next(item for item in index["deduplicated_works"]
                   if item["doi"] == "10.1000/shared")
@@ -153,7 +160,7 @@ def test_production_topic_worker_uses_approved_oversample(tmp_path, monkeypatch)
     captured = {}
 
     def fake_run_student(topic, n, email, pdf_dir, **kwargs):
-        captured["oversample"] = kwargs["oversample"]
+        captured.update(kwargs)
         return RunResult(target_n=n)
 
     monkeypatch.setattr(scout_fanout, "run_student", fake_run_student)
@@ -162,12 +169,18 @@ def test_production_topic_worker_uses_approved_oversample(tmp_path, monkeypatch)
         "target_n": 10,
         "intent": "",
         "year_from": None,
+        "recency_year_from": 2021,
         "year_to": None,
         "work_type": "",
         "lang": "en",
         "keywords": ["Bayesian computation"],
+        "quota_canonical": 0.4,
+        "snowball": True,
     }
 
     scout_fanout._run_topic_worker({"request": request, "pdf_dir": str(tmp_path / "pdf")})
 
     assert captured["oversample"] == 1.2
+    assert captured["quota_canonical"] == 0.4
+    assert captured["recency_year_from"] == 2021
+    assert captured["snowball"] is True

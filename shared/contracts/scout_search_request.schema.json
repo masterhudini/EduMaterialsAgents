@@ -14,11 +14,14 @@
     "intent": {"type": "string"},
     "target_n": {"type": "integer"},
     "year_from": {"type": ["integer", "null"]},
+    "recency_year_from": {"type": ["integer", "null"]},
     "year_to": {"type": ["integer", "null"]},
     "lang": {"type": "string", "enum": ["en", "pl", "both"]},
     "work_type": {"type": "string"},
     "output_language": {"type": "string"},
     "excluded_terms": {"type": "array", "items": {"type": "string"}},
+    "quota_canonical": {"type": ["number", "null"], "minimum": 0.0, "maximum": 1.0},
+    "snowball": {"type": "boolean"},
     "created_from": {
       "type": "object",
       "properties": {

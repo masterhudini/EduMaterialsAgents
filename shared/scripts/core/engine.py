@@ -390,6 +390,13 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
                                                   attempt=attempt, base=base, log=log)
                     if env.get("status") == "failed":
                         return _failed(ref, env.get("summary", f"{name}: failed"), env.get("issues", []))
+                    if name in revisions and manifest.get("max_reviews_per_producer_run") == 1:
+                        log.append(name, "correction_finalized", status="ok",
+                                   detail={"ref": ref, "attempt": attempt,
+                                           "reviewed_again": False})
+                        produced_refs[name] = ref
+                        pending = None
+                        continue
                     pending = {"node": name, "ref": ref, "attempt": attempt}
                     return _await_review(ref, attempt)
                 if name in (node_results or {}):
@@ -404,6 +411,13 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
                                            [{"severity": "blocker", "type": "contract",
                                              "message": "; ".join(valid["errors"])}])
                     log.append(name, "node_submitted", detail={"ref": ref, "attempt": attempt})
+                    if name in revisions and manifest.get("max_reviews_per_producer_run") == 1:
+                        log.append(name, "correction_finalized", status="ok",
+                                   detail={"ref": ref, "attempt": attempt,
+                                           "reviewed_again": False})
+                        produced_refs[name] = ref
+                        pending = None
+                        continue
                     pending = {"node": name, "ref": ref, "attempt": attempt}
                     return _await_review(ref, attempt)
                 # nothing submitted yet -> ask the host to run the node
@@ -443,6 +457,12 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
                         "summary": envelope.get("summary", f"{name}: failed"),
                         "issues": envelope.get("issues", []),
                     }
+
+                if attempt and manifest.get("max_reviews_per_producer_run") == 1:
+                    log.append(name, "correction_finalized", status="ok",
+                               detail={"ref": ref, "attempt": attempt,
+                                       "reviewed_again": False})
+                    break
 
                 review = _review(reviewer, node, ref, attempt, prior_findings, node_runner, log, task_id)
                 review_decision = (review or {}).get("decision", (review or {}).get("verdict", "APPROVED"))
