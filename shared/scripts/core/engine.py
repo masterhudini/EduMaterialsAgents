@@ -13,6 +13,7 @@ Codex exec / stub). ``ctx`` carries ``{"input": <scoped input>, "upstream": {pro
 from __future__ import annotations
 
 import json
+import time
 import uuid
 import sys as _sys
 from dataclasses import dataclass
@@ -267,7 +268,7 @@ def _persist_node_output(spec: EngineSpec, name: str, envelope: dict, output_con
 
 def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_handler=None,
         pause_on_gate=False, pause_on_node=False, resume_token=None, decisions=None,
-        node_results=None, node_failures=None, review_decisions=None) -> dict:
+        node_results=None, node_failures=None, review_decisions=None, usage_reports=None) -> dict:
     """Run a graph; return the output handoff descriptor, or an ``awaiting_user`` request.
 
     Gates: default auto-approve; ``gate_handler(payload)->decision`` for a synchronous surface;
@@ -282,10 +283,10 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
     the reviewer and resumes with ``review_decisions={node: {decision, findings}}`` — APPROVED
     advances, REVISE re-runs the node, BLOCKED/exhausted fails. User gates still pause as usual.
     """
-    log = event_log.open_log(spec.graph_id)
     node_runner = node_runner or default_stub_runner
+    resuming = bool(resume_token and input_ref is None)
 
-    if resume_token and input_ref is None:
+    if resuming:
         cp = _load_checkpoint(spec.graph_id, resume_token)
         input_ref = cp["input_ref"]
         produced_refs = dict(cp["produced_refs"])
@@ -293,18 +294,25 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
         pending = cp.get("pending")
         attempts = dict(cp.get("attempts", {}))
         revisions = dict(cp.get("revisions", {}))
+        pending_since = cp.get("pending_since")
         token = resume_token
-        log.append("ENTRY", "resume", detail={"resume_token": token, "done": sorted(produced_refs)})
     else:
         produced_refs, gate_decisions = {}, {}
         pending, attempts, revisions = None, {}, {}
+        pending_since = None
         token = resume_token or uuid.uuid4().hex[:12]
+    # One stable run_id (= the resume token) so every step of a host-driven run — each a separate
+    # resume process — writes to the SAME trace log and summary() can roll up the whole run.
+    log = event_log.open_log(spec.graph_id, run_id=token)
+    if resuming:
+        log.append("ENTRY", "resume", detail={"resume_token": token, "done": sorted(produced_refs)})
     gate_decisions.update(decisions or {})
 
     def _cp() -> dict:
         return {"input_ref": input_ref, "produced_refs": produced_refs,
                 "gate_decisions": gate_decisions, "pending": pending,
-                "attempts": attempts, "revisions": revisions}
+                "attempts": attempts, "revisions": revisions,
+                "pending_since": pending_since}
 
     rgi = handoff.load_handoff(input_ref, contract_ref=spec.input_contract, base=base)
     ref0 = input_ref.get("ref") if isinstance(input_ref, dict) else input_ref
@@ -403,10 +411,24 @@ def run(spec: EngineSpec, input_ref=None, *, base=None, node_runner=None, gate_h
                             return _failed(ref, f"{name}: submitted artifact fails {output_contract}",
                                            [{"severity": "blocker", "type": "contract",
                                              "message": "; ".join(valid["errors"])}])
+                    # Plane A: the host played the node between our yield and this resume, so the
+                    # wall-clock gap (via the checkpoint) is the node's orchestrated duration. This is
+                    # how we time a Claude/Codex-played agent without seeing inside the host.
+                    if isinstance(pending_since, (int, float)):
+                        log.span(name, name, kind="agent",
+                                 duration_ms=(time.time() - pending_since) * 1000.0)
+                        pending_since = None
+                    # Plane B: only the host knows its model tokens; record what it reported (if any).
+                    rep = (usage_reports or {}).get(name)
+                    if isinstance(rep, dict):
+                        log.usage(name, input_tokens=rep.get("input_tokens"),
+                                  output_tokens=rep.get("output_tokens"),
+                                  model=rep.get("model"), source="host_reported")
                     log.append(name, "node_submitted", detail={"ref": ref, "attempt": attempt})
                     pending = {"node": name, "ref": ref, "attempt": attempt}
                     return _await_review(ref, attempt)
                 # nothing submitted yet -> ask the host to run the node
+                pending_since = time.time()
                 _save_checkpoint(spec.graph_id, token, _cp())
                 log.append(name, "awaiting_node", status="paused",
                            detail={"resume_token": token, "attempt": attempt})

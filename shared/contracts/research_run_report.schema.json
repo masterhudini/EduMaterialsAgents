@@ -44,6 +44,7 @@
     "output_ref": {"type": ["string", "null"]},
     "resume_token": {"type": ["string", "null"]},
     "gate": {"type": ["object", "null"]},
+    "trace": {"type": "object", "description": "Roll-up of the run trace: per-agent/tool durations and per-node token usage (input/output) with run totals."},
     "report_ref": {"type": "string"}
   }
 }

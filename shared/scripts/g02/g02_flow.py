@@ -163,8 +163,13 @@ def run(
     node_runner=None,
     gate_handler=None,
     pause_on_gate=False,
+    pause_on_node=False,
     resume_token=None,
     decisions=None,
+    node_results=None,
+    node_failures=None,
+    review_results=None,
+    usage_reports=None,
     reviewed=False,
     through="g02-a09-synthesizer",
     topic_ids=None,
@@ -172,7 +177,8 @@ def run(
     """Dispatch to the no-op wiring harness or the fail-closed reviewed frontier.
 
     ``reviewed=False`` is intentionally the default for compatibility with deterministic wiring
-    tests. Every real host entrypoint must pass ``reviewed=True``.
+    tests. Every real host entrypoint must pass ``reviewed=True``. Host-driven mode
+    (``pause_on_node=True``) needs no ``node_runner`` — reviewed_flow yields each node to the host.
     """
     if not reviewed:
         return engine.run(
@@ -180,7 +186,7 @@ def run(
             gate_handler=gate_handler, pause_on_gate=pause_on_gate,
             resume_token=resume_token, decisions=decisions,
         )
-    if node_runner is None:
+    if node_runner is None and not pause_on_node:
         raise ValueError("reviewed execution requires a real host node_runner")
     from g02 import reviewed_flow
 
@@ -190,8 +196,13 @@ def run(
         node_runner=node_runner,
         gate_handler=gate_handler,
         pause_on_gate=pause_on_gate,
+        pause_on_node=pause_on_node,
         resume_token=resume_token,
         decisions=decisions,
+        node_results=node_results,
+        node_failures=node_failures,
+        review_results=review_results,
+        usage_reports=usage_reports,
         through=through,
         topic_ids=topic_ids,
     )
