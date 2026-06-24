@@ -8,6 +8,7 @@ dist/
 # Runtime artifacts (drafts, logs, hydrated artifacts) — project-local, per design.
 # Override location with EMAGENTS_HOME.
 .emagents/
+outputs/
 
 # OS / Windows-mount noise
 *:Zone.Identifier

@@ -139,6 +139,14 @@ def test_fanout_rejects_non_scout_topic_count(tmp_path, monkeypatch):
         )
 
 
+def test_default_run_root_points_to_outputs_handoff(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+
+    root = scout_fanout.default_scout_run_root("RESEARCH MOCK 001")
+
+    assert root == tmp_path / "outputs" / "g02" / "RESEARCH_MOCK_001" / "scout"
+
+
 def test_fanout_redacts_provider_key_from_worker_error(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENALEX_API_KEY", "super-secret-offline-key")
 

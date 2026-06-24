@@ -1,0 +1,59 @@
+{
+  "title": "Bounded and auditable A09 deep-dive package for Scout A07 lookup pointers",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "scout_run_ref",
+    "max_windows_per_source", "max_chars_per_window", "requests", "limitations"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["scout_a07_deep_dive@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "scout_run_ref": {"type": "string"},
+    "max_windows_per_source": {"type": "integer"},
+    "max_chars_per_window": {"type": "integer"},
+    "requests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "deep_dive_id", "pointer_id", "topic_id", "source_id", "reason",
+          "selection_criterion", "additional_windows", "limitations", "limitation"
+        ],
+        "properties": {
+          "deep_dive_id": {"type": "string"},
+          "pointer_id": {"type": "string"},
+          "topic_id": {"type": "string"},
+          "source_id": {"type": "string"},
+          "reason": {"type": "string"},
+          "selection_criterion": {"type": "string"},
+          "additional_windows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "window_id", "source_id", "topic_id", "kind",
+                "matched_terms", "char_count", "text"
+              ],
+              "properties": {
+                "window_id": {"type": "string"},
+                "source_id": {"type": ["string", "null"]},
+                "topic_id": {"type": ["string", "null"]},
+                "kind": {"type": "string"},
+                "page": {"type": ["integer", "null"]},
+                "matched_terms": {"type": "array", "items": {"type": "string"}},
+                "char_count": {"type": "integer"},
+                "text": {"type": "string"}
+              }
+            }
+          },
+          "limitations": {"type": "array", "items": {"type": "string"}},
+          "limitation": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  }
+}

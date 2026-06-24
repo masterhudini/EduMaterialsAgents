@@ -1,6 +1,6 @@
 {
   "title": "Compact pre-approval handoff candidate from G02-A09 to Graph03.",
-  "x-version": "1.0",
+  "x-version": "1.2",
   "x-major": 1,
   "type": "object",
   "required": [
@@ -13,7 +13,10 @@
     "schema_version": {"type": "string", "enum": ["solution_input_candidate@1"]},
     "artifact_version": {"type": "string"},
     "task_id": {"type": "string"},
-    "synthesis_mode": {"type": "string", "enum": ["evidence_without_claim_assessment"]},
+    "synthesis_mode": {
+      "type": "string",
+      "enum": ["evidence_without_claim_assessment", "scout_fast"]
+    },
     "claim_assessment_performed": {"type": "boolean", "enum": [false]},
     "graph03_handoff_constraints": {"type": "object"},
     "suggested_updates": {"type": "array", "items": {"type": "object"}},
@@ -23,6 +26,73 @@
     "limitations": {"type": "array", "items": {"type": "string"}},
     "unresolved_items": {"type": "array", "items": {"type": "object"}},
     "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
-    "a08_status": {"type": "string", "enum": ["skipped_fast_profile"]}
+    "a08_status": {
+      "type": "string",
+      "enum": ["skipped_fast_profile", "skipped_scout_fast"]
+    },
+    "source_pipeline": {"type": "string"},
+    "intake_ref": {"type": ["string", "null"]},
+    "plan_ref": {"type": "string"},
+    "presentation_context": {"type": "object"},
+    "topics_covered": {"type": "array", "items": {"type": "object"}},
+    "slide_update_plan": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "update_id", "target", "action", "ready_to_apply_text", "topic_id",
+          "linked_intake_ids", "extension_relation", "finding", "rationale",
+          "evidence", "source_refs", "confidence"
+        ],
+        "properties": {
+          "update_id": {"type": "string"},
+          "target": {
+            "type": "object",
+            "required": ["affected_slides", "slide_ids", "section_hint", "section", "placement"],
+            "properties": {
+              "affected_slides": {
+                "type": "array",
+                "items": {"type": ["string", "integer"]}
+              },
+              "slide_ids": {
+                "type": "array",
+                "items": {"type": ["string", "integer"]}
+              },
+              "section_hint": {"type": ["string", "null"]},
+              "section": {"type": ["string", "null"]},
+              "placement": {"type": "string"}
+            }
+          },
+          "action": {"type": "string"},
+          "ready_to_apply_text": {
+            "type": "object",
+            "required": ["slide_bullet", "speaker_note", "optional_detail"],
+            "properties": {
+              "slide_bullet": {"type": "string"},
+              "speaker_note": {"type": "string"},
+              "optional_detail": {"type": "string"}
+            }
+          },
+          "topic_id": {"type": ["string", "null"]},
+          "linked_intake_ids": {"type": "object"},
+          "extension_relation": {"type": "string"},
+          "finding": {"type": "string"},
+          "rationale": {"type": "string"},
+          "evidence": {"type": "array", "items": {"type": "object"}},
+          "source_refs": {"type": "array"},
+          "confidence": {"type": "string"}
+        }
+      }
+    },
+    "slide_revision_priorities": {"type": "array", "items": {"type": "object"}},
+    "do_not_change": {"type": "array", "items": {"type": "object"}},
+    "coverage_gaps": {"type": "array", "items": {"type": "object"}},
+    "deep_dive_used": {"type": "array", "items": {"type": "object"}},
+    "a09_model_pass": {"type": "boolean"},
+    "synthesis_engine": {
+      "type": "string",
+      "enum": ["a09_opus_medium", "deterministic_fallback"]
+    },
+    "generated_at": {"type": "string"}
   }
 }
