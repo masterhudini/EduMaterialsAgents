@@ -1,0 +1,66 @@
+{
+  "title": "Solution blueprint — the approved Solution Graph deliverable (thin).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "task_id", "output_language", "lecture_outline",
+    "applied_updates", "deferred_items", "source_attribution"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["solution_blueprint@1"]},
+    "task_id": {"type": "string"},
+    "output_language": {"type": "string"},
+    "lecture_outline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["section_id", "title"],
+        "properties": {
+          "section_id": {"type": "string"},
+          "title": {"type": "string"},
+          "summary": {"type": "string"},
+          "slide_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "applied_updates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["update_id", "change_summary"],
+        "properties": {
+          "update_id": {"type": "string"},
+          "change_summary": {"type": "string"},
+          "finding_ref": {"type": "string"},
+          "slide_impact_card_ref": {"type": "string"},
+          "target_section_id": {"type": "string"},
+          "source_refs": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "deferred_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["item_id", "reason"],
+        "properties": {
+          "item_id": {"type": "string"},
+          "reason": {"type": "string"},
+          "related_claim_ref": {"type": "string"}
+        }
+      }
+    },
+    "source_attribution": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_ref"],
+        "properties": {
+          "source_ref": {"type": "string"},
+          "used_for": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  }
+}
