@@ -11,12 +11,12 @@
     "lecture_baseline_ref": {"type": "string", "description": "artifact:// ref to lecture_baseline@1 (from g01)"},
     "research_bundle_ref": {
       "type": "string",
-      "description": "artifact:// ref to the g02 research hand-off. Its contract depends on research_bundle_kind: user_approved_research_bundle@1 for the reviewed/human-gated path, or solution_input_candidate@1 for the deterministic scout_fast path (no Human Research Gate)."
+      "description": "artifact:// ref to the g02 research hand-off. Its contract depends on research_bundle_kind: solution_input_candidate@1 for the official candidate path, or user_approved_research_bundle@1 for the legacy reviewed path."
     },
     "research_bundle_kind": {
       "type": "string",
       "enum": ["user_approved_research_bundle", "solution_input_candidate"],
-      "description": "Which g02 contract research_bundle_ref points at. Defaults to user_approved_research_bundle (legacy reviewed path) when absent. scout_fast runs set solution_input_candidate."
+      "description": "Which g02 contract research_bundle_ref points at. Defaults to user_approved_research_bundle for legacy requests when absent. Official candidate requests set solution_input_candidate."
     }
   }
 }

@@ -7,8 +7,8 @@ write path are published.
 
 Tools: solution_front_door, solution_node_input, solution_finalize, solution_run_stub,
 solution_run_codex, solution_run_hosted, solution_resume, solution_get_artifact,
-solution_blueprint_finalize.
-Prompt: solution (semantic 'zrob solution' entry over a user_approved_research_bundle).
+solution_blueprint_build, solution_blueprint_render, solution_blueprint_finalize.
+Prompt: solution (semantic 'zrob solution' entry over a solution_graph_input request).
 """
 from __future__ import annotations
 
@@ -18,6 +18,8 @@ import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))  # -> shared/scripts
 
 from g03 import g03_flow as gf  # noqa: E402
+from g03 import blueprint as bp  # noqa: E402
+from g03 import render as renderer  # noqa: E402
 from g03 import solution  # noqa: E402
 from core import graphs, handoff  # noqa: E402
 from mcp import server_core  # noqa: E402
@@ -76,6 +78,20 @@ def _blueprint_finalize(args: dict):
     return solution.finalize_blueprint(args["task_id"], args["blueprint"])
 
 
+def _blueprint_build(args: dict):
+    return bp.build_blueprint(args["context"])
+
+
+def _blueprint_render(args: dict):
+    if "blueprint" in args:
+        value = args["blueprint"]
+    elif "context" in args:
+        value = bp.build_blueprint(args["context"])
+    else:
+        raise ValueError("solution_blueprint_render requires blueprint or context")
+    return renderer.render_blueprint(value, persist=bool(args.get("persist")))
+
+
 def _trace(args: dict):
     from core import event_log
     return event_log.open_log(gf.GRAPH_ID, run_id=args["run_id"]).summary()
@@ -83,14 +99,15 @@ def _trace(args: dict):
 
 _CONTEXT = {"type": ["object", "string"],
             "description": "the g03 boundary: a request object {lecture_baseline_ref|lecture_baseline, "
-                           "research_bundle_ref|research_bundle, task_id?, output_language?} joining "
-                           "g01's lecture_baseline@1 and g02's user_approved_research_bundle@1, a path "
-                           "to such a request JSON, or an artifact:// ref to an existing "
-                           "solution_graph_input@1"}
+                           "research_bundle_ref|research_bundle, research_bundle_kind?, task_id?, "
+                           "output_language?} joining g01's lecture_baseline@1 and g02's "
+                           "solution_input_candidate@1, with legacy user_approved_research_bundle@1 "
+                           "still accepted, a path to such a request JSON, or an artifact:// ref to "
+                           "an existing solution_graph_input@1"}
 
 TOOLS = [
     {"name": "solution_front_door",
-     "description": "Validate a user_approved_research_bundle bundle, store it and return {ref, task_id}.",
+     "description": "Validate a dual-input G03 request, store lecture/research sides as needed and return {ref, task_id}.",
      "inputSchema": {"type": "object", "required": ["context"], "properties": {"context": _CONTEXT}}},
     {"name": "solution_node_input",
      "description": "Show the scoped input each g03 agent node receives (all nodes, or one --node).",
@@ -151,6 +168,20 @@ TOOLS = [
                     "hosted node needs as input.",
      "inputSchema": {"type": "object", "required": ["ref"],
                      "properties": {"ref": {"type": "string"}}}},
+    {"name": "solution_blueprint_build",
+     "description": "Build and validate an inline solution_blueprint@1 from a G03 context. This does "
+                    "not persist; call solution_blueprint_finalize to store the result.",
+     "inputSchema": {"type": "object", "required": ["context"], "properties": {"context": _CONTEXT}}},
+    {"name": "solution_blueprint_render",
+     "description": "Render a solution_blueprint@1, or a G03 context that can build one, into a "
+                    "human-readable Markdown plan plus a short inline console summary. This is a "
+                    "view only; it does not replace the solution_blueprint@1 deliverable.",
+     "inputSchema": {"type": "object",
+                     "properties": {"blueprint": {"type": ["object", "string"],
+                                                  "description": "solution_blueprint@1 object, descriptor, path or artifact:// ref"},
+                                    "context": _CONTEXT,
+                                    "persist": {"type": "boolean",
+                                                "description": "When true, store the Markdown view as an artifact."}}}},
     {"name": "solution_blueprint_finalize",
      "description": "G03-A01 write path: validate the produced solution_blueprint@1 and store it "
                     "server-side; returns envelope@1 with the artifact ref in produced[]. Use this as "
@@ -175,6 +206,8 @@ DISPATCH = {
     "solution_resume": _HOSTED["resume"],
     "solution_get_artifact": _HOSTED["get_artifact"],
     "solution_trace": _trace,
+    "solution_blueprint_build": _blueprint_build,
+    "solution_blueprint_render": _blueprint_render,
     "solution_blueprint_finalize": _blueprint_finalize,
     "solution_finalize": _finalize,
 }
@@ -182,9 +215,10 @@ DISPATCH = {
 PROMPTS = [
     {"name": "solution",
      "description": "Semantic 'zrob solution' / 'zrób solution' entrypoint for running the Solution "
-                    "Graph over a user_approved_research_bundle bundle (the approved research handoff).",
+                    "Graph over a solution_graph_input request. Official research input is "
+                    "solution_input_candidate@1; legacy user_approved_research_bundle@1 is accepted.",
      "arguments": [{"name": "context",
-                    "description": "Path or artifact:// ref to a user_approved_research_bundle bundle.",
+                    "description": "Path, inline object or artifact:// ref for a G03 front-door request.",
                     "required": True}]},
 ]
 
@@ -194,13 +228,17 @@ def _prompt(name: str, args: dict) -> dict:
     if not context:
         raise ValueError("missing required prompt argument 'context'")
     return {
-        "description": "Semantic 'zrob solution' entrypoint for a user_approved_research_bundle bundle.",
+        "description": "Semantic 'zrob solution' entrypoint for a G03 solution_graph_input request.",
         "messages": [{"role": "user", "content": {"type": "text", "text": (
             "The user asked to zrob solution / zrób solution. Use the edu-materials-agents "
-            f"orchestrate-solution workflow for this user_approved_research_bundle bundle: {context}\n\n"
+            f"orchestrate-solution workflow for this G03 request: {context}\n\n"
+            "The official research side is solution_input_candidate@1 with "
+            "research_bundle_kind='solution_input_candidate'. Legacy user_approved_research_bundle@1 "
+            "continues to work when explicitly provided or inferred.\n\n"
             "For the Codex workflow, call solution_run_codex with gates='pause' so the user solution "
             "gate returns an awaiting_user resume token. For a deterministic wiring check only, use "
-            "solution_run_stub.")}}],
+            "solution_run_stub. After a solution_blueprint@1 is produced or approved, call "
+            "solution_blueprint_render to present the Markdown plan and inline summary.")}}],
     }
 
 

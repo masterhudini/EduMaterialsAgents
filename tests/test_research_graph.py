@@ -144,3 +144,19 @@ def test_manifest_matches_registration():
             assert node["name"] in registered
         if node["kind"] == "user-gate":
             assert node["name"] not in registered
+
+
+def test_a07_contracts_keep_classic_node_and_scout_handoff_separate():
+    manifest = graphs.load("g02")
+    a07 = next(node for node in graphs.nodes(manifest)
+               if node["name"] == "g02-a07-paper-review")
+
+    assert a07["output_contract"] == "paper_review@1"
+    assert a07["produces"] == ["paper_review@1"]
+
+    scout_contracts = manifest["execution_profiles"]["scout"]["handoff_contracts"]
+    assert scout_contracts["a07_partial_review"] == "scout_a07_partial_review@1"
+    assert scout_contracts["a07_aggregate"] == "scout_a07_reviews@1"
+    assert scout_contracts["a09_output"] == "solution_input_candidate@1"
+    assert scout_contracts["a07_aggregate"] != a07["output_contract"]
+    assert "a07_review@1" not in json.dumps(manifest)
