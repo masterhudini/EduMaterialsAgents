@@ -82,6 +82,15 @@
       "scout": {
         "total_target": 50,
         "max_parallel_topics": 6
+      },
+      "handoff_contracts": {
+        "scout_run_index": "scout_run_index@1",
+        "a07_model_task": "scout_a07_model_task@1",
+        "a07_partial_review": "scout_a07_partial_review@1",
+        "a07_aggregate": "scout_a07_reviews@1",
+        "a09_model_task": "scout_a09_model_task@1",
+        "a09_deep_dive": "scout_a07_deep_dive@1",
+        "a09_output": "solution_input_candidate@1"
       }
     }
   },
