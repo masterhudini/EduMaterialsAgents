@@ -9,7 +9,8 @@ Drive G02 without doing hidden producer work in the orchestrator. The active run
 prompt-assisted host-driven: use `research_run_hosted` / `research_resume`, and let the runner read
 `shared/graphs/g02.graph.json` as the node, operation and contract source of truth.
 
-Do not use the retired A02-A06/A08/A11/source-selection workflow for new runs.
+Do not use the retired A02-A06/A10/source-selection workflow for new runs. A11 (web cases) and A08
+(claim recommender) are active nodes in the current `scout_e2e` graph.
 
 ## Semantic Entry
 
@@ -35,8 +36,19 @@ Do not use the retired A02-A06/A08/A11/source-selection workflow for new runs.
 3. `awaiting_node`: run only the named node using the payload `input`, `upstream`, `node_key`,
    `finalize_op` and `finalize_args`. Fill the raw model JSON into the finalizer call, then resume
    with `research_resume({resume_token, node_results: {node_key: <finalize envelope>}})`.
-4. After the A01 planner finalizer succeeds and before resuming, call `research_provider_setup` if
-   the user wants to provide email or an OpenAlex key for Scout.
+4. After the A01 planner finalizer succeeds and before resuming, call `research_provider_setup`
+   with no arguments to show current provider readiness, then ask the user for a provider decision.
+   Email is required for arXiv/Crossref/Unpaywall; OpenAlex additionally needs its free token (skip
+   OpenAlex without it) — encourage the token and offer the signup link, but never block on it. Do
+   not continue until the user provides `email` / `openalex_key` values or explicitly chooses to
+   continue without additional provider credentials. If values are provided, call
+   `research_provider_setup` again with exactly those user-supplied values before resuming.
+4a. `g02-a11-market-cases` runs early (right after the planner): the agent uses the host's own web
+   search/fetch to find concrete, dated real-world/market cases per topic and finalizes
+   `market_case_findings@1`. There is no provider seam — never call Tavily/SearXNG.
+4b. `g02-a08-claim-verification` runs last, before the gate, with no web search: it binds the A09
+   synthesis and the A11 web cases into additive per-topic `recommended_claims` and re-finalizes the
+   recommendation-enriched `solution_input_candidate@1`.
 5. For `g02-a07-paper-review`, each `node_key` is one topic/source work unit. The worker may read
    only the supplied `a07_review_task@1`, selected windows and compact intake context.
 6. `awaiting_user`: present the User Research Gate summary, limitations, optional improvements and
@@ -50,11 +62,14 @@ Do not use the retired A02-A06/A08/A11/source-selection workflow for new runs.
 - Keep refs to plan, Scout run, A07 reviews, research state and final bundle.
 - Keep full PDFs, full extracted text and verbose per-source review details out of the downstream
   handoff.
-- Surface A08 omission as an explicit fast/scout-mode limitation.
+- Frame the handoff additively: surface A11 real-world cases and A08 `recommended_claims` as
+  interesting, well-documented additions to consider, not as a critique of the current slides.
+- Note that formal claim verification is not performed (G02 recommends rather than verifies).
 
 ## Boundaries
 
-- Do not call retired A02-A06/A08/A11 tools or retired user source filtering gates.
+- Do not call retired A02-A06/A10 tools or retired user source filtering gates. Drive A11 and A08
+  through their current `research_a11_*` / `research_a08_*` operations.
 - `research_run_codex` is a valid entrypoint for a non-Codex shell or CI (it spawns nested
   `codex exec` workers, exactly like `intake_run_codex` / `solution_run_codex`); inside a Codex or
   host session prefer `research_run_hosted` because you are already the worker.

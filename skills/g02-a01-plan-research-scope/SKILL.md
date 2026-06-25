@@ -20,17 +20,19 @@ base. The calling agent performs deterministic finalization and artifact storage
    severity flow issues, drivers linked to multiple approved upstream cards, central concepts used
    by more than one claim and drivers that unblock later evidence or retrieval. Medium-priority
    drivers may be absorbed into a stronger group when they support the same investigation.
-3. In the default fast profile, respect the scoped `constraints.max_topics` limit, normally two.
-   When that scoped limit is six (the `scout` profile), choose 4–6 groups based on actual intake
-   coverage rather than filling a quota mechanically. Select the highest-value groups by the score
+3. Respect the scoped `constraints.min_topics` and `constraints.max_topics` supplied by
+   `research_planner_input@1`. Choose only as many groups as needed for actual intake coverage
+   within those bounds. The graph execution profile owns numeric topic limits; do not infer a fixed
+   quota from examples, prior runs or profile names. Select the highest-value groups by the score
    above. Do not select the first groups merely because they appear first in the input.
 4. Group drivers only when they support one operational investigation and require compatible
    terminology, evidence standards, source roles and time windows. Split mixed groups when any of
    these differ materially, unless a lower-priority driver can be represented as a coverage unit
    inside one of the selected high-value topics without broadening scope.
-5. If an approved driver cannot fit into the selected fast-profile topics, place it in
+5. If an approved driver cannot fit within the scoped graph topic limits, place it in
    `uncovered_driver_ids` and add an `input_issues` entry with severity `minor` or `major`,
-   depending on downstream consequence. Do not create a third topic to avoid an explicit tradeoff.
+   depending on downstream consequence. Do not create extra topics outside graph limits to avoid an
+   explicit tradeoff.
 6. Assign a stable `TOPIC_*` ID, concise name and one bounded purpose to each group. The name must
    be an established research field, method family or technical problem usable directly in an
    academic search. Ground it in the linked drivers and their approved claim, concept, update-need,

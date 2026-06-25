@@ -86,6 +86,36 @@ def test_driver_plays_gate_with_handler_until_completed(monkeypatch):
     assert decisions_seen == [{reviewed_flow.RESEARCH_GATE: {"status": "approved"}}]
 
 
+def test_driver_plays_a11_early_and_a08_late(monkeypatch):
+    # Full active node order: A11 (after planner) -> A07 -> A09 -> A08 (before gate).
+    script = [
+        _awaiting_node("g02-a11-market-cases", "g02-a11-market-cases"),
+        _awaiting_node("g02-a07-paper-review", "g02-a07-paper-review:T1:S1"),
+        _awaiting_node("g02-a09-synthesizer", "g02-a09-synthesizer"),
+        _awaiting_node("g02-a08-claim-verification", "g02-a08-claim-verification"),
+        {"status": "awaiting_user", "resume_token": "tok", "gate": {"id": "research"}},
+    ]
+
+    def fake_run(input_ref=None, **kwargs):
+        return script.pop(0)
+
+    monkeypatch.setattr(reviewed_flow, "run", fake_run)
+
+    runner_calls = []
+
+    def node_runner(node, ctx, log):
+        runner_calls.append(node["name"])
+        return {"schema_version": "envelope@1", "status": "ok", "produced": []}
+
+    out = reviewed_flow.run_with_codex("artifact://g02/in.json", node_runner=node_runner)
+
+    assert out["status"] == "awaiting_user"
+    assert runner_calls == [
+        "g02-a11-market-cases", "g02-a07-paper-review",
+        "g02-a09-synthesizer", "g02-a08-claim-verification",
+    ]
+
+
 def test_run_with_codex_requires_node_runner():
     with pytest.raises(ValueError, match="node_runner"):
         reviewed_flow.run_with_codex("artifact://g02/in.json", node_runner=None)

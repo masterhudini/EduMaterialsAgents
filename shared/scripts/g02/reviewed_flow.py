@@ -20,16 +20,19 @@ import time
 import uuid
 
 from core import artifacts, contracts, event_log, graphs, paths
-from g02 import a07_bridge, a07_runner, a09_synthesis, planner, scout_fanout, synthesis
+from g02 import (a07_bridge, a07_runner, a08_recommend, a09_synthesis, a11_cases,
+                 planner, scout_fanout, synthesis)
 
 
 GRAPH_ID = "g02"
 REPORT_CONTRACT = "research_run_report@1"
 RESEARCH_GATE = "user-research-gate"
 PLANNER_NODE = "g02-a01-planner"
+A11_NODE = "g02-a11-market-cases"
 SCOUT_NODE = "research-scout-fanout"
 A07_NODE = "g02-a07-paper-review"
 A09_NODE = "g02-a09-synthesizer"
+A08_NODE = "g02-a08-claim-verification"
 
 
 def _safe(value: object) -> str:
@@ -219,6 +222,23 @@ def _planner_payload(manifest: dict, state: dict, rgi: dict, *, log, base=None) 
     }
 
 
+def _a11_payload(manifest: dict, state: dict, *, base=None) -> dict:
+    prepared = a11_cases.prepare_a11(state["refs"]["research_plan"], intake_ref=state["input_ref"], base=base)
+    return {
+        "node": A11_NODE,
+        "node_key": A11_NODE,
+        "input": prepared["task_input"],
+        "upstream": {"research_plan": state["refs"]["research_plan"]},
+        "output_contract": a11_cases.FINDINGS_CONTRACT,
+        "finalize_op": _operation(manifest, A11_NODE, "finalize"),
+        "finalize_args": {
+            "plan_ref": state["refs"]["research_plan"],
+            "intake_ref": state["input_ref"],
+            "output": "<raw g02-a11-market-cases JSON or omit for deterministic empty fallback>",
+        },
+    }
+
+
 def _run_scout(manifest: dict, state: dict, *, base=None) -> None:
     if state.get("scout_run_dir"):
         return
@@ -342,6 +362,29 @@ def _a09_payload(manifest: dict, state: dict) -> dict:
     }
 
 
+def _a08_payload(manifest: dict, state: dict, *, base=None) -> dict:
+    findings_ref = state["refs"].get("market_case_findings")
+    prepared = a08_recommend.prepare_a08(
+        state["refs"]["solution_input_candidate"], findings_ref=findings_ref, base=base
+    )
+    return {
+        "node": A08_NODE,
+        "node_key": A08_NODE,
+        "input": prepared["task_input"],
+        "upstream": {
+            "solution_input_candidate": state["refs"]["solution_input_candidate"],
+            "market_case_findings": findings_ref,
+        },
+        "output_contract": a08_recommend.SOLUTION_CONTRACT,
+        "finalize_op": _operation(manifest, A08_NODE, "finalize"),
+        "finalize_args": {
+            "candidate_ref": state["refs"]["solution_input_candidate"],
+            "findings_ref": findings_ref,
+            "output": "<raw g02-a08-claim-verification JSON or omit for deterministic fallback>",
+        },
+    }
+
+
 def _finalize_research_state(state: dict, solution_envelope: dict, *, base=None) -> None:
     if state["refs"].get("research_state"):
         return
@@ -424,10 +467,10 @@ def run(input_ref=None, *, node_runner=None, base=None, gate_handler=None, pause
     """
     del node_runner, review_results  # this single pass is hosted; the Codex driver lives in run_with_codex.
     manifest = graphs.load(GRAPH_ID)
-    if through not in {PLANNER_NODE, SCOUT_NODE, A07_NODE, A09_NODE, RESEARCH_GATE}:
+    if through not in {PLANNER_NODE, A11_NODE, SCOUT_NODE, A07_NODE, A09_NODE, A08_NODE, RESEARCH_GATE}:
         raise ValueError("active g02 hosted flow supports through=g02-a01-planner, "
-                         "research-scout-fanout, g02-a07-paper-review, "
-                         "g02-a09-synthesizer or user-research-gate")
+                         "g02-a11-market-cases, research-scout-fanout, g02-a07-paper-review, "
+                         "g02-a09-synthesizer, g02-a08-claim-verification or user-research-gate")
     if not pause_on_node:
         raise ValueError("active g02 hosted flow requires pause_on_node=True")
 
@@ -463,6 +506,18 @@ def run(input_ref=None, *, node_runner=None, base=None, gate_handler=None, pause
                 plan_ref = _produced_path(result, "research_plan@1", artifact_type="research_plan")
                 state["refs"]["research_plan"] = plan_ref
                 _record(state, PLANNER_NODE, plan_ref)
+            elif pending["node"] == A11_NODE:
+                findings_ref = _produced_path(result, a11_cases.FINDINGS_CONTRACT,
+                                              artifact_type="market_case_findings")
+                state["refs"]["market_case_findings"] = findings_ref
+                _record(state, A11_NODE, findings_ref)
+            elif pending["node"] == A08_NODE:
+                enriched_ref = _produced_path(result, a08_recommend.SOLUTION_CONTRACT,
+                                              artifact_type="solution_input_candidate")
+                state["refs"]["solution_input_candidate"] = enriched_ref
+                state["a09_solution_envelope"] = result
+                state["a08_done"] = True
+                _record(state, A08_NODE, enriched_ref)
             elif pending["node"] == A07_NODE:
                 partial_ref = _produced_path(result, a07_bridge.A07_PARTIAL_CONTRACT,
                                              artifact_type="a07_review")
@@ -483,6 +538,12 @@ def run(input_ref=None, *, node_runner=None, base=None, gate_handler=None, pause
             _clear_checkpoint(state["resume_token"])
             return _report(state, "completed", output_ref=state["refs"]["research_plan"], base=base)
 
+        if "market_case_findings" not in state["refs"]:
+            return _await_node(state, _a11_payload(manifest, state, base=base), log=log, base=base)
+        if through == A11_NODE:
+            _clear_checkpoint(state["resume_token"])
+            return _report(state, "completed", output_ref=state["refs"]["market_case_findings"], base=base)
+
         _run_scout(manifest, state, base=base)
         if through == SCOUT_NODE:
             _clear_checkpoint(state["resume_token"])
@@ -499,8 +560,15 @@ def run(input_ref=None, *, node_runner=None, base=None, gate_handler=None, pause
 
         if "solution_input_candidate" not in state["refs"]:
             return _await_node(state, _a09_payload(manifest, state), log=log, base=base)
-        _finalize_research_state(state, state["a09_solution_envelope"], base=base)
         if through == A09_NODE:
+            _finalize_research_state(state, state["a09_solution_envelope"], base=base)
+            _clear_checkpoint(state["resume_token"])
+            return _report(state, "completed", output_ref=state["refs"]["research_state"], base=base)
+
+        if not state.get("a08_done"):
+            return _await_node(state, _a08_payload(manifest, state, base=base), log=log, base=base)
+        _finalize_research_state(state, state["a09_solution_envelope"], base=base)
+        if through == A08_NODE:
             _clear_checkpoint(state["resume_token"])
             return _report(state, "completed", output_ref=state["refs"]["research_state"], base=base)
 

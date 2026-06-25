@@ -247,6 +247,27 @@
     "source_refs": {"type": "array", "items": {"type": "object"}},
     "limitations": {"type": "array", "items": {"type": "string"}},
     "unresolved_items": {"type": "array", "items": {"type": "object"}},
-    "confidence": {"type": "string", "enum": ["low", "medium", "high"]}
+    "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+    "recommended_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "recommendation_id", "topic_id", "claim", "why_interesting",
+          "support_basis", "confidence"
+        ],
+        "properties": {
+          "recommendation_id": {"type": "string"},
+          "topic_id": {"type": "string"},
+          "claim": {"type": "string"},
+          "why_interesting": {"type": "string"},
+          "support_basis": {"type": "string", "enum": ["literature", "web", "both"]},
+          "literature_refs": {"type": "array", "items": {"type": "object"}},
+          "web_case_refs": {"type": "array", "items": {"type": "string"}},
+          "linked_claim_ids": {"type": "array", "items": {"type": "string"}},
+          "confidence": {"type": "string", "enum": ["low", "medium", "high"]}
+        }
+      }
+    }
   }
 }

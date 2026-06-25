@@ -31,8 +31,10 @@ def source_skills() -> list[Path]:
 
 EXPECTED_AGENT_SETTINGS = {
     "g02-a01-planner": ("opus", "medium"),
+    "g02-a11-market-cases": ("sonnet", "medium"),
     "g02-a07-paper-review": ("opus", "medium"),
     "g02-a09-synthesizer": ("opus", "medium"),
+    "g02-a08-claim-verification": ("opus", "medium"),
 }
 
 

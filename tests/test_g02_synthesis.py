@@ -297,16 +297,18 @@ def test_human_research_gate_bundle_finalize_after_approval_only():
     assert contracts.validate(bundle, "user_approved_research_bundle@1")["ok"]
 
 
-def test_active_graph_scout_e2e_skips_a08_and_reaches_research_gate():
+def test_active_graph_scout_e2e_includes_a11_a08_and_reaches_research_gate():
     manifest = graphs.load("g02")
     assert manifest["sequence"] == [
         "g02-a01-planner",
+        "g02-a11-market-cases",
         "research-scout-fanout",
         "g02-a07-paper-review",
         "g02-a09-synthesizer",
+        "g02-a08-claim-verification",
         "user-research-gate",
     ]
     profile = manifest["execution_profiles"]["scout_e2e"]
-    assert profile["skip_nodes"] == ["g02-a08-claim-verification"]
+    assert profile["skip_nodes"] == []
     assert profile["implemented_terminal_stage"] == "user-research-gate"
     assert profile["review_mode"] == "none"

@@ -35,9 +35,11 @@ class ResearchGraphTests(unittest.TestCase):
         self.assertEqual(profile["scout"]["total_target"], 50)
         self.assertEqual(manifest["sequence"], [
             "g02-a01-planner",
+            "g02-a11-market-cases",
             "research-scout-fanout",
             "g02-a07-paper-review",
             "g02-a09-synthesizer",
+            "g02-a08-claim-verification",
             "user-research-gate",
         ])
 
@@ -142,6 +144,34 @@ class ResearchGraphTests(unittest.TestCase):
             res = graph_check.check_manifest(graph_path, plugin_root=root)
         self.assertFalse(res["ok"], res)
         self.assertIn("hardcoded/retired G02 flow term", "\n".join(res["errors"]))
+
+    def test_graph_check_rejects_hardcoded_g02_a01_topic_count_policy(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "shared" / "contracts").mkdir(parents=True)
+            for schema in (ROOT / "shared" / "contracts").glob("*.schema.json"):
+                (root / "shared" / "contracts" / schema.name).write_text(
+                    schema.read_text(encoding="utf-8"),
+                    encoding="utf-8",
+                )
+            (root / "agents").mkdir()
+            for name in ("g02-a07-paper-review", "g02-a09-synthesizer"):
+                (root / "agents" / f"{name}.md").write_text("---\nname: x\n---\n", encoding="utf-8")
+            (root / "agents" / "g02-a01-planner.md").write_text(
+                "When the scoped limit is six, choose 4-6 groups.",
+                encoding="utf-8",
+            )
+            skill = root / "skills" / "g02-orchestrate-research"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                "Read shared/graphs/g02.graph.json as source of truth.",
+                encoding="utf-8",
+            )
+            graph_path = root / "g02.graph.json"
+            graph_path.write_text(json.dumps(graphs.load("g02")), encoding="utf-8")
+            res = graph_check.check_manifest(graph_path, plugin_root=root)
+        self.assertFalse(res["ok"], res)
+        self.assertIn("hardcoded G02 planner topic-count policy", "\n".join(res["errors"]))
 
 if __name__ == "__main__":
     unittest.main()

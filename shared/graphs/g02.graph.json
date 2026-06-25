@@ -1,6 +1,6 @@
 {
   "graph_id": "g02",
-  "description": "G02 Research Graph. Active path: A01 plans, deterministic Scout discovery retrieves the corpus, A07 agents review bounded source windows, A09 agent synthesizes a compact research_state and Graph03 handoff, then the Human Research Gate freezes user_approved_research_bundle@1. No A10 review runs in the active profile. Legacy A02-A06/A08/A11/source-selection code is retained only as deprecated implementation, not as active graph sequence.",
+  "description": "G02 Research Graph. Active path: A01 plans, A11 finds real-world/market cases through the host's native web search, deterministic Scout discovery retrieves the scholarly corpus, A07 agents review bounded source windows, A09 agent synthesizes a compact research_state and Graph03 handoff, A08 binds the scholarly synthesis and the web cases into additive per-topic claim recommendations (no web of its own), then the Human Research Gate freezes user_approved_research_bundle@1. No A10 review runs in the active profile. Legacy A02-A06/source-selection code is retained only as deprecated implementation, not as active graph sequence.",
   "orchestrator": "g02-orchestrate-research",
   "reviewer": null,
   "review_task_contract": null,
@@ -12,9 +12,7 @@
     "scout_e2e": {
       "terminal_stage": "user-research-gate",
       "implemented_terminal_stage": "user-research-gate",
-      "skip_nodes": [
-        "g02-a08-claim-verification"
-      ],
+      "skip_nodes": [],
       "synthesis_mode": "evidence_without_claim_assessment",
       "require_reviewed_a07_provenance": false,
       "required_stream_policy": "available_streams",
@@ -34,7 +32,9 @@
         "a07_aggregate": "scout_a07_reviews@1",
         "a09_model_task": "scout_a09_model_task@1",
         "a09_deep_dive": "scout_a07_deep_dive@1",
-        "a09_output": "solution_input_candidate@1"
+        "a09_output": "solution_input_candidate@1",
+        "a11_findings": "market_case_findings@1",
+        "a08_output": "solution_input_candidate@1"
       }
     }
   },
@@ -117,6 +117,18 @@
         "effort": "medium"
       }
     },
+    "g02-a11-market-cases": {
+      "claude": {
+        "model": "sonnet",
+        "effort": "medium"
+      }
+    },
+    "g02-a08-claim-verification": {
+      "claude": {
+        "model": "opus",
+        "effort": "medium"
+      }
+    },
     "g02-a07-paper-review": {
       "claude": {
         "model": "opus",
@@ -147,6 +159,21 @@
       },
       "produces": [
         "research_plan@1"
+      ]
+    },
+    {
+      "name": "g02-a11-market-cases",
+      "kind": "agent",
+      "complexity_class": "research_search",
+      "input_contract": "research_plan@1",
+      "review_profile": null,
+      "output_contract": "market_case_findings@1",
+      "operations": {
+        "prepare": "research_a11_prepare",
+        "finalize": "research_a11_finalize"
+      },
+      "produces": [
+        "market_case_findings@1"
       ]
     },
     {
@@ -201,6 +228,21 @@
       ]
     },
     {
+      "name": "g02-a08-claim-verification",
+      "kind": "agent",
+      "complexity_class": "synthesis_decision",
+      "input_contract": "solution_input_candidate@1",
+      "review_profile": null,
+      "output_contract": "solution_input_candidate@1",
+      "operations": {
+        "prepare": "research_a08_prepare",
+        "finalize": "research_a08_finalize"
+      },
+      "produces": [
+        "solution_input_candidate@1"
+      ]
+    },
+    {
       "name": "user-research-gate",
       "kind": "user-gate",
       "output_contract": "user_approved_research_bundle@1",
@@ -235,9 +277,11 @@
   ],
   "sequence": [
     "g02-a01-planner",
+    "g02-a11-market-cases",
     "research-scout-fanout",
     "g02-a07-paper-review",
     "g02-a09-synthesizer",
+    "g02-a08-claim-verification",
     "user-research-gate"
   ]
 }

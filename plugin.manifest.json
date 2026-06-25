@@ -55,8 +55,10 @@
       "agents/g01-a04-lecture-baseline.md",
       "agents/g01-a10-output-reviewer.md",
       "agents/g02-a01-planner.md",
+      "agents/g02-a11-market-cases.md",
       "agents/g02-a07-paper-review.md",
       "agents/g02-a09-synthesizer.md",
+      "agents/g02-a08-claim-verification.md",
       "agents/g03-a01-solution-architect.md",
       "agents/g03-a10-output-reviewer.md"
     ],
