@@ -20,9 +20,15 @@ cannot see inside your harness — only you know what the subagent spent).
    - **`awaiting_review`**: review `artifact_ref` against `review_profile` + the node's acceptance
      criteria (read it with `intake_get_artifact`); resume `review_decisions={node: {decision,
      findings}}` (APPROVED / REVISE / BLOCKED). Review honestly — it is a real quality gate.
-   - **`awaiting_user`**: present the user intake gate, collect the required decisions, resume
-     `decisions={gate: ...}`.
-   - **`research_graph_input@1` handoff descriptor**: done — that is the approved handoff to g02.
+   - **`awaiting_user`**: present the user intake gate (it runs BEFORE a03/a04), collect the required
+     decisions and resume `decisions={gate: <intake_gate_decisions@1 object>}` (a `task_id`, plus
+     `confirm_audience` / `confirm_domains` / `approve_research_scope` / `locked_sections`). The engine
+     persists them and threads the ref into a03/a04 via `upstream["user-intake-gate"]` — you do not
+     re-pass them by hand.
+   - **`g01-a04-lecture-baseline` `awaiting_node`**: when you play this node, the ref you submit
+     (`node_results["g01-a04-lecture-baseline"]`) IS the `lecture_baseline@1` for g03 — capture it.
+   - **`research_graph_input@1` handoff descriptor**: done — that is the approved handoff to g02. The
+     run also carries `secondary_exits["lecture_baseline@1"]`; surface BOTH refs (g02 input + g03 input).
 3. Never write artifacts yourself; the finalize ops persist them server-side. Call
    `intake_trace(run_id=resume_token)` any time for the per-agent / per-tool durations and the
    input/output token roll-up of the run.

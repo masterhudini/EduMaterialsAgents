@@ -13,8 +13,10 @@ every required human action.
 
 - Consume a path or artifact reference satisfying `intake_graph_input@1` (the uploaded PDF + ingestion
   profile).
-- Produce only a validated `research_graph_input@1` descriptor after the user intake gate — this is
-  the approved handoff the Research Graph (g01 -> g02) consumes.
+- Produce TWO validated boundary outputs after the user intake gate (both depend on the gate decisions):
+  - `research_graph_input@1` — the approved handoff the Research Graph (g01 -> g02) consumes (from a03).
+  - `lecture_baseline@1` — the lecture skeleton the Solution Graph (g01 -> g03) consumes (from a04);
+    declared as the manifest `secondary_exits`. Capture and surface BOTH refs.
 - Persist intermediate artifacts and carry refs instead of full documents in orchestration context.
 - Use `envelope@1` for execution status and `review_decision@1` for reviewer verdicts.
 
@@ -29,16 +31,21 @@ every required human action.
 3. After every producer artifact, invoke `g01-a10-output-reviewer` with exactly one artifact, the
    node's review profile, the output contract, acceptance criteria and revision history. Handle
    `APPROVED` / `REVISE` / `BLOCKED` per the manifest revision policy.
-4. Run the **User Intake Gate**: present the understanding (slide count, detected domains, main
+4. Run the **User Intake Gate** (it sits BETWEEN a02 and a03/a04 — its decisions are inputs to both
+   producers, so it must run first): present the understanding (slide count, detected domains, main
    concepts, potential logic issues, claims requiring research) and collect: confirm audience,
-   confirm domains, approve research scope, mark locked sections.
-5. Run `g01-a03-intake-synthesizer` to project the approved understanding into `research_graph_input@1`
-   (compact cards + refs), review it, then validate, freeze and emit the handoff.
+   confirm domains, approve research scope, mark locked sections. These are persisted as
+   `intake_gate_decisions@1` and threaded to a03/a04.
+5. Run `g01-a03-intake-synthesizer` to project the approved understanding + gate decisions into
+   `research_graph_input@1` (compact cards + refs), review it, then validate, freeze and emit the handoff.
+6. Run `g01-a04-lecture-baseline` to project SlideViews + IntakeUnderstanding + the gate's locked
+   sections into `lecture_baseline@1` (the lecture skeleton + claim_id/concept_id join keys g03 needs),
+   review it, then capture its ref as the second boundary output (`secondary_exits`).
 
 ## Output requirements
 
-- The only thing crossing the boundary is the `research_graph_input@1` descriptor (plus `artifact://`
-  refs inside it). Never emit raw PDF text or full intake states.
+- Two typed artifacts cross the boundary: `research_graph_input@1` (-> g02) and `lecture_baseline@1`
+  (-> g03), plus `artifact://` refs inside them. Never emit raw PDF text or full intake states.
 - Default human-readable output to English when `output_language` is absent.
 
 ## Boundaries

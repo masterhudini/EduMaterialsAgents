@@ -112,6 +112,16 @@ def finalize_lecture_baseline(task_id: str, lecture_baseline: dict, *, base=None
                               type_name="lecture_baseline", subdir="baseline", base=base)
 
 
+def finalize_gate_decisions(task_id: str, decisions: dict, *, base=None) -> dict:
+    """User intake gate write path: persist a validated intake_gate_decisions@1 (the audience,
+    domains, research scope and locked sections the user approved); return envelope@1. The
+    synthesizer (a03) and lecture-baseline (a04) read it via ``upstream`` so neither runs ahead of
+    the user's approval.
+    """
+    return _finalize_artifact(task_id, decisions, contract="intake_gate_decisions@1",
+                              type_name="intake_gate_decisions", subdir="gate", base=base)
+
+
 def resolve_context(path_or_ref, *, base=None):
     """Front-door normalizer: a ``*.pdf`` path is uploaded first; anything else passes through."""
     if isinstance(path_or_ref, str) and path_or_ref.lower().endswith(".pdf"):
