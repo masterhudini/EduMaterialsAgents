@@ -14,7 +14,7 @@ from core import artifacts, contracts
 from g02 import oa_retrieval, provider_config
 
 INPUT_CONTRACT = "retrieval_input@1"
-APPROVED_SET_CONTRACT = "human_approved_source_set@1"
+APPROVED_SET_CONTRACT = "user_approved_source_set@1"
 INDEX_CONTRACT = "candidate_source_index@1"
 RESOLUTION_CONTRACT = "open_access_resolution@1"
 FILE_CONTRACT = "retrieved_file_candidate@1"

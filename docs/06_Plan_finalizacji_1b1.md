@@ -161,7 +161,7 @@ Komponenty:
 - `candidate_index_input@1`,
 - `candidate_source_index@1`,
 - `human_source_selection@1`,
-- `human_approved_source_set@1`.
+- `user_approved_source_set@1`.
 
 Zaimplementowana część A05 obejmuje reviewed-only scoped input, generator
 `candidate_source_review.md`, deduplikację, ranking, coverage, opis artykułów z abstraktu lub

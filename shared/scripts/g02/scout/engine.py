@@ -317,55 +317,6 @@ def _short_oa_id(work_id: str) -> str:
     return (work_id or "").rstrip("/").rsplit("/", 1)[-1]
 
 
-def snowball_references(
-    seeds: list["Candidate"], email: str, *, api_key: str = "",
-    n_seeds: int = SNOWBALL_SEEDS, fanout: int = SNOWBALL_FANOUT, cap: int = LONGLIST_CAP,
-    progress: Progress | None = None,
-) -> list["Candidate"]:
-    """Snowball wstecz (1 hop): dla TOP ``n_seeds`` prac pobierz ich PRZYPISY
-    (``referenced_works`` z OpenAlex) i dociągnij metadane tych prac. Łapie pozycje
-    FUNDAMENTALNE, do których trafne prace się odwołują, a których wyszukiwanie
-    tematyczne nie wyciąga (np. metodyczne prace bazowe). Best-effort, bounded:
-    ``fanout`` przypisów/pracę, ``cap`` łącznie; każde zapytanie liczy się do
-    bezpiecznika HTTP. ``seeds`` powinny być posortowane malejąco po trafności."""
-    key_suffix = f"&api_key={urllib.parse.quote(api_key)}" if api_key else ""
-    mail = urllib.parse.quote(email or "")
-    # 1) zbierz ID przypisów z top-seedów (pobierając pełną pracę po DOI)
-    ref_ids: list[str] = []
-    seen_ids: set[str] = set()
-    expanded = 0
-    for seed in seeds[:n_seeds]:
-        if not seed.doi or seed.doi.startswith(("arxiv:", "10.48550/arxiv")):
-            continue  # preprinty arXiv często bez referenced_works w OpenAlex
-        work = _openalex_get(f"{OPENALEX}/doi:{urllib.parse.quote(seed.doi)}?mailto={mail}{key_suffix}", email)
-        refs = work.get("referenced_works") or []
-        if not refs:
-            continue
-        expanded += 1
-        for rid in refs[:fanout]:
-            sid = _short_oa_id(rid)
-            if sid and sid not in seen_ids:
-                seen_ids.add(sid)
-                ref_ids.append(sid)
-        if len(ref_ids) >= cap:
-            break
-    ref_ids = ref_ids[:cap]
-    if progress:
-        progress("snowball", f"Snowball: {expanded} top-prac → {len(ref_ids)} przypisów do dociągnięcia")
-    # 2) batch-pobierz metadane przypisów (filter openalex_id:W1|W2|…, do 50/zapytanie)
-    out: list[Candidate] = []
-    for i in range(0, len(ref_ids), 50):
-        batch = ref_ids[i:i + 50]
-        filt = "|".join(batch)
-        data = _openalex_get(f"{OPENALEX}?filter=openalex_id:{filt}&per_page=50&mailto={mail}{key_suffix}", email)
-        for work in data.get("results", []):
-            cand = parse_openalex_work(work)
-            if cand:
-                cand.source = "snowball"
-                out.append(cand)
-    return out
-
-
 def openalex_search(
     topic: str, n: int, email: str, *,
     year_from: int | None = None, year_to: int | None = None,
@@ -541,229 +492,6 @@ def semantic_scholar_pdf(doi: str, email: str, *, api_key: str = "") -> str | No
         return None
     return ((data or {}).get("openAccessPdf") or {}).get("url")
 
-
-# -- Weryfikacja trafnosci LLM (OpenRouter) -----------------------------
-OPENROUTER = "https://openrouter.ai/api/v1/chat/completions"
-
-
-def extract_relevance_text(pdf_path: "Path", max_chars: int = 6000) -> str:
-    """Wytnij Abstract+Wstep (2 pierwsze strony) + Wnioski (2 ostatnie) - tani
-    kontekst do oceny trafnosci (~1500 tokenow zamiast calego PDF). Wymaga pypdf;
-    brak -> pusty string (weryfikacja pominieta)."""
-    try:
-        from pypdf import PdfReader
-    except Exception:
-        return ""
-    try:
-        pages = PdfReader(str(pdf_path)).pages
-        n = len(pages)
-        idx = sorted({*range(min(2, n)), *[i for i in (n - 2, n - 1) if i >= 2]})
-        text = "\n".join((pages[i].extract_text() or "") for i in idx if 0 <= i < n)
-        return text[:max_chars]
-    except Exception:
-        return ""
-
-
-def _extract_json(raw: str) -> dict:
-    """Wyluskaj obiekt JSON z odpowiedzi LLM (czesto opakowany w ```json)."""
-    import re as _re
-    m = _re.search(r"\{.*\}", raw or "", _re.S)
-    if not m:
-        return {}
-    try:
-        return json.loads(m.group(0))
-    except Exception:
-        return {}
-
-
-def openrouter_relevant(topic: str, intent: str, text: str, api_key: str, model: str, *, summary_words: int = 50, timeout: float = 60.0) -> dict:
-    """Werdykt trafnosci: {relevant: 1|0|None, reason, model, input_chars}.
-    temperature=0 + wymuszony JSON. Fail-open: blad API/JSON -> relevant=None
-    (plik zostaje jako 'unverified', nie gubimy go na czkawce sieci)."""
-    out = {"relevant": None, "score": None, "summary": "", "reason": "", "model": model, "input_chars": len(text or "")}
-    if not api_key or not text:
-        out["reason"] = "brak klucza lub tekstu"
-        return out
-    system = prompts.relevance_system(summary_words)
-    user = f"TEMAT: {topic}\nINTENCJA: {intent or '(brak)'}\n\nFRAGMENT (abstrakt+wstep+wnioski):\n{text}"
-    body = json.dumps({
-        "model": model,
-        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-        "temperature": 0,
-        "response_format": {"type": "json_object"},
-    }).encode("utf-8")
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://local.llmwiki.radar",
-        "X-Title": "Radar PDF",
-    }
-    try:
-        # POST przez odporny HTTP: 429/5xx (LLM API czesto dlawi) + Retry-After +
-        # backoff. Ponowienie czatu jest bezpieczne - nieudana proba nie jest liczona.
-        raw = request_with_retry(OPENROUTER, data=body, method="POST", headers=headers, timeout=timeout, max_attempts=3)
-        data = json.loads(raw.decode("utf-8"))
-        content = (((data.get("choices") or [{}])[0].get("message") or {}).get("content")) or ""
-        parsed = _extract_json(content)
-        rel = parsed.get("relevant")
-        out["relevant"] = 1 if rel in (1, "1", True) else (0 if rel in (0, "0", False) else None)
-        try:
-            sc = parsed.get("score")
-            out["score"] = float(sc) if sc is not None else None
-            if out["score"] is not None:
-                out["score"] = min(1.0, max(0.0, out["score"]))
-        except (TypeError, ValueError):
-            out["score"] = None
-        out["reason"] = str(parsed.get("reason") or "")[:300]
-        out["summary"] = str(parsed.get("summary") or "")[:400]
-        if out["relevant"] is None:
-            out["reason"] = out["reason"] or "nieczytelny JSON z modelu"
-    except Exception as exc:  # noqa: BLE001
-        out["reason"] = f"blad API: {exc}"
-    return out
-
-
-# -- Jezyk zapytania (P1): wykrywanie + tlumaczenie -----------------------
-_PL_DIACRITICS = set("ąćęłńóśźżĄĆĘŁŃÓŚŹŻ")
-# Krotkie polskie slowa funkcyjne (z otaczajacymi spacjami) - sygnal jezyka PL
-# nawet gdy tekst nie ma diakrytykow (np. "modele sieci rynkow finansowych").
-_PL_WORDHINTS = (" i ", " w ", " z ", " ze ", " na ", " do ", " dla ", " od ", " po ",
-                 " oraz ", " że ", " ze ", " przez ", " miedzy ", " między ", " lub ", " albo ")
-
-
-def _detect_lang(text: str) -> str:
-    """Tani detektor PL/EN: diakrytyki albo polskie slowa funkcyjne -> 'pl',
-    inaczej 'en'. Sluzy tylko do decyzji 'czy trzeba tlumaczyc' (P1)."""
-    t = text or ""
-    if any(ch in _PL_DIACRITICS for ch in t):
-        return "pl"
-    low = f" {t.lower()} "
-    if any(w in low for w in _PL_WORDHINTS):
-        return "pl"
-    return "en"
-
-
-def translate_query(text: str, target_lang: str, api_key: str, model: str,
-                    *, store: Any | None = None, timeout: float = 30.0) -> str:
-    """Przetlumacz zapytanie wyszukiwania na `target_lang` ('en'|'pl') jako zwiezle
-    SLOWA KLUCZOWE (bez ozdobnikow), przez OpenRouter. Cache w store (nie placimy
-    dwa razy). Fail-safe: brak klucza/tekstu albo blad -> zwroc oryginal (caller
-    degraduje sie do zapytania w jezyku wejscia)."""
-    text = (text or "").strip()
-    if not text or not api_key or target_lang not in {"en", "pl"}:
-        return text
-    if store is not None:
-        try:
-            cached = store.get_translation(text, target_lang)
-            if cached:
-                return cached
-        except Exception:  # noqa: BLE001 - cache nie moze wywrocic wyszukiwania
-            pass
-    lang_name = "English" if target_lang == "en" else "Polish"
-    system = prompts.translate_system(lang_name)
-    body = json.dumps({
-        "model": model,
-        "messages": [{"role": "system", "content": system}, {"role": "user", "content": text}],
-        "temperature": 0,
-    }).encode("utf-8")
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://local.llmwiki.radar",
-        "X-Title": "Radar PDF",
-    }
-    try:
-        raw = request_with_retry(OPENROUTER, data=body, method="POST", headers=headers, timeout=timeout, max_attempts=3)
-        data = json.loads(raw.decode("utf-8"))
-        content = (((data.get("choices") or [{}])[0].get("message") or {}).get("content")) or ""
-        out = content.strip().splitlines()[0].strip().strip('"').strip() if content.strip() else ""
-        out = out or text
-    except Exception:  # noqa: BLE001 - fail-safe do oryginalu
-        return text
-    if store is not None and out and out != text:
-        try:
-            store.put_translation(text, target_lang, out)
-        except Exception:  # noqa: BLE001
-            pass
-    return out
-
-
-# -- Ekspansja zapytania (recall): curated query + slowa kluczowe ----------
-def _parse_expand(content: str) -> dict:
-    """Sparsuj odpowiedz LLM ekspansji do {query, keywords, domain}.
-    Czysta, deterministyczna funkcja (bez sieci) — replayowalna w bench i testach.
-    Sanityzacja: keywords -> list[str] odduplikowana (case-insensitive), max 8,
-    bez pustych; query/domain -> string (domain przyciety). Gdy nic sensownego
-    nie da sie wyluskac -> {} (caller degraduje sie do zwyklego tlumaczenia)."""
-    parsed = _extract_json(content)
-    if not isinstance(parsed, dict):
-        return {}
-    query = str(parsed.get("query") or "").strip()
-    domain = str(parsed.get("domain") or "").strip()[:120]
-    keywords: list[str] = []
-    raw_kws = parsed.get("keywords")
-    if isinstance(raw_kws, list):
-        seen_lower: set[str] = set()
-        for k in raw_kws:
-            kk = str(k).strip().strip('"').strip()
-            if kk and kk.lower() not in seen_lower:
-                seen_lower.add(kk.lower())
-                keywords.append(kk)
-            if len(keywords) >= 8:
-                break
-    if not query and not keywords:
-        return {}
-    return {"query": query, "keywords": keywords, "domain": domain}
-
-
-def expand_query(text: str, target_lang: str, api_key: str, model: str,
-                 *, store: Any | None = None, timeout: float = 30.0) -> dict:
-    """Rozszerz zapytanie dla LEPSZEGO RECALL: zwroc {query, keywords, domain} w
-    `target_lang` ('en'|'pl'). `query` = zwiezle haslo wyszukiwania; `keywords` =
-    4-8 hasel z synonimami (inne sformulowania, ktorych moga uzywac prace); `domain`
-    = krotka etykieta pola. Cache w store (jak translate_query, pod kluczem
-    'expand:<lang>'). Fail-safe: brak klucza/tekstu/blad -> {} (caller degraduje sie
-    do translate_query). Odpowiednik wezla `Translate & Keywords` z n8n."""
-    text = (text or "").strip()
-    if not text or not api_key or target_lang not in {"en", "pl"}:
-        return {}
-    cache_lang = f"expand:{target_lang}"
-    if store is not None:
-        try:
-            cached = store.get_translation(text, cache_lang)
-            if cached:
-                got = _parse_expand(cached)
-                if got:
-                    return got
-        except Exception:  # noqa: BLE001 - cache nie moze wywrocic wyszukiwania
-            pass
-    lang_name = "English" if target_lang == "en" else "Polish"
-    system = prompts.expand_system(lang_name)
-    body = json.dumps({
-        "model": model,
-        "messages": [{"role": "system", "content": system}, {"role": "user", "content": text}],
-        "temperature": 0,
-        "response_format": {"type": "json_object"},
-    }).encode("utf-8")
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://local.llmwiki.radar",
-        "X-Title": "Radar PDF",
-    }
-    try:
-        raw = request_with_retry(OPENROUTER, data=body, method="POST", headers=headers, timeout=timeout, max_attempts=3)
-        data = json.loads(raw.decode("utf-8"))
-        content = (((data.get("choices") or [{}])[0].get("message") or {}).get("content")) or ""
-        out = _parse_expand(content)
-    except Exception:  # noqa: BLE001 - fail-safe: caller wroci do translate_query
-        return {}
-    if store is not None and out:
-        try:
-            store.put_translation(text, cache_lang, json.dumps(out, ensure_ascii=False))
-        except Exception:  # noqa: BLE001
-            pass
-    return out
 
 
 def build_facet_queries(primary: str, facets: list[str] | None, *, cap: int = FACET_CAP) -> list[str]:
@@ -1480,6 +1208,8 @@ def run_student(
     year_to: int | None = None,
     work_type: str = "",
     sort: str = "relevance",
+    include_openalex: bool = True,   # credential-tier gate: skip built-in OpenAlex when False
+    include_s2: bool = True,         # credential-tier gate: skip built-in Semantic Scholar when False
     verify_llm: bool = False,
     intent: str = "",
     openrouter_key: str = "",
@@ -1523,19 +1253,12 @@ def run_student(
     # glownie angielski, wiec ENG drastycznie podnosi pokrycie.
     sl = (search_lang or "both").strip().lower()
     langs = ["en", "pl"] if sl == "both" else (["pl"] if sl == "pl" else ["en"])
-    # Ekspansja zapytania (recall, opt-in): jeden tani call LLM per jezyk zwraca
-    # curated query + slowa kluczowe (synonimy/inne sformulowania) + domene
-    # (wzorzec wezla `Translate & Keywords` z n8n). Fail-safe: blad -> {} ->
-    # degradacja do dotychczasowego translate_query (zero zmian zachowania).
-    expand_on = bool(query_expansion and openrouter_key)
+    # lean refactor: query = user's literal topic per language (no LLM expansion/translation).
     queries: dict[str, str] = {}
     expand_keywords: dict[str, list] = {}
     for lang in langs:
-        exp = expand_query(topic, lang, openrouter_key, llm_model, store=store) if expand_on else {}
-        if _detect_lang(topic) == lang:
-            primary = topic  # zawsze pytamy DOSLOWNYM sformulowaniem uzytkownika
-        else:
-            primary = (exp.get("query") or translate_query(topic, lang, openrouter_key, llm_model, store=store) or topic)
+        exp = {}  # lean refactor: no LLM query expansion/translation (a07 owns LLM)
+        primary = topic  # query is the user's literal topic per language
         queries[lang] = (primary or topic).strip()
         expand_keywords[lang] = exp.get("keywords") or []
         if progress:
@@ -1612,9 +1335,11 @@ def run_student(
     for qi, (qstr, qlangs) in enumerate(by_query.items()):
         if qi > 0:
             time.sleep(polite_sleep)  # pacing miedzy jezykami (lagodzi throttling)
-        raw = openalex_search(qstr, n, email, year_from=year_from, year_to=year_to, work_type=work_type, sort=sort, api_key=openalex_api_key, progress=progress)
-        _ingest(raw, qlangs)
-        _ingest(semantic_scholar_extend(qstr, email, api_key=s2_api_key, progress=progress), qlangs)
+        if include_openalex:
+            raw = openalex_search(qstr, n, email, year_from=year_from, year_to=year_to, work_type=work_type, sort=sort, api_key=openalex_api_key, progress=progress)
+            _ingest(raw, qlangs)
+        if include_s2:
+            _ingest(semantic_scholar_extend(qstr, email, api_key=s2_api_key, progress=progress), qlangs)
         for prov in (extra_search or []):
             try:
                 found = prov.search(qstr, n, email=email, year_from=year_from,
@@ -1632,11 +1357,7 @@ def run_student(
     # Snowball wstecz (Etap 3, opt-in): dociągnij PRZYPISY top-seedów — łapie pozycje
     # fundamentalne, do których trafne prace się odwołują, a których szukanie tematyczne
     # nie wyciąga. ADDYTYWNE (dedup po DOI, ranking sortuje), bounded fanoutem + budżetem HTTP.
-    if snowball and candidates:
-        snow = snowball_references(candidates[:SNOWBALL_SEEDS], email, api_key=openalex_api_key, progress=progress)
-        added = _ingest(snow, {"en"})
-        if progress:
-            progress("snowball", f"Snowball dołożył {added} prac (przypisy {min(len(candidates), SNOWBALL_SEEDS)} top-prac)")
+    # lean refactor: snowball removed (was opt-in; default off)
 
     candidates, result.versions_merged = _dedup_versions(candidates)
     result.total_found = len(candidates)
@@ -1759,32 +1480,7 @@ def run_student(
         # Pobrane OK. Weryfikacja LLM NIE odrzuca - daje tylko score trafnosci do rankingu.
         rel_score = None
         llm_summary = ""
-        if verify_llm and openrouter_key:
-            cached = store.get_verdict(cand.doi, "student-llm") if store is not None else None
-            cm = re.search(r"score=([0-9.]+|None)", (cached or {}).get("rationale") or "") if cached else None
-            if cm:
-                rel_score = None if cm.group(1) == "None" else float(cm.group(1))
-            elif result.llm_cost_usd < max_cost_usd:
-                v = openrouter_relevant(topic, intent, extract_relevance_text(dest), openrouter_key, llm_model, summary_words=summary_words)
-                result.llm_checks += 1
-                result.llm_input_chars += int(v.get("input_chars") or 0)
-                result.llm_cost_usd += (int(v.get("input_chars") or 0) / 4) / 1_000_000 * model_price_usd_per_m
-                rel_score = v.get("score")
-                llm_summary = v.get("summary") or ""
-                if rel_score is None and v.get("relevant") is not None:
-                    rel_score = 1.0 if v["relevant"] == 1 else 0.0
-                if store is not None:
-                    try:
-                        store.put_verdict(cand.doi, "student-llm", relevant=v.get("relevant"),
-                                          model=v.get("model"), rationale=f"score={rel_score}; {v.get('reason','')}")
-                    except Exception:
-                        pass
-                if progress:
-                    progress("llm", f"{dest.name}: trafnosc={rel_score} - {str(v.get('reason',''))[:70]}")
-            else:
-                result.unverified += 1
-                if progress:
-                    progress("llm", f"Limit kosztu {max_cost_usd}$ osiagniety - pomijam weryfikacje reszty")
+        # lean refactor: LLM relevance verification removed (a07 owns LLM); rel_score stays None
         result.downloaded.append(dest.name)
         if progress:
             progress("pdf", f"Pobrano ({len(result.downloaded)}/{target}): {dest.name}")
@@ -1846,37 +1542,6 @@ def run_student(
 
 
 # -- Raport selekcji (dla UI / CLI) -------------------------------------
-def write_selection_report(reports_dir: Path, topic: str, result: "RunResult", run_id: str) -> str:
-    """Zapisz selection_report_<run_id>.md z podsumowaniem przebiegu. Zwraca sciezke."""
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    cov = result.oa_coverage
-    flag = "RED" if cov < 0.25 else ("AMBER" if cov < 0.5 else "GREEN")
-    dl = [f"- {x}" for x in result.downloaded] or ["- (brak)"]
-    st = [f"- {x}" for x in result.stubs] or ["- (brak)"]
-    lines = [
-        "# Raport selekcji - Radar PDF",
-        "",
-        f"- run_id: {run_id}",
-        f"- Zapytanie: {topic}",
-        f"- Cel N: {result.target_n}",
-        f"- Kandydaci OpenAlex: {result.openalex_total} | pula po dedup: {result.total_found}",
-        f"- Scalone wersje (preprint+publikacja): {result.versions_merged}",
-        f"- Open Access: {result.oa_count} | pokrycie OA: {cov:.0%} [{flag}]",
-        f"- Pobrane PDF: {len(result.downloaded)} | zaślepki: {len(result.stubs)}",
-        f"- MANIFEST niezmiennik: {'OK' if result.manifest_ok else 'NARUSZONY'}",
-        "",
-        "## Pobrane PDF",
-        *dl,
-        "",
-        "## Zaślepki (OA bez pobieralnego PDF)",
-        *st,
-    ]
-    path = reports_dir / f"selection_report_{run_id}.md"
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return str(path)
-
-
-# -- Zatwierdzenie wyboru: niewybrane -> _rezerwa -----------------------
 def apply_selection(pdf_dir: Path, items: list, selected_filenames: list) -> dict:
     """Wybrane PDF zostaja w _scout_pdf; pozostale (pobrane) przenosimy do
     _scout_pdf/_rezerwa/ (nic nie kasujemy). Zwraca {selected, reserved}."""
@@ -1902,227 +1567,3 @@ def apply_selection(pdf_dir: Path, items: list, selected_filenames: list) -> dic
 
 
 # -- Most do modulu 2 (konwerter): wybrane PDF -> _mathpix_in -----------
-def copy_to_converter(pdf_dir: Path, filenames: list, converter_dir: Path) -> dict:
-    """Skopiuj wskazane PDF z _scout_pdf do katalogu wejsciowego konwertera
-    (_mathpix_in modulu 2). KOPIUJE, nie przenosi - oryginal zostaje u nas
-    (luzna integracja, decyzja #2/#8). Zrodlo szukane w pdf_dir, a gdy go tam nie
-    ma - w pdf_dir/_rezerwa (wybrane zostaja w pdf_dir, ale wysylke z rezerwy tez
-    obslugujemy). Idempotentne: gdy plik o tej nazwie i rozmiarze juz jest w
-    konwerterze -> skipped (konwerter i tak deduplikuje po SHA-256). Zwraca
-    {copied, skipped, missing, converter_dir}."""
-    import shutil
-
-    converter_dir = Path(converter_dir)
-    reserve = pdf_dir / "_rezerwa"
-    copied: list[str] = []
-    skipped: list[str] = []
-    missing: list[str] = []
-    for name in filenames or []:
-        if not name:
-            continue
-        src = pdf_dir / name
-        if not src.is_file():
-            alt = reserve / name
-            if alt.is_file():
-                src = alt
-        if not src.is_file():
-            missing.append(name)
-            continue
-        dest = converter_dir / src.name
-        if dest.is_file() and dest.stat().st_size == src.stat().st_size:
-            skipped.append(src.name)
-            continue
-        try:
-            converter_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dest)
-            copied.append(src.name)
-        except Exception:
-            missing.append(src.name)
-    return {"copied": copied, "skipped": skipped, "missing": missing,
-            "converter_dir": str(converter_dir)}
-
-
-# -- Eksport bibliografii: BibTeX + CSL-JSON (most do Zotero/Obsidian/pandoc) --
-# Filozofia jak most do konwertera: produkujemy PLIK, ktory Zotero importuje
-# (dziala tez przy zamknietym Zotero). citekey = nazwa pliku (rok_autor_slug) ->
-# klucz cytowania, nazwa PDF i wpis w wiki to ten sam identyfikator. Pole `file`
-# linkuje lokalny PDF (linked attachment - bez kopiowania, bez limitu chmury).
-_BIB_SPECIALS = {"&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_"}
-_AUTHOR_NOISE = {"i in.", "i in", "et al.", "et al", "and others", "others"}
-
-
-def _is_real_doi(doi: str) -> bool:
-    d = (doi or "").lower()
-    return bool(d) and not d.startswith(("core:", "arxiv:", "econbiz:"))
-
-
-def _bib_escape(text: str) -> str:
-    """Zabezpiecz wartosc tekstowa pola BibTeX. Backslash i nawiasy klamrowe sa
-    rzadkie w metadanych - neutralizujemy je, by nie rozjechac struktury; znaki
-    specjalne LaTeX eskejpujemy (dla pandoc --citeproc; Zotero toleruje wiekszosc)."""
-    s = str(text or "").replace("\\", " ").replace("{", "(").replace("}", ")")
-    for ch, rep in _BIB_SPECIALS.items():
-        s = s.replace(ch, rep)
-    return " ".join(s.split())
-
-
-def _author_names(authors_str: str, first_author: str = "") -> list[str]:
-    """Rozbij wyswietlane nazwiska ('A B, C D i in.') na liste imion+nazwisk,
-    usuwajac znaczniki 'i in.'/'et al.'. Fallback: pierwszy autor."""
-    names: list[str] = []
-    for part in str(authors_str or "").split(","):
-        p = re.sub(r"\s+i\s+in\.?$", "", part).strip()
-        if p and p.lower() not in _AUTHOR_NOISE:
-            names.append(p)
-    if not names and first_author:
-        names = [first_author.strip()]
-    return names
-
-
-def _bib_type(it: dict) -> str:
-    wt = (it.get("work_type") or it.get("publication_type") or "").lower()
-    if it.get("is_preprint") or wt == "preprint":
-        return "misc"
-    if wt == "book-chapter":
-        return "incollection"
-    return "article"
-
-
-def build_bibtex(items: list, pdf_dir: "Path") -> str:
-    """Zbuduj plik BibTeX (UTF-8) z pozycji przebiegu. Pole `file` linkuje PDF z
-    `pdf_dir` (lub `_rezerwa`), sciezka Windows z podwojnym backslashem (wymog BibTeX)."""
-    pdf_dir = Path(pdf_dir)
-    entries: list[str] = []
-    for it in items or []:
-        fn = it.get("filename") or ""
-        key = (fn[:-4] if fn.lower().endswith(".pdf") else fn) or (_slug_part(it.get("title") or "ref") or "ref")
-        doi = it.get("doi") or ""
-        etype = _bib_type(it)
-        fields: list[tuple[str, str]] = [
-            ("title", _bib_escape(it.get("title") or fn)),
-            ("author", " and ".join(_bib_escape(n) for n in _author_names(it.get("authors"), it.get("first_author") or "")) or "Unknown"),
-        ]
-        if it.get("year"):
-            fields.append(("year", str(it.get("year"))))
-        venue = it.get("venue") or ("arXiv" if it.get("is_preprint") else "")
-        if venue:
-            fields.append(("journal" if etype == "article" else "publisher", _bib_escape(venue)))
-        if _is_real_doi(doi):
-            fields.append(("doi", doi))
-        url = it.get("landing_page_url") or (f"https://doi.org/{doi}" if _is_real_doi(doi) else "")
-        if url:
-            fields.append(("url", url))
-        kws = ["radar"]
-        src = it.get("source_api") or it.get("source")
-        if src:
-            kws.append(f"source:{src}")
-        if it.get("oa_status"):
-            kws.append(f"oa:{it.get('oa_status')}")
-        if it.get("is_top10"):
-            kws.append("top10cited")
-        if it.get("is_retracted") or it.get("retracted"):
-            kws.append("RETRACTED")
-        fields.append(("keywords", ", ".join(kws)))
-        notes: list[str] = []
-        if it.get("is_retracted") or it.get("retracted"):
-            notes.append("Retracted: yes")
-        if it.get("fwci") is not None:
-            notes.append(f"FWCI={it.get('fwci')}")
-        if it.get("intent_match") is not None:
-            notes.append(f"intent_match={it.get('intent_match')}")
-        if notes:
-            fields.append(("note", _bib_escape("; ".join(notes))))
-        if fn:
-            p = pdf_dir / fn
-            if not p.is_file() and (pdf_dir / "_rezerwa" / fn).is_file():
-                p = pdf_dir / "_rezerwa" / fn
-            if p.is_file():
-                fields.append(("file", str(p).replace("\\", "\\\\")))
-        body = ",\n".join(f"  {k} = {{{v}}}" for k, v in fields)
-        entries.append(f"@{etype}{{{key},\n{body}\n}}")
-    return "\n\n".join(entries) + ("\n" if entries else "")
-
-
-def _csl_authors(authors_str: str, first_author: str = "") -> list[dict]:
-    out: list[dict] = []
-    for n in _author_names(authors_str, first_author):
-        toks = n.split()
-        if len(toks) >= 2:
-            out.append({"family": toks[-1], "given": " ".join(toks[:-1])})
-        else:
-            out.append({"literal": n})
-    return out
-
-
-def build_csl_json(items: list, pdf_dir: "Path") -> str:
-    """Zbuduj CSL-JSON (najczystszy import do Zotero; bez linku do pliku - to robi .bib)."""
-    arr: list[dict] = []
-    for it in items or []:
-        fn = it.get("filename") or ""
-        key = (fn[:-4] if fn.lower().endswith(".pdf") else fn) or "ref"
-        doi = it.get("doi") or ""
-        wt = (it.get("work_type") or "").lower()
-        ctype = "chapter" if wt == "book-chapter" else "article-journal"
-        rec: dict[str, Any] = {
-            "id": key, "type": ctype, "title": it.get("title") or fn,
-            "author": _csl_authors(it.get("authors"), it.get("first_author") or ""),
-        }
-        yr = it.get("year")
-        if yr is not None and str(yr).strip():
-            rec["issued"] = {"date-parts": [[int(yr)]]} if str(yr).isdigit() else {"literal": str(yr)}
-        if _is_real_doi(doi):
-            rec["DOI"] = doi
-        venue = it.get("venue") or ("arXiv" if it.get("is_preprint") else "")
-        if venue:
-            rec["container-title"] = venue
-        url = it.get("landing_page_url") or (f"https://doi.org/{doi}" if _is_real_doi(doi) else "")
-        if url:
-            rec["URL"] = url
-        kws = []
-        if it.get("is_retracted") or it.get("retracted"):
-            kws.append("RETRACTED")
-        if it.get("is_top10"):
-            kws.append("top10cited")
-        if kws:
-            rec["keyword"] = ",".join(kws)
-        arr.append(rec)
-    return json.dumps(arr, ensure_ascii=False, indent=2)
-
-
-def project_slug(topic: str, max_words: int = 3) -> str:
-    """2-4 wyrazowa nazwa 'projektu' z zapytania: kolejnosc zachowana, bez slow
-    funkcyjnych (PL+EN), transliteracja PL->ASCII (spojnie z nazwami PDF). Fallback:
-    'projekt'."""
-    words = re.findall(r"[A-Za-z0-9]+", _transliterate(topic or "").lower())
-    picked: list[str] = []
-    seen: set[str] = set()
-    for w in words:
-        if len(w) > 2 and w not in _STOPWORDS and w not in seen:
-            seen.add(w)
-            picked.append(w)
-        if len(picked) >= max_words:
-            break
-    if not picked:  # same slowa funkcyjne/krotkie -> wez cokolwiek
-        picked = [w for w in words if w][:max_words]
-    return "_".join(picked) or "projekt"
-
-
-def export_references(items: list, pdf_dir: "Path", *, topic: str = "",
-                      selected: list | None = None, stamp: str | None = None) -> dict:
-    """Zapisz <stamp>_<projekt>.bib + .csl.json RAZEM z PDF-ami (w pdf_dir).
-    `stamp` = YYYYMMDD_HH_MM (domyslnie teraz), `projekt` = 2-4 slowa z `topic`.
-    `selected` (nazwy plikow) zaweza do wybranych; brak = wszystkie pozycje przebiegu.
-    Zwraca {bib, csl, count, base}."""
-    pdf_dir = Path(pdf_dir)
-    pdf_dir.mkdir(parents=True, exist_ok=True)
-    rows = list(items or [])
-    if selected:
-        keep = set(selected)
-        rows = [it for it in rows if it.get("filename") in keep]
-    stamp = stamp or datetime.now().strftime("%Y%m%d_%H_%M")
-    base = f"{stamp}_{project_slug(topic)}"
-    bib = pdf_dir / f"{base}.bib"
-    csl = pdf_dir / f"{base}.csl.json"
-    bib.write_text(build_bibtex(rows, pdf_dir), encoding="utf-8")
-    csl.write_text(build_csl_json(rows, pdf_dir), encoding="utf-8")
-    return {"bib": str(bib), "csl": str(csl), "count": len(rows), "base": base}

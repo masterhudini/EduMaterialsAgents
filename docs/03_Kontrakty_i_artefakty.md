@@ -737,7 +737,7 @@ Statusy:
 
 ```yaml
 HumanApprovedSourceSet:
-  schema_version: human_approved_source_set@1
+  schema_version: user_approved_source_set@1
   task_id:
   source_selection_ref:
   approved_sources:

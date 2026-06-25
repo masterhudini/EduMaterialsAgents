@@ -26,7 +26,7 @@ from g02 import scout_request  # noqa: E402
 from g02.scout import runtime  # noqa: E402
 from g02.scout.engine import apply_selection, run_student  # noqa: E402
 from g02.scout.providers import build_resolvers, build_search_providers, parse_sources  # noqa: E402
-from g02.scout.state_store import ScoutStore  # noqa: E402
+# sqlite ScoutStore removed in the lean refactor — Scout runs store-less (store=None).
 
 
 def _positive_int(value: str) -> int:
@@ -155,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
         openrouter_key="",
     )
     extra_resolvers = build_resolvers(source_names, core_api_key=core_api_key)
-    store = None if args.no_store else ScoutStore(workspace)
+    store = None  # lean refactor: no sqlite store; run-level dedup only (--no-store kept as no-op)
 
     def progress(event: str, message: str) -> None:
         print(f"  [{event}] {message}")

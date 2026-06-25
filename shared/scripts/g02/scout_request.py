@@ -9,11 +9,33 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 import json
+import os
 
 from core import artifacts, contracts, graphs
 
 SCOUT_SEARCH_REQUEST_CONTRACT = "scout_search_request@1"
 RESEARCH_PLAN_CONTRACT = "research_plan@1"
+
+# Scout source scope: built-in OpenAlex + Semantic Scholar, plus arXiv (search) and Crossref
+# (resolver). CORE/econbiz/consensus/perplexity are intentionally out of scope.
+SCOUT_EXTRA_SOURCES = {"arxiv", "crossref"}
+
+
+def scout_sources() -> dict:
+    """Scout source config derived from the credential tier (process env).
+
+    OpenAlex needs BOTH the contact email AND its API token — without both it is skipped (we query
+    OpenAlex via its API, not keyless). Semantic Scholar runs keyless (a key only raises limits).
+    arXiv + Crossref are always in scope (no credentials). Returns the ``run_student`` gate flags
+    plus the extra-source name set.
+    """
+    has_email = bool(os.environ.get("EMAGENTS_RESEARCH_CONTACT_EMAIL", "").strip())
+    has_openalex_key = bool(os.environ.get("OPENALEX_API_KEY", "").strip())
+    return {
+        "include_openalex": has_email and has_openalex_key,
+        "include_s2": True,
+        "sources": set(SCOUT_EXTRA_SOURCES),
+    }
 
 DEFAULT_TARGET_N = 15
 MIN_TARGET_N = 5

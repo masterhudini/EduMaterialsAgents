@@ -160,7 +160,7 @@ def _approved_set():
     )
     assert finalized["status"] == "ok"
     approved_ref = next(item["path"] for item in finalized["produced"]
-                        if item["type"] == "human_approved_source_set")
+                        if item["type"] == "user_approved_source_set")
     approved = artifacts.hydrate(approved_ref)
     market_source = next(item for item in approved["approved_sources"]
                          if item["source_id"] == market_id)

@@ -173,12 +173,16 @@ class ProviderRuntimeConfig:
             enabled = self.enabled(provider)
             key = self.api_key(provider)
             contact_required = provider in {"openalex", "arxiv", "crossref"}
-            key_required = provider == "openalex"
+            key_required = provider == "openalex"   # OpenAlex needs BOTH the email and its API token
             ready = enabled \
                 and (not contact_required or self.contact_email is not None) \
                 and (not key_required or key is not None)
             if provider == "openalex":
-                authentication = "configured_key" if key else "required_key_missing"
+                authentication = (
+                    "configured" if (key and self.contact_email is not None) else
+                    "incomplete_missing_token" if self.contact_email is not None else
+                    "incomplete_missing_email"
+                )
             elif provider == "semantic_scholar":
                 authentication = "configured_key" if key else "optional_key"
             elif provider == "arxiv":
@@ -465,8 +469,10 @@ def validate_config(payload: object, *, env: Mapping[str, str] | None = None,
         elif not EMAIL_RE.fullmatch(contact):
             errors.append(f"{CONTACT_ENV} must contain a valid email address")
 
-    if "openalex" in enabled and not environment.get(OPENALEX_KEY_ENV, "").strip():
-        errors.append(f"{OPENALEX_KEY_ENV} is required when OpenAlex is enabled")
+    # OpenAlex needs its (free) API token to be USABLE, but a missing token is NOT a hard config
+    # error: without it OpenAlex is simply not-ready while the other providers (Semantic Scholar,
+    # arXiv, Crossref, Unpaywall on the contact email) keep working. The token is collected from the
+    # user at the credential-setup step; we never block the whole graph just because it is absent.
 
     request = payload.get("request")
     if isinstance(request, dict):
@@ -789,6 +795,9 @@ def load_config(config_path: str | Path | None = None, *,
                 runtime_home: str | Path | None = None,
                 create_dirs: bool = True) -> ProviderRuntimeConfig:
     """Load a safe config and bind environment-only contact data and secrets."""
+    if env is None:                         # real path: pick up any host-supplied session creds
+        from g02 import credentials
+        credentials.overlay()
     environment = env if env is not None else os.environ
     source = _resolve_source(config_path, environment)
     payload = _with_crossref_defaults(_read_json(source))

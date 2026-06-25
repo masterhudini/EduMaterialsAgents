@@ -66,6 +66,7 @@ from g02 import scout_a07_runner  # noqa: E402
 from g02 import scout_a09_runner  # noqa: E402
 from g02 import scout_synthesis  # noqa: E402
 from g02 import provider_config  # noqa: E402
+from g02 import credentials  # noqa: E402
 from g02 import providers  # noqa: E402
 from g02 import query_planning  # noqa: E402
 from g02 import crossref  # noqa: E402
@@ -177,6 +178,90 @@ def _plan_review_task(args: dict):
 
 def _provider_status(args: dict):
     return provider_config.provider_status(args.get("config"))
+
+
+PROVIDER_CATALOG = [
+    {"provider": "semantic_scholar", "role": "Metadane scholarly (tytuły, abstrakty, cytowania).",
+     "requires": "nothing", "needs": "nic", "signup": None},
+    {"provider": "arxiv", "role": "Preprinty i wersje robocze.",
+     "requires": "email", "needs": "email", "signup": None},
+    {"provider": "crossref", "role": "Weryfikacja DOI i metadanych wydawniczych.",
+     "requires": "email", "needs": "email", "signup": None},
+    {"provider": "openalex", "role": "Główny graf scholarly (prace, autorzy, cytowania).",
+     "requires": "email_and_token",
+     "needs": "email + DARMOWY token OpenAlex — OBA wymagane (bez kompletu OpenAlex jest pomijany)",
+     "signup": "https://openalex.org",
+     "token": {
+         "env": "OPENALEX_API_KEY",
+         "required_for_openalex": True,
+         "free": True,
+         "needs_account": True,
+         "signup": "https://openalex.org/login?redirect=/settings/api-key",
+         "encouragement": "OpenAlex (najbogatsze źródło scholarly) potrzebuje email ORAZ DARMOWEGO "
+                          "tokena. Bez kompletu OpenAlex jest "
+                          "POMIJANY (reszta — Semantic Scholar, arXiv, Crossref, Unpaywall — działa "
+                          "na samym mailu). Token jest darmowy: zaloguj się / załóż konto i wygeneruj "
+                          "na https://openalex.org/login?redirect=/settings/api-key, potem podaj jako "
+                          "openalex_key. WARTO — to otwiera najbogatszy graf scholarly."}},
+    {"provider": "unpaywall", "role": "Rozwiązywanie legalnego Open Access do pobrań (a06).",
+     "requires": "email", "needs": "email", "signup": None},
+    {"provider": "doab", "role": "Open Access książki (a06).",
+     "requires": "nothing", "needs": "nic", "signup": None},
+    {"provider": "oapen", "role": "Open Access książki (a06).",
+     "requires": "nothing", "needs": "nic", "signup": None},
+]
+
+
+def _provider_setup(args: dict):
+    """Show the provider catalog with current readiness, and OPTIONALLY set session credentials.
+
+    Pass {email} to unlock arXiv, Crossref and Unpaywall. OpenAlex needs BOTH the email AND its
+    {openalex_key} (free token) — without both it is skipped. Pass nothing to just view the catalog.
+
+    Readiness is derived from the credential requirement model + the live session env (not from
+    provider_status, which fails validation while the email is still missing)."""
+    creds = {k: args[k] for k in ("email", "openalex_key") if args.get(k)}
+    saved = credentials.save(creds) if creds else {"stored": []}
+    credentials.overlay()                                # reflect any on-disk creds in os.environ
+    has_email = bool(os.environ.get("EMAGENTS_RESEARCH_CONTACT_EMAIL", "").strip())
+    has_key = bool(os.environ.get("OPENALEX_API_KEY", "").strip())
+    rows = []
+    for item in PROVIDER_CATALOG:
+        req = item["requires"]
+        if req == "nothing":
+            ready = True
+        elif req == "email":
+            ready = has_email
+        else:                                            # email_and_token (OpenAlex): both required
+            ready = has_email and has_key
+        if item["provider"] == "openalex":
+            auth = ("configured" if (has_email and has_key) else
+                    "incomplete_missing_token" if has_email else "incomplete_missing_email")
+        elif req == "email":
+            auth = "configured_email" if has_email else "required_email_missing"
+        else:
+            auth = "none"
+        rows.append({**item, "ready": ready, "authentication": auth})
+    openalex_ready = has_email and has_key
+    return {
+        "tier": "email" if has_email else "minimal",
+        "contact_email_configured": has_email,
+        "openalex_token_configured": has_key,
+        "openalex_ready": openalex_ready,
+        "saved": saved,
+        "active_providers": [r["provider"] for r in rows if r["ready"]],
+        "catalog": rows,
+        "openalex_token_hint": next(
+            (r["token"]["encouragement"] for r in rows
+             if r["provider"] == "openalex" and not openalex_ready), None),
+        "note": ("Podaj email, aby odblokować arXiv, Crossref i Unpaywall (legalne OA). OpenAlex "
+                 "(najbogatszy graf scholarly) potrzebuje DODATKOWO darmowego tokena; bez kompletu "
+                 "(email ORAZ token) OpenAlex jest pomijany. "
+                 "Token za darmo: zaloguj się / załóż konto i wygeneruj na "
+                 "https://openalex.org/login?redirect=/settings/api-key, podaj jako openalex_key. "
+                 "Możesz nic nie podać — wtedy działa tylko Semantic Scholar (+ DOAB/OAPEN). Dane są "
+                 "przechowywane efemerycznie, a plik znika po pierwszym udanym zapytaniu do bazy."),
+    }
 
 
 def _query_plan_generate_fast(args: dict):
@@ -1366,7 +1451,7 @@ TOOLS = [
         "name": "research_source_selection_finalize",
         "description": "After the user sees and separately confirms the parsed summary, validate "
                        "the confirmation token and persist human_source_selection@1 plus the exact "
-                       "human_approved_source_set@1 consumed by A06.",
+                       "user_approved_source_set@1 consumed by A06.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -2011,6 +2096,22 @@ TOOLS = [
         },
     },
     {
+        "name": "research_provider_setup",
+        "description": "Show the scholarly/OA provider catalog (what each does, what it needs, "
+                       "current ready status, the OpenAlex token link) and OPTIONALLY set the session "
+                       "credentials. Pass {email} to unlock arXiv, Crossref and Unpaywall. OpenAlex "
+                       "needs BOTH the email AND its free {openalex_key} token (queried via API) — "
+                       "without both it is skipped. Pass nothing to just view the catalog and current "
+                       "tier (Semantic Scholar needs no credentials). Credentials are stored "
+                       "ephemerally and the file is deleted after the first successful provider query. "
+                       "Call this at the start of Research (after A01) to collect provider data from the user.",
+        "inputSchema": {"type": "object", "properties": {
+            "email": {"type": "string",
+                      "description": "contact email for arXiv/Crossref/Unpaywall, and (with the token) OpenAlex; free, no signup"},
+            "openalex_key": {"type": "string",
+                             "description": "free OpenAlex API token (with the email, required to use OpenAlex); generate at openalex.org/login?redirect=/settings/api-key"}}},
+    },
+    {
         "name": "research_run_hosted",
         "description": "Start a HOST-DRIVEN reviewed g02 run (no nested codex exec). Each producer "
                        "yields {status:'awaiting_node', resume_token, node, input, upstream, "
@@ -2247,6 +2348,7 @@ DISPATCH = {
     "research_planner_finalize": _planner_finalize,
     "research_plan_review_task": _plan_review_task,
     "research_provider_status": _provider_status,
+    "research_provider_setup": _provider_setup,
     "research_domain_prepare": _domain_prepare,
     "research_query_plan_generate_fast": _query_plan_generate_fast,
     "research_metadata_search": _metadata_search,

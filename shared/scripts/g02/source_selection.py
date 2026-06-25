@@ -10,7 +10,7 @@ from core import artifacts, contracts
 
 INDEX_CONTRACT = "candidate_source_index@1"
 SELECTION_CONTRACT = "human_source_selection@1"
-APPROVED_SET_CONTRACT = "human_approved_source_set@1"
+APPROVED_SET_CONTRACT = "user_approved_source_set@1"
 ACTIONS = {
     "DOWNLOAD": "approved_for_download",
     "LIBRARY": "request_library_access",
@@ -475,7 +475,7 @@ def finalize_source_selection(candidate_source_index_ref: str, selection: dict,
         produced=[
             {"type": "human_source_selection", "path": selection_ref,
              "schema_version": SELECTION_CONTRACT, "artifact_version": normalized["artifact_version"]},
-            {"type": "human_approved_source_set", "path": approved_ref,
+            {"type": "user_approved_source_set", "path": approved_ref,
              "schema_version": APPROVED_SET_CONTRACT, "artifact_version": normalized["artifact_version"]},
         ],
         metrics={"download_count": len(approved_sources),

@@ -4,6 +4,14 @@
 Drive the Research Graph host-driven through MCP, playing each producer and reviewer yourself:
 
 1. `research_run_hosted({context, through?, topic_ids?})` over a `research_graph_input@1` path/ref.
+1a. **Provider credentials (after the A01 planner, before discovery).** Call
+   `research_provider_setup({})` to show the catalog, then ask the user for their data: present the
+   `note` and `catalog`, collect a contact **email** (free, no account — unlocks OpenAlex polite
+   pool, arXiv, Crossref and Unpaywall/OA) and **ENCOURAGE the optional OpenAlex token** using
+   `openalex_token_hint` + the `token.signup` link (a FREE key — log in & generate; higher
+   limits, worth it for bigger material). The user provides, then CONFIRMS; call `research_provider_setup({email,
+   openalex_key?})` with what they gave. They may provide nothing (Semantic Scholar still works). The
+   stored file is auto-deleted after the first successful provider query.
 2. Loop on the response:
    - **`awaiting_node`**: hydrate `upstream` refs with `research_node_input` if needed, perform the
      producer node's task for `input`, then call the node's `finalize_op` named in the payload (e.g.

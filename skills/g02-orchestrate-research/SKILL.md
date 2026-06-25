@@ -105,7 +105,7 @@ extend its fields inside the orchestrator.
    is the decision maker; A05 recommendations are advisory. Only after confirmation call
    `research_source_selection_finalize`. Route
    SEARCH_MORE to the relevant discovery agent, rebuild and re-review the index. Retrieval receives
-   only the produced `human_approved_source_set@1` ref.
+   only the produced `user_approved_source_set@1` ref.
 10. Run A06 through `research_retrieval_prepare`. For scholarly DOWNLOAD sources call
    `research_doi_verify` when an exact non-conflicting binding cannot be reused, then call
    `research_oa_resolve`, `research_document_retrieve` and `research_document_validate`. A critical

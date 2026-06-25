@@ -262,7 +262,7 @@ więc a12 musi wyprodukować dokładnie taki łańcuch refów:
 ```text
 research_plan@1            (A01)           task_id = T
   └─ candidate_source_index@1   .research_plan_ref      -> plan          (task_id = T)
-       └─ human_approved_source_set@1  .candidate_source_index_ref -> indeks   (task_id = T)
+       └─ user_approved_source_set@1  .candidate_source_index_ref -> indeks   (task_id = T)
             └─ retrieved_corpus@1      .approved_source_set_ref  -> approved   (task_id = T)
                  └─ paper_review@1 [per źródło]  .task_id = T, .source_id ∈ corpus.documents(accepted)
                       └─ review_decision@1  (fast-track, bez A10)
@@ -303,7 +303,7 @@ w katalogu runtime są pobrane PDF i `MANIFEST.md` z zachowanym niezmiennikiem
 Cel: graf zna nowy węzeł i profil, stare ścieżki bez zmian.
 
 5. Dodać `agents/g02-a12-deterministic-scout.md` jako dokumentację węzła deterministycznego:
-   konsumuje `research_plan@1`, produkuje `candidate_source_index@1`, `human_approved_source_set@1`,
+   konsumuje `research_plan@1`, produkuje `candidate_source_index@1`, `user_approved_source_set@1`,
    `retrieved_corpus@1`, `paper_review@1[]`; oznaczyć jako wykonanie deterministyczne (brak workera LLM).
 6. Dodać węzeł `g02-a12-deterministic-scout` do `shared/graphs/g02.graph.json` z polami
    `produces`/`consumes` jak wyżej, oraz wpis `deterministic` w `execution_profiles` (limity N,
@@ -437,7 +437,7 @@ Audyt schematów pokazał, że wejście A09 wymaga pięciu ciężkich, wzajemnie
 artefaktów, a `paper_review@1` ma 22 pola wymagane, w tym `reviewed_document_sha256`, `topic_ids`,
 `claim_ids`, `method`, oraz evidence cards z polami `relation`, `locations` i `confidence`.
 `candidate_source_index@1` wymaga per źródło 15 pól (m.in. `coverage_unit_ids`, `role_assignments`,
-`provenance_records`), a `human_approved_source_set@1` i `retrieved_corpus@1` kolejnych
+`provenance_records`), a `user_approved_source_set@1` i `retrieved_corpus@1` kolejnych
 kilkunastu. Scout nie zna większości tych pól (nie wydobywa zlokalizowanych cytatów ani claimów).
 Ręczne wytwarzanie tych pięciu artefaktów w adapterze, tak jak zakładała pierwotna sekcja 12,
 byłoby pracochłonne i kruche (ryzyko odrzuceń przez walidatory, w tym kontrole anty-fabrykacji

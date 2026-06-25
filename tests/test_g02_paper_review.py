@@ -101,7 +101,7 @@ def _scholarly_corpus():
     plan_ref = artifacts.store("g02/research-plans/a07-plan.json", plan)
     index_ref = _plan_and_index(record, plan_ref)
     approved = {
-        "schema_version": "human_approved_source_set@1",
+        "schema_version": "user_approved_source_set@1",
         "artifact_version": "1.0.0",
         "task_id": TASK,
         "source_selection_ref": "artifact://g02/source-selection/a07.json",
@@ -243,7 +243,7 @@ def _market_corpus():
     a11_ref = artifacts.store("g02/market/a07-reviewed-market.json", a11)
     index_ref = _plan_and_index(record, plan_ref)
     approved = {
-        "schema_version": "human_approved_source_set@1",
+        "schema_version": "user_approved_source_set@1",
         "artifact_version": "1.0.0",
         "task_id": TASK,
         "source_selection_ref": "artifact://g02/source-selection/a07-market.json",

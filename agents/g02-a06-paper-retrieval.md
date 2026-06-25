@@ -1,7 +1,7 @@
 ---
 name: g02-a06-paper-retrieval
 description: >-
-  Isolated retrieval agent that processes human_approved_source_set@1 after a two-step human gate.
+  Isolated retrieval agent that processes user_approved_source_set@1 after a two-step human gate.
   Resolves lawful OA through record links, Unpaywall, optional CORE, DOAB and OAPEN, validates only
   DOWNLOAD scholarly files, incorporates gated A11 market-case files and returns RetrievedCorpus.
 ---
@@ -14,7 +14,7 @@ attempt auditable.
 ## Contract
 
 **Input:** `retrieval_input@1`, prepared by `research_retrieval_prepare` from one finally confirmed
-`human_approved_source_set@1`. It contains only DOWNLOAD records, refs needed for gated market-case
+`user_approved_source_set@1`. It contains only DOWNLOAD records, refs needed for gated market-case
 extraction, skipped action IDs, secret-free capabilities and retrieval policy. Do not accept a raw
 CandidateSourceIndex or an unconfirmed HumanSourceSelection as authorization.
 

@@ -20,7 +20,7 @@ def test_runtime_paths_live_under_emagents_home(tmp_path, monkeypatch):
     run_dir = runtime.run_dir("RUN 1")
     pdf_dir = runtime.pdf_dir("RUN 1")
 
-    assert workspace == home.resolve() / "g02" / "scout"
+    assert workspace == home.resolve() / "artifacts" / "g02" / "scout"
     assert run_dir == workspace / "runs" / "RUN_1"
     assert pdf_dir == run_dir / "pdf"
     assert workspace.is_dir()
@@ -82,14 +82,14 @@ def test_smoke_uses_emagents_workspace_and_disables_llm(tmp_path, monkeypatch):
     assert captured["topic"] == "asset pricing"
     assert captured["n"] == 1
     assert captured["email"] == "research@example.edu"
-    assert captured["pdf_dir"] == home.resolve() / "g02" / "scout" / "runs" / "RUN_1" / "pdf"
+    assert captured["pdf_dir"] == home.resolve() / "artifacts" / "g02" / "scout" / "runs" / "RUN_1" / "pdf"
     kwargs = captured["kwargs"]
     assert kwargs["verify_llm"] is False
     assert kwargs["openrouter_key"] == ""
     assert kwargs["query_expansion"] is False
     assert kwargs["openalex_api_key"] == "oa-test-key"
     assert kwargs["dedup_cross_run"] is False
-    assert kwargs["store"] is not None
+    assert kwargs["store"] is None  # lean refactor: Scout runs store-less
 
 
 def test_smoke_respects_explicit_workspace_out_and_no_store(tmp_path, monkeypatch):
@@ -128,7 +128,9 @@ def test_smoke_respects_explicit_workspace_out_and_no_store(tmp_path, monkeypatc
     assert captured["kwargs"]["dedup_cross_run"] is True
 
 
-def test_smoke_requires_openalex_api_key_before_running(monkeypatch):
+def test_smoke_runs_without_openalex_api_key(monkeypatch):
+    # Option B: the OpenAlex token is no longer a hard requirement — Scout runs without it
+    # (OpenAlex degrades / is excluded by the credential tier), it must NOT hard-exit.
     called = False
 
     def fake_run_student(*args, **kwargs):
@@ -141,5 +143,5 @@ def test_smoke_requires_openalex_api_key_before_running(monkeypatch):
 
     status = _smoke.main(["asset pricing", "-n", "1"])
 
-    assert status == 2
-    assert called is False
+    assert status != 2
+    assert called is True

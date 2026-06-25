@@ -157,6 +157,9 @@ def _default_transport(url: str, headers: dict[str, str], timeout: float,
         with opener.open(request, timeout=timeout) as response:
             final_url = response.geturl()
             body = _read_limited(response, max_bytes)
+            if int(response.status) == 200:   # a real provider query succeeded -> creds proven; drop the file
+                from g02 import credentials
+                credentials.purge_once()
             return {
                 "status_code": int(response.status),
                 "headers": {key.lower(): value for key, value in response.headers.items()},
