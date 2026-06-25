@@ -22,7 +22,9 @@ absent and must remain explicit as a limitation.
 2. Build `EvidenceMap` from claims or topic scope to evidence, sources, coverage and unresolved state.
 3. Consolidate findings without erasing differences in scope, method or confidence.
 4. Separate required updates, optional improvements, unresolved questions and no-change findings.
-5. Link every recommendation to claim IDs and evidence refs. State accepted coverage exceptions.
+5. Link every recommendation to claim IDs and evidence refs. Evidence refs in the Graph03 handoff
+   must be objects with `source_id`, `location` and `quote`, not strings. State accepted coverage
+   exceptions.
 6. Supply the findings, decisions needed, confidence, consequences of unresolved items and the
    skipped A08 limitation. The deterministic finalizer creates the human validation packet in
    `output_language`.
@@ -34,6 +36,15 @@ absent and must remain explicit as a limitation.
 ## Output requirements
 
 - Every recommendation has evidence refs and a priority rationale.
+- Every required update is directly usable by Graph03 and contains:
+  `update_id`, `finding`, `rationale`, `linked_intake_ids`, `target`, `ready_to_apply_text`,
+  `evidence_refs`, `source_refs` and `confidence`.
+- `ready_to_apply_text` contains a draft slide bullet, speaker note and optional detail in
+  `output_language`. Keep this as bounded teaching text, not final slide rewriting.
+- `evidence_refs` is always an array of compact citation objects:
+  `{source_id, location, quote}`. Include DOI, title or year when available.
+- Do not emit empty optional improvements. If a source is only contextual and cannot support a
+  concrete presentation change, put it in unresolved/context coverage rather than an empty update.
 - Unresolved and insufficient-evidence claims remain visible.
 - The human packet distinguishes required updates from optional improvements.
 - The downstream handoff contains only compact cards and artifact refs.

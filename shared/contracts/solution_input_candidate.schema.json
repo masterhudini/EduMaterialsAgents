@@ -1,13 +1,23 @@
 {
   "title": "Compact pre-approval handoff candidate from G02-A09 to Graph03.",
-  "x-version": "1.2",
+  "x-version": "1.4",
   "x-major": 1,
   "type": "object",
   "required": [
-    "schema_version", "artifact_version", "task_id", "synthesis_mode",
-    "claim_assessment_performed", "graph03_handoff_constraints", "suggested_updates",
-    "optional_improvements", "evidence_map_ref", "source_refs", "limitations",
-    "unresolved_items", "confidence", "a08_status"
+    "schema_version",
+    "artifact_version",
+    "task_id",
+    "synthesis_mode",
+    "claim_assessment_performed",
+    "graph03_handoff_constraints",
+    "suggested_updates",
+    "optional_improvements",
+    "evidence_map_ref",
+    "source_refs",
+    "limitations",
+    "unresolved_items",
+    "confidence",
+    "a08_status"
   ],
   "properties": {
     "schema_version": {"type": "string", "enum": ["solution_input_candidate@1"]},
@@ -17,11 +27,223 @@
       "type": "string",
       "enum": ["evidence_without_claim_assessment", "scout_fast"]
     },
-    "claim_assessment_performed": {"type": "boolean", "enum": [false]},
-    "graph03_handoff_constraints": {"type": "object"},
-    "suggested_updates": {"type": "array", "items": {"type": "object"}},
-    "optional_improvements": {"type": "array", "items": {"type": "object"}},
+    "source_pipeline": {"type": "string"},
+    "intake_ref": {"type": ["string", "null"]},
+    "plan_ref": {"type": ["string", "null"]},
     "evidence_map_ref": {"type": "string"},
+    "generated_at": {"type": "string"},
+    "claim_assessment_performed": {"type": "boolean", "enum": [false]},
+    "a08_status": {
+      "type": "string",
+      "enum": ["skipped_fast_profile", "skipped_scout_fast"]
+    },
+    "a09_model_pass": {"type": "boolean"},
+    "synthesis_engine": {
+      "type": "string",
+      "enum": ["a09_opus_medium", "deterministic_fallback"]
+    },
+    "presentation_context": {
+      "type": "object",
+      "properties": {
+        "course_name": {"type": ["string", "null"]},
+        "audience_level": {"type": ["string", "null"]},
+        "target_duration_minutes": {"type": ["integer", "null"]},
+        "teaching_goal": {"type": ["string", "null"]},
+        "output_language": {"type": ["string", "null"]},
+        "locked_sections": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "topics_covered": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "topic_id": {"type": "string"},
+          "name": {"type": "string"},
+          "linked_claims": {"type": "array", "items": {"type": "string"}},
+          "linked_concepts": {"type": "array", "items": {"type": "string"}},
+          "linked_flow_issues": {"type": "array", "items": {"type": "string"}},
+          "linked_update_needs": {"type": "array", "items": {"type": "string"}},
+          "source_count": {"type": "integer"},
+          "coverage_note": {"type": "string"}
+        }
+      }
+    },
+    "graph03_handoff_constraints": {
+      "type": "object",
+      "properties": {
+        "compact": {"type": "boolean"},
+        "no_full_text": {"type": "boolean"},
+        "no_full_pdfs": {"type": "boolean"},
+        "no_full_extracted_text": {"type": "boolean"},
+        "no_verbose_paper_reviews": {"type": "boolean"},
+        "graph03_must_not_call_g02": {"type": "boolean"},
+        "ready_to_apply_updates_required": {"type": "boolean"},
+        "output_language": {"type": ["string", "null"]},
+        "locked_sections": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "suggested_updates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "update_id",
+          "finding",
+          "rationale",
+          "linked_intake_ids",
+          "target",
+          "ready_to_apply_text",
+          "evidence_refs",
+          "source_refs",
+          "confidence"
+        ],
+        "properties": {
+          "update_id": {"type": "string"},
+          "finding_id": {"type": ["string", "null"]},
+          "topic_id": {"type": ["string", "null"]},
+          "action": {"type": "string"},
+          "extension_relation": {"type": ["string", "null"]},
+          "finding": {"type": "string"},
+          "rationale": {"type": "string"},
+          "priority": {"type": ["string", "null"]},
+          "priority_score": {"type": ["integer", "null"]},
+          "confidence": {"type": "string"},
+          "linked_intake_ids": {
+            "type": "object",
+            "properties": {
+              "claim_ids": {"type": "array", "items": {"type": "string"}},
+              "concept_ids": {"type": "array", "items": {"type": "string"}},
+              "driver_ids": {"type": "array", "items": {"type": "string"}},
+              "flow_issue_ids": {"type": "array", "items": {"type": "string"}},
+              "update_need_ids": {"type": "array", "items": {"type": "string"}}
+            }
+          },
+          "target": {
+            "type": "object",
+            "properties": {
+              "slide_ids": {"type": "array", "items": {"type": "string"}},
+              "affected_slides": {"type": "array"},
+              "section": {"type": ["string", "null"]},
+              "section_hint": {"type": ["string", "null"]},
+              "placement": {"type": "string"},
+              "teaching_role": {"type": "string"}
+            }
+          },
+          "ready_to_apply_text": {
+            "type": "object",
+            "required": ["slide_bullet", "speaker_note", "optional_detail"],
+            "properties": {
+              "slide_bullet": {"type": "string"},
+              "speaker_note": {"type": "string"},
+              "optional_detail": {"type": "string"}
+            }
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["source_id", "location", "quote"],
+              "properties": {
+                "source_id": {"type": "string"},
+                "location": {"type": "string"},
+                "quote": {"type": "string"},
+                "evidence_ref": {"type": ["string", "null"]},
+                "title": {"type": ["string", "null"]},
+                "doi": {"type": ["string", "null"]},
+                "year": {"type": ["integer", "null"]}
+              }
+            }
+          },
+          "source_refs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["source_id"],
+              "properties": {
+                "source_id": {"type": "string"},
+                "doi": {"type": ["string", "null"]},
+                "title": {"type": ["string", "null"]},
+                "first_author": {"type": ["string", "null"]},
+                "year": {"type": ["integer", "null"]},
+                "venue": {"type": ["string", "null"]},
+                "source_type": {"type": ["string", "null"]},
+                "paper_review_ref": {"type": ["string", "null"]},
+                "reviewed_document_ref": {"type": ["string", "null"]}
+              }
+            }
+          },
+          "source_ids": {"type": "array", "items": {"type": "string"}},
+          "pointer_id": {"type": ["string", "null"]},
+          "deep_dive_id": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "optional_improvements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "update_id",
+          "finding",
+          "rationale",
+          "linked_intake_ids",
+          "target",
+          "ready_to_apply_text",
+          "evidence_refs",
+          "source_refs",
+          "confidence"
+        ],
+        "properties": {
+          "update_id": {"type": "string"},
+          "finding": {"type": "string"},
+          "rationale": {"type": "string"},
+          "confidence": {"type": "string"},
+          "linked_intake_ids": {"type": "object"},
+          "target": {"type": "object"},
+          "ready_to_apply_text": {
+            "type": "object",
+            "required": ["slide_bullet", "speaker_note", "optional_detail"],
+            "properties": {
+              "slide_bullet": {"type": "string"},
+              "speaker_note": {"type": "string"},
+              "optional_detail": {"type": "string"}
+            }
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["source_id", "location", "quote"],
+              "properties": {
+                "source_id": {"type": "string"},
+                "location": {"type": "string"},
+                "quote": {"type": "string"}
+              }
+            }
+          },
+          "source_refs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["source_id"],
+              "properties": {
+                "source_id": {"type": "string"},
+                "doi": {"type": ["string", "null"]},
+                "title": {"type": ["string", "null"]},
+                "year": {"type": ["integer", "null"]}
+              }
+            }
+          }
+        }
+      }
+    },
+    "slide_update_plan": {"type": "array", "items": {"type": "object"}},
+    "slide_revision_priorities": {"type": "array", "items": {"type": "object"}},
+    "do_not_change": {"type": "array", "items": {"type": "object"}},
+    "coverage_summary": {"type": "array", "items": {"type": "object"}},
+    "coverage_gaps": {"type": "array", "items": {"type": "object"}},
+    "deep_dive_used": {"type": "array", "items": {"type": "object"}},
     "source_refs": {"type": "array", "items": {"type": "object"}},
     "limitations": {"type": "array", "items": {"type": "string"}},
     "unresolved_items": {"type": "array", "items": {"type": "object"}},

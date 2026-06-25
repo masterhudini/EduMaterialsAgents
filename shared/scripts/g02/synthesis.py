@@ -72,6 +72,7 @@ PROHIBITED_BEHAVIORS = [
     "Passing full PDFs, complete document text, full retrieved corpus or verbose PaperReview artifacts downstream.",
     "Finalizing the user-approved bundle before the Human Research Gate approval.",
 ]
+
 SEVERITY_RULES = {
     "minor": "A wording or ordering issue that leaves refs, status labels and A08 limitation intact.",
     "major": "A correctable gap in evidence mapping, confidence, unresolved items or human packet clarity.",
@@ -516,19 +517,261 @@ def _default_human_packet(state: dict, synthesis_input: dict) -> dict:
     }
 
 
+def _source_catalog(state: dict) -> dict[str, dict]:
+    return {
+        item.get("source_id"): item
+        for item in state.get("source_refs", [])
+        if isinstance(item, dict) and isinstance(item.get("source_id"), str)
+    }
+
+
+def _source_ids_from_item(item: dict) -> list[str]:
+    ids = []
+    raw = item.get("source_refs")
+    if isinstance(raw, list):
+        for value in raw:
+            if isinstance(value, str):
+                ids.append(value)
+            elif isinstance(value, dict) and isinstance(value.get("source_id"), str):
+                ids.append(value["source_id"])
+    if isinstance(item.get("source_id"), str):
+        ids.append(item["source_id"])
+    if isinstance(item.get("source_ids"), list):
+        ids.extend(value for value in item["source_ids"] if isinstance(value, str))
+    return _unique(ids)
+
+
+def _evidence_ref_objects(item: dict, source_catalog: dict[str, dict]) -> list[dict]:
+    """Return Graph03-ready evidence refs as objects, never raw strings.
+
+    Scout A09 and the regular fast A09 both feed this boundary. Older producers may still emit
+    ``evidence_refs`` as artifact-pointer strings, while the Scout handoff needs cited snippets
+    with source, location and quote. This normalizer preserves pointer strings as locations when
+    no better fields exist, but always returns the object shape expected by the downstream handoff.
+    """
+    raw = item.get("evidence_refs")
+    if not isinstance(raw, list) or not raw:
+        raw = item.get("evidence") if isinstance(item.get("evidence"), list) else []
+    fallback_sources = _source_ids_from_item(item)
+    refs = []
+    for index, value in enumerate(raw):
+        if isinstance(value, dict):
+            source_id = value.get("source_id") or (
+                fallback_sources[0] if len(fallback_sources) == 1 else None
+            )
+            source = source_catalog.get(source_id, {}) if isinstance(source_id, str) else {}
+            refs.append({
+                "source_id": source_id or "",
+                "location": _truncate(value.get("location") or value.get("ref") or "", 240),
+                "quote": _truncate(value.get("quote") or value.get("snippet") or "", 700),
+                "evidence_ref": value.get("evidence_ref") or value.get("ref"),
+                "title": value.get("title") or source.get("title"),
+                "doi": value.get("doi") or source.get("doi"),
+                "year": value.get("year") or source.get("year"),
+            })
+        elif isinstance(value, str) and value.strip():
+            source_id = fallback_sources[0] if len(fallback_sources) == 1 else ""
+            source = source_catalog.get(source_id, {}) if source_id else {}
+            refs.append({
+                "source_id": source_id,
+                "location": _truncate(value, 240),
+                "quote": "",
+                "evidence_ref": value,
+                "title": source.get("title"),
+                "doi": source.get("doi"),
+                "year": source.get("year"),
+            })
+        elif value is not None:
+            refs.append({
+                "source_id": fallback_sources[0] if len(fallback_sources) == 1 else "",
+                "location": f"evidence item {index + 1}",
+                "quote": _truncate(value, 700),
+                "evidence_ref": None,
+            })
+    return refs
+
+
+def _source_ref_objects(item: dict, source_catalog: dict[str, dict]) -> list[dict]:
+    raw = item.get("source_refs")
+    if raw is None and isinstance(item.get("source_id"), str):
+        raw = [item["source_id"]]
+    values = raw if isinstance(raw, list) else []
+    refs = []
+    for value in values:
+        if isinstance(value, dict):
+            source_id = value.get("source_id")
+            if not isinstance(source_id, str) or not source_id.strip():
+                continue
+            source = source_catalog.get(source_id, {}) if isinstance(source_id, str) else {}
+            refs.append({
+                "source_id": source_id,
+                "doi": value.get("doi") or source.get("doi"),
+                "title": value.get("title") or source.get("title"),
+                "first_author": value.get("first_author") or source.get("first_author"),
+                "year": value.get("year") or source.get("year"),
+                "venue": value.get("venue") or source.get("venue"),
+                "source_type": value.get("source_type") or source.get("source_type"),
+                "paper_review_ref": value.get("paper_review_ref") or source.get("paper_review_ref"),
+                "reviewed_document_ref": (
+                    value.get("reviewed_document_ref") or source.get("reviewed_document_ref")
+                ),
+            })
+        elif isinstance(value, str) and value.strip():
+            source = source_catalog.get(value, {})
+            refs.append({
+                "source_id": value,
+                "doi": source.get("doi"),
+                "title": source.get("title"),
+                "first_author": source.get("first_author"),
+                "year": source.get("year"),
+                "venue": source.get("venue"),
+                "source_type": source.get("source_type"),
+                "paper_review_ref": source.get("paper_review_ref"),
+                "reviewed_document_ref": source.get("reviewed_document_ref"),
+            })
+    if not refs and isinstance(item.get("source_id"), str) and item["source_id"].strip():
+        source_id = item["source_id"]
+        source = source_catalog.get(source_id, {})
+        refs.append({
+            "source_id": source_id,
+            "doi": source.get("doi"),
+            "title": source.get("title"),
+            "first_author": source.get("first_author"),
+            "year": source.get("year"),
+            "venue": source.get("venue"),
+            "source_type": source.get("source_type"),
+            "paper_review_ref": source.get("paper_review_ref"),
+            "reviewed_document_ref": source.get("reviewed_document_ref"),
+        })
+    return refs
+
+
+def _linked_intake_ids(item: dict) -> dict:
+    existing = item.get("linked_intake_ids")
+    if isinstance(existing, dict):
+        return {
+            "claim_ids": _strings(existing.get("claim_ids") or existing.get("claims")),
+            "concept_ids": _strings(existing.get("concept_ids") or existing.get("concepts")),
+            "driver_ids": _strings(existing.get("driver_ids") or existing.get("drivers")),
+            "flow_issue_ids": _strings(existing.get("flow_issue_ids") or existing.get("flow_issues")),
+            "update_need_ids": _strings(existing.get("update_need_ids") or existing.get("update_needs")),
+        }
+    return {
+        "claim_ids": _strings(item.get("related_claims") or item.get("claim_ids")),
+        "concept_ids": _strings(item.get("related_concepts") or item.get("concept_ids")),
+        "driver_ids": _strings(item.get("related_drivers") or item.get("driver_ids")),
+        "flow_issue_ids": _strings(item.get("related_flow_issues") or item.get("flow_issue_ids")),
+        "update_need_ids": _strings(item.get("related_update_needs") or item.get("update_need_ids")),
+    }
+
+
+def _ready_to_apply_text(item: dict) -> dict:
+    existing = item.get("ready_to_apply_text")
+    if isinstance(existing, dict):
+        return {
+            "slide_bullet": _truncate(existing.get("slide_bullet"), 900),
+            "speaker_note": _truncate(existing.get("speaker_note"), 1200),
+            "optional_detail": _truncate(existing.get("optional_detail"), 900),
+        }
+    impact = item.get("impact") or item.get("finding") or item.get("summary")
+    return {
+        "slide_bullet": _truncate(impact, 900),
+        "speaker_note": _truncate(item.get("rationale") or impact, 1200),
+        "optional_detail": _truncate(item.get("optional_detail"), 900),
+    }
+
+
+def _target_card(item: dict) -> dict:
+    target = item.get("target")
+    if isinstance(target, dict):
+        return {
+            "slide_ids": _strings(target.get("slide_ids")),
+            "affected_slides": deepcopy(target.get("affected_slides", [])),
+            "section": target.get("section"),
+            "section_hint": target.get("section_hint") or target.get("section"),
+            "placement": target.get("placement") or "best_fit_by_graph03",
+            "teaching_role": target.get("teaching_role") or "research_enrichment",
+        }
+    return {
+        "slide_ids": _strings(item.get("slide_ids")),
+        "affected_slides": deepcopy(item.get("affected_slides", [])),
+        "section": item.get("section"),
+        "section_hint": item.get("section_hint") or item.get("section"),
+        "placement": "best_fit_by_graph03",
+        "teaching_role": "research_enrichment",
+    }
+
+
+def _meaningful_update_card(card: dict, *, optional: bool) -> bool:
+    if not optional:
+        return True
+    text = card.get("finding") or card.get("rationale")
+    ready = card.get("ready_to_apply_text") if isinstance(card.get("ready_to_apply_text"), dict) else {}
+    return bool(
+        str(text or "").strip()
+        or card.get("evidence_refs")
+        or any(str(value or "").strip() for value in ready.values())
+    )
+
+
+def _handoff_update_cards(state: dict, collection: str) -> list[dict]:
+    source_catalog = _source_catalog(state)
+    optional = collection == "optional_improvements"
+    cards = []
+    for index, item in enumerate(state.get(collection, [])):
+        if not isinstance(item, dict):
+            continue
+        finding = item.get("finding") or item.get("impact") or item.get("summary") or ""
+        source_refs = _source_ref_objects(item, source_catalog)
+        evidence_refs = _evidence_ref_objects(item, source_catalog)
+        card = {
+            "update_id": (
+                item.get("update_id")
+                or item.get("finding_id")
+                or f"{'OPT' if optional else 'UPD'}_{index + 1:03d}"
+            ),
+            "finding_id": item.get("finding_id"),
+            "topic_id": item.get("topic_id"),
+            "action": item.get("action") or "add_or_refine_content",
+            "extension_relation": item.get("extension_relation") or item.get("status"),
+            "finding": _truncate(finding, 1200),
+            "rationale": _truncate(
+                item.get("rationale") or item.get("rationale_vs_presentation") or finding, 1200
+            ),
+            "priority": item.get("priority"),
+            "priority_score": item.get("priority_score"),
+            "confidence": item.get("confidence") or state.get("confidence"),
+            "linked_intake_ids": _linked_intake_ids(item),
+            "target": _target_card(item),
+            "ready_to_apply_text": _ready_to_apply_text(item),
+            "evidence_refs": evidence_refs,
+            "source_refs": source_refs,
+            "source_ids": _unique(
+                ref.get("source_id") for ref in source_refs if isinstance(ref, dict)
+            ) or _source_ids_from_item(item),
+            "pointer_id": item.get("pointer_id"),
+            "deep_dive_id": item.get("deep_dive_id"),
+        }
+        if _meaningful_update_card(card, optional=optional):
+            cards.append(card)
+    return cards
+
+
 def _default_solution_candidate(state: dict, synthesis_input: dict) -> dict:
     return {
         "schema_version": "solution_input_candidate@1",
         "task_id": synthesis_input["task_id"],
         "synthesis_mode": SYNTHESIS_MODE_FAST,
+        "source_pipeline": "intake -> g02 -> a07 -> a09",
         "claim_assessment_performed": False,
         "graph03_handoff_constraints": {
             "no_full_pdfs": True,
             "no_full_extracted_text": True,
             "no_verbose_paper_reviews": True,
+            "ready_to_apply_updates_required": True,
         },
-        "suggested_updates": deepcopy(state.get("required_updates", [])),
-        "optional_improvements": deepcopy(state.get("optional_improvements", [])),
+        "suggested_updates": _handoff_update_cards(state, "required_updates"),
+        "optional_improvements": _handoff_update_cards(state, "optional_improvements"),
         "evidence_map_ref": state.get("evidence_map_ref"),
         "source_refs": deepcopy(state.get("source_refs", [])),
         "limitations": deepcopy(state.get("limitations", [])),
@@ -644,6 +887,13 @@ def _normalize_state(synthesis_input: dict, output: object, artifact_version: st
             })
     state["source_refs"] = [{
         "source_id": item.get("source_id"),
+        "source_type": item.get("source_type") or item.get("source_kind"),
+        "title": item.get("title"),
+        "doi": item.get("doi"),
+        "first_author": item.get("first_author"),
+        "year": item.get("year"),
+        "venue": item.get("venue"),
+        "confidence": item.get("confidence"),
         "paper_review_ref": item.get("paper_review_ref"),
         "reviewed_document_ref": item.get("reviewed_document_ref"),
     } for item in synthesis_input.get("paper_reviews", [])]
@@ -780,12 +1030,31 @@ def validate_research_state(state: object, synthesis_input: dict) -> dict:
                 issues.append(_issue("blocker", "missing_update_evidence_refs",
                                      f"{collection} item lacks evidence refs",
                                      f"{collection}[{index}]"))
-            if isinstance(refs, list) and any(ref not in allowed_evidence_refs for ref in refs):
-                issues.append(_issue("blocker", "unbound_update_evidence_ref",
-                                     f"{collection} contains an unprepared evidence ref",
-                                     f"{collection}[{index}].evidence_refs"))
+            if isinstance(refs, list):
+                string_refs = [ref for ref in refs if isinstance(ref, str)]
+                object_refs = [ref for ref in refs if isinstance(ref, dict)]
+                if any(ref not in allowed_evidence_refs for ref in string_refs):
+                    issues.append(_issue("blocker", "unbound_update_evidence_ref",
+                                         f"{collection} contains an unprepared evidence ref",
+                                         f"{collection}[{index}].evidence_refs"))
+                if any(
+                        isinstance(ref.get("source_id"), str)
+                        and ref["source_id"] not in allowed_source_ids
+                        for ref in object_refs):
+                    issues.append(_issue("blocker", "unbound_update_evidence_source",
+                                         f"{collection} evidence object contains an unknown source",
+                                         f"{collection}[{index}].evidence_refs"))
             if isinstance(source_refs, list) and any(
-                    source_ref not in allowed_source_ids for source_ref in source_refs):
+                    isinstance(source_ref, str) and source_ref not in allowed_source_ids
+                    for source_ref in source_refs):
+                issues.append(_issue("blocker", "unbound_update_source_ref",
+                                     f"{collection} contains an unprepared source ref",
+                                     f"{collection}[{index}].source_refs"))
+            if isinstance(source_refs, list) and any(
+                    isinstance(source_ref, dict)
+                    and isinstance(source_ref.get("source_id"), str)
+                    and source_ref["source_id"] not in allowed_source_ids
+                    for source_ref in source_refs):
                 issues.append(_issue("blocker", "unbound_update_source_ref",
                                      f"{collection} contains an unprepared source ref",
                                      f"{collection}[{index}].source_refs"))

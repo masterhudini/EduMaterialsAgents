@@ -1,194 +1,375 @@
 {
-  "schema_version": "solution_input_candidate@1",
-  "artifact_version": "1.0.0",
-  "task_id": "RESEARCH_MOCK_001",
-  "synthesis_mode": "scout_fast",
-  "source_pipeline": "intake -> a01 -> scout -> a07 -> a09",
-  "intake_ref": "artifact://handoffs/research_graph_input.json",
-  "plan_ref": "artifact://g02/research-plans/RESEARCH_MOCK_001.1.json",
-  "evidence_map_ref": "artifact://g02/synthesis/RESEARCH_MOCK_001.evidence-map.json",
-  "generated_at": "2026-06-24T12:00:00Z",
-  "claim_assessment_performed": false,
   "a08_status": "skipped_scout_fast",
-  "a09_model_pass": true,
-  "synthesis_engine": "a09_opus_medium",
+  "a09_model_pass": false,
+  "artifact_version": "1.0.0",
+  "claim_assessment_performed": false,
   "confidence": "medium",
-
-  "presentation_context": {
-    "course_name": "Bayesian Statistics",
-    "audience_level": "master",
-    "target_duration_minutes": 90,
-    "teaching_goal": "refresh the lecture, verify dated claims and improve logical flow",
-    "output_language": "English",
-    "locked_sections": ["S1"]
-  },
-
-  "topics_covered": [
+  "coverage_gaps": [
     {
-      "topic_id": "TOPIC_BAYESIAN_COMPUTATION",
-      "name": "Bayesian computational cost and posterior sampling methods",
-      "linked_claims": ["CLM_001", "CLM_003"],
-      "linked_concepts": ["C1", "C2"],
-      "linked_flow_issues": ["F_001"],
-      "linked_update_needs": [],
-      "source_count": 5,
-      "coverage_note": "Strong recent OA coverage for cost drivers and MCMC alternatives; didactic likelihood-before-posterior material is thinner."
-    },
-    {
-      "topic_id": "TOPIC_VARIATIONAL_INFERENCE",
-      "name": "Variational inference: variance properties and motivation relative to MCMC",
-      "linked_claims": ["CLM_001", "CLM_002"],
-      "linked_concepts": ["C3"],
-      "linked_flow_issues": ["F_002"],
-      "linked_update_needs": [],
-      "source_count": 5,
-      "coverage_note": "Good evidence on variance behaviour and cost-vs-accuracy trade-off; conditions for variance underestimation well documented."
+      "gap_type": "insufficient_evidence",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL03"
+        ]
+      },
+      "note": "No reviewed source covers FRA day-count edge cases.",
+      "topic_id": "TOPIC_FRA"
     }
   ],
-
-  "suggested_updates": [
-    {
-      "update_id": "UPD_001",
-      "topic_id": "TOPIC_BAYESIAN_COMPUTATION",
-      "linked_intake_ids": {
-        "claim_ids": ["CLM_001"],
-        "concept_ids": ["C1"],
-        "flow_issue_ids": [],
-        "update_need_ids": []
-      },
-      "affected_slides": [],
-      "extension_relation": "updates_outdated",
-      "finding": "Recent work shows the blanket statement that Bayesian inference is computationally expensive at scale is dated: scalable and approximate posterior methods (Hamiltonian Monte Carlo, sequential and nested sampling, neural posterior estimation) bring large-scale inference into a practical regime, with cost driven by model dimension and posterior geometry rather than the Bayesian framing itself.",
-      "rationale_vs_presentation": "CLM_001 is currently presented as a flat limitation. The lecture should qualify it: cost depends on method and problem geometry, and modern samplers materially reduce it.",
-      "evidence_refs": [
-        {"source_id": "SRC_OA_001", "location": "p. 3, Sec. 2", "quote": "Mixing and per-iteration cost in MCMC for high-dimensional models are dominated by curvature of the posterior, not by the Bayesian formulation."},
-        {"source_id": "SRC_OA_003", "location": "p. 7, Sec. 4.1", "quote": "Amortized neural posterior estimation yields posterior approximations at near-constant inference cost after training."}
-      ],
-      "source_refs": ["SRC_OA_001", "SRC_OA_003"],
-      "confidence": "supported_by_reviewed_source",
-      "novelty": "within_recency_window"
-    },
-    {
-      "update_id": "UPD_002",
-      "topic_id": "TOPIC_BAYESIAN_COMPUTATION",
-      "linked_intake_ids": {
-        "claim_ids": ["CLM_003"],
-        "concept_ids": ["C1"],
-        "flow_issue_ids": [],
-        "update_need_ids": []
-      },
-      "affected_slides": [],
-      "extension_relation": "contradicts",
-      "finding": "MCMC is not the exclusive route to the posterior. Nested sampling, sequential Monte Carlo and simulation-based inference are now established alternatives, each with distinct cost and accuracy profiles, and are used where MCMC mixes poorly.",
-      "rationale_vs_presentation": "CLM_003 frames MCMC as the standard or sole sampler. The lecture should position MCMC as one option among several and name the alternatives.",
-      "evidence_refs": [
-        {"source_id": "SRC_OA_002", "location": "p. 2, Abstract", "quote": "Nested sampling provides both posterior samples and the marginal likelihood, complementing MCMC where evidence estimation is needed."},
-        {"source_id": "SRC_OA_004", "location": "p. 5, Sec. 3", "quote": "Synthetic-likelihood and simulation-based inference target settings with intractable likelihoods that MCMC cannot address directly."}
-      ],
-      "source_refs": ["SRC_OA_002", "SRC_OA_004"],
-      "confidence": "supported_by_reviewed_source",
-      "novelty": "within_recency_window"
-    },
-    {
-      "update_id": "UPD_003",
-      "topic_id": "TOPIC_VARIATIONAL_INFERENCE",
-      "linked_intake_ids": {
-        "claim_ids": ["CLM_002"],
-        "concept_ids": ["C3"],
-        "flow_issue_ids": [],
-        "update_need_ids": []
-      },
-      "affected_slides": [],
-      "extension_relation": "qualifies",
-      "finding": "The claim that variational inference always underestimates posterior variance holds for classic mean-field families but is not universal: richer families such as normalizing flows and structured/full-rank approximations can recover variance, so the failure mode is conditional on the chosen family.",
-      "rationale_vs_presentation": "CLM_002 is stated as an absolute. The lecture should bound it to mean-field VI and note that expressive families mitigate it.",
-      "evidence_refs": [
-        {"source_id": "SRC_OA_007", "location": "p. 4, Sec. 3.2", "quote": "Mean-field variational inference systematically underestimates marginal variances; the bias shrinks substantially with structured or flow-based posteriors."}
-      ],
-      "source_refs": ["SRC_OA_007"],
-      "confidence": "supported_by_reviewed_source",
-      "novelty": "within_recency_window"
-    }
-  ],
-
-  "optional_improvements": [
-    {
-      "update_id": "OPT_001",
-      "topic_id": "TOPIC_BAYESIAN_COMPUTATION",
-      "linked_intake_ids": {
-        "claim_ids": [],
-        "concept_ids": ["C1", "C2"],
-        "flow_issue_ids": ["F_001"],
-        "update_need_ids": []
-      },
-      "affected_slides": [6, 7],
-      "extension_relation": "didactic_example",
-      "finding": "A clean master-level exposition that introduces the likelihood function first and derives the posterior from it via Bayes' theorem, suitable as a bridge slide before the posterior is used.",
-      "rationale_vs_presentation": "F_001 flags that the posterior (C1) is used on slides 6-7 before the likelihood is explained. This source supplies a ready ordering to add a bridge.",
-      "evidence_refs": [
-        {"source_id": "SRC_OA_005", "location": "p. 2, Sec. 1.2", "quote": "We present the likelihood as the data-generating model and obtain the posterior as its normalized product with the prior."}
-      ],
-      "source_refs": ["SRC_OA_005"],
-      "confidence": "context_only",
-      "novelty": "canonical_background"
-    },
-    {
-      "update_id": "OPT_002",
-      "topic_id": "TOPIC_VARIATIONAL_INFERENCE",
-      "linked_intake_ids": {
-        "claim_ids": ["CLM_001"],
-        "concept_ids": ["C3"],
-        "flow_issue_ids": ["F_002"],
-        "update_need_ids": []
-      },
-      "affected_slides": [],
-      "extension_relation": "adds_new_angle",
-      "finding": "A cost-versus-accuracy comparison motivating variational inference as a response to MCMC cost: VI trades exactness for speed and scales to large models, which is a natural narrative hook after MCMC limitations are introduced.",
-      "rationale_vs_presentation": "Gives the lecture a motivated transition from MCMC cost (CLM_001) to VI (C3), addressing the flow concern F_002.",
-      "evidence_refs": [
-        {"source_id": "SRC_OA_006", "location": "p. 9, Sec. 5", "quote": "Variational methods reduce wall-clock inference time by one to two orders of magnitude relative to full MCMC at a controlled accuracy cost."}
-      ],
-      "source_refs": ["SRC_OA_006"],
-      "confidence": "supported_by_reviewed_source",
-      "novelty": "within_recency_window"
-    }
-  ],
-
-  "unresolved_items": [
-    {
-      "question": "Does the cost advantage of neural/simulation-based inference hold for the small-data master-course examples, or only at large scale?",
-      "linked_intake_ids": {"claim_ids": ["CLM_001"], "concept_ids": ["C1"], "flow_issue_ids": [], "update_need_ids": []},
-      "why_unresolved": "Reviewed open-access sources benchmark on large or simulator-based problems; none cover the lecture's small teaching examples.",
-      "what_would_resolve": "A source benchmarking amortized inference on low-dimensional, small-sample didactic problems."
-    }
-  ],
-
   "coverage_summary": [
-    {"claim_id": "CLM_001", "status": "covered", "source_count": 3, "topics": ["TOPIC_BAYESIAN_COMPUTATION", "TOPIC_VARIATIONAL_INFERENCE"]},
-    {"claim_id": "CLM_002", "status": "covered", "source_count": 1, "topics": ["TOPIC_VARIATIONAL_INFERENCE"]},
-    {"claim_id": "CLM_003", "status": "partial", "source_count": 2, "topics": ["TOPIC_BAYESIAN_COMPUTATION"]}
+    {
+      "element_id": "CL01",
+      "element_type": "claim",
+      "source_count": 1,
+      "status": "covered"
+    },
+    {
+      "element_id": "CL02",
+      "element_type": "claim",
+      "source_count": 1,
+      "status": "covered"
+    },
+    {
+      "element_id": "CL03",
+      "element_type": "claim",
+      "source_count": 0,
+      "status": "uncovered"
+    }
   ],
-
-  "source_refs": [
-    {"source_id": "SRC_OA_001", "doi": "10.1214/22-STS842", "title": "Challenges in Markov Chain Monte Carlo for Bayesian Neural Networks", "first_author": "Papamarkou", "year": 2022, "venue": "Statistical Science", "oa_status": "green", "topic_ids": ["TOPIC_BAYESIAN_COMPUTATION"]},
-    {"source_id": "SRC_OA_002", "doi": "10.1214/23-SS144", "title": "Nested Sampling Methods", "first_author": "Buchner", "year": 2023, "venue": "Statistics Surveys", "oa_status": "gold", "topic_ids": ["TOPIC_BAYESIAN_COMPUTATION"]},
-    {"source_id": "SRC_OA_003", "doi": "10.1051/0004-6361/202245263", "title": "Neural posterior estimation for astrophysical inference", "first_author": "Vasist", "year": 2023, "venue": "Astronomy & Astrophysics", "oa_status": "gold", "topic_ids": ["TOPIC_BAYESIAN_COMPUTATION"]},
-    {"source_id": "SRC_OA_004", "doi": "10.1080/01621459.2021.1923510", "title": "Bayesian Inference Using Synthetic Likelihood", "first_author": "Frazier", "year": 2022, "venue": "JASA", "oa_status": "green", "topic_ids": ["TOPIC_BAYESIAN_COMPUTATION"]},
-    {"source_id": "SRC_OA_005", "doi": "10.0000/example-likelihood-pedagogy", "title": "Likelihood-first introduction to Bayesian inference", "first_author": "Example", "year": 2021, "venue": "Teaching Statistics", "oa_status": "gold", "topic_ids": ["TOPIC_BAYESIAN_COMPUTATION"]},
-    {"source_id": "SRC_OA_006", "doi": "10.1162/example-vi-survey", "title": "Bayesian learning for neural networks: an algorithmic survey", "first_author": "Magris", "year": 2023, "venue": "Artificial Intelligence Review", "oa_status": "gold", "topic_ids": ["TOPIC_VARIATIONAL_INFERENCE"]},
-    {"source_id": "SRC_OA_007", "doi": "10.0000/example-vi-variance", "title": "Putting variation into variance: variational families and posterior variance", "first_author": "Williams", "year": 2021, "venue": "Bayesian Analysis", "oa_status": "gold", "topic_ids": ["TOPIC_VARIATIONAL_INFERENCE"]}
-  ],
-
-  "limitations": [
-    "Open-access only; closed-access version-of-record papers were captured as metadata stubs and not read.",
-    "A08 claim verification was skipped in scout_fast mode; relations are reviewer-level, not formal claim verdicts.",
-    "Per-paper review used bounded targeted windows under the topic lens, not full-text reads."
-  ],
-
+  "deep_dive_used": [],
+  "do_not_change": [],
+  "evidence_map_ref": "inline#/presentation_update_candidates",
+  "generated_at": "2026-06-25T08:00:29Z",
   "graph03_handoff_constraints": {
     "compact": true,
+    "graph03_must_not_call_g02": true,
+    "locked_sections": [],
+    "no_full_extracted_text": true,
+    "no_full_pdfs": true,
     "no_full_text": true,
-    "output_language": "English",
-    "locked_sections": ["S1"]
-  }
+    "no_verbose_paper_reviews": true,
+    "output_language": "pl",
+    "ready_to_apply_updates_required": true
+  },
+  "intake_ref": null,
+  "limitations": [
+    "A08 claim verification was skipped in scout_fast mode.",
+    "A09 did not read full PDFs; it used A07 bounded reviews and optional bounded deep-dive windows."
+  ],
+  "optional_improvements": [],
+  "plan_ref": "missing-scout-run/plan.json",
+  "presentation_context": {
+    "audience_level": "university finance / quantitative finance students",
+    "course_name": "Analiza i wycena instrumentów finansowych",
+    "locked_sections": [],
+    "output_language": "pl",
+    "target_duration_minutes": null,
+    "teaching_goal": "Zweryfikować i wesprzeć wykład o kontraktach FRA: definicje, rozliczenie, wycena stopy FRA, wartość pozycji, przykłady rachunkowe oraz typowe błędy dydaktyczne."
+  },
+  "schema_version": "solution_input_candidate@1",
+  "slide_revision_priorities": [
+    {
+      "priority_score": 33,
+      "reason": "confidence=supported_by_reviewed_source (3); extension_relation=updates_outdated (3)",
+      "update_id": "UPD_FRA_PRICING"
+    },
+    {
+      "priority_score": 31,
+      "reason": "confidence=supported_by_reviewed_source (3); extension_relation=confirms (1)",
+      "update_id": "UPD_FRA_SETTLE"
+    }
+  ],
+  "slide_update_plan": [
+    {
+      "action": "add_bullet",
+      "confidence": "supported_by_reviewed_source",
+      "deep_dive_id": null,
+      "evidence_refs": [
+        {
+          "location": "p. 5, sec. 3",
+          "quote": "After 2008 the single-curve framework was replaced by multi-curve construction separating forecasting and discounting.",
+          "source_id": "SCOUT_6B419F2A7E5C613F971E"
+        }
+      ],
+      "extension_relation": "updates_outdated",
+      "finding": "Post-crisis FRA pricing uses multi-curve discounting (OIS) separate from the projection curve.",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL01"
+        ],
+        "concept_ids": [
+          "C01"
+        ],
+        "flow_issue_ids": [],
+        "update_need_ids": []
+      },
+      "pointer_id": null,
+      "rationale": "Fixture rationale.",
+      "ready_to_apply_text": {
+        "optional_detail": "",
+        "slide_bullet": "Post-crisis FRA pricing uses multi-curve discounting (OIS) separate from the projection curve.",
+        "speaker_note": "Fixture rationale."
+      },
+      "source_id": "SCOUT_6B419F2A7E5C613F971E",
+      "source_refs": [
+        {
+          "doi": "10.18267/j.polek.938",
+          "source_id": "SCOUT_6B419F2A7E5C613F971E",
+          "title": "Yield Curve Construction after Crisis",
+          "venue": "Politicka Ekonomie",
+          "year": 2014
+        }
+      ],
+      "source_type": "canonical",
+      "target": {
+        "affected_slides": [
+          "12"
+        ],
+        "placement": "best_fit_by_graph03",
+        "section": "Section 1",
+        "section_hint": "Section 1",
+        "slide_ids": [
+          "12"
+        ]
+      },
+      "topic_id": "TOPIC_1",
+      "update_id": "UPD_FRA_PRICING"
+    },
+    {
+      "action": "add_bullet",
+      "confidence": "supported_by_reviewed_source",
+      "deep_dive_id": null,
+      "evidence_refs": [
+        {
+          "location": "p. 211",
+          "quote": "The settlement amount is discounted from the end of the contract period to the settlement date.",
+          "source_id": "SCOUT_82FBE3F31A9741471348"
+        }
+      ],
+      "extension_relation": "confirms",
+      "finding": "FRA settlement is discounted at the settlement date using the realized reference rate.",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL02"
+        ],
+        "concept_ids": [],
+        "flow_issue_ids": [
+          "FI01"
+        ],
+        "update_need_ids": []
+      },
+      "pointer_id": null,
+      "rationale": "Fixture rationale.",
+      "ready_to_apply_text": {
+        "optional_detail": "",
+        "slide_bullet": "FRA settlement is discounted at the settlement date using the realized reference rate.",
+        "speaker_note": "Fixture rationale."
+      },
+      "source_id": "SCOUT_82FBE3F31A9741471348",
+      "source_refs": [
+        {
+          "doi": "10.1007/978-3-319-33446-2_11",
+          "source_id": "SCOUT_82FBE3F31A9741471348",
+          "title": "Multi-curve Construction",
+          "year": 2016
+        }
+      ],
+      "source_type": "canonical",
+      "target": {
+        "affected_slides": [
+          "13"
+        ],
+        "placement": "best_fit_by_graph03",
+        "section": "Section 1",
+        "section_hint": "Section 1",
+        "slide_ids": [
+          "13"
+        ]
+      },
+      "topic_id": "TOPIC_1",
+      "update_id": "UPD_FRA_SETTLE"
+    }
+  ],
+  "source_pipeline": "intake -> a01 -> scout -> a07 -> a09",
+  "source_refs": [
+    {
+      "a07_review_status": "useful_for_update",
+      "doi": "10.18267/j.polek.938",
+      "source_id": "SCOUT_6B419F2A7E5C613F971E",
+      "source_type": "canonical",
+      "title": "Yield Curve Construction after Crisis",
+      "venue": "Politicka Ekonomie",
+      "year": 2014
+    },
+    {
+      "a07_review_status": "useful_for_update",
+      "doi": "10.1007/978-3-319-33446-2_11",
+      "source_id": "SCOUT_82FBE3F31A9741471348",
+      "source_type": "canonical",
+      "title": "Multi-curve Construction",
+      "venue": null,
+      "year": 2016
+    }
+  ],
+  "suggested_updates": [
+    {
+      "action": "add_bullet",
+      "confidence": "supported_by_reviewed_source",
+      "deep_dive_id": null,
+      "evidence_refs": [
+        {
+          "location": "p. 5, sec. 3",
+          "quote": "After 2008 the single-curve framework was replaced by multi-curve construction separating forecasting and discounting.",
+          "source_id": "SCOUT_6B419F2A7E5C613F971E"
+        }
+      ],
+      "extension_relation": "updates_outdated",
+      "finding": "Post-crisis FRA pricing uses multi-curve discounting (OIS) separate from the projection curve.",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL01"
+        ],
+        "concept_ids": [
+          "C01"
+        ],
+        "flow_issue_ids": [],
+        "update_need_ids": []
+      },
+      "pointer_id": null,
+      "rationale": "Fixture rationale.",
+      "ready_to_apply_text": {
+        "optional_detail": "",
+        "slide_bullet": "Post-crisis FRA pricing uses multi-curve discounting (OIS) separate from the projection curve.",
+        "speaker_note": "Fixture rationale."
+      },
+      "source_id": "SCOUT_6B419F2A7E5C613F971E",
+      "source_refs": [
+        {
+          "doi": "10.18267/j.polek.938",
+          "source_id": "SCOUT_6B419F2A7E5C613F971E",
+          "title": "Yield Curve Construction after Crisis",
+          "venue": "Politicka Ekonomie",
+          "year": 2014
+        }
+      ],
+      "source_type": "canonical",
+      "target": {
+        "affected_slides": [
+          "12"
+        ],
+        "placement": "best_fit_by_graph03",
+        "section": "Section 1",
+        "section_hint": "Section 1",
+        "slide_ids": [
+          "12"
+        ]
+      },
+      "topic_id": "TOPIC_1",
+      "update_id": "UPD_FRA_PRICING"
+    },
+    {
+      "action": "add_bullet",
+      "confidence": "supported_by_reviewed_source",
+      "deep_dive_id": null,
+      "evidence_refs": [
+        {
+          "location": "p. 211",
+          "quote": "The settlement amount is discounted from the end of the contract period to the settlement date.",
+          "source_id": "SCOUT_82FBE3F31A9741471348"
+        }
+      ],
+      "extension_relation": "confirms",
+      "finding": "FRA settlement is discounted at the settlement date using the realized reference rate.",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL02"
+        ],
+        "concept_ids": [],
+        "flow_issue_ids": [
+          "FI01"
+        ],
+        "update_need_ids": []
+      },
+      "pointer_id": null,
+      "rationale": "Fixture rationale.",
+      "ready_to_apply_text": {
+        "optional_detail": "",
+        "slide_bullet": "FRA settlement is discounted at the settlement date using the realized reference rate.",
+        "speaker_note": "Fixture rationale."
+      },
+      "source_id": "SCOUT_82FBE3F31A9741471348",
+      "source_refs": [
+        {
+          "doi": "10.1007/978-3-319-33446-2_11",
+          "source_id": "SCOUT_82FBE3F31A9741471348",
+          "title": "Multi-curve Construction",
+          "year": 2016
+        }
+      ],
+      "source_type": "canonical",
+      "target": {
+        "affected_slides": [
+          "13"
+        ],
+        "placement": "best_fit_by_graph03",
+        "section": "Section 1",
+        "section_hint": "Section 1",
+        "slide_ids": [
+          "13"
+        ]
+      },
+      "topic_id": "TOPIC_1",
+      "update_id": "UPD_FRA_SETTLE"
+    }
+  ],
+  "synthesis_engine": "deterministic_fallback",
+  "synthesis_mode": "scout_fast",
+  "task_id": "T_SYNTHESIS",
+  "topics_covered": [
+    {
+      "coverage_note": "covered",
+      "linked_claims": [
+        "CL01",
+        "CL02",
+        "CL03"
+      ],
+      "linked_concepts": [
+        "C01"
+      ],
+      "linked_flow_issues": [
+        "FI01"
+      ],
+      "linked_update_needs": [],
+      "name": "FRA pricing and settlement",
+      "source_count": 2,
+      "topic_id": "TOPIC_FRA"
+    }
+  ],
+  "unresolved_items": [
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL03"
+        ]
+      },
+      "question": "No reviewed source covers FRA day-count edge cases.",
+      "topic_id": "TOPIC_FRA",
+      "what_would_resolve": "Run a narrower Scout query or provide a canonical source.",
+      "why_unresolved": "insufficient_evidence"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL03"
+        ],
+        "concept_ids": [],
+        "flow_issue_ids": [],
+        "update_need_ids": []
+      },
+      "question": "May contain FRA day-count conventions worth a bounded deep dive.",
+      "topic_id": "TOPIC_1",
+      "what_would_resolve": "matched terms: term 3; pages: 3; work item: work/SRC_3.json",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    }
+  ]
 }

@@ -1905,3 +1905,33 @@ deep dive, który musi trafić do finalizera. Prompt `research-scout-e2e` nakazu
 Testy źródłowe obejmują walidację taska, compact intake, budżet 8/1200, udany model pass,
 wyjątek executora, audyt fallbacku, rejestrację narzędzia MCP i binding skilla Opus/medium.
 Końcowe uruchomienie testów, `graph_check` i build pozostają osobnym krokiem weryfikacyjnym.
+
+### 28.6 Dopracowanie kontraktu wyjścia do G03 (self-contained, schemat 1.4)
+
+`solution_input_candidate@1` jest jedynym artefaktem przekraczającym granicę G02 → G03. Ma być
+samowystarczalny: G03 nie czyta PDF-ów, wnętrza G02 ani dodatkowych artefaktów badawczych. Slajdów
+G02 nie posiada (pochodzą z `lecture_baseline@1` w G01, a `solution_graph_input@1` łączy oba refy),
+więc mapowanie finding→slajd robi G03 — kontrakt niesie do tego klucze złączenia (`linked_intake_ids`,
+`target.slide_ids`/`section_hint`). Dopracowanie (schemat `x-version` 1.4):
+
+- Opinia z przeanalizowanych artykułów jest jawna w każdym `suggested_updates`/`optional_improvements`:
+  `finding` (co mówi źródło), `rationale` (dlaczego zmienia/rozszerza obecny wykład — z A07
+  `rationale_vs_existing_presentation`), `extension_relation` (werdykt: confirms / updates_outdated /
+  adds_new_angle / contradicts / qualifies / didactic_example), `confidence` (siła dowodu) oraz
+  `evidence_refs` z krótkim cytatem i lokalizacją i obiektowe `source_refs` (doi/title/year/venue).
+  A09 (opus/medium) weryfikuje i porządkuje te opinie; A08 jest jawnie pominięte
+  (`claim_assessment_performed=false`, `a08_status="skipped_scout_fast"`).
+- `coverage_summary[]`: per claim/driver status `covered` / `partial` / `uncovered` z liczbą źródeł,
+  liczony deterministycznie z linków tego przebiegu. Daje G03 obraz, co badanie rozstrzygnęło, a co
+  zostało otwarte, bez sięgania po A07.
+- Bug fix: finalizer zapisuje dowody pod kluczem `evidence_refs` (wcześniej `evidence`), co schemat 1.3+
+  wymaga jako pole obowiązkowe pozycji aktualizacji. `slide_ids` są koercowane do stringów (np. gdy
+  `affected_slides` z kart flow-issue przychodzą jako liczby).
+- Schemat dopuszcza `null` dla `intake_ref`, `plan_ref` i pól `presentation_context.*` na ścieżce bez
+  intake; w realnym łańcuchu (intake → A01 → Scout → A07 → A09) pola te są wypełnione z
+  `user_approved_context`.
+- Flagi `graph03_handoff_constraints` są kompletne: `compact`, `no_full_text`, `no_full_pdfs`,
+  `no_full_extracted_text`, `no_verbose_paper_reviews`, `ready_to_apply_updates_required`,
+  `graph03_must_not_call_g02`, plus `output_language` i `locked_sections`.
+
+Przykład wygenerowany realnym finalizerem: `mocks/g02/EXAMPLE g02-a09-solution_input_candidate.artifact.json`.

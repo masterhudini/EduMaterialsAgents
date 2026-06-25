@@ -89,7 +89,12 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   auxiliary A09 artifacts emitted beside `research_state@1`. Version 1.2 of
   `solution_input_candidate.schema.json` gives every Scout `slide_update_plan` item a concrete
   target with backward-compatible `affected_slides`/`section_hint` and canonical
-  `slide_ids`/`section`/`placement` fields, plus A09 model-pass audit fields.
+  `slide_ids`/`section`/`placement` fields, plus A09 model-pass audit fields. Version 1.4 makes the
+  Scout G02 handoff self-contained for Graph03: each `suggested_updates`/`optional_improvements`
+  item carries the analyzed-article opinion (`finding`, `rationale`, `extension_relation`,
+  `confidence`) with `evidence_refs` quotes and object `source_refs`; `coverage_summary` records a
+  per-claim/driver `covered`/`partial`/`uncovered` status with source counts; `slide_ids` are
+  coerced to strings; and `presentation_context`/`intake_ref` accept null for the no-intake path.
 - `review_task.schema.json` — one universal reviewer invocation (`review_task@1`) with one
   artifact, an explicit profile and observable review criteria.
 - `review_decision.schema.json` — auditable universal reviewer result (`review_decision@1`).

@@ -177,6 +177,38 @@ class ScoutSynthesisTests(unittest.TestCase):
         )
         self.assertEqual(solution["slide_revision_priorities"][0]["update_id"], "UPD_HIGH")
 
+    def test_handoff_is_self_contained_with_opinions_and_coverage(self) -> None:
+        covered = _candidate("UPD_COVERED", "Settled finding", slides=[12])
+        covered["linked_intake_ids"]["claim_ids"] = ["CL01"]
+        gap = {
+            "gap_type": "insufficient_evidence",
+            "note": "No reviewed source covers CL02.",
+            "topic_id": "TOPIC_1",
+            "linked_intake_ids": {"claim_ids": ["CL02"]},
+        }
+        solution = _solution(_reviews(candidates=[covered], gaps=[gap]))
+
+        # Each suggested update carries the analyzed-article opinion, self-contained.
+        update = solution["suggested_updates"][0]
+        for field in ("finding", "rationale", "extension_relation", "confidence",
+                      "evidence_refs", "source_refs", "ready_to_apply_text", "target"):
+            self.assertIn(field, update)
+        self.assertNotIn("evidence", update)  # legacy key must be gone
+        self.assertTrue(update["evidence_refs"])
+        self.assertTrue(all(isinstance(ref, dict) for ref in update["source_refs"]))
+        self.assertTrue(all(isinstance(s, str) for s in update["target"]["slide_ids"]))
+
+        # coverage_summary states covered vs uncovered per intake element.
+        by_id = {row["element_id"]: row for row in solution["coverage_summary"]}
+        self.assertEqual(by_id["CL01"]["status"], "covered")
+        self.assertEqual(by_id["CL01"]["source_count"], 1)
+        self.assertEqual(by_id["CL02"]["status"], "uncovered")
+
+        constraints = solution["graph03_handoff_constraints"]
+        for flag in ("no_full_pdfs", "no_full_extracted_text", "no_verbose_paper_reviews",
+                     "graph03_must_not_call_g02", "ready_to_apply_updates_required"):
+            self.assertTrue(constraints[flag])
+
     def test_unconsumed_pointers_become_unresolved_items(self) -> None:
         solution = _solution(_reviews(pointers=[_pointer(1), _pointer(2)]))
 

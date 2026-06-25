@@ -55,7 +55,7 @@ EXPECTED_GLOBAL_SETTINGS = {
 
 
 EXPECTED_SKILL_SETTINGS = {
-    "g01-orchestrate-intake": ("opus", "low"),
+    "g01-orchestrate-intake": ("opus", "medium"),
     "g02-a01-plan-research-scope": ("opus", "medium"),
     "g02-a05-annotate-source-candidates": ("opus", "medium"),
     "g02-a05-deduplicate-source-records": ("opus", "medium"),
@@ -120,7 +120,7 @@ def test_claude_agent_and_skill_model_effort_matrix_is_exact():
     assert actual_globals == EXPECTED_GLOBAL_SETTINGS
 
     actual_skills = {}
-    for skill in (item for item in source_skills() if item.name.startswith("g02-")):
+    for skill in (item for item in source_skills() if item.name.startswith(("g01-", "g02-"))):
         text = (skill / "adapters" / "claude.frontmatter.yaml").read_text(encoding="utf-8")
         model = re.search(r"^model:\s*(\S+)\s*$", text, re.MULTILINE)
         effort = re.search(r"^effort:\s*(\S+)\s*$", text, re.MULTILINE)

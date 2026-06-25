@@ -222,7 +222,7 @@ def _rank_updates(updates: list[dict]) -> tuple[list[dict], list[dict]]:
     for index, update in enumerate(updates):
         if not isinstance(update, dict):
             continue
-        evidence = _as_list(update.get("evidence")) or _as_list(update.get("evidence_refs"))
+        evidence = _as_list(update.get("evidence_refs")) or _as_list(update.get("evidence"))
         ranked = (index, deepcopy(update))
         if str(update.get("confidence") or "") == "insufficient_evidence" or not evidence:
             optional.append(ranked)
@@ -381,6 +381,72 @@ def _topics_covered(reviews: dict) -> list[dict]:
             "coverage_note": item.get("status") or "unknown",
         })
     return topics
+
+
+def _coverage_summary(
+    reviews: dict,
+    suggested_updates: list[dict],
+    optional_improvements: list[dict],
+    coverage_gaps: list[dict],
+) -> list[dict]:
+    """Per claim/driver coverage so G03 sees what the research settled vs left open.
+
+    Self-contained: derived only from this run's linkage. ``covered`` means at least
+    one suggested update carries the element with evidence; ``partial`` means it is
+    only in optional improvements or also flagged as a gap; ``uncovered`` means the
+    element appears in intake linkage or a gap but no update addresses it.
+    """
+    linked = _linked_intake_ids(reviews)
+
+    def _ids(items: list[dict], key: str) -> dict[str, set[str]]:
+        by_element: dict[str, set[str]] = {}
+        for update in items:
+            if not isinstance(update, dict):
+                continue
+            ids = update.get("linked_intake_ids") \
+                if isinstance(update.get("linked_intake_ids"), dict) else {}
+            for element_id in _as_list(ids.get(key)):
+                element_id = str(element_id)
+                sources = by_element.setdefault(element_id, set())
+                for ref in _as_list(update.get("source_refs")):
+                    if isinstance(ref, dict) and ref.get("source_id"):
+                        sources.add(str(ref["source_id"]))
+                if update.get("source_id"):
+                    sources.add(str(update["source_id"]))
+        return by_element
+
+    gap_ids = {
+        "claim_ids": set(),
+        "driver_ids": set(),
+    }
+    for gap in _as_list(coverage_gaps):
+        if not isinstance(gap, dict):
+            continue
+        ids = gap.get("linked_intake_ids") if isinstance(gap.get("linked_intake_ids"), dict) else {}
+        for key in gap_ids:
+            gap_ids[key].update(str(value) for value in _as_list(ids.get(key)) if value)
+
+    summary: list[dict] = []
+    for element_type, key in (("claim", "claim_ids"), ("driver", "driver_ids")):
+        supporting = _ids(suggested_updates, key)
+        optional = _ids(optional_improvements, key)
+        universe = set(linked.get(key, set())) | set(supporting) | set(optional) | gap_ids[key]
+        for element_id in sorted(universe):
+            in_gap = element_id in gap_ids[key]
+            source_ids = supporting.get(element_id, set())
+            if source_ids:
+                status = "partial" if in_gap else "covered"
+            elif element_id in optional:
+                status = "partial"
+            else:
+                status = "uncovered"
+            summary.append({
+                "element_type": element_type,
+                "element_id": element_id,
+                "status": status,
+                "source_count": len(source_ids),
+            })
+    return summary
 
 
 def _source_refs_from_reviews(reviews: dict) -> list[dict]:
@@ -619,7 +685,12 @@ def _ready_update(candidate: dict, index: int) -> dict:
         or _as_list(candidate.get("affected_slides")) \
         or _as_list(target.get("slide_ids"))
     target["affected_slides"] = deepcopy(affected_slides)
-    target["slide_ids"] = deepcopy(_as_list(target.get("slide_ids")) or affected_slides)
+    # slide_ids are canonical string identifiers in the G03 contract; coerce any
+    # int/loose ids (e.g. flow-issue affected_slides) to strings so the handoff validates.
+    target["slide_ids"] = [
+        str(slide) for slide in (_as_list(target.get("slide_ids")) or affected_slides)
+        if slide is not None and str(slide).strip()
+    ]
     target.setdefault(
         "section_hint",
         candidate.get("section_hint") or target.get("section") or candidate.get("topic_id"),
@@ -664,7 +735,7 @@ def _ready_update(candidate: dict, index: int) -> dict:
         or "adds_new_angle",
         "finding": finding,
         "rationale": rationale,
-        "evidence": deepcopy(candidate.get("evidence_refs") or candidate.get("evidence") or []),
+        "evidence_refs": deepcopy(candidate.get("evidence_refs") or candidate.get("evidence") or []),
         "source_refs": deepcopy(candidate.get("source_refs", [])),
         "confidence": candidate.get("confidence") or "needs_human_check",
         "source_type": candidate.get("source_type"),
@@ -1025,6 +1096,7 @@ def finalize_scout_fast_solution(
         "optional_improvements": optional,
         "do_not_change": deepcopy(model_output.get("do_not_change", []))
         if isinstance(model_output.get("do_not_change"), list) else [],
+        "coverage_summary": _coverage_summary(reviews, suggested_updates, optional, coverage_gaps),
         "coverage_gaps": coverage_gaps,
         "evidence_map_ref": f"{synthesis_input.get('scout_a07_reviews_ref', 'inline')}#/presentation_update_candidates",
         "source_refs": source_refs,
@@ -1040,6 +1112,8 @@ def finalize_scout_fast_solution(
             "compact": True,
             "no_full_text": True,
             "no_full_pdfs": True,
+            "no_full_extracted_text": True,
+            "no_verbose_paper_reviews": True,
             "ready_to_apply_updates_required": True,
             "graph03_must_not_call_g02": True,
             "output_language": synthesis_input.get("presentation_context", {}).get("output_language"),

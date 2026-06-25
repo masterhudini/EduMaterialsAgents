@@ -1,7 +1,9 @@
 """g03 producer write path + dual-input front door.
 
 g03 is the first place the two upstream sides meet: the lecture skeleton from g01
-(``lecture_baseline@1``) and the approved research from g02 (``user_approved_research_bundle@1``).
+(``lecture_baseline@1``) and the research hand-off from g02 — either the human-gated
+``user_approved_research_bundle@1`` or, on the deterministic scout_fast path,
+``solution_input_candidate@1`` (selected by ``research_bundle_kind``).
 Neither is the other graph's full state — each is a purpose-built, targeted slice. This module
 builds the thin composite boundary (``solution_graph_input@1``, a pair of refs) the engine drives
 on, and persists the producer artifact server-side. Pure stdlib.
@@ -20,6 +22,32 @@ from core import artifacts, contracts, finalize  # noqa: E402
 INPUT_CONTRACT = "solution_graph_input@1"
 LECTURE_CONTRACT = "lecture_baseline@1"
 RESEARCH_CONTRACT = "user_approved_research_bundle@1"
+SCOUT_RESEARCH_CONTRACT = "solution_input_candidate@1"
+# Map research_bundle_kind -> the g02 contract the research side satisfies.
+RESEARCH_CONTRACT_BY_KIND = {
+    "user_approved_research_bundle": RESEARCH_CONTRACT,
+    "solution_input_candidate": SCOUT_RESEARCH_CONTRACT,
+}
+
+
+def _research_contract_and_kind(request: dict) -> tuple[str, str]:
+    """Pick the g02 research contract + kind for this input.
+
+    Explicit ``research_bundle_kind`` wins; otherwise infer from an inline bundle's
+    ``schema_version``; otherwise default to the legacy reviewed bundle. scout_fast
+    runs hand off ``solution_input_candidate@1`` instead of the human-gated bundle.
+    """
+    kind = request.get("research_bundle_kind")
+    if kind in RESEARCH_CONTRACT_BY_KIND:
+        return RESEARCH_CONTRACT_BY_KIND[kind], kind
+    inline = request.get("research_bundle")
+    if isinstance(inline, dict):
+        version = inline.get("schema_version")
+        if version == SCOUT_RESEARCH_CONTRACT:
+            return SCOUT_RESEARCH_CONTRACT, "solution_input_candidate"
+        if version == RESEARCH_CONTRACT:
+            return RESEARCH_CONTRACT, "user_approved_research_bundle"
+    return RESEARCH_CONTRACT, "user_approved_research_bundle"
 
 
 def finalize_blueprint(task_id: str, blueprint: dict, *, base=None) -> dict:
@@ -56,7 +84,8 @@ def build_solution_input(request: dict, *, base=None) -> str:
     output_language?}``.
     """
     lb_ref = _ensure_ref(request, "lecture_baseline_ref", "lecture_baseline", LECTURE_CONTRACT, base=base)
-    rb_ref = _ensure_ref(request, "research_bundle_ref", "research_bundle", RESEARCH_CONTRACT, base=base)
+    research_contract, research_kind = _research_contract_and_kind(request)
+    rb_ref = _ensure_ref(request, "research_bundle_ref", "research_bundle", research_contract, base=base)
     task_id = request.get("task_id")
     output_language = request.get("output_language")
     if not task_id or not output_language:
@@ -66,6 +95,7 @@ def build_solution_input(request: dict, *, base=None) -> str:
     composite = {
         "schema_version": INPUT_CONTRACT, "task_id": task_id, "output_language": output_language,
         "lecture_baseline_ref": lb_ref, "research_bundle_ref": rb_ref,
+        "research_bundle_kind": research_kind,
     }
     res = contracts.validate(composite, INPUT_CONTRACT)
     if not res["ok"]:
