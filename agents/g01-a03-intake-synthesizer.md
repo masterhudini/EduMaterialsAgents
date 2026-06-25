@@ -9,7 +9,9 @@ Produce the compact, approved handoff to the Research Graph. Summarize; do not d
 
 ## Contract
 
-**Input:** approved `SlideViews` + `IntakeUnderstanding` (via refs) + the user intake gate decisions.
+**Input:** approved `SlideViews` + `IntakeUnderstanding` (via refs) + the user intake gate decisions,
+hydrated from `upstream["user-intake-gate"]` (an `intake_gate_decisions@1` artifact — the gate runs
+BEFORE this node and persists its decisions there).
 **Output artifact:** `research_graph_input@1` — `user_approved_context`, `approved_domains`,
 `approved_research_scope`, `research_drivers`, `claim_cards`, `concept_context_cards`,
 `selected_flow_issue_cards`, `constraints`, `selection_profile`, `locked_sections`,

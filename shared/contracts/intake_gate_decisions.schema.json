@@ -1,0 +1,60 @@
+{
+  "title": "Decisions captured at the G01 user intake gate (feeds a03 synthesizer + a04 lecture baseline).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "task_id", "confirm_audience", "confirm_domains",
+    "approve_research_scope", "locked_sections"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["intake_gate_decisions@1"]},
+    "task_id": {"type": "string"},
+    "confirm_audience": {
+      "type": "object",
+      "required": ["confirmed"],
+      "properties": {
+        "confirmed": {"type": "boolean"},
+        "audience_level": {"type": ["string", "null"]},
+        "course_name": {"type": ["string", "null"]},
+        "teaching_goal": {"type": ["string", "null"]}
+      }
+    },
+    "confirm_domains": {
+      "type": "object",
+      "required": ["confirmed"],
+      "properties": {
+        "confirmed": {"type": "boolean"},
+        "approved_domains": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["domain_id"],
+            "properties": {
+              "domain_id": {"type": "string"},
+              "label": {"type": ["string", "null"]}
+            }
+          }
+        }
+      }
+    },
+    "approve_research_scope": {
+      "type": "object",
+      "required": ["approved"],
+      "properties": {
+        "approved": {"type": "boolean"},
+        "verify_claims": {"type": ["object", "null"]},
+        "include_recent_developments": {"type": ["boolean", "null"]},
+        "include_canonical_sources": {"type": ["boolean", "null"]},
+        "include_didactic_examples": {"type": ["boolean", "null"]},
+        "recency_window_years": {"type": ["integer", "null"]}
+      }
+    },
+    "locked_sections": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Slide / section ids the user marked as locked; a04 carries them onto the lecture baseline and a03 onto research_graph_input.locked_sections."
+    },
+    "human_notes": {"type": ["string", "null"]}
+  }
+}

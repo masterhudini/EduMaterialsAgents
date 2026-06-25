@@ -1,6 +1,6 @@
 {
   "graph_id": "g01",
-  "description": "Intake / Understanding Graph (thin). Turns an uploaded lecture PDF into the approved boundary input for the Research Graph. SINGLE SOURCE OF TRUTH for the node sequence — g01_flow.py and the orchestrator prompt must agree with this manifest. Reviewers are runs of ONE physical agent (g01-a10-output-reviewer) with a per-node review_profile; the user intake gate is an orchestrator step. Producers are no-op stubs in the wiring harness; the thin exit bundle is a minimal valid research_graph_input@1.",
+  "description": "Intake / Understanding Graph (thin). Turns an uploaded lecture PDF into TWO approved boundary outputs: research_graph_input@1 (the handoff into g02) and lecture_baseline@1 (the lecture skeleton g03 consumes). SINGLE SOURCE OF TRUTH for the node sequence — g01_flow.py and the orchestrator prompt must agree with this manifest. The user-intake-gate sits BETWEEN a02 (understanding) and a03/a04: it collects the audience/domains/scope/locked-sections decisions that the synthesizer (a03) and the lecture-baseline producer (a04) consume, so neither runs before the user approves. Escalation target user-intake-gate means 'the orchestrator re-opens the gate', not an automatic re-run. Reviewers are runs of ONE physical agent (g01-a10-output-reviewer) with a per-node review_profile. Producers are no-op stubs in the wiring harness; the thin exit bundle is a minimal valid research_graph_input@1.",
   "orchestrator": "g01-orchestrate-intake",
   "reviewer": "g01-a10-output-reviewer",
   "review_task_contract": "review_task@1",
@@ -25,15 +25,16 @@
   "nodes": [
     {"name": "g01-a01-pdf-intake", "kind": "agent", "execution": "deterministic", "complexity_class": "deterministic_technical", "review_profile": "slide_views", "output_contract": "slide_views@1", "produces": ["SlideViews"]},
     {"name": "g01-a02-understanding", "kind": "agent", "execution": "hosted", "finalize_op": "intake_understanding_finalize", "complexity_class": "semantic_high_ambiguity", "review_profile": "understanding", "output_contract": "intake_understanding@1", "produces": ["IntakeUnderstanding"]},
+    {"name": "user-intake-gate", "kind": "user-gate", "required_decisions": [{"id": "confirm_audience", "type": "confirm"}, {"id": "confirm_domains", "type": "confirm"}, {"id": "approve_research_scope", "type": "approve"}, {"id": "mark_locked_sections", "type": "choice"}]},
     {"name": "g01-a03-intake-synthesizer", "kind": "agent", "execution": "hosted", "finalize_op": "intake_synthesis_finalize", "complexity_class": "synthesis_decision", "review_profile": "intake_synthesis", "output_contract": "research_graph_input@1", "produces": ["ResearchGraphInput"]},
-    {"name": "g01-a04-lecture-baseline", "kind": "agent", "execution": "hosted", "finalize_op": "intake_lecture_baseline_finalize", "complexity_class": "synthesis_decision", "review_profile": "lecture_baseline", "output_contract": "lecture_baseline@1", "produces": ["LectureBaseline"]},
-    {"name": "user-intake-gate", "kind": "user-gate", "required_decisions": [{"id": "confirm_audience", "type": "confirm"}, {"id": "confirm_domains", "type": "confirm"}, {"id": "approve_research_scope", "type": "approve"}, {"id": "mark_locked_sections", "type": "choice"}]}
+    {"name": "g01-a04-lecture-baseline", "kind": "agent", "execution": "hosted", "finalize_op": "intake_lecture_baseline_finalize", "complexity_class": "synthesis_decision", "review_profile": "lecture_baseline", "output_contract": "lecture_baseline@1", "produces": ["LectureBaseline"]}
   ],
+  "secondary_exits": ["lecture_baseline@1"],
   "sequence": [
     "g01-a01-pdf-intake",
     "g01-a02-understanding",
+    "user-intake-gate",
     "g01-a03-intake-synthesizer",
-    "g01-a04-lecture-baseline",
-    "user-intake-gate"
+    "g01-a04-lecture-baseline"
   ]
 }
