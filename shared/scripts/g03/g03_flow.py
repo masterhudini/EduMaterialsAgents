@@ -27,7 +27,7 @@ from g03 import solution  # noqa: E402
 
 GRAPH_ID = "g03"
 INPUT_CONTRACT = "solution_graph_input@1"
-OUTPUT_CONTRACT = "solution_blueprint@1"
+OUTPUT_CONTRACT = "presentation_prompt@1"
 
 
 def _scoped_input(node: dict, inp: dict) -> dict:
@@ -36,19 +36,17 @@ def _scoped_input(node: dict, inp: dict) -> dict:
     return inp
 
 
-def _stub_solution_output() -> dict:
-    """Minimal valid solution_blueprint@1 — the approved Solution Graph deliverable."""
+def _stub_presentation_prompt() -> dict:
+    """Minimal valid presentation_prompt@1 — the approved Solution Graph deliverable (exit)."""
     return {
-        "schema_version": "solution_blueprint@1",
+        "schema_version": "presentation_prompt@1",
         "task_id": "SOLUTION_STUB_001",
         "output_language": "English",
-        "lecture_outline": [
-            {"section_id": "S1", "title": "Stub section", "summary": "Placeholder outline section.",
-             "slide_ids": []},
-        ],
-        "applied_updates": [],
-        "deferred_items": [],
-        "source_attribution": [],
+        "target_tool": "gamma",
+        "prompt_markdown": "# Stub presentation prompt\n\nPlaceholder generator prompt.\n",
+        "slide_count": 0,
+        "source_list": [],
+        "provenance": {},
     }
 
 
@@ -57,12 +55,13 @@ SPEC = engine.EngineSpec(
     input_contract=INPUT_CONTRACT,
     output_contract=OUTPUT_CONTRACT,
     scoped_input=_scoped_input,
-    stub_exit_bundle=_stub_solution_output,
+    stub_exit_bundle=_stub_presentation_prompt,
     input_state_field="solution_graph_input",
-    output_state_field="solution_blueprint",
+    output_state_field="presentation_prompt",
     artifact_namespace="g03",
-    emit_name="solution_blueprint",
+    emit_name="presentation_prompt",
     context_resolver=solution.resolve_context,   # build the {01 ref, 02 ref} composite at the door
+    gate_finalize=solution.finalize_change_plan_gate,   # capture target-tool choice at change-plan gate
 )
 
 

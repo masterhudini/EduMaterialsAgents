@@ -1,6 +1,6 @@
 {
   "graph_id": "g03",
-  "description": "Solution Graph (thin). Joins the two upstream sides: g01's lecture_baseline@1 (the lecture skeleton plus claim/concept join keys) and g02's research hand-off, officially solution_input_candidate@1 with legacy user_approved_research_bundle@1 still accepted, into the approved Solution deliverable (solution_blueprint@1): a lecture outline, the applied update plan (each mapped to a real slide), deferred items and source attribution. The boundary input is a thin composite (solution_graph_input@1) of those two refs; g03 is the first place both sides meet, so the finding<->slide mapping (slide_impact) is produced HERE, not in g02. SINGLE SOURCE OF TRUTH for the node sequence: g03_flow.py and the orchestrator prompt must agree with this manifest. Reviewers are runs of ONE physical agent (g03-a10-output-reviewer) with a per-node review_profile; the user solution gate is an orchestrator step. The producer uses the finalize-op write path; the thin exit bundle is a minimal valid solution_blueprint@1.",
+  "description": "Solution Graph. Joins g01's lecture_baseline@1 (the lecture skeleton plus claim/concept join keys) and g02's research hand-off (officially solution_input_candidate@1, legacy user_approved_research_bundle@1 still accepted) and turns them into a full plan for a NEW presentation plus a ready-to-paste generator prompt. The boundary input is a thin composite (solution_graph_input@1) of those two refs. The producer chain is: g03-a01-solution-architect grounds research findings into existing slides (solution_blueprint@1, the evidence layer); g03-a02-slide-architect critiques existing slides (KEEP/UPDATE/MERGE/SPLIT/REORDER) and proposes NEW slides interleaved between them, grounded in g02 coverage_gaps/unresolved_items/optional_improvements/topics/recommended_claims/market_case_findings (slide_plan@1); the User Change-Plan Gate approves the deck and picks the target tool; g03-a03-slide-designer designs every slot (content, layout, design and a 6-10 sentence narrative per slide: slide_design_set@1); g03-a04-prompt-builder renders the final Markdown prompt for the chosen tool via one of three tool skills (presentation_prompt@1); the User Final-Review Gate approves it. SINGLE SOURCE OF TRUTH for the node sequence: g03_flow.py and the orchestrator prompt must agree with this manifest. Reviewers are runs of ONE physical agent (g03-a10-output-reviewer) with a per-node review_profile; the user gates are orchestrator steps. The primary exit is presentation_prompt@1; solution_blueprint@1, slide_plan@1 and slide_design_set@1 are persisted secondary exits.",
   "orchestrator": "g03-orchestrate-solution",
   "reviewer": "g03-a10-output-reviewer",
   "review_task_contract": "review_task@1",
@@ -10,24 +10,37 @@
     "deterministic_technical": {"low": 0, "medium": 1, "high": 2, "critical": 3},
     "semantic_high_ambiguity": {"low": 1, "medium": 2, "high": 3, "critical": 3},
     "synthesis_decision": {"low": 0, "medium": 1, "high": 2, "critical": 3},
-    "cross_artifact_reconciliation": {"low": 0, "medium": 2, "high": 3, "critical": 3}
+    "cross_artifact_reconciliation": {"low": 0, "medium": 2, "high": 3, "critical": 3},
+    "structural_design": {"low": 0, "medium": 2, "high": 3, "critical": 3},
+    "creative_design": {"low": 0, "medium": 2, "high": 3, "critical": 3}
   },
-  "default_escalation": "user-solution-gate",
+  "default_escalation": "user-change-plan-gate",
   "model_bindings": {
     "deterministic_technical": {"claude": "sonnet"},
     "semantic_high_ambiguity": {"claude": "opus"},
     "synthesis_decision": {"claude": "opus"},
-    "cross_artifact_reconciliation": {"claude": "opus"}
+    "cross_artifact_reconciliation": {"claude": "opus"},
+    "structural_design": {"claude": "opus"},
+    "creative_design": {"claude": "opus"}
   },
   "entry_node": "g03-a01-solution-architect",
   "input_contract": "solution_graph_input@1",
-  "exit_artifact": "solution_blueprint@1",
+  "exit_artifact": "presentation_prompt@1",
+  "secondary_exits": ["solution_blueprint@1", "slide_plan@1", "slide_design_set@1"],
   "nodes": [
     {"name": "g03-a01-solution-architect", "kind": "agent", "execution": "hosted", "finalize_op": "solution_blueprint_finalize", "complexity_class": "synthesis_decision", "review_profile": "solution_blueprint", "output_contract": "solution_blueprint@1", "produces": ["SolutionBlueprint"]},
-    {"name": "user-solution-gate", "kind": "user-gate", "required_decisions": [{"id": "approve_outline", "type": "approve"}, {"id": "approve_applied_updates", "type": "approve"}, {"id": "confirm_deferrals", "type": "confirm"}]}
+    {"name": "g03-a02-slide-architect", "kind": "agent", "execution": "hosted", "finalize_op": "solution_slide_plan_finalize", "complexity_class": "structural_design", "review_profile": "slide_plan", "output_contract": "slide_plan@1", "produces": ["SlidePlan"]},
+    {"name": "user-change-plan-gate", "kind": "user-gate", "required_decisions": [{"id": "approve_slide_plan", "type": "approve"}, {"id": "approve_new_slides", "type": "approve"}, {"id": "confirm_deferrals", "type": "confirm"}, {"id": "select_target_tool", "type": "choice"}]},
+    {"name": "g03-a03-slide-designer", "kind": "agent", "execution": "hosted", "finalize_op": "solution_slide_design_finalize", "complexity_class": "creative_design", "review_profile": "slide_design", "output_contract": "slide_design_set@1", "produces": ["SlideDesignSet"]},
+    {"name": "g03-a04-prompt-builder", "kind": "agent", "execution": "hosted", "finalize_op": "solution_prompt_finalize", "complexity_class": "synthesis_decision", "review_profile": "presentation_prompt", "output_contract": "presentation_prompt@1", "produces": ["PresentationPrompt"]},
+    {"name": "user-final-review-gate", "kind": "user-gate", "required_decisions": [{"id": "approve_final_prompt", "type": "approve"}, {"id": "confirm_export_tool", "type": "confirm"}]}
   ],
   "sequence": [
     "g03-a01-solution-architect",
-    "user-solution-gate"
+    "g03-a02-slide-architect",
+    "user-change-plan-gate",
+    "g03-a03-slide-designer",
+    "g03-a04-prompt-builder",
+    "user-final-review-gate"
   ]
 }

@@ -20,6 +20,9 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))  # -> share
 from g03 import g03_flow as gf  # noqa: E402
 from g03 import blueprint as bp  # noqa: E402
 from g03 import render as renderer  # noqa: E402
+from g03 import slide_plan as sp  # noqa: E402
+from g03 import slide_design as sd  # noqa: E402
+from g03 import prompt_build as pb  # noqa: E402
 from g03 import solution  # noqa: E402
 from core import graphs, handoff  # noqa: E402
 from mcp import server_core  # noqa: E402
@@ -90,6 +93,39 @@ def _blueprint_render(args: dict):
     else:
         raise ValueError("solution_blueprint_render requires blueprint or context")
     return renderer.render_blueprint(value, persist=bool(args.get("persist")))
+
+
+def _slide_plan_build(args: dict):
+    return sp.build_slide_plan(args["context"])
+
+
+def _slide_plan_finalize(args: dict):
+    return solution.finalize_slide_plan(args["task_id"], args["slide_plan"])
+
+
+def _slide_design_build(args: dict):
+    return sd.build_slide_design(args["slide_plan"])
+
+
+def _slide_design_finalize(args: dict):
+    return solution.finalize_slide_design(args["task_id"], args["slide_design_set"])
+
+
+def _prompt_build(args: dict):
+    return pb.build_presentation_prompt(args["slide_design_set"],
+                                        args.get("target_tool", "gamma"),
+                                        provenance=args.get("provenance"))
+
+
+def _prompt_finalize(args: dict):
+    return solution.finalize_presentation_prompt(args["task_id"], args["presentation_prompt"])
+
+
+def _prompt_render(args: dict):
+    value = args.get("presentation_prompt", args.get("ref"))
+    if value is None:
+        raise ValueError("solution_prompt_render requires presentation_prompt or ref")
+    return pb.render_prompt(value, persist=bool(args.get("persist")))
 
 
 def _trace(args: dict):
@@ -190,11 +226,58 @@ TOOLS = [
                      "properties": {"task_id": {"type": "string"},
                                     "blueprint": {"type": "object",
                                                   "description": "the solution_blueprint@1 artifact"}}}},
+    {"name": "solution_slide_plan_build",
+     "description": "G03-A02 draft: build and validate a slide_plan@1 (ordered new-deck skeleton: existing "
+                    "slides with a change status + proposed new slides from g02 coverage gaps / unresolved "
+                    "items / optional improvements) from a G03 context. Does not persist.",
+     "inputSchema": {"type": "object", "required": ["context"], "properties": {"context": _CONTEXT}}},
+    {"name": "solution_slide_plan_finalize",
+     "description": "G03-A02 write path: validate the produced slide_plan@1 and store it server-side; "
+                    "returns envelope@1 with the artifact ref in produced[].",
+     "inputSchema": {"type": "object", "required": ["task_id", "slide_plan"],
+                     "properties": {"task_id": {"type": "string"},
+                                    "slide_plan": {"type": "object", "description": "the slide_plan@1 artifact"}}}},
+    {"name": "solution_slide_design_build",
+     "description": "G03-A03 draft: build and validate a slide_design_set@1 (one design entry per slot: "
+                    "title, body, a narrative seed, speaker notes, layout) from a slide_plan@1. Does not persist.",
+     "inputSchema": {"type": "object", "required": ["slide_plan"],
+                     "properties": {"slide_plan": {"type": ["object", "string"],
+                                                   "description": "slide_plan@1 object, descriptor, path or artifact:// ref"}}}},
+    {"name": "solution_slide_design_finalize",
+     "description": "G03-A03 write path: validate the produced slide_design_set@1 and store it server-side; "
+                    "returns envelope@1 with the artifact ref in produced[].",
+     "inputSchema": {"type": "object", "required": ["task_id", "slide_design_set"],
+                     "properties": {"task_id": {"type": "string"},
+                                    "slide_design_set": {"type": "object", "description": "the slide_design_set@1 artifact"}}}},
+    {"name": "solution_prompt_build",
+     "description": "G03-A04 draft: build and validate a presentation_prompt@1 (a single ready-to-paste "
+                    "Markdown prompt) from a slide_design_set@1, tailored to target_tool "
+                    "(notebooklm|gamma|gpt_pro). Does not persist.",
+     "inputSchema": {"type": "object", "required": ["slide_design_set"],
+                     "properties": {"slide_design_set": {"type": ["object", "string"],
+                                                         "description": "slide_design_set@1 object, descriptor, path or artifact:// ref"},
+                                    "target_tool": {"type": "string", "enum": ["notebooklm", "gamma", "gpt_pro"]},
+                                    "provenance": {"type": "object"}}}},
+    {"name": "solution_prompt_finalize",
+     "description": "G03-A04 write path: validate the produced presentation_prompt@1 and store it "
+                    "server-side; returns envelope@1 with the artifact ref in produced[]. This is the "
+                    "G03 exit deliverable.",
+     "inputSchema": {"type": "object", "required": ["task_id", "presentation_prompt"],
+                     "properties": {"task_id": {"type": "string"},
+                                    "presentation_prompt": {"type": "object", "description": "the presentation_prompt@1 artifact"}}}},
+    {"name": "solution_prompt_render",
+     "description": "Render a presentation_prompt@1 to its user-readable Markdown view and optionally "
+                    "persist it as a .md file under g03/prompts/. View only; never replaces the artifact.",
+     "inputSchema": {"type": "object",
+                     "properties": {"presentation_prompt": {"type": ["object", "string"],
+                                                            "description": "presentation_prompt@1 object, descriptor, path or artifact:// ref"},
+                                    "ref": {"type": "string"},
+                                    "persist": {"type": "boolean"}}}},
     {"name": "solution_finalize",
-     "description": "Validate a result bundle (path or inline) against solution_blueprint@1 and emit the handoff.",
+     "description": "Validate a result bundle (path or inline) against presentation_prompt@1 and emit the handoff.",
      "inputSchema": {"type": "object", "required": ["bundle"],
                      "properties": {"bundle": {"type": ["string", "object"],
-                                               "description": "path to, or inline, solution_blueprint@1 bundle"}}}},
+                                               "description": "path to, or inline, presentation_prompt@1 bundle"}}}},
 ]
 
 DISPATCH = {
@@ -209,6 +292,13 @@ DISPATCH = {
     "solution_blueprint_build": _blueprint_build,
     "solution_blueprint_render": _blueprint_render,
     "solution_blueprint_finalize": _blueprint_finalize,
+    "solution_slide_plan_build": _slide_plan_build,
+    "solution_slide_plan_finalize": _slide_plan_finalize,
+    "solution_slide_design_build": _slide_design_build,
+    "solution_slide_design_finalize": _slide_design_finalize,
+    "solution_prompt_build": _prompt_build,
+    "solution_prompt_finalize": _prompt_finalize,
+    "solution_prompt_render": _prompt_render,
     "solution_finalize": _finalize,
 }
 

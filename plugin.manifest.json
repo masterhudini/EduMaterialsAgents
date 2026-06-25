@@ -46,7 +46,12 @@
       "skills/g02-a07-review-source",
       "skills/g02-a09-synthesize",
       "skills/g02-assess-source-coverage",
-      "skills/g02-orchestrate-research"
+      "skills/g02-orchestrate-research",
+      "skills/g03-a02-plan-slide-deck",
+      "skills/g03-a03-design-slides",
+      "skills/g03-a04-prompt-notebooklm",
+      "skills/g03-a04-prompt-gamma",
+      "skills/g03-a04-prompt-gpt-pro"
     ],
     "agents": [
       "agents/g01-a01-pdf-intake.md",
@@ -58,6 +63,9 @@
       "agents/g02-a07-paper-review.md",
       "agents/g02-a09-synthesizer.md",
       "agents/g03-a01-solution-architect.md",
+      "agents/g03-a02-slide-architect.md",
+      "agents/g03-a03-slide-designer.md",
+      "agents/g03-a04-prompt-builder.md",
       "agents/g03-a10-output-reviewer.md"
     ],
     "commands": [

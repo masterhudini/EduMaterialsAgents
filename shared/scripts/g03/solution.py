@@ -56,6 +56,46 @@ def finalize_blueprint(task_id: str, blueprint: dict, *, base=None) -> dict:
                                       namespace="g03", base=base, unknown_task="SOLUTION_UNKNOWN")
 
 
+def finalize_slide_plan(task_id: str, slide_plan: dict, *, base=None) -> dict:
+    """G03-A02 write path: persist a validated slide_plan@1; return envelope@1."""
+    return finalize.artifact_envelope(task_id, slide_plan, contract="slide_plan@1",
+                                      type_name="slide_plan", subdir="slide_plan",
+                                      namespace="g03", base=base, unknown_task="SOLUTION_UNKNOWN")
+
+
+def finalize_slide_design(task_id: str, slide_design_set: dict, *, base=None) -> dict:
+    """G03-A03 write path: persist a validated slide_design_set@1; return envelope@1."""
+    return finalize.artifact_envelope(task_id, slide_design_set, contract="slide_design_set@1",
+                                      type_name="slide_design_set", subdir="slide_design",
+                                      namespace="g03", base=base, unknown_task="SOLUTION_UNKNOWN")
+
+
+def finalize_presentation_prompt(task_id: str, presentation_prompt: dict, *, base=None) -> dict:
+    """G03-A04 write path: persist a validated presentation_prompt@1; return envelope@1."""
+    return finalize.artifact_envelope(task_id, presentation_prompt, contract="presentation_prompt@1",
+                                      type_name="presentation_prompt", subdir="prompts",
+                                      namespace="g03", base=base, unknown_task="SOLUTION_UNKNOWN")
+
+
+ALLOWED_TARGET_TOOLS = ("notebooklm", "gamma", "gpt_pro")
+DEFAULT_TARGET_TOOL = "gamma"
+
+
+def finalize_change_plan_gate(gate_name, decision, produced_refs, base=None):
+    """Gate hook for ``user-change-plan-gate``: capture the user's target-tool choice as a small
+    artifact so it flows to g03-a04 through its ``upstream`` refs. The engine stores the returned
+    ref under ``produced_refs[gate_name]``. Returns ``None`` for any other gate (no-op)."""
+    if gate_name != "user-change-plan-gate":
+        return None
+    tool = None
+    if isinstance(decision, dict):
+        tool = decision.get("select_target_tool") or decision.get("target_tool")
+    if tool not in ALLOWED_TARGET_TOOLS:
+        tool = DEFAULT_TARGET_TOOL
+    payload = {"kind": "g03_tool_choice", "target_tool": tool}
+    return artifacts.store(f"g03/tool-choice/{uuid.uuid4().hex[:8]}.json", payload, base=base)
+
+
 def _ensure_ref(request: dict, ref_key: str, inline_key: str, contract: str, *, base) -> str:
     """Resolve one side of the boundary to a stored artifact ref, validating its contract.
 

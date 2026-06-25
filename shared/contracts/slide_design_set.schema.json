@@ -1,0 +1,58 @@
+{
+  "title": "SlideDesignSet — per-slide design for every slot of the new deck: content, layout, design and a 6-10 sentence narrative of what each slide should say (g03-a03).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "task_id", "output_language", "slides"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["slide_design_set@1"]},
+    "task_id": {"type": "string"},
+    "output_language": {"type": "string"},
+    "deck_title": {"type": "string"},
+    "slides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slide_id", "position", "status", "title", "narrative"],
+        "properties": {
+          "slide_id": {"type": "string"},
+          "slot_id": {"type": "string"},
+          "position": {"type": "integer"},
+          "status": {"type": "string"},
+          "title": {"type": "string"},
+          "subtitle": {"type": "string"},
+          "body": {
+            "type": "object",
+            "properties": {
+              "bullets": {"type": "array", "items": {"type": "string"}},
+              "key_takeaway": {"type": "string"}
+            }
+          },
+          "narrative": {"type": "string"},
+          "speaker_notes": {"type": "string"},
+          "design": {
+            "type": "object",
+            "properties": {
+              "layout": {"type": "string"},
+              "visual_suggestion": {"type": "string"},
+              "emphasis": {"type": "string"}
+            }
+          },
+          "estimated_minutes": {"type": "integer"},
+          "source_refs": {"type": "array", "items": {"type": "string"}},
+          "is_new_information": {"type": "boolean"}
+        }
+      }
+    },
+    "deck_metrics": {
+      "type": "object",
+      "properties": {
+        "slide_count": {"type": "integer"},
+        "estimated_total_minutes": {"type": "integer"},
+        "target_minutes": {"type": "integer"}
+      }
+    }
+  }
+}
