@@ -185,7 +185,7 @@ Minimalne artifact types:
 - `candidate_sources@1` z rozłącznymi wariantami `canonical`, `recent` i `market_cases`,
 - `candidate_source_index@1`,
 - `human_source_selection@1`,
-- `human_approved_source_set@1`,
+- `user_approved_source_set@1`,
 - `retrieved_corpus@1`,
 - `retrieval_directory@1`,
 - `paper_review@1`,

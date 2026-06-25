@@ -185,7 +185,7 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
             "shared/contracts/web_case_tool_result.schema.json",
             "shared/contracts/web_case_extract_result.schema.json",
             "shared/contracts/human_source_selection.schema.json",
-            "shared/contracts/human_approved_source_set.schema.json",
+            "shared/contracts/user_approved_source_set.schema.json",
             "shared/contracts/doi_verification_result.schema.json",
             "shared/contracts/retrieval_input.schema.json",
             "shared/contracts/open_access_resolution.schema.json",

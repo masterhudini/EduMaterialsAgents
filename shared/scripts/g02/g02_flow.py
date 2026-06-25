@@ -94,17 +94,17 @@ def _gate_finalize(gname: str, decision, produced_refs: dict, base):
     ref = _source_index_ref(produced_refs, base)
     if not ref:
         return None
-    approved_ref = decision.get("human_approved_source_set_ref") if isinstance(decision, dict) else None
+    approved_ref = decision.get("user_approved_source_set_ref") if isinstance(decision, dict) else None
     if (isinstance(decision, dict) and not approved_ref
             and isinstance(decision.get("selection"), dict)
             and isinstance(decision.get("confirmation_token"), str)):
         finalized = source_selection.finalize_source_selection(
             ref, decision["selection"], decision["confirmation_token"], base=base)
         approved_ref = next((item.get("path") for item in finalized.get("produced", [])
-                             if item.get("type") == "human_approved_source_set"), None)
+                             if item.get("type") == "user_approved_source_set"), None)
     if isinstance(approved_ref, str):
         approved_set = artifacts.hydrate(approved_ref, base=base)
-        validation = contracts.validate(approved_set, "human_approved_source_set@1")
+        validation = contracts.validate(approved_set, "user_approved_source_set@1")
         if not validation["ok"]:
             raise ValueError("invalid human approved source set: " + "; ".join(validation["errors"]))
         return approved_ref

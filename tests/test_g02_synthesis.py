@@ -83,7 +83,7 @@ def _upstream_refs():
     }
     index_ref = artifacts.store("g02/candidate-index/a09-index.json", index)
     approved = {
-        "schema_version": "human_approved_source_set@1",
+        "schema_version": "user_approved_source_set@1",
         "artifact_version": "1.0.0",
         "task_id": TASK,
         "source_selection_ref": "artifact://g02/source-selection/a09.json",

@@ -1,0 +1,86 @@
+"""Ephemeral session credentials for g02 providers (contact email + optional premium key).
+
+The MCP server reads provider env at startup, so when the host supplies the email mid-session we
+bridge it through a tiny file — ``<home>/g02/credentials.json`` — overlay it onto ``os.environ`` in
+the running process, and DELETE the file as soon as a real provider query succeeds. After that the
+credentials live only in the process's memory (and any Scout child it forks), never lingering on
+disk. Treated like a password: local/dev only, gitignored. Pure stdlib.
+
+Scope (polite-pool set): the contact email unlocks OpenAlex (polite pool), arXiv, Crossref and
+Unpaywall; the OpenAlex key is an OPTIONAL premium booster. No key is ever required.
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+import pathlib as _pl
+
+sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))  # -> shared/scripts
+
+from core import paths  # noqa: E402
+
+# accepted credential field -> environment variable it maps to
+FIELDS = {
+    "email": "EMAGENTS_RESEARCH_CONTACT_EMAIL",
+    "openalex_key": "OPENALEX_API_KEY",
+}
+
+_purged = False
+
+
+def _path() -> _pl.Path:
+    return paths.runtime_home() / "g02" / "credentials.json"
+
+
+def save(creds: dict) -> dict:
+    """Persist the provided credentials (email and/or openalex_key) and overlay them now.
+
+    Empty/whitespace values are ignored. Returns the field names that were stored."""
+    env_map = {FIELDS[k]: str(v).strip() for k, v in (creds or {}).items()
+               if k in FIELDS and str(v).strip()}
+    global _purged
+    if env_map:
+        _purged = False                     # new creds -> arm purge again
+        p = _path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(env_map, ensure_ascii=False) + "\n", encoding="utf-8")
+        os.environ.update(env_map)          # take effect immediately in this process
+    return {"stored": sorted(k for k in (creds or {}) if k in FIELDS and str(creds.get(k)).strip())}
+
+
+def overlay() -> list[str]:
+    """Overlay the on-disk credential file (if any) onto ``os.environ``; return the keys set.
+
+    Called at provider_config load so a freshly started process still picks up creds the host left
+    on disk before the first successful query purged them."""
+    p = _path()
+    if not p.exists():
+        return []
+    try:
+        env_map = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    keys = []
+    for env_name, value in (env_map or {}).items():
+        if isinstance(value, str) and value.strip():
+            os.environ[env_name] = value
+            keys.append(env_name)
+    return keys
+
+
+def purge() -> bool:
+    """Delete the on-disk credential file. Creds already in os.environ stay for the session."""
+    p = _path()
+    existed = p.exists()
+    p.unlink(missing_ok=True)
+    return existed
+
+
+def purge_once() -> bool:
+    """Purge exactly once per armed credential set — call after the first successful DB query."""
+    global _purged
+    if _purged:
+        return False
+    _purged = True
+    return purge()

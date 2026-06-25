@@ -27,21 +27,32 @@ def _ensure(path: Path) -> Path:
 
 
 def runtime_root(base: str | Path | None = None) -> Path:
-    """Return the Scout runtime root under the EduMaterials project runtime.
+    """Return the Scout runtime root INSIDE the artifact store, so everything Scout writes (plan,
+    per-topic PDFs, corpora, cross-topic index) lives in one place and is addressable as
+    ``artifact://g02/scout/...``.
 
-    When ``base`` is provided it is treated as the exact Scout workspace. Without
-    it, the default is ``<EMAGENTS_HOME or cwd/.emagents>/g02/scout``.
+    When ``base`` is provided it is treated as the exact Scout workspace. Without it, the default is
+    ``<artifact store>/g02/scout`` = ``<EMAGENTS_HOME or cwd/.emagents>/artifacts/g02/scout``.
     """
     if base is not None:
         return _ensure(Path(base).expanduser().resolve())
-    return _ensure(paths.runtime_home().expanduser().resolve() / SCOUT_RUNTIME_SUBDIR)
+    return _ensure(paths.artifacts_dir().expanduser().resolve() / SCOUT_RUNTIME_SUBDIR)
+
+
+def as_artifact_ref(path: str | Path, base: str | Path | None = None) -> str:
+    """``artifact://`` ref for a Scout file (it now lives inside the artifact store). Used by the
+    Scout->candidate_sources adapter and A06 to reference downloaded PDFs/corpora without copying."""
+    from core import artifacts
+    root = (Path(base) if base is not None else paths.artifacts_dir()).expanduser().resolve()
+    rel = Path(path).expanduser().resolve().relative_to(root)
+    return artifacts.ref_for(rel.as_posix())
 
 
 def workspace_dir(base: str | Path | None = None) -> Path:
     """Workspace root passed to ScoutStore.
 
-    ScoutStore still uses Radar's internal table names, but the physical files
-    live under ``.emagents/g02/scout`` or ``EMAGENTS_HOME/g02/scout``.
+    ScoutStore still uses Radar's internal table names, but the physical files live inside the
+    artifact store under ``<artifact store>/g02/scout`` (``artifact://g02/scout/...``).
     """
     return runtime_root(base)
 
@@ -111,11 +122,12 @@ def provider_keys() -> dict[str, str]:
     }
 
 
-def require_openalex_api_key(explicit: str = "") -> str:
-    key = (explicit or "").strip() or provider_keys()["openalex_api_key"]
-    if not key:
-        raise ConfigError(
-            "OPENALEX_API_KEY is required for Scout in EduMaterials; "
-            "email is only used as polite-pool mailto."
-        )
-    return key
+def openalex_api_key(explicit: str = "") -> str:
+    """OpenAlex API token. Empty is allowed — we never hard-fail Scout on it; instead OpenAlex is
+    simply left out of the source set (we query OpenAlex through its API with email + token, never
+    keyless). The credential tier at the seam decides whether OpenAlex is used."""
+    return (explicit or "").strip() or provider_keys()["openalex_api_key"]
+
+
+# Backwards-compatible alias; no longer raises (absence is handled at the seam, see openalex_api_key).
+require_openalex_api_key = openalex_api_key

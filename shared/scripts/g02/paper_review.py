@@ -19,7 +19,7 @@ from g02 import oa_retrieval, provider_config
 AGENT = "g02-a07-paper-review"
 OUTPUT_CONTRACT = "paper_review@1"
 CORPUS_CONTRACT = "retrieved_corpus@1"
-APPROVED_SET_CONTRACT = "human_approved_source_set@1"
+APPROVED_SET_CONTRACT = "user_approved_source_set@1"
 INDEX_SCHEMA = "document_text_index@1"
 WINDOW_SCHEMA = "document_text_window@1"
 REVIEW_PROFILE = "paper_evidence"

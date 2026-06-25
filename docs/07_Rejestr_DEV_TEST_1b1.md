@@ -1245,7 +1245,7 @@ spisane niżej jako batch TEST. W DEV nie uruchamiano `pytest`, venv, live API a
 
 #### Zrealizowane elementy DEV A06
 
-- [x] Zamrożony kontrakt `human_approved_source_set@1` oraz deterministyczny parser/generator z
+- [x] Zamrożony kontrakt `user_approved_source_set@1` oraz deterministyczny parser/generator z
   `human_source_selection@1`. Wymaga drugiego finalnego potwierdzenia i rozłącznych akcji; market
   case niesie `market_candidate_sources_ref` do reviewed artefaktu A11.
 - [x] Wykonawcza bramka orkiestratora (`g02_flow`, `source_selection`): pokazuje dokument, przyjmuje

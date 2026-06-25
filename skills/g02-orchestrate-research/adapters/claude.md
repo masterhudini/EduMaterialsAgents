@@ -7,6 +7,14 @@ inside the loop, and report the subagent's token usage back so token tracing wor
 (the runtime cannot see inside your harness — only you know what the subagent spent).
 
 1. `research_run_hosted({context, through?, topic_ids?})` over a `research_graph_input@1` path/ref.
+1a. **Provider credentials (after the A01 planner, before discovery).** Call
+   `research_provider_setup({})` to show the catalog, then ask the user for their data: present the
+   `note` and `catalog`, collect a contact **email** (free, no account — unlocks OpenAlex polite
+   pool, arXiv, Crossref and Unpaywall/OA) and **ENCOURAGE the optional OpenAlex token** using
+   `openalex_token_hint` + the `token.signup` link (a FREE key — log in & generate; higher
+   limits, worth it for bigger material). The user provides, then CONFIRMS; call `research_provider_setup({email,
+   openalex_key?})` with what they gave. They may provide nothing (Semantic Scholar still works). The
+   stored file is auto-deleted after the first successful provider query.
 2. Loop on the response:
    - **`awaiting_node`**: spawn the isolated producer with the Task/Agent tool, `subagent_type` = the
      manifest node name (e.g. `g02-a01-planner`), passing only `input` + `upstream` refs. The subagent

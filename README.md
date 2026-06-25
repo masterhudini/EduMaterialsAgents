@@ -89,7 +89,7 @@ artifacts bound either to `APPROVED` A10 decisions or to one corrected `REVISE` 
 validated `revision_completion@1` receipt. It creates a deduplicated index and a readable source
 choice document whose scholarly descriptions are labelled as abstract-based or metadata-only and
 whose market-case descriptions use reviewed A11 facts and didactic mechanisms. A two-step source
-gate freezes `human_approved_source_set@1`. A06 resolves scholarly DOWNLOAD sources through approved
+gate freezes `user_approved_source_set@1`. A06 resolves scholarly DOWNLOAD sources through approved
 record links, Unpaywall, optional CORE and DOAB/OAPEN, validates PDF identity and integrity, and
 places validated PDFs plus gated A11 market-case bundles in one `corpus://` run folder described
 by `retrieval_directory@1`. Each bundle includes a readable Markdown document containing

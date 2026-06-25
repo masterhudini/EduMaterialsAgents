@@ -885,18 +885,18 @@ def _gate_payload(candidate_ref: str, state: dict, *, base=None) -> dict:
 
 
 def _finalize_gate(candidate_ref: str, decision: dict, *, base=None) -> tuple[str | None, dict | None]:
-    approved_ref = decision.get("human_approved_source_set_ref") if isinstance(decision, dict) else None
+    approved_ref = decision.get("user_approved_source_set_ref") if isinstance(decision, dict) else None
     if isinstance(approved_ref, str):
         approved = artifacts.hydrate(approved_ref, base=base)
-        checked = contracts.validate(approved, "human_approved_source_set@1")
+        checked = contracts.validate(approved, "user_approved_source_set@1")
         if not checked["ok"]:
-            return None, _issue("invalid_human_approved_source_set", "; ".join(checked["errors"]))
+            return None, _issue("invalid_user_approved_source_set", "; ".join(checked["errors"]))
         candidate = artifacts.hydrate(candidate_ref, base=base)
         if approved.get("candidate_source_index_ref") != candidate_ref \
                 or approved.get("task_id") != candidate.get("task_id") \
                 or approved.get("final_confirmation") is not True:
             return None, _issue(
-                "invalid_human_approved_source_set",
+                "invalid_user_approved_source_set",
                 "approved source set is not finally confirmed and bound to this candidate index",
             )
         return approved_ref, None
@@ -913,7 +913,7 @@ def _finalize_gate(candidate_ref: str, decision: dict, *, base=None) -> tuple[st
             + "; ".join(item.get("message", "") for item in finalized.get("issues", [])),
         )
     ref = next((item.get("path") for item in finalized.get("produced", [])
-                if item.get("type") == "human_approved_source_set"), None)
+                if item.get("type") == "user_approved_source_set"), None)
     if not isinstance(ref, str):
         return None, _issue("source_gate_output_missing", "finalized gate produced no approved set")
     return ref, None

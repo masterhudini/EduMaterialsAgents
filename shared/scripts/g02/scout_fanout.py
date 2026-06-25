@@ -93,16 +93,15 @@ def _run_topic_worker(job: dict) -> dict:
     pdf_dir = Path(job["pdf_dir"])
     pdf_dir.mkdir(parents=True, exist_ok=True)
     keys = runtime.provider_keys()
-    openalex_api_key = runtime.require_openalex_api_key()
+    # Empty is allowed (Scout never hard-fails on it). We query OpenAlex through its API, never
+    # keyless; whether OpenAlex is in the source set is decided by the credential tier at the seam.
+    openalex_api_key = keys["openalex_api_key"]
     email = runtime.contact_email()
-    source_names = parse_sources(runtime.env_str("SOURCES"))
-    extra_search = build_search_providers(
-        source_names,
-        core_api_key=keys["core_api_key"],
-        consensus_api_key="",
-        openrouter_key="",
-    )
-    extra_resolvers = build_resolvers(source_names, core_api_key=keys["core_api_key"])
+    # Source set + OpenAlex/S2 gate from the credential tier (env), not from a raw SOURCES flag.
+    cfg = scout_request.scout_sources()
+    source_names = cfg["sources"]
+    extra_search = build_search_providers(source_names)
+    extra_resolvers = build_resolvers(source_names)
     result = run_student(
         request["query"],
         request["target_n"],
@@ -114,10 +113,9 @@ def _run_topic_worker(job: dict) -> dict:
         year_from=request.get("year_from"),
         year_to=request.get("year_to"),
         work_type=request.get("work_type", ""),
-        verify_llm=False,
-        openrouter_key="",
+        include_openalex=cfg["include_openalex"],
+        include_s2=cfg["include_s2"],
         search_lang=request.get("lang", "both"),
-        query_expansion=False,
         facets=request.get("keywords") or None,
         facets_required=[request["query"]] if request.get("keywords") else None,
         openalex_api_key=openalex_api_key,
@@ -253,7 +251,6 @@ def run_scout_fanout(
     ``topic_runner`` is an offline-test seam. Production calls omit it and use
     separate processes; injected test runners use threads so mocks remain local.
     """
-    runtime.require_openalex_api_key()
     plan = _load_plan(plan_or_ref)
     settings = scout_request.scout_profile_settings(EXECUTION_PROFILE)
     total = total_target if total_target is not None else settings["total_target"]

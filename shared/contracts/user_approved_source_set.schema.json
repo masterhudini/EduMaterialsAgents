@@ -10,7 +10,7 @@
     "final_confirmation"
   ],
   "properties": {
-    "schema_version": {"type": "string", "enum": ["human_approved_source_set@1"]},
+    "schema_version": {"type": "string", "enum": ["user_approved_source_set@1"]},
     "artifact_version": {"type": "string"},
     "task_id": {"type": "string"},
     "source_selection_ref": {"type": "string"},
