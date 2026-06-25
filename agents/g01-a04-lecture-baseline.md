@@ -12,7 +12,8 @@ slides, so g03 gets the lecture skeleton + the keys that let it map findings bac
 ## Contract
 
 **Input:** approved `SlideViews` (a01) + `IntakeUnderstanding` (a02) via refs, plus the intake gate's
-locked sections.
+locked sections, hydrated from `upstream["user-intake-gate"]` (an `intake_gate_decisions@1` artifact —
+the gate runs BEFORE this node and persists its decisions there).
 **Output artifact:** `lecture_baseline@1` — `lecture{title,course}`, `slides[]` (`slide_id`, `order`,
 `title`, optional one-line `gist`, `claim_ids`, `concept_ids`, `locked`), optional `sections[]`,
 `flow_issues[]` (structural, NOT research), `locked_sections`, and `slide_views_ref` for lazy

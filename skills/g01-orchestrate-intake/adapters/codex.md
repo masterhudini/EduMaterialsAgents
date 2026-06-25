@@ -18,9 +18,14 @@ Drive the graph host-driven through MCP, playing each LLM node yourself:
      `intake_resume(resume_token, review_decisions={node: {decision, findings}})` where decision is
      `APPROVED` (advance), `REVISE` (the engine re-asks you to run the node with revision context) or
      `BLOCKED` (fail). Review honestly — it is a real quality gate, not a rubber stamp.
-   - **`awaiting_user`**: present the gate, collect the required decisions, then
-     `intake_resume(resume_token, decisions={gate: ...})`.
-   - **`research_graph_input@1` handoff descriptor**: done — that is the approved handoff to g02.
+   - **`awaiting_user`**: present the gate (it runs BEFORE a03/a04), collect the required decisions, then
+     `intake_resume(resume_token, decisions={gate: <intake_gate_decisions@1 object>})` (a `task_id`, plus
+     `confirm_audience` / `confirm_domains` / `approve_research_scope` / `locked_sections`). The engine
+     persists them and threads the ref into a03/a04 via `upstream["user-intake-gate"]` — no manual re-pass.
+   - **`g01-a04-lecture-baseline` `awaiting_node`**: the ref you submit
+     (`node_results["g01-a04-lecture-baseline"]`) IS the `lecture_baseline@1` for g03 — capture it.
+   - **`research_graph_input@1` handoff descriptor**: done — that is the approved handoff to g02. The
+     run also carries `secondary_exits["lecture_baseline@1"]`; surface BOTH refs (g02 input + g03 input).
 3. Never write artifacts yourself; the `*_finalize` ops persist them server-side. Deterministic nodes
    (PDF intake) are already executed in-process by the engine — you only play the LLM nodes and the
    reviewer.

@@ -58,7 +58,7 @@ def _run_stub(args: dict):
 
 def _run_codex(args: dict):
     """Run or resume g01 through Codex workers. MCP is not an interactive stdin surface, so the
-    default gate behavior is pause/resume; human approval is never simulated."""
+    default gate behavior is pause/resume; user approval is never simulated."""
     if args.get("gates", "pause") != "pause":
         raise ValueError("Codex runs require gates='pause'")
     runner = gf.make_g01_codex_runner()
@@ -325,10 +325,10 @@ def _prompt(name: str, args: dict) -> dict:
                 "Use the orchestrate-workflow skill. Drive g01 host-driven (intake_upload then "
                 "intake_run_hosted), capturing BOTH the research_graph_input@1 handoff AND the "
                 "lecture_baseline@1 ref produced by g01-a04-lecture-baseline. Then use the "
-                "research-scout-e2e prompt with the research_graph_input and finalize its Human "
+                "research-scout-e2e prompt with the research_graph_input and finalize its User "
                 "Research Gate to get user_approved_research_bundle@1. Then "
                 "solution_run_hosted with {lecture_baseline_ref, research_bundle_ref} to get "
-                "solution_blueprint@1. Honor every human gate. Inside a Codex session do not use "
+                "solution_blueprint@1. Honor every user gate. Inside a Codex session do not use "
                 "research_run_hosted/research_run_codex; for g01/g03 use their hosted loops. "
                 "For a no-LLM wiring check, run "
                 "shared/scripts/workflow.py run-stub.")}}],

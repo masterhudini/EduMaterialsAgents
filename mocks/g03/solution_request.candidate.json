@@ -1,0 +1,283 @@
+{
+  "task_id": "SOLUTION_CANDIDATE_MOCK_001",
+  "output_language": "Polish",
+  "research_bundle_kind": "solution_input_candidate",
+  "lecture_baseline": {
+    "schema_version": "lecture_baseline@1",
+    "task_id": "SOLUTION_CANDIDATE_MOCK_001",
+    "output_language": "Polish",
+    "lecture": {
+      "title": "Kontrakty FRA",
+      "course": "Analiza i wycena instrumentow finansowych"
+    },
+    "slides": [
+      {
+        "slide_id": "p012",
+        "order": 12,
+        "title": "Wycena FRA",
+        "gist": "Bazowa intuicja wyceny kontraktu FRA.",
+        "claim_ids": ["CL01"],
+        "concept_ids": ["C01"],
+        "locked": false
+      },
+      {
+        "slide_id": "p013",
+        "order": 13,
+        "title": "Rozliczenie FRA",
+        "gist": "Mechanika rozliczenia kontraktu FRA.",
+        "claim_ids": ["CL02"],
+        "concept_ids": ["C01"],
+        "locked": false
+      },
+      {
+        "slide_id": "p014",
+        "order": 14,
+        "title": "Konwencje day-count",
+        "gist": "Krotka wzmianka o konwencjach naliczania dni.",
+        "claim_ids": ["CL03"],
+        "concept_ids": ["C_DAYCOUNT"],
+        "locked": false
+      }
+    ],
+    "sections": [
+      {
+        "section_id": "S1",
+        "title": "Forward Rate Agreements",
+        "slide_ids": ["p012", "p013", "p014"]
+      }
+    ],
+    "flow_issues": [
+      {
+        "issue_id": "FI01",
+        "summary": "Rozliczenie FRA wymaga mocniejszego polaczenia z definicja stopy referencyjnej.",
+        "related_slide_ids": ["p013"]
+      }
+    ],
+    "locked_sections": [],
+    "slide_views_ref": "artifact://g01/slide_views/SOLUTION_CANDIDATE_MOCK_001.slide_views.json"
+  },
+  "research_bundle": {
+    "schema_version": "solution_input_candidate@1",
+    "artifact_version": "1.0.0",
+    "task_id": "SOLUTION_CANDIDATE_MOCK_001",
+    "synthesis_mode": "evidence_without_claim_assessment",
+    "source_pipeline": "intake -> a01 -> a07 -> a09",
+    "intake_ref": null,
+    "plan_ref": null,
+    "evidence_map_ref": "inline#/presentation_update_candidates",
+    "generated_at": "2026-06-25T08:00:29Z",
+    "claim_assessment_performed": false,
+    "claim_assessment_status": "not_in_workflow",
+    "a09_model_pass": false,
+    "synthesis_engine": "deterministic_fallback",
+    "presentation_context": {
+      "course_name": "Analiza i wycena instrumentow finansowych",
+      "audience_level": "university finance / quantitative finance students",
+      "target_duration_minutes": null,
+      "teaching_goal": "Zweryfikowac i wesprzec wyklad o kontraktach FRA.",
+      "output_language": "pl",
+      "locked_sections": []
+    },
+    "topics_covered": [
+      {
+        "topic_id": "TOPIC_FRA",
+        "name": "FRA pricing and settlement",
+        "linked_claims": ["CL01", "CL02", "CL03"],
+        "linked_concepts": ["C01"],
+        "linked_flow_issues": ["FI01"],
+        "linked_update_needs": [],
+        "source_count": 2,
+        "coverage_note": "covered"
+      }
+    ],
+    "graph03_handoff_constraints": {
+      "compact": true,
+      "no_full_text": true,
+      "no_full_pdfs": true,
+      "no_full_extracted_text": true,
+      "no_verbose_paper_reviews": true,
+      "graph03_must_not_call_g02": true,
+      "ready_to_apply_updates_required": true,
+      "output_language": "pl",
+      "locked_sections": []
+    },
+    "suggested_updates": [
+      {
+        "update_id": "UPD_FRA_PRICING",
+        "finding_id": null,
+        "topic_id": "TOPIC_FRA",
+        "action": "add_bullet",
+        "extension_relation": "updates_outdated",
+        "finding": "Post-crisis FRA pricing uses multi-curve discounting with OIS discounting separate from the projection curve.",
+        "rationale": "The lecture should not imply a single-curve pricing convention for current FRA pricing.",
+        "priority": "high",
+        "priority_score": 33,
+        "confidence": "supported_by_reviewed_source",
+        "linked_intake_ids": {
+          "claim_ids": ["CL01"],
+          "concept_ids": ["C01"],
+          "driver_ids": [],
+          "flow_issue_ids": [],
+          "update_need_ids": []
+        },
+        "target": {
+          "slide_ids": ["12"],
+          "affected_slides": ["12"],
+          "section": "Section 1",
+          "section_hint": "Section 1",
+          "placement": "best_fit_by_graph03",
+          "teaching_role": "update_outdated_convention"
+        },
+        "ready_to_apply_text": {
+          "slide_bullet": "Post-crisis FRA pricing separates the forecasting curve from OIS discounting.",
+          "speaker_note": "Emphasize that the update concerns the pricing convention, not the payoff definition itself.",
+          "optional_detail": ""
+        },
+        "evidence_refs": [
+          {
+            "source_id": "SRC_FRA_PRICING",
+            "location": "p. 5, sec. 3",
+            "quote": "After 2008 the single-curve framework was replaced by multi-curve construction separating forecasting and discounting."
+          }
+        ],
+        "source_refs": [
+          {
+            "source_id": "SRC_FRA_PRICING",
+            "doi": "10.18267/j.polek.938",
+            "title": "Yield Curve Construction after Crisis",
+            "year": 2014,
+            "venue": "Politicka Ekonomie"
+          }
+        ]
+      },
+      {
+        "update_id": "UPD_FRA_SETTLE",
+        "finding_id": null,
+        "topic_id": "TOPIC_FRA",
+        "action": "add_bullet",
+        "extension_relation": "confirms",
+        "finding": "FRA settlement is discounted at the settlement date using the realized reference rate.",
+        "rationale": "The settlement slide should make the discounting step explicit.",
+        "priority": "medium",
+        "priority_score": 31,
+        "confidence": "supported_by_reviewed_source",
+        "linked_intake_ids": {
+          "claim_ids": ["CL02"],
+          "concept_ids": [],
+          "driver_ids": [],
+          "flow_issue_ids": ["FI01"],
+          "update_need_ids": []
+        },
+        "target": {
+          "slide_ids": ["13"],
+          "affected_slides": ["13"],
+          "section": "Section 1",
+          "section_hint": "Section 1",
+          "placement": "best_fit_by_graph03",
+          "teaching_role": "clarify_settlement"
+        },
+        "ready_to_apply_text": {
+          "slide_bullet": "The FRA settlement amount is discounted from the end of the contract period to the settlement date.",
+          "speaker_note": "Tie the formula to the realized reference rate used at settlement.",
+          "optional_detail": ""
+        },
+        "evidence_refs": [
+          {
+            "source_id": "SRC_FRA_SETTLE",
+            "location": "p. 211",
+            "quote": "The settlement amount is discounted from the end of the contract period to the settlement date."
+          }
+        ],
+        "source_refs": [
+          {
+            "source_id": "SRC_FRA_SETTLE",
+            "doi": "10.1007/978-3-319-33446-2_11",
+            "title": "Multi-curve Construction",
+            "year": 2016,
+            "venue": null
+          }
+        ]
+      }
+    ],
+    "optional_improvements": [],
+    "slide_update_plan": [],
+    "slide_revision_priorities": [
+      {
+        "update_id": "UPD_FRA_PRICING",
+        "priority_score": 33,
+        "reason": "confidence=supported_by_reviewed_source; extension_relation=updates_outdated"
+      },
+      {
+        "update_id": "UPD_FRA_SETTLE",
+        "priority_score": 31,
+        "reason": "confidence=supported_by_reviewed_source; extension_relation=confirms"
+      }
+    ],
+    "do_not_change": [],
+    "coverage_summary": [
+      {
+        "element_type": "claim",
+        "element_id": "CL01",
+        "status": "covered",
+        "source_count": 1
+      },
+      {
+        "element_type": "claim",
+        "element_id": "CL02",
+        "status": "covered",
+        "source_count": 1
+      },
+      {
+        "element_type": "claim",
+        "element_id": "CL03",
+        "status": "uncovered",
+        "source_count": 0
+      }
+    ],
+    "coverage_gaps": [
+      {
+        "gap_type": "insufficient_evidence",
+        "topic_id": "TOPIC_FRA",
+        "linked_intake_ids": {
+          "claim_ids": ["CL03"]
+        },
+        "note": "No reviewed source covers FRA day-count edge cases."
+      }
+    ],
+    "deep_dive_used": [],
+    "source_refs": [
+      {
+        "source_id": "SRC_FRA_PRICING",
+        "doi": "10.18267/j.polek.938",
+        "title": "Yield Curve Construction after Crisis",
+        "year": 2014,
+        "venue": "Politicka Ekonomie",
+        "source_type": "canonical"
+      },
+      {
+        "source_id": "SRC_FRA_SETTLE",
+        "doi": "10.1007/978-3-319-33446-2_11",
+        "title": "Multi-curve Construction",
+        "year": 2016,
+        "venue": null,
+        "source_type": "canonical"
+      }
+    ],
+    "limitations": [
+      "A08 claim verification was skipped in fast candidate mode.",
+      "A09 did not read full PDFs; it used bounded reviews."
+    ],
+    "unresolved_items": [
+      {
+        "topic_id": "TOPIC_FRA",
+        "question": "No reviewed source covers FRA day-count edge cases.",
+        "linked_intake_ids": {
+          "claim_ids": ["CL03"]
+        },
+        "why_unresolved": "insufficient_evidence",
+        "what_would_resolve": "Run a narrower query or provide a canonical source."
+      }
+    ],
+    "confidence": "medium"
+  }
+}

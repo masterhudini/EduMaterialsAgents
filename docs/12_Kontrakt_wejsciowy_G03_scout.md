@@ -1,4 +1,4 @@
-# 12. Kontrakt wejściowy G03 (tryb scout) — przewodnik dla deva
+# 12. Kontrakt wejściowy G03 — przewodnik dla deva
 
 Co dostaje Graph03 na wejściu i jak to czytać. Źródłem prawdy o kształcie są schematy JSON w
 `shared/contracts/`; ten dokument tłumaczy semantykę i granice.
@@ -9,10 +9,10 @@ Co dostaje Graph03 na wejściu i jak to czytać. Źródłem prawdy o kształcie 
   (`lecture_baseline@1`) i hand-off badawczy z G02.
 - Granica wejściowa to cienka para refów: `solution_graph_input@1`.
 - Strona badawcza ma **dwa warianty** wskazywane przez `research_bundle_kind`:
-  - `user_approved_research_bundle` → legacy, ścieżka z Human Research Gate (`user_approved_research_bundle@1`);
-  - `solution_input_candidate` → **tryb scout_fast** (deterministyczny, bez bramki ludzkiej) →
-    `solution_input_candidate@1`.
-- W trybie scout finalnym kontraktem G02 jest **`solution_input_candidate@1`** i to on jest
+  - `solution_input_candidate` → **oficjalny** kontrakt (`solution_input_candidate@1`), bez User
+    Research Gate po stronie G02;
+  - `user_approved_research_bundle` → legacy, ścieżka z User Research Gate (`user_approved_research_bundle@1`).
+- Oficjalnym, finalnym kontraktem badawczym G02 jest **`solution_input_candidate@1`** i to on jest
   samowystarczalnym kontekstem badawczym dla G03.
 
 ## 1. Granica wejściowa: `solution_graph_input@1`
@@ -24,7 +24,7 @@ Co dostaje Graph03 na wejściu i jak to czytać. Źródłem prawdy o kształcie 
   "output_language": "Polish",
   "lecture_baseline_ref": "artifact://g01/.../lecture_baseline.json",   // szkielet slajdów (G01)
   "research_bundle_ref":  "artifact://g02/.../solution_input_candidate.json",
-  "research_bundle_kind": "solution_input_candidate"                    // scout_fast
+  "research_bundle_kind": "solution_input_candidate"
 }
 ```
 
@@ -56,11 +56,11 @@ Przykład realny: `mocks/g02/EXAMPLE g02-a09-solution_input_candidate.artifact.j
 |---|---|
 | `schema_version` | `"solution_input_candidate@1"` |
 | `task_id` | zgodny z intake/G01 |
-| `synthesis_mode` | `"scout_fast"` |
+| `synthesis_mode` | `"evidence_without_claim_assessment"` |
 | `source_pipeline` | `"intake -> a01 -> scout -> a07 -> a09"` |
 | `intake_ref`, `plan_ref` | refy do `research_graph_input@1` i `research_plan@1` (mogą być null poza realnym łańcuchem) |
 | `claim_assessment_performed` | `false` — **A08 jest w trybie scout pominięte** |
-| `a08_status` | `"skipped_scout_fast"` |
+| `claim_assessment_status` | `"not_in_workflow"` |
 | `a09_model_pass` | `true` jeśli realny A09 (opus/medium) zweryfikował baseline; `false` przy fallbacku |
 | `synthesis_engine` | `"a09_opus_medium"` albo `"deterministic_fallback"` |
 | `confidence` | `low` / `medium` / `high` |
@@ -137,7 +137,7 @@ sięgania po A07.
 potrzebny kontekst badawczy jest w tym artefakcie. `locked_sections` / per-slide `locked` (z
 `lecture_baseline`) — nie planuj zmian na zablokowanych slajdach.
 
-## 4. Checklist konsumenta G03 (scout)
+## 4. Checklist konsumenta G03
 
 1. Z `solution_graph_input@1` weź `research_bundle_kind`; jeśli `solution_input_candidate` →
    hydratuj `research_bundle_ref` jako `solution_input_candidate@1`.
@@ -148,3 +148,26 @@ potrzebny kontekst badawczy jest w tym artefakcie. `locked_sections` / per-slide
 5. `optional_improvements` traktuj jako niższy priorytet; `unresolved_items`/`coverage_gaps` →
    `deferred_items` z powodem.
 6. Nigdy nie wołaj G02 i nie czytaj PDF-ów (`graph03_must_not_call_g02`).
+
+## 5. Producent G03: deterministyczny szkielet + osąd agenta
+
+G03 jest grafem **agentowym**. Oficjalny przebieg idzie przez silnik: węzeł `g03-a01-solution-architect`
+(agent, hosted) → reviewer `g03-a10-output-reviewer` (profil `solution_blueprint`) → `user-solution-gate`
+→ render. Orkiestracja (`solution_run_hosted`) zatrzymuje się na każdym węźle (`awaiting_node` →
+`awaiting_review` → `awaiting_user`), więc agent realnie wykonuje swój węzeł.
+
+Podział odpowiedzialności (świadomy, nie obejście agenta):
+
+- **Deterministyczne** (`shared/scripts/g03/blueprint.py`, narzędzie `solution_blueprint_build`):
+  mechaniczny join `linked_intake_ids` → realne slajdy, złożenie poprawnego `solution_blueprint@1`,
+  pierwszy podział apply/defer wg dopasowania i `locked`, surowy `change_summary`, skierowanie
+  `optional_improvements`/`unresolved_items`/`coverage_gaps` do `deferred_items`. To jest **draft**
+  (zwalidowany szkielet) — testowalny offline, bez LLM.
+- **Osąd agenta** (`g03-a01`): przeredagowanie `change_summary` w języku i rejestrze wykładu;
+  rewizja apply-vs-defer (np. podniesienie wartościowego `optional` do applied, zejście słabego do
+  deferred); kolejność i spójność `lecture_outline`; brak dopasowania → `needs_input`/`deferred` z
+  powodem; potwierdzenie `locked`. Agent finalizuje przez `solution_blueprint_finalize`.
+
+`solution_blueprint_build`/CLI to **pomocniczy draft + ścieżka testowa/fallback**, nie sposób na
+pominięcie agenta, reviewera ani bramki. Render markdown (`solution_blueprint_render`) to widok na
+zatwierdzonym blueprintcie — nigdy nie zastępuje `solution_blueprint@1`.

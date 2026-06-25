@@ -143,6 +143,5 @@ class ResearchGraphTests(unittest.TestCase):
         self.assertFalse(res["ok"], res)
         self.assertIn("hardcoded/retired G02 flow term", "\n".join(res["errors"]))
 
-
 if __name__ == "__main__":
     unittest.main()

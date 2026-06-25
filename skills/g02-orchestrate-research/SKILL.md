@@ -1,6 +1,6 @@
 ---
 name: g02-orchestrate-research
-description: Run the current Research Graph from an approved research_graph_input@1 through A01 planning, Scout discovery, A07 light source review, A09 synthesis and the Human Research Gate. Use as the graph's only conversational surface and final handoff coordinator.
+description: Run the current Research Graph from an approved research_graph_input@1 through A01 planning, Scout discovery, A07 light source review, A09 synthesis and the User Research Gate. Use as the graph's only conversational surface and final handoff coordinator.
 ---
 
 # Orchestrate Research
@@ -23,7 +23,7 @@ Do not use the retired A02-A06/A08/A11/source-selection workflow for new runs.
 ## Contract
 
 - Consume a path or artifact reference satisfying `research_graph_input@1`.
-- Produce only a validated `user_approved_research_bundle@1` descriptor after final human approval.
+- Produce only a validated `user_approved_research_bundle@1` descriptor after final user approval.
 - Persist intermediate artifacts and carry refs instead of full documents in orchestration context.
 - Use deterministic finalizers for persistence through the hosted runner. The active `scout_e2e`
   profile does not run A10 review.
@@ -39,7 +39,7 @@ Do not use the retired A02-A06/A08/A11/source-selection workflow for new runs.
    the user wants to provide email or an OpenAlex key for Scout.
 5. For `g02-a07-paper-review`, each `node_key` is one topic/source work unit. The worker may read
    only the supplied `a07_review_task@1`, selected windows and compact intake context.
-6. `awaiting_user`: present the Human Research Gate summary, limitations, optional improvements and
+6. `awaiting_user`: present the User Research Gate summary, limitations, optional improvements and
    unresolved handling to the user. Never auto-approve. Resume with
    `decisions: {"user-research-gate": <explicit decision>}`.
 7. `completed`: the `output_ref` is the only `user_approved_research_bundle@1` handoff to G03.
@@ -54,7 +54,7 @@ Do not use the retired A02-A06/A08/A11/source-selection workflow for new runs.
 
 ## Boundaries
 
-- Do not call retired A02-A06/A08/A11 tools or retired human source filtering gates.
+- Do not call retired A02-A06/A08/A11 tools or retired user source filtering gates.
 - `research_run_codex` is a valid entrypoint for a non-Codex shell or CI (it spawns nested
   `codex exec` workers, exactly like `intake_run_codex` / `solution_run_codex`); inside a Codex or
   host session prefer `research_run_hosted` because you are already the worker.
@@ -67,5 +67,5 @@ Do not use the retired A02-A06/A08/A11/source-selection workflow for new runs.
 ## Failure Handling
 
 Stop on contract failure, failed Scout run, failed A07 aggregate operation, failed A09 finalization or
-rejected Human Research Gate. Continue with deterministic A09 fallback only when the model attempt
+rejected User Research Gate. Continue with deterministic A09 fallback only when the model attempt
 is unavailable or fails and the finalizer records that fact.

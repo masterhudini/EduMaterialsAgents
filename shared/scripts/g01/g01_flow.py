@@ -23,6 +23,7 @@ from g01 import intake, pdf_extract  # noqa: E402
 GRAPH_ID = "g01"
 INPUT_CONTRACT = "intake_graph_input@1"
 OUTPUT_CONTRACT = "research_graph_input@1"
+GATE_DECISIONS_CONTRACT = "intake_gate_decisions@1"
 
 
 def _scoped_input(node: dict, inp: dict) -> dict:
@@ -108,6 +109,20 @@ def _deterministic_node(node: dict, ctx: dict, log):
     }
 
 
+def _gate_finalize(gname: str, decision: dict, produced_refs: dict, base=None):
+    """Persist the user intake gate decisions as intake_gate_decisions@1 so a03/a04 receive them
+    through ``upstream`` (the gate runs before both). Returns the stored ref, or None when the
+    decision is not a gate-decisions object (e.g. the auto-approve stub ``{"auto": True}``) — that
+    keeps the no-LLM wiring harness behaving exactly as before.
+    """
+    if not isinstance(decision, dict) or decision.get("schema_version") != GATE_DECISIONS_CONTRACT:
+        return None
+    env = intake.finalize_gate_decisions(decision.get("task_id"), decision, base=base)
+    if env.get("status") != "ok":
+        return None
+    return (env.get("produced") or [{}])[0].get("path")
+
+
 SPEC = engine.EngineSpec(
     graph_id=GRAPH_ID,
     input_contract=INPUT_CONTRACT,
@@ -120,6 +135,7 @@ SPEC = engine.EngineSpec(
     emit_name="intake_bundle",
     context_resolver=intake.resolve_context,   # a *.pdf path is uploaded into the store first
     deterministic_node=_deterministic_node,    # a01 runs in-process; a02/a03 yield to the host
+    gate_finalize=_gate_finalize,              # persist gate decisions -> upstream for a03/a04
 )
 
 

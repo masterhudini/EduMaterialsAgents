@@ -9,14 +9,16 @@ Drive the Intake Graph without performing producer work. Read `shared/graphs/g01
 node, contract, review and execution source of truth. Derive node order from `sequence`; derive
 producer contracts, review profiles, hosted/deterministic execution and finalize operations from
 each node entry. Agents never address the user; relay their questions and explain every required
-human action.
+user action.
 
 ## Contract
 
 - Consume a path or artifact reference satisfying `intake_graph_input@1` (the uploaded PDF + ingestion
   profile).
-- Produce only a validated `research_graph_input@1` descriptor after the user intake gate — this is
-  the approved handoff the Research Graph (g01 -> g02) consumes.
+- Produce TWO validated boundary outputs after the user intake gate (both depend on the gate decisions):
+  - `research_graph_input@1` — the approved handoff the Research Graph (g01 -> g02) consumes (from a03).
+  - `lecture_baseline@1` — the lecture skeleton the Solution Graph (g01 -> g03) consumes (from a04);
+    declared as the manifest `secondary_exits`. Capture and surface BOTH refs.
 - Persist intermediate artifacts and carry refs instead of full documents in orchestration context.
 - Use `envelope@1` for execution status and `review_decision@1` for reviewer verdicts.
 
@@ -35,13 +37,17 @@ human action.
    history. Handle `APPROVED` / `REVISE` / `BLOCKED` per the manifest revision policy.
 5. For each `user-gate` node, present decisions declared in `required_decisions`; collect explicit
    user authorization and resume with those decisions. Never infer or auto-approve gate decisions.
-6. Emit the graph `exit_artifact` only after the final gate and contract validation succeed.
+6. In the current graph this means: run `g01-a01-pdf-intake` and `g01-a02-understanding`, stop at
+   the User Intake Gate, persist `intake_gate_decisions@1`, then run `g01-a03-intake-synthesizer`
+   and `g01-a04-lecture-baseline` with those gate decisions.
+7. Emit the graph `exit_artifact` and `secondary_exits` only after the final gate and contract
+   validation succeed.
 
 ## Output requirements
 
-- The only thing crossing the boundary is the `research_graph_input@1` descriptor (plus `artifact://`
-  refs inside it). Never emit raw PDF text or full intake states.
-- Default human-readable output to English when `output_language` is absent.
+- Two typed artifacts cross the boundary: `research_graph_input@1` (-> g02) and `lecture_baseline@1`
+  (-> g03), plus `artifact://` refs inside them. Never emit raw PDF text or full intake states.
+- Default user-readable output to English when `output_language` is absent.
 
 ## Boundaries
 
@@ -52,7 +58,7 @@ human action.
 ## Failure handling
 
 Relay `needs_input` with an exact response request. Continue from `degraded` only when omissions are
-explicit and the manifest permits. Stop on `failed`, unresolved `BLOCKED` or invalid human authorization.
+explicit and the manifest permits. Stop on `failed`, unresolved `BLOCKED` or invalid user authorization.
 
 ## Resume
 

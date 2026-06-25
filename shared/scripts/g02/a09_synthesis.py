@@ -2,7 +2,7 @@
 
 This is the A09 path. It consumes ``a07_reviews@1`` and
 emits a complete ``solution_input_candidate@1`` for Graph03. It does not use the
-Human Research Gate. Optional deep-dive access is limited to five source
+User Research Gate. Optional deep-dive access is limited to five source
 work items and reuses A07's bounded PDF window selector for at most twelve
 windows per source. Full-document reading stays forbidden and research work is
 never delegated to Graph03.
@@ -1171,7 +1171,7 @@ def finalize_a09_solution(
         "unresolved_items": unresolved,
         "confidence": confidence,
         "claim_assessment_performed": False,
-        "a08_status": "skipped",
+        "claim_assessment_status": "not_in_workflow",
         "a09_model_pass": bool(validated_output),
         "synthesis_engine": "a09_opus_medium" if bool(validated_output)
         else "deterministic_fallback",
@@ -1321,7 +1321,7 @@ def _evidence_map(solution: dict, artifact_version: str) -> dict:
         "task_id": solution["task_id"],
         "synthesis_mode": SYNTHESIS_MODE_A09,
         "claim_assessment_performed": False,
-        "claim_assessment_status": "skipped",
+        "claim_assessment_status": "not_in_workflow",
         "claims": claims,
         "sources": sources,
     }
@@ -1345,7 +1345,7 @@ def finalize_a09_research_state(
     artifact_version: str = "1.0.0",
     base=None,
 ) -> dict:
-    """Materialize a minimal research_state@1 so the existing Human Research Gate can run."""
+    """Materialize a minimal research_state@1 so the existing User Research Gate can run."""
     try:
         validation = contracts.validate(solution, SOLUTION_CONTRACT)
         if not validation["ok"]:
@@ -1439,7 +1439,7 @@ def finalize_a09_research_state(
             "task_id": task_id,
             "synthesis_mode": SYNTHESIS_MODE_A09,
             "claim_assessment_performed": False,
-            "claim_assessment_status": "skipped",
+            "claim_assessment_status": "not_in_workflow",
             "skipped_nodes": ["g02-a08-claim-verification"],
             "fast_mode_limitation": limitation,
             "findings": findings,

@@ -1,5 +1,5 @@
 {
-  "a08_status": "skipped_scout_fast",
+  "claim_assessment_status": "not_in_workflow",
   "a09_model_pass": true,
   "artifact_version": "1.0.0",
   "claim_assessment_performed": false,
@@ -315,7 +315,7 @@
   "limitations": [
     "Prepared artifact only: A07 model has not yet produced final presentation_update_candidates.",
     "PDF reading is bounded to sampled pages and selected text windows; full-document reading is forbidden.",
-    "A08 claim verification was skipped in scout_fast mode.",
+    "Claim assessment is not part of this workflow.",
     "A09 did not read full PDFs; it used A07 bounded reviews and optional bounded deep-dive windows."
   ],
   "optional_improvements": [],
@@ -742,7 +742,7 @@
     }
   ],
   "synthesis_engine": "a09_opus_medium",
-  "synthesis_mode": "scout_fast",
+  "synthesis_mode": "evidence_without_claim_assessment",
   "task_id": "awif_2025_wyk_09_fra",
   "topics_covered": [
     {

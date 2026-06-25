@@ -76,14 +76,14 @@ Runtime artifacts (drafts, logs, hydrated `artifact://` files) live in the **cur
 under `.emagents/` (override with `EMAGENTS_HOME`); the dir is git-ignored.
 
 The active Research Graph path covers the boundary front door, G02-A01 Planner, deterministic
-Scout fanout, G02-A07 light source review, obligatory G02-A09 synthesis and the Human Research
+Scout fanout, G02-A07 light source review, obligatory G02-A09 synthesis and the User Research
 Gate. Scout persists machine artifacts (plan, requests, manifests, per-topic corpora and
-cross-topic index) under `.emagents/artifacts/g02/scout/runs/`, while human-inspectable PDF copies
+cross-topic index) under `.emagents/artifacts/g02/scout/runs/`, while user-inspectable PDF copies
 live under `knowledge/g02/<task_id>/<topic-name>/`.
 A07 reads only bounded Scout windows and compact intake context. A09 consumes aggregated A07
 reviews plus bounded deep-dive windows, records whether the model pass succeeded, materializes
-`research_state@1`, `evidence_map@1`, `research_summary@1`, the human validation packet and
-`solution_input_candidate@1`, then pauses for human approval before emitting
+`research_state@1`, `evidence_map@1`, `research_summary@1`, the user validation packet and
+`solution_input_candidate@1`, then pauses for user approval before emitting
 `user_approved_research_bundle@1`.
 
 The current MCP public surface exposes the active Scout/A07/A09 operations. Retired A02-A06,
@@ -177,7 +177,7 @@ Run the research graph for /home/khudaszek/projects/EduMaterialsAgents/mocks/g02
 
 The `g02-orchestrate-research` skill treats these as semantic entrypoints and uses the
 `research-scout-e2e` MCP prompt. The prompt drives A01 planning, Scout fanout, A07 light review,
-A09 synthesis and the Human Research Gate without A10 review. After approval it creates a compact
+A09 synthesis and the User Research Gate without A10 review. After approval it creates a compact
 `user_approved_research_bundle@1` for Graph03. Fast/scout mode explicitly states that A08 Claim
 Verification was skipped.
 
@@ -188,7 +188,7 @@ planner receives:
 python shared/scripts/g02/g02_flow.py inputs mocks/g02/research_graph_input.json --node g02-a01-planner
 ```
 
-The engine is host-agnostic; execution is the per-host orchestrator plus MCP tools. Human gates are
+The engine is host-agnostic; execution is the per-host orchestrator plus MCP tools. User gates are
 presented by the host and require explicit approval. Deprecated runner and review tools remain in
 source for migration, but the MCP runtime returns `deprecated_tool` for those names.
 

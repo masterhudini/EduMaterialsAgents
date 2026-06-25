@@ -4,9 +4,9 @@ This module keeps the historical ``g02.reviewed_flow`` import path, but the acti
 longer the retired A02-A06/A10 reviewed frontier. It is a small deterministic scheduler for the
 current manifest path:
 
-    A01 planner -> Scout fanout -> A07 bounded source reviews -> A09 synthesis -> Human Gate
+    A01 planner -> Scout fanout -> A07 bounded source reviews -> A09 synthesis -> User Gate
 
-The runner pauses only for model work and human decisions. Deterministic operations are executed
+The runner pauses only for model work and user decisions. Deterministic operations are executed
 in-process through the same modules exposed by the research MCP server.
 """
 from __future__ import annotations
@@ -371,7 +371,7 @@ def _finalize_gate(state: dict, decision: dict, *, base=None) -> tuple[str | Non
         base=base,
     )
     if envelope.get("status") != "ok":
-        message = envelope.get("summary", "Human Research Gate decision was not accepted")
+        message = envelope.get("summary", "User Research Gate decision was not accepted")
         issue = envelope.get("issues", [{}])[0]
         return None, _issue(
             issue.get("type", "research_gate_not_approved"),
@@ -420,7 +420,7 @@ def run(input_ref=None, *, node_runner=None, base=None, gate_handler=None, pause
     ``node_results`` are finalize envelopes produced by the MCP finalizer named in the awaiting
     payload. For multiple A07 tasks, use the returned ``node_key`` as the key. For the nested-Codex
     entrypoint (``node_runner`` supplied) use :func:`run_with_codex`, which drives this same hosted
-    protocol in-process and only pauses for human gates.
+    protocol in-process and only pauses for user gates.
     """
     del node_runner, review_results  # this single pass is hosted; the Codex driver lives in run_with_codex.
     manifest = graphs.load(GRAPH_ID)
@@ -559,7 +559,7 @@ def run_with_codex(input_ref=None, *, node_runner, base=None, gate_handler=None,
 
     Deterministic Scout fanout runs in-process inside :func:`run`; each A01/A07/A09 agent node is
     executed by ``node_runner`` (one isolated ``codex exec`` worker that calls its own finalize op
-    and returns the resulting ``envelope@1``). The driver only pauses for the Human Research Gate:
+    and returns the resulting ``envelope@1``). The driver only pauses for the User Research Gate:
     with a ``gate_handler`` it plays the gate inline, otherwise it returns the ``awaiting_user``
     report so the caller can resume with ``decisions``.
     """

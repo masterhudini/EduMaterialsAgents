@@ -1,9 +1,9 @@
 """g03 producer write path + dual-input front door.
 
 g03 is the first place the two upstream sides meet: the lecture skeleton from g01
-(``lecture_baseline@1``) and the research hand-off from g02 — either the human-gated
-``user_approved_research_bundle@1`` or, on the deterministic evidence_without_claim_assessment path,
-``solution_input_candidate@1`` (selected by ``research_bundle_kind``).
+(``lecture_baseline@1``) and the research hand-off from g02 — either the official
+``solution_input_candidate@1`` contract or the legacy user-gated
+``user_approved_research_bundle@1`` (selected by ``research_bundle_kind``).
 Neither is the other graph's full state — each is a purpose-built, targeted slice. This module
 builds the thin composite boundary (``solution_graph_input@1``, a pair of refs) the engine drives
 on, and persists the producer artifact server-side. Pure stdlib.
@@ -22,11 +22,11 @@ from core import artifacts, contracts, finalize  # noqa: E402
 INPUT_CONTRACT = "solution_graph_input@1"
 LECTURE_CONTRACT = "lecture_baseline@1"
 RESEARCH_CONTRACT = "user_approved_research_bundle@1"
-SCOUT_RESEARCH_CONTRACT = "solution_input_candidate@1"
+CANDIDATE_RESEARCH_CONTRACT = "solution_input_candidate@1"
 # Map research_bundle_kind -> the g02 contract the research side satisfies.
 RESEARCH_CONTRACT_BY_KIND = {
     "user_approved_research_bundle": RESEARCH_CONTRACT,
-    "solution_input_candidate": SCOUT_RESEARCH_CONTRACT,
+    "solution_input_candidate": CANDIDATE_RESEARCH_CONTRACT,
 }
 
 
@@ -34,8 +34,7 @@ def _research_contract_and_kind(request: dict) -> tuple[str, str]:
     """Pick the g02 research contract + kind for this input.
 
     Explicit ``research_bundle_kind`` wins; otherwise infer from an inline bundle's
-    ``schema_version``; otherwise default to the legacy reviewed bundle. evidence_without_claim_assessment
-    runs hand off ``solution_input_candidate@1`` instead of the human-gated bundle.
+    ``schema_version``; otherwise default to the legacy reviewed bundle.
     """
     kind = request.get("research_bundle_kind")
     if kind in RESEARCH_CONTRACT_BY_KIND:
@@ -43,8 +42,8 @@ def _research_contract_and_kind(request: dict) -> tuple[str, str]:
     inline = request.get("research_bundle")
     if isinstance(inline, dict):
         version = inline.get("schema_version")
-        if version == SCOUT_RESEARCH_CONTRACT:
-            return SCOUT_RESEARCH_CONTRACT, "solution_input_candidate"
+        if version == CANDIDATE_RESEARCH_CONTRACT:
+            return CANDIDATE_RESEARCH_CONTRACT, "solution_input_candidate"
         if version == RESEARCH_CONTRACT:
             return RESEARCH_CONTRACT, "user_approved_research_bundle"
     return RESEARCH_CONTRACT, "user_approved_research_bundle"

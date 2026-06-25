@@ -367,7 +367,7 @@ class ScoutA07BridgeTests(unittest.TestCase):
             checked = contracts.validate(solution, "solution_input_candidate@1")
             self.assertTrue(checked["ok"], checked["errors"])
             self.assertEqual(solution["synthesis_mode"], "evidence_without_claim_assessment")
-            self.assertEqual(solution["a08_status"], "skipped")
+            self.assertEqual(solution["claim_assessment_status"], "not_in_workflow")
             self.assertEqual(len(solution["slide_update_plan"]), 1)
             self.assertTrue(solution["graph03_handoff_constraints"]["graph03_must_not_call_g02"])
 

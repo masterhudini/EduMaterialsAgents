@@ -9,7 +9,7 @@ helpers are deprecated and blocked at the MCP runtime boundary, but kept in sour
 
 Methods: initialize, notifications/* (ignored), ping, tools/list, tools/call.
 Active tools: A01 planner prepare/finalize, Scout fanout, A07 prepare/tasks/partial
-finalize/aggregate, A09 task/finalize/research-state materialization, Human Research Gate and
+finalize/aggregate, A09 task/finalize/research-state materialization, User Research Gate and
 bundle finalize.
 """
 from __future__ import annotations
@@ -1044,7 +1044,7 @@ def _run_codex(args: dict):
     """Run or resume g02 through nested Codex workers, mirroring the g01/g03 codex entrypoints.
 
     Deterministic Scout fanout runs in-process; each A01/A07/A09 agent is an isolated codex worker.
-    MCP is not an interactive stdin surface, so gates pause/resume and human approval is never
+    MCP is not an interactive stdin surface, so gates pause/resume and user approval is never
     simulated."""
     if args.get("gates", "pause") != "pause":
         raise ValueError("Codex runs require gates='pause'")
@@ -1574,7 +1574,7 @@ TOOLS = [
         "name": "research_candidate_index_finalize",
         "description": "Deterministically deduplicate and rank reviewed candidates, create "
                        "basis-labelled content descriptions and persist CandidateSourceIndex "
-                       "plus candidate_source_review.md for the human gate.",
+                       "plus candidate_source_review.md for the user gate.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -1850,7 +1850,7 @@ TOOLS = [
     },
     {
         "name": "research_synthesis_finalize",
-        "description": "Persist research_state@1, compact evidence map, human validation packet "
+        "description": "Persist research_state@1, compact evidence map, user validation packet "
                        "and SolutionInputCandidate while making the skipped A08 limitation explicit.",
         "inputSchema": {
             "type": "object",
@@ -1904,7 +1904,7 @@ TOOLS = [
     },
     {
         "name": "research_human_gate_prepare",
-        "description": "Prepare the Human Research Gate packet from a research_state@1 ref. "
+        "description": "Prepare the User Research Gate packet from a research_state@1 ref. "
                        "Returns the research_summary@1 digest, validation packet and decision "
                        "template for user approval before Graph03 handoff.",
         "inputSchema": {
@@ -1917,7 +1917,7 @@ TOOLS = [
     },
     {
         "name": "research_bundle_finalize",
-        "description": "After the Human Research Gate approves reviewed A09, validate and store "
+        "description": "After the User Research Gate approves reviewed A09, validate and store "
                        "the compact user_approved_research_bundle@1 for Graph03.",
         "inputSchema": {
             "type": "object",
@@ -1974,7 +1974,7 @@ TOOLS = [
         "description": "Run the dedicated deterministic Scout profile from one persisted "
                        "research_plan@1. Starts one process per topic, uses only provider "
                        "credentials collected through research_provider_setup, persists machine "
-                       "artifacts under .emagents, and copies human-readable PDFs under knowledge/. "
+                       "artifacts under .emagents, and copies user-readable PDFs under knowledge/. "
                        "Does not run A07, A09, run or run-codex.",
         "inputSchema": {
             "type": "object",
@@ -2250,7 +2250,7 @@ TOOLS = [
         "name": "research_a09_research_state_finalize",
         "description": "Materialize a research_state@1, research_summary@1 and "
                        "user_research_validation_packet@1 from the A09 "
-                       "solution_input_candidate@1 so the Human Research Gate can approve the "
+                       "solution_input_candidate@1 so the User Research Gate can approve the "
                        "G02->G03 bundle.",
         "inputSchema": {
             "type": "object",
@@ -2296,7 +2296,7 @@ TOOLS = [
         "name": "research_run_codex",
         "description": "Run the active G02 Scout flow with NESTED Codex workers (codex exec): "
                        "deterministic Scout fanout runs in-process and each A01/A07/A09 agent is an "
-                       "isolated worker, then pause at the Human Research Gate. Use research_run_hosted "
+                       "isolated worker, then pause at the User Research Gate. Use research_run_hosted "
                        "instead when the calling session should play each agent itself. User gates "
                        "always use pause/resume because MCP tools cannot read interactive stdin.",
         "inputSchema": {
@@ -2310,7 +2310,7 @@ TOOLS = [
                 "gates": {
                     "type": "string",
                     "enum": ["pause"],
-                    "description": "Human gate handoff/resume mode (default and only reviewed mode).",
+                    "description": "User gate handoff/resume mode (default and only reviewed mode).",
                 },
                 "resume_token": {
                     "type": "string",
@@ -2326,7 +2326,7 @@ TOOLS = [
                         "g02-a01-planner", "research-scout-fanout", "g02-a07-paper-review",
                         "g02-a09-synthesizer", "user-research-gate"
                     ],
-                    "description": "Last active stage to execute; defaults to the Human Research Gate."
+                    "description": "Last active stage to execute; defaults to the User Research Gate."
                 },
                 "topic_ids": {
                     "type": "array",
@@ -2357,7 +2357,7 @@ TOOLS = [
         "description": "Start the active HOST-DRIVEN G02 Scout E2E run (no nested codex exec). "
                        "The runner executes deterministic Scout/A07/A09 finalizer steps itself and "
                        "pauses only for model work: A01 planning, each A07 bounded source review, "
-                       "A09 synthesis and the Human Research Gate. Awaiting node payloads include "
+                       "A09 synthesis and the User Research Gate. Awaiting node payloads include "
                        "node_key, input, upstream, finalize_op and finalize_args; call the finalize "
                        "op and resume with node_results keyed by node_key.",
         "inputSchema": {"type": "object", "required": ["context"],
@@ -2371,7 +2371,7 @@ TOOLS = [
         "description": "Resume a host-driven g02 Scout E2E run with exactly one of: "
                        "node_results={node_key: finalize_envelope} after playing an awaited model "
                        "node and its finalize op; node_failures={node_key: {summary, issues}}; or "
-                       "decisions={gate: ...} for the Human Research Gate. Optional usage_reports={node_key: "
+                       "decisions={gate: ...} for the User Research Gate. Optional usage_reports={node_key: "
                        "{input_tokens, output_tokens, model}} records the model tokens only the host "
                        "knows (token tracing). Returns the next awaiting_* or the run report.",
         "inputSchema": {"type": "object", "required": ["resume_token"],
@@ -2434,7 +2434,7 @@ PROMPTS = [
     {
         "name": "research-scout-e2e",
         "description": "Run the Scout discovery path through A07 light reviews, A09 and the "
-                       "Human Research Gate. Live Scout and host-model A07 are still performed "
+                       "User Research Gate. Live Scout and host-model A07 are still performed "
                        "by the host environment.",
         "arguments": [
             {
@@ -2515,7 +2515,7 @@ def _research_scout_e2e_prompt(context: str) -> dict:
                     "then call research_resume with node_results keyed by payload.node_key. After the "
                     "A01 planner finalizer succeeds and before resuming, call research_provider_setup "
                     "if the user wants to provide email/openalex_key for Scout.\n"
-                    "   - awaiting_user: present the Human Research Gate summary and collect explicit "
+                    "   - awaiting_user: present the User Research Gate summary and collect explicit "
                     "decisions, then call research_resume with decisions={'user-research-gate': <decision>}.\n"
                     "   - completed: output_ref is the user_approved_research_bundle@1 for Graph03.\n\n"
                     "The hosted runner performs deterministic Scout fanout, A07 aggregation, A09 "
@@ -2611,7 +2611,7 @@ def _deprecated_tool_notice(name: str) -> dict:
         "summary": (
             f"{name} is retained in source for legacy tests and migration only, "
             "but it is not executable through the current MCP runtime. Use the "
-            "Scout -> A07 -> A09 -> Human Research Gate workflow."
+            "Scout -> A07 -> A09 -> User Research Gate workflow."
         ),
     }
 

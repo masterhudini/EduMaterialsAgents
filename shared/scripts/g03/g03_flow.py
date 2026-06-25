@@ -5,8 +5,9 @@ reviewer/gate/checkpoint machinery. This module supplies only what is g03-specif
 contracts and the thin exit bundle. g03 is the first place the two upstream sides meet, so its
 boundary input is a thin composite (``solution_graph_input@1``): a ref to g01's
 ``lecture_baseline@1`` (the lecture skeleton) plus a ref to g02's
-``user_approved_research_bundle@1`` (the approved research). The ``context_resolver`` builds that
-composite from a front-door request. It produces the approved deliverable (``solution_blueprint@1``).
+``solution_input_candidate@1`` (official research hand-off) or legacy
+``user_approved_research_bundle@1``. The ``context_resolver`` builds that composite from a
+front-door request. It produces the approved deliverable (``solution_blueprint@1``).
 
 Run it directly:
     python3 shared/scripts/g03/g03_flow.py run mocks/g03/solution_request.json
@@ -20,6 +21,8 @@ import pathlib as _pl
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))
 
 from core import engine  # noqa: E402
+from g03 import blueprint as blueprint_builder  # noqa: E402
+from g03 import render as blueprint_render  # noqa: E402
 from g03 import solution  # noqa: E402
 
 GRAPH_ID = "g03"
@@ -101,6 +104,51 @@ def make_g03_codex_runner(**options):
 
 
 def _cli(argv):
+    if argv and argv[0] in {"build-blueprint", "render-blueprint", "render-context"}:
+        import argparse
+        import json
+
+        p = argparse.ArgumentParser(
+            prog="g03_flow.py",
+            description="G03 blueprint helpers: build solution_blueprint@1 and render it for users.")
+        sub = p.add_subparsers(dest="cmd", required=True)
+        sp = sub.add_parser("build-blueprint")
+        sp.add_argument("context")
+        sp.add_argument("--persist", action="store_true",
+                        help="store the blueprint through solution_blueprint_finalize")
+        sp = sub.add_parser("render-blueprint")
+        sp.add_argument("blueprint")
+        sp.add_argument("--persist", action="store_true",
+                        help="store the Markdown view as a text artifact")
+        sp.add_argument("--json", action="store_true",
+                        help="print the render bundle as JSON instead of Markdown")
+        sp = sub.add_parser("render-context")
+        sp.add_argument("context")
+        sp.add_argument("--persist", action="store_true",
+                        help="store the Markdown view as a text artifact")
+        sp.add_argument("--json", action="store_true",
+                        help="print the render bundle as JSON instead of Markdown")
+        args = p.parse_args(argv)
+        try:
+            if args.cmd == "build-blueprint":
+                out = (blueprint_builder.finalize_blueprint_from_input(args.context)
+                       if args.persist else blueprint_builder.build_blueprint(args.context))
+                print(json.dumps(out, indent=2, ensure_ascii=False))
+                return 0
+            if args.cmd == "render-blueprint":
+                out = blueprint_render.render_blueprint(args.blueprint, persist=args.persist)
+            else:
+                blueprint = blueprint_builder.build_blueprint(args.context)
+                out = blueprint_render.render_blueprint(blueprint, persist=args.persist)
+            _sys.stderr.write(out["inline_summary"] + "\n")
+            if args.json:
+                print(json.dumps(out, indent=2, ensure_ascii=False))
+            else:
+                print(out["markdown"], end="")
+            return 0
+        except (OSError, ValueError, KeyError) as exc:
+            print(f"error: {exc}", file=_sys.stderr)
+            return 1
     return engine.make_cli(SPEC, codex_runner=make_g03_codex_runner())(argv)
 
 

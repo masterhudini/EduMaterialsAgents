@@ -293,7 +293,7 @@ def test_human_research_gate_bundle_finalize_after_approval_only():
     bundle_ref = approved["produced"][0]["path"]
     bundle = artifacts.hydrate(bundle_ref)
     assert bundle["solution_handoff"]["claim_assessment_performed"] is False
-    assert bundle["solution_handoff"]["a08_status"] == "skipped"
+    assert bundle["solution_handoff"]["claim_assessment_status"] == "not_in_workflow"
     assert contracts.validate(bundle, "user_approved_research_bundle@1")["ok"]
 
 

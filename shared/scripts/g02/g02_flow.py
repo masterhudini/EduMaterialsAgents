@@ -3,7 +3,7 @@
 The engine drives the manifest (single source of truth: shared/graphs/g02.graph.json) and the
 gate/checkpoint machinery. This module supplies only what is g02-specific: the boundary contracts,
 the per-node scoped input (G02-A01 gets a typed research_planner_input@1) and the thin stub exit
-bundle. The active Scout path (A01 -> Scout -> A07 -> A09 -> Human Research Gate) is hosted-only and
+bundle. The active Scout path (A01 -> Scout -> A07 -> A09 -> User Research Gate) is hosted-only and
 runs through ``reviewed_flow`` when ``run(reviewed=True, pause_on_node=True)``. The public API
 (run / front_door / finalize / node_input_map / load_context / scoped_input / _load_any /
 terminal_gate_handler / GRAPH_ID / INPUT_CONTRACT / OUTPUT_CONTRACT / _cli) is preserved for the
@@ -243,7 +243,7 @@ def _cli(argv: list[str]) -> int:
         "--gates",
         choices=["prompt", "pause"],
         default="prompt",
-        help="prompt for the Human Research Gate on stdin (default) or return a pause/resume token",
+        help="prompt for the User Research Gate on stdin (default) or return a pause/resume token",
     )
     sp.add_argument("--resume-token", help="resume token returned by an awaiting_user report")
     sp.add_argument(
@@ -254,7 +254,7 @@ def _cli(argv: list[str]) -> int:
         "--through",
         default="user-research-gate",
         choices=_CODEX_THROUGH,
-        help="stop after this active stage (default: Human Research Gate)",
+        help="stop after this active stage (default: User Research Gate)",
     )
     sp.add_argument(
         "--topic-id",
