@@ -6,8 +6,9 @@ description: Run the Solution Graph from a user-approved research bundle through
 # Orchestrate Solution
 
 Drive the Solution Graph without performing producer work. Read `shared/graphs/g03.graph.json` as the
-node and contract source of truth. Agents never address the user; relay their questions and explain
-every required human action.
+node, contract, review and execution source of truth. Derive node order from `sequence`; derive
+producer contracts, review profiles, hosted execution and finalize operations from each node entry.
+Agents never address the user; relay their questions and explain every required human action.
 
 ## Contract
 
@@ -21,15 +22,16 @@ every required human action.
 ## Workflow
 
 1. Validate and register the input through the deterministic front door; stop on contract failure.
-2. Run `g03-a01-solution-architect` to produce the `SolutionBlueprint` from the approved bundle;
-   persist the artifact and carry its ref.
-3. After the producer artifact, invoke `g03-a10-output-reviewer` with exactly one artifact, the
-   node's review profile, the output contract, acceptance criteria and revision history. Handle
-   `APPROVED` / `REVISE` / `BLOCKED` per the manifest revision policy.
-4. Run the **User Solution Gate**: present the outline, the applied updates (each traced to an
-   approved finding) and the deferred items, and collect: approve outline, approve applied updates,
-   confirm deferrals.
-5. Validate, freeze and emit the `solution_blueprint@1` deliverable.
+2. Load `shared/graphs/g03.graph.json` and iterate through `sequence`.
+3. For each `agent` node, run the isolated agent named by the node, pass only the scoped node input
+   plus upstream refs, persist output only through the node's `finalize_op`, and carry only the
+   produced descriptor matching the node's `output_contract`.
+4. After each producer artifact, invoke the graph reviewer named by `reviewer` with exactly one
+   artifact, that node's `review_profile`, `output_contract`, acceptance criteria and revision
+   history. Handle `APPROVED` / `REVISE` / `BLOCKED` per the manifest revision policy.
+5. For each `user-gate` node, present decisions declared in `required_decisions`; collect explicit
+   user authorization and resume with those decisions. Never infer or auto-approve gate decisions.
+6. Emit the graph `exit_artifact` only after the final gate and contract validation succeed.
 
 ## Output requirements
 
@@ -42,7 +44,7 @@ every required human action.
 - Do not add evidence, verify claims, search literature or rewrite slide prose — that is other graphs.
 - Do not reintroduce a finding the human research gate rejected.
 - Do not let the producer self-approve or bypass the user solution gate.
-- Do not change graph order or boundary contracts in prompt logic.
+- Do not change graph order, review policy, execution mode or boundary contracts in prompt logic.
 
 ## Failure handling
 

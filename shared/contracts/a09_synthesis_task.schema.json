@@ -1,5 +1,5 @@
 {
-  "title": "One host-model G02-A09 scout_fast synthesis task (verify and refine the deterministic baseline)",
+  "title": "One host-model G02-A09 synthesis task (verify and refine the deterministic baseline)",
   "x-version": "1.0",
   "x-major": 1,
   "type": "object",
@@ -12,7 +12,7 @@
     "schema_version": {"type": "string", "enum": ["a09_synthesis_task@1"]},
     "artifact_version": {"type": "string"},
     "task_id": {"type": "string"},
-    "synthesis_mode": {"type": "string", "enum": ["scout_fast"]},
+    "synthesis_mode": {"type": "string", "enum": ["evidence_without_claim_assessment"]},
     "a07_reviews_ref": {"type": ["string", "null"]},
     "plan_ref": {"type": ["string", "null"]},
     "intake_ref": {"type": ["string", "null"]},

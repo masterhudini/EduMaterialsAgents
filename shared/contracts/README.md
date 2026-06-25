@@ -36,7 +36,7 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   A07 lookup pointers. It records the selection criterion, up to twelve additional windows per
   source and explicit fail-open limitations before deterministic finalization.
 - `a09_synthesis_task.schema.json` is the compact host-model task for the obligatory G02-A09
-  scout_fast pass (opus/medium). It carries the deterministic baseline plan to verify and refine,
+  evidence_without_claim_assessment pass (opus/medium). It carries the deterministic baseline plan to verify and refine,
   the A07 candidates, linked intake cards and bounded deep-dive windows (at most five sources,
   eight windows and 1200 characters per window), with full-PDF reading forbidden.
 - `literature_provider_config.schema.json` defines the secret-free G02 provider profile. Version

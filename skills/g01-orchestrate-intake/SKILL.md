@@ -6,8 +6,10 @@ description: Run the Intake / Understanding Graph from an uploaded lecture PDF t
 # Orchestrate Intake
 
 Drive the Intake Graph without performing producer work. Read `shared/graphs/g01.graph.json` as the
-node and contract source of truth. Agents never address the user; relay their questions and explain
-every required human action.
+node, contract, review and execution source of truth. Derive node order from `sequence`; derive
+producer contracts, review profiles, hosted/deterministic execution and finalize operations from
+each node entry. Agents never address the user; relay their questions and explain every required
+human action.
 
 ## Contract
 
@@ -21,19 +23,19 @@ every required human action.
 ## Workflow
 
 1. Validate and register the input through the deterministic front door; stop on contract failure.
-2. Run `g01-a01-pdf-intake` to produce `SlideViews` through `intake_slide_views`. Its deterministic
-   first step may be `intake_pdf_extract`, which emits `pdf_extract_result@1` when the local host has
-   a PDF text backend such as `pypdf`; if the backend is missing, keep the dependency-missing state
-   explicit and do not invent slide text. Then run `g01-a02-understanding` to produce
-   `IntakeUnderstanding`; persist each artifact and carry its ref.
-3. After every producer artifact, invoke `g01-a10-output-reviewer` with exactly one artifact, the
-   node's review profile, the output contract, acceptance criteria and revision history. Handle
-   `APPROVED` / `REVISE` / `BLOCKED` per the manifest revision policy.
-4. Run the **User Intake Gate**: present the understanding (slide count, detected domains, main
-   concepts, potential logic issues, claims requiring research) and collect: confirm audience,
-   confirm domains, approve research scope, mark locked sections.
-5. Run `g01-a03-intake-synthesizer` to project the approved understanding into `research_graph_input@1`
-   (compact cards + refs), review it, then validate, freeze and emit the handoff.
+2. Load `shared/graphs/g01.graph.json` and iterate through `sequence`.
+3. For each `agent` node:
+   - if `execution` is `deterministic`, let the runtime run the node in-process and keep any
+     dependency-missing state explicit;
+   - if `execution` is `hosted`, run the isolated agent named by the node, pass only the scoped
+     node input plus upstream refs, and persist output only through the node's `finalize_op`;
+   - validate and carry only the produced descriptor matching the node's `output_contract`.
+4. After each producer artifact, invoke the graph reviewer named by `reviewer` with exactly one
+   artifact, that node's `review_profile`, `output_contract`, acceptance criteria and revision
+   history. Handle `APPROVED` / `REVISE` / `BLOCKED` per the manifest revision policy.
+5. For each `user-gate` node, present decisions declared in `required_decisions`; collect explicit
+   user authorization and resume with those decisions. Never infer or auto-approve gate decisions.
+6. Emit the graph `exit_artifact` only after the final gate and contract validation succeed.
 
 ## Output requirements
 
@@ -45,7 +47,7 @@ every required human action.
 
 - Do not verify claims, search literature, design a change plan or rewrite slides — that is later graphs.
 - Do not let a producer self-approve or bypass the user intake gate.
-- Do not change graph order or boundary contracts in prompt logic.
+- Do not change graph order, review policy, execution mode or boundary contracts in prompt logic.
 
 ## Failure handling
 

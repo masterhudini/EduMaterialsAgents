@@ -324,11 +324,13 @@ def _prompt(name: str, args: dict) -> dict:
                 f"{context}\n\n"
                 "Use the orchestrate-workflow skill. Drive g01 host-driven (intake_upload then "
                 "intake_run_hosted), capturing BOTH the research_graph_input@1 handoff AND the "
-                "lecture_baseline@1 ref produced by g01-a04-lecture-baseline. Then research_run_hosted "
-                "with the research_graph_input to get user_approved_research_bundle@1. Then "
+                "lecture_baseline@1 ref produced by g01-a04-lecture-baseline. Then use the "
+                "research-scout-e2e prompt with the research_graph_input and finalize its Human "
+                "Research Gate to get user_approved_research_bundle@1. Then "
                 "solution_run_hosted with {lecture_baseline_ref, research_bundle_ref} to get "
-                "solution_blueprint@1. Honor every human gate. Inside a Codex session use "
-                "*_run_hosted/*_resume, never *_run_codex. For a no-LLM wiring check, run "
+                "solution_blueprint@1. Honor every human gate. Inside a Codex session do not use "
+                "research_run_hosted/research_run_codex; for g01/g03 use their hosted loops. "
+                "For a no-LLM wiring check, run "
                 "shared/scripts/workflow.py run-stub.")}}],
         }
     return {

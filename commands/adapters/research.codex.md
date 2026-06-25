@@ -1,26 +1,16 @@
 ## Host Adapter: Codex
 
-Run the Codex worker runtime from the installed plugin bundle:
+Use the installed research MCP server, not `g02_flow.py run-codex`.
 
-```bash
-python3 "{{CODEX_PLUGIN_ROOT}}/shared/scripts/g02/g02_flow.py" run-codex <path-or-artifact-ref-to-research_graph_input> --gates pause
-```
+1. Call `research_run_hosted({context: <command argument>, through: "user-research-gate"})`.
+2. For each `awaiting_node`, run the named agent using only the payload input. Call `finalize_op`
+   with the provided `finalize_args` completed by the raw model JSON, then call
+   `research_resume({resume_token, node_results: {node_key: <finalize envelope>}})`.
+3. After A01 finalizes and before resuming, call `research_provider_setup` if the user wants to
+   provide email or an OpenAlex key for Scout.
+4. For `awaiting_user`, collect explicit Human Research Gate decisions and resume with
+   `decisions: {"user-research-gate": ...}`.
+5. Return the completed `output_ref`.
 
-Use the command argument as `<path-or-artifact-ref-to-research_graph_input>`. Prefer an absolute
-path for local JSON files so the MCP/runtime process does not depend on a particular working
-directory.
-
-The default execution profile is `fast`: A01 plans at most two priority-selected topics, discovery
-uses bounded provider calls, A07 reviews each accepted source, A08 is skipped with an explicit
-limitation, and A09 is the default reviewed terminal producer. A10 is mandatory for A01, A05, A06
-and A09; A07 is reviewed conditionally.
-
-Use `--gates prompt` for both terminal gates. The source gate accepts displayed numbers or stable
-source IDs and requires a separate confirmation; the final gate collects required-update,
-optional-improvement and unresolved-item decisions. Use `--gates pause` when the host must
-return a resume token and collect the decision in the conversation. Resume the CLI with
-`--resume-token <token> --decisions <json-file>` and omit the context argument; the JSON object is
-keyed by `user-source-selection-gate` or `user-research-gate`. The real runner never
-auto-approves a gate; use `research_run_stub` only for a synthetic no-op wiring smoke.
-After reviewed A09, `run-codex` returns `awaiting_user` at the Human Research Gate. Resume with the
-returned token and a `user-research-gate` decision to create the compact Graph03 bundle.
+Do not call `research_run_codex`, `research_run_stub`, A10 review tools or retired A02-A06/source
+selection tools.

@@ -59,7 +59,7 @@ def test_scout_profile_expands_only_its_scoped_topic_limit():
     boundary = _load("research_graph_input.json")
     original = copy.deepcopy(boundary)
 
-    prepared = planner.prepare_planner(boundary, execution_profile="scout")
+    prepared = planner.prepare_planner(boundary, execution_profile="scout_e2e")
 
     assert prepared["ready"]
     assert prepared["planner_input"]["constraints"]["max_topics"] == 6
@@ -69,7 +69,7 @@ def test_scout_profile_expands_only_its_scoped_topic_limit():
 
 def test_prepare_supplies_exact_plan_output_template():
     prepared = planner.prepare_planner(
-        _load("research_graph_input.json"), execution_profile="scout"
+        _load("research_graph_input.json"), execution_profile="scout_e2e"
     )
 
     template = prepared["plan_output_template"]
@@ -129,7 +129,7 @@ def test_finalize_normalizes_live_a01_contract_aliases_without_manual_repair(tmp
 
 def test_scout_profile_rejects_short_generic_primary_core_term():
     prepared = planner.prepare_planner(
-        _load("research_graph_input.json"), execution_profile="scout"
+        _load("research_graph_input.json"), execution_profile="scout_e2e"
     )
     scoped = prepared["planner_input"]
     plan = _load("research_plan.json")

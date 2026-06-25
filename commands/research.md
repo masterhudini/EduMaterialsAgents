@@ -15,8 +15,9 @@ argument-hint: "[path or artifact:// ref to a research_graph_input bundle]"
 
 Routes into the `g02-orchestrate-research` skill, which runs the **Research Graph**: turn an
 approved research-input bundle into a verified, evidence-backed `UserApprovedResearchBundle`
-(plan → domain/canonical/recent/market-case discovery → candidate index → *user source-selection gate* →
-retrieval → paper review → claim verification → synthesis → *user research gate*).
+using the active graph-defined path in `shared/graphs/g02.graph.json`
+(A01 planning → Scout discovery/retrieval → A07 bounded source-window review →
+A09 synthesis → *user research gate*).
 
 It consumes only the typed boundary contract `research_graph_input@1` (compact cards +
 `artifact://` refs), never raw slides or the full intake state.

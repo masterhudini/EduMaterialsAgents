@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "shared" / "scripts"
@@ -193,7 +194,7 @@ class ScoutA07BridgeTests(unittest.TestCase):
             "artifact_version": "1.0.0",
             "task_id": "T_SCOUT_A07",
             "status": "completed",
-            "execution_profile": "scout",
+            "execution_profile": "scout_e2e",
             "total_target": 10,
             "allocated_target": 10,
             "plan_ref": "plan.json",
@@ -314,7 +315,7 @@ class ScoutA07BridgeTests(unittest.TestCase):
             self.assertIn("selected_windows", work_payload)
             self.assertFalse((out / by_source["SCOUT_GOOD"]["worker_output_ref"]).exists())
 
-    def test_partial_reviews_aggregate_and_feed_scout_fast_a09(self) -> None:
+    def test_partial_reviews_aggregate_and_feed_evidence_without_claim_assessment_a09(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             tmp = Path(temp)
             run = self._make_run(tmp)
@@ -352,7 +353,7 @@ class ScoutA07BridgeTests(unittest.TestCase):
             self.assertEqual(len(aggregated["presentation_update_candidates"]), 1)
             self.assertTrue(contracts.validate(aggregated, "a07_reviews@1")["ok"])
 
-            prepared = a09_synthesis.prepare_scout_fast_synthesis(
+            prepared = a09_synthesis.prepare_a09_synthesis(
                 out / "reviews.json",
                 intake=ROOT / "mocks" / "g02" / "KP_intake_bundle.json",
             )
@@ -360,13 +361,13 @@ class ScoutA07BridgeTests(unittest.TestCase):
             self.assertLessEqual(
                 len(prepared["synthesis_input"]["deep_dive_requests"]), 5
             )
-            solution = a09_synthesis.finalize_scout_fast_solution(
+            solution = a09_synthesis.finalize_a09_solution(
                 prepared["synthesis_input"],
             )
             checked = contracts.validate(solution, "solution_input_candidate@1")
             self.assertTrue(checked["ok"], checked["errors"])
-            self.assertEqual(solution["synthesis_mode"], "scout_fast")
-            self.assertEqual(solution["a08_status"], "skipped_scout_fast")
+            self.assertEqual(solution["synthesis_mode"], "evidence_without_claim_assessment")
+            self.assertEqual(solution["a08_status"], "skipped")
             self.assertEqual(len(solution["slide_update_plan"]), 1)
             self.assertTrue(solution["graph03_handoff_constraints"]["graph03_must_not_call_g02"])
 
@@ -446,11 +447,11 @@ class ScoutA07BridgeTests(unittest.TestCase):
             self.assertEqual(len(aggregated["presentation_update_candidates"]), 1)
             self.assertTrue(contracts.validate(aggregated, "a07_reviews@1")["ok"])
 
-            prepared = a09_synthesis.prepare_scout_fast_synthesis(
+            prepared = a09_synthesis.prepare_a09_synthesis(
                 out / "reviews.json",
                 intake=ROOT / "mocks" / "g02" / "KP_intake_bundle.json",
             )
-            solution = a09_synthesis.finalize_scout_fast_solution(
+            solution = a09_synthesis.finalize_a09_solution(
                 prepared["synthesis_input"],
             )
             self.assertTrue(contracts.validate(solution, "solution_input_candidate@1")["ok"])
@@ -505,10 +506,17 @@ class ScoutA07BridgeTests(unittest.TestCase):
             recovered = a07_runner.parse_model_json(fenced)
             self.assertEqual(recovered["review_status"], "context_only")
 
-    def test_default_scout_run_root_uses_outputs_without_workspace(self) -> None:
-        root = scout_fanout.default_scout_run_root("Task 01")
+    def test_default_scout_run_root_uses_artifact_store_without_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(
+            "os.environ", {"EMAGENTS_HOME": str(Path(tmp) / ".emagents")}, clear=True
+        ):
+            root = scout_fanout.default_scout_run_root("Task 01")
 
-        self.assertEqual(root, Path.cwd().resolve() / "outputs" / "g02" / "Task_01" / "scout")
+            self.assertEqual(
+                root,
+                Path(tmp).resolve() / ".emagents" / "artifacts" / "g02" / "scout" / "runs"
+                / "Task_01",
+            )
 
 
 if __name__ == "__main__":

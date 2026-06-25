@@ -1,4 +1,4 @@
-"""Offline tests for the deterministic Scout-fast A09 decision layer."""
+"""Offline tests for the deterministic Bounded A09 decision layer."""
 from __future__ import annotations
 
 from copy import deepcopy
@@ -15,7 +15,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from core import contracts  # noqa: E402
 from g02 import a07_bridge, a09_runner, a09_synthesis  # noqa: E402
-from tests import test_g02_a07_bridge as bridge_fixtures  # noqa: E402
+from tests import test_g02_scout_a07_bridge as bridge_fixtures  # noqa: E402
 
 
 def _reviews(*, candidates=None, pointers=None, gaps=None, source_reviews=None) -> dict:
@@ -110,8 +110,8 @@ def _pointer(index: int, *, source_type: str | None = None) -> dict:
 
 
 def _solution(reviews: dict, *, deep_dive=None) -> dict:
-    prepared = a09_synthesis.prepare_scout_fast_synthesis(reviews)
-    solution = a09_synthesis.finalize_scout_fast_solution(
+    prepared = a09_synthesis.prepare_a09_synthesis(reviews)
+    solution = a09_synthesis.finalize_a09_solution(
         prepared["synthesis_input"], deep_dive=deep_dive
     )
     checked = contracts.validate(solution, "solution_input_candidate@1")
@@ -140,6 +140,24 @@ class ScoutSynthesisTests(unittest.TestCase):
         self.assertEqual(deduped[0]["linked_intake_ids"]["flow_issue_ids"], ["FLOW_1"])
         solution = _solution(_reviews(candidates=[first, second, third]))
         self.assertEqual(len(solution["slide_update_plan"]), 2)
+
+    def test_loose_a07_refs_are_normalized_into_contract_shape(self) -> None:
+        # Reproduces the host-repair case: A07 emitted evidence_refs without location/quote and
+        # source_refs as bare strings. A09 must coerce them so solution_input_candidate@1 validates
+        # without any manual editing.
+        candidate = _candidate("UPD_LOOSE", "BSM gives a unique no-arbitrage price.")
+        candidate["evidence_refs"] = [{"source_id": "SRC_1"}, "p. 12, eq. 3"]
+        candidate["source_refs"] = ["SRC_1", "SRC_2"]
+
+        solution = _solution(_reviews(candidates=[candidate]))
+
+        update = solution["suggested_updates"][0]
+        for ref in update["evidence_refs"]:
+            self.assertEqual({"source_id", "location", "quote"} & set(ref),
+                             {"source_id", "location", "quote"})
+            self.assertTrue(ref["source_id"])
+        for ref in update["source_refs"]:
+            self.assertTrue(ref["source_id"])
 
     def test_grouping_keeps_same_slide_adjacent_and_stable(self) -> None:
         updates = [
@@ -255,7 +273,7 @@ class ScoutSynthesisTests(unittest.TestCase):
             reviews = a07_bridge.build_a07_reviews(
                 run, output_dir=out, max_scan_pages=2
             )
-            prepared = a09_synthesis.prepare_scout_fast_synthesis(reviews)
+            prepared = a09_synthesis.prepare_a09_synthesis(reviews)
             requests = prepared["synthesis_input"]["deep_dive_requests"]
             selected_count = next(
                 item["selected_window_count"] for item in reviews["source_reviews"]
@@ -293,7 +311,7 @@ class ScoutSynthesisTests(unittest.TestCase):
                 {"source_id": "SRC_2", "title": "Source 2", "source_type": "recent"},
             ],
         )
-        prepared = a09_synthesis.prepare_scout_fast_synthesis(reviews)
+        prepared = a09_synthesis.prepare_a09_synthesis(reviews)
         requests = deepcopy(prepared["synthesis_input"]["deep_dive_requests"])
         by_source = {item["source_id"]: item for item in requests}
         by_source["SRC_1"]["additional_windows"] = [{
@@ -331,7 +349,7 @@ class ScoutSynthesisTests(unittest.TestCase):
             "limitations": [],
         }
 
-        solution = a09_synthesis.finalize_scout_fast_solution(
+        solution = a09_synthesis.finalize_a09_solution(
             prepared["synthesis_input"], deep_dive=deep_dive
         )
 
@@ -427,14 +445,14 @@ class ScoutSynthesisTests(unittest.TestCase):
         checked = contracts.validate(result["solution"], "solution_input_candidate@1")
         self.assertTrue(checked["ok"], checked["errors"])
 
-        prepared = a09_synthesis.prepare_scout_fast_synthesis(reviews)
-        empty_output = a09_synthesis.finalize_scout_fast_solution(
+        prepared = a09_synthesis.prepare_a09_synthesis(reviews)
+        empty_output = a09_synthesis.finalize_a09_solution(
             prepared["synthesis_input"], output={}
         )
         self.assertFalse(empty_output["a09_model_pass"])
         self.assertEqual(empty_output["synthesis_engine"], "deterministic_fallback")
         with self.assertRaisesRegex(ValueError, "A09 output missing"):
-            a09_synthesis.finalize_scout_fast_solution(
+            a09_synthesis.finalize_a09_solution(
                 prepared["synthesis_input"], output={"confidence": "medium"}
             )
 

@@ -1,6 +1,6 @@
-"""Run the obligatory G02-A09 scout_fast pass through a host model executor.
+"""Run the obligatory G02-A09 pass through a host model executor.
 
-A09 is the verifier/refiner of the deterministic scout_fast baseline. This
+A09 is the verifier/refiner of the deterministic evidence_without_claim_assessment baseline. This
 module prepares the bounded deep-dive windows, builds one ``a09_synthesis_task@1``,
 invokes an injected or external executor (opus/medium), and finalizes the
 ``solution_input_candidate@1`` that ends Graph 02. The model pass runs by
@@ -49,7 +49,7 @@ def build_a09_task(
         raise ValueError("A09 deep_dive_windows must be between 1 and 8")
     if deep_dive_chars < 1 or deep_dive_chars > a09_synthesis.A09_DEEP_DIVE_CHARS:
         raise ValueError("A09 deep_dive_chars must be between 1 and 1200")
-    prepared = a09_synthesis.prepare_scout_fast_synthesis(
+    prepared = a09_synthesis.prepare_a09_synthesis(
         a07_reviews,
         intake=intake,
         max_deep_dive_sources=max_deep_dive_sources,
@@ -104,7 +104,7 @@ def run_a09(
                 raise
             model_output = None
             executor_error = f"{type(exc).__name__}: {exc}"
-    solution = a09_synthesis.finalize_scout_fast_solution(
+    solution = a09_synthesis.finalize_a09_solution(
         synthesis_input,
         model_output,
         deep_dive=deep_dive,
@@ -121,7 +121,7 @@ def run_a09(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Scout-fast A09 verify/refine runner")
+    parser = argparse.ArgumentParser(description="Bounded A09 verify/refine runner")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     prepare = sub.add_parser("prepare-task", help="Write the a09_synthesis_task@1 JSON")

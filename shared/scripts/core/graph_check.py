@@ -30,6 +30,18 @@ GRAPHS_DIR = ROOT / "shared" / "graphs"
 #   subgraph delegates to another manifest (checked for existence, not for a component file).
 _NON_REGISTERED_KINDS = {"script", "gate", "user-gate", "subgraph"}
 _SUPPORTED_HOSTS = {"source", "claude", "codex"}
+_G02_RETIRED_OR_FLOW_COPY_TERMS = (
+    "A01 prepare/finalize",
+    "Scout fanout",
+    "A07 task preparation",
+    "A07 aggregation",
+    "A09 task/finalize",
+    "A09 research state materialization",
+    "Human Research Gate and `research_bundle_finalize`",
+    "domain/canonical/recent",
+    "market-case discovery",
+    "source-selection gate",
+)
 
 
 def resolve_host(plugin_root: Path | None = None, host: str | None = None) -> str:
@@ -80,6 +92,55 @@ def _load_contract_from_root(ref: str, root: Path) -> dict:
     return schema
 
 
+def _g02_research_mcp_tools(root: Path) -> tuple[set[str], str | None]:
+    scripts = root / "shared" / "scripts"
+    import sys
+    inserted = False
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+        inserted = True
+    try:
+        from mcp import research_server  # noqa: WPS433
+        dispatch = set(getattr(research_server, "DISPATCH", {}))
+        listed = {tool.get("name") for tool in getattr(research_server, "TOOLS", [])
+                  if isinstance(tool, dict)}
+        active = set(getattr(research_server, "ACTIVE_TOOL_NAMES", set()))
+        return {name for name in dispatch | listed | active if isinstance(name, str)}, None
+    except Exception as exc:  # pragma: no cover - defensive diagnostic path
+        return set(), f"could not import research MCP server: {type(exc).__name__}: {exc}"
+    finally:
+        if inserted:
+            try:
+                sys.path.remove(str(scripts))
+            except ValueError:
+                pass
+
+
+def _check_g02_orchestrator_text(root: Path, orchestrator: str, manifest_path: Path,
+                                 errors: list[str]) -> None:
+    skill_dir = root / "skills" / orchestrator
+    files = [skill_dir / "SKILL.md"]
+    adapters = skill_dir / "adapters"
+    if adapters.exists():
+        files.extend(sorted(adapters.glob("*.md")))
+    for path in files:
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "g02.graph.json" not in text and path.name == "SKILL.md":
+            errors.append(
+                f"{manifest_path.name}: orchestrator skill {orchestrator!r} must "
+                "reference g02.graph.json (manifest is the single source of truth)"
+            )
+        for term in _G02_RETIRED_OR_FLOW_COPY_TERMS:
+            if term in text:
+                rel = path.relative_to(root)
+                errors.append(
+                    f"{manifest_path.name}: {rel} contains hardcoded/retired G02 flow term "
+                    f"{term!r}; derive active sequence from g02.graph.json or the MCP prompt"
+                )
+
+
 def check_manifest(
     manifest_path,
     plugin_root: Path | None = None,
@@ -95,6 +156,13 @@ def check_manifest(
     require_agent_files = True
     registered = registered_component_names(root)
     errors: list[str] = []
+    graph_id = manifest.get("graph_id", manifest_path.stem)
+    mcp_tool_names: set[str] = set()
+    mcp_import_error: str | None = None
+    if graph_id == "g02":
+        mcp_tool_names, mcp_import_error = _g02_research_mcp_tools(root)
+        if mcp_import_error:
+            errors.append(f"{manifest_path.name}: {mcp_import_error}")
     for field in ("input_contract", "exit_artifact"):
         if field not in manifest:
             continue
@@ -136,6 +204,47 @@ def check_manifest(
                 )
             continue
 
+        for field in ("input_contract", "output_contract"):
+            if field not in node:
+                continue
+            ref = node.get(field)
+            if not isinstance(ref, str) or not ref:
+                errors.append(
+                    f"{manifest_path.name}: node {name!r} has invalid {field} {ref!r}"
+                )
+                continue
+            try:
+                _load_contract_from_root(ref, root)
+            except (KeyError, ValueError) as exc:
+                errors.append(
+                    f"{manifest_path.name}: node {name!r} has invalid {field} {ref!r}: {exc}"
+                )
+        for ref in node.get("produces", []):
+            if not isinstance(ref, str) or "@" not in ref:
+                continue
+            try:
+                _load_contract_from_root(ref, root)
+            except (KeyError, ValueError) as exc:
+                errors.append(
+                    f"{manifest_path.name}: node {name!r} produces invalid contract {ref!r}: {exc}"
+                )
+        operations = node.get("operations")
+        if graph_id == "g02" and operations is not None:
+            if not isinstance(operations, dict):
+                errors.append(f"{manifest_path.name}: node {name!r} has non-object operations")
+            else:
+                for op_name, tool_name in operations.items():
+                    if not isinstance(tool_name, str) or not tool_name.strip():
+                        errors.append(
+                            f"{manifest_path.name}: node {name!r} operation {op_name!r} "
+                            f"has invalid tool name {tool_name!r}"
+                        )
+                    elif mcp_tool_names and tool_name not in mcp_tool_names:
+                        errors.append(
+                            f"{manifest_path.name}: node {name!r} operation {op_name!r} "
+                            f"references unknown research MCP tool {tool_name!r}"
+                        )
+
         if kind in _NON_REGISTERED_KINDS:
             continue
 
@@ -162,31 +271,6 @@ def check_manifest(
                     f"{manifest_path.name}: hosted agent node {name!r} has no finalize_op"
                 )
 
-        for field in ("input_contract", "output_contract"):
-            if field not in node:
-                continue
-            ref = node.get(field)
-            if not isinstance(ref, str) or not ref:
-                errors.append(
-                    f"{manifest_path.name}: node {name!r} has invalid {field} {ref!r}"
-                )
-                continue
-            try:
-                _load_contract_from_root(ref, root)
-            except (KeyError, ValueError) as exc:
-                errors.append(
-                    f"{manifest_path.name}: node {name!r} has invalid {field} {ref!r}: {exc}"
-                )
-        for ref in node.get("produces", []):
-            if not isinstance(ref, str) or "@" not in ref:
-                continue
-            try:
-                _load_contract_from_root(ref, root)
-            except (KeyError, ValueError) as exc:
-                errors.append(
-                    f"{manifest_path.name}: node {name!r} produces invalid contract {ref!r}: {exc}"
-                )
-
     # Parity guard: the host orchestrator skill must stay manifest-driven (single source of
     # truth) rather than hardcoding a divergent sequence/policy. We require it to reference the
     # manifest file so a refactor that copies the flow into the prompt is caught here.
@@ -201,6 +285,8 @@ def check_manifest(
                 f"{manifest_path.name}: orchestrator skill {orchestrator!r} must "
                 f"reference {gid_file} (manifest is the single source of truth)"
             )
+        if graph_id == "g02":
+            _check_g02_orchestrator_text(root, orchestrator, manifest_path, errors)
 
     return {
         "ok": not errors,

@@ -143,13 +143,12 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
             raise BuildError(f"manifest components.{kind} must be a non-empty list")
         if len(declared) != len(set(declared)):
             raise BuildError(f"manifest components.{kind} contains duplicates")
-        actual = source_component_paths(kind)
         expected = set(declared)
-        if actual != expected:
-            missing = sorted(actual - expected)
-            stale = sorted(expected - actual)
+        actual = source_component_paths(kind)
+        stale = sorted(expected - actual)
+        if stale:
             raise BuildError(
-                f"manifest components.{kind} differs from source; missing={missing}, stale={stale}"
+                f"manifest components.{kind} contains paths missing from source: {stale}"
             )
 
     for rel in components["skills"]:

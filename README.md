@@ -1,7 +1,7 @@
 # edu-materials-agents
 
 Agent-stack plugin for **Claude Code** and **Codex** that improves educational / lecture
-materials through reviewed agent graphs (`g01` intake → `g02` research → `g03` solution). First graph in scope:
+materials through agent graphs (`g01` intake → `g02` research → `g03` solution). First graph in scope:
 the **Research Graph** (see `docs/research graph project.md`).
 
 ## Layout
@@ -75,40 +75,25 @@ stays outside the deterministic core until its owning agent defines an isolated 
 Runtime artifacts (drafts, logs, hydrated `artifact://` files) live in the **current project**
 under `.emagents/` (override with `EMAGENTS_HOME`); the dir is git-ignored.
 
-The implemented deterministic Research Graph seams cover the boundary front door, G02-A01
-Planner, G02-A02 Domain, G02-A03 Canonical Sources, G02-A04 Recent Developments, G02-A11 Market
-Cases, G02-A05 Candidate Source Index, G02-A06 Paper Retrieval, source-scoped G02-A07 Paper Review,
-G02-A09 fast Synthesis, the universal reviewer and the final handoff. OpenAlex,
-Semantic Scholar and arXiv adapters apply bounded metadata and citation requests. Crossref verifies
-available DOIs through persisted registry metadata, field comparisons and raw provenance; provider
-metadata is never overwritten on conflict. A11 uses Tavily as the default web provider, with strict
-query budgets, redirect checks, cache, timeout, rate limits, source tiers and provenance. SearXNG
-remains disabled and no public-instance endpoint catalog is installed. Full-page Tavily extraction requires a
-persisted final `human_source_selection@1`; discovery cannot invoke it. A05 accepts only upstream
-artifacts bound either to `APPROVED` A10 decisions or to one corrected `REVISE` decision with a
-validated `revision_completion@1` receipt. It creates a deduplicated index and a readable source
-choice document whose scholarly descriptions are labelled as abstract-based or metadata-only and
-whose market-case descriptions use reviewed A11 facts and didactic mechanisms. A two-step source
-gate freezes `user_approved_source_set@1`. A06 resolves scholarly DOWNLOAD sources through approved
-record links, Unpaywall, optional CORE and DOAB/OAPEN, validates PDF identity and integrity, and
-places validated PDFs plus gated A11 market-case bundles in one `corpus://` run folder described
-by `retrieval_directory@1`. Each bundle includes a readable Markdown document containing
-the reviewed A11 fact, didactic mechanism, source assessment and bounded post-gate page content;
-the JSON remains the machine-readable audit artifact. The human fixes the exact DOWNLOAD count at the gate; A06 enforces the
-administrator's `max_documents_per_task` and cannot add sources. A07 reads only deterministic
-bounded text windows from accepted PDFs or A06 market-case bundles. In `fast`, A08 remains skipped
-by graph policy, and A09 produces `research_state@1`, a compact evidence map, a human validation
-packet and a SolutionInputCandidate before pausing at the Human Research Gate. The MCP server
-exposes 60 operations at version `0.17.0`, including the dedicated pre-A07
-`research_scout_fanout` operation, bounded deep-dive preparation and the obligatory
-`research_scout_a09_task_prepare` Opus/medium verification seam.
+The active Research Graph path covers the boundary front door, G02-A01 Planner, deterministic
+Scout fanout, G02-A07 light source review, obligatory G02-A09 synthesis and the Human Research
+Gate. Scout persists machine artifacts (plan, requests, manifests, per-topic corpora and
+cross-topic index) under `.emagents/artifacts/g02/scout/runs/`, while human-inspectable PDF copies
+live under `knowledge/g02/<task_id>/<topic-name>/`.
+A07 reads only bounded Scout windows and compact intake context. A09 consumes aggregated A07
+reviews plus bounded deep-dive windows, records whether the model pass succeeded, materializes
+`research_state@1`, `evidence_map@1`, `research_summary@1`, the human validation packet and
+`solution_input_candidate@1`, then pauses for human approval before emitting
+`user_approved_research_bundle@1`.
 
-Before the first G02-A02 or A11 run, copy `shared/config/g02.providers.example.json` to
-`.emagents/config/g02-providers.json`, set `EMAGENTS_RESEARCH_CONTACT_EMAIL` and provide the
-required `OPENALEX_API_KEY`. The same contact email enables polite Crossref requests. Set
-`TAVILY_API_KEY` for A11. `SEMANTIC_SCHOLAR_API_KEY` remains optional. The supplied configuration
-keeps SearXNG disabled; the runtime never selects a public instance. See `shared/config/README.md`; credentials never belong
-in JSON, prompts, artifacts, cache or logs.
+The current MCP public surface exposes the active Scout/A07/A09 operations. Retired A02-A06,
+A08, A11, source-selection and `research_run_*` flow surfaces are not listed for new runs. The
+old modules remain in the repo as legacy implementation/test material until removed fully.
+
+For Scout runs, the agent collects optional provider credentials from the user through
+`research_provider_setup`. Ambient shell credentials are ignored by the active G02 runtime unless
+they were marked by that setup step and inherited only as process transport; credentials never
+belong in JSON, prompts, artifacts, cache or logs.
 
 ## Host-specific skill rendering
 
@@ -145,8 +130,8 @@ Then, in Claude Code:
 /plugin                              # shows edu-materials-agents (marketplace: edu-materials)
 ```
 
-Verify the component inventory (expect 18 agents + 25 skills, including A07 light review,
-obligatory A09 Scout synthesis, DOI verification, A11 and g02-orchestrate-research):
+Verify the component inventory (expect the active g01/g02/g03 agents and skills, including A07
+light review, obligatory A09 synthesis and g02-orchestrate-research):
 
 ```bash
 claude plugin details edu-materials-agents
@@ -191,48 +176,21 @@ Run the research graph for /home/khudaszek/projects/EduMaterialsAgents/mocks/g02
 ```
 
 The `g02-orchestrate-research` skill treats these as semantic entrypoints and uses the
-`research_run_codex` MCP tool. The default Codex gate mode is pause/resume (`gates: "pause"`), so
-human gates return a `resume_token` instead of reading interactive stdin from the MCP process.
-The reviewed runner covers the implemented fast frontier through reviewed A09 and returns a typed
-`research_run_report@1`. It pauses at the Human Source Selection Gate and again at the Human
-Research Gate; after approval it creates a compact `user_approved_research_bundle@1` for Graph03.
-Fast mode explicitly states that A08 Claim Verification was skipped.
+`research-scout-e2e` MCP prompt. The prompt drives A01 planning, Scout fanout, A07 light review,
+A09 synthesis and the Human Research Gate without A10 review. After approval it creates a compact
+`user_approved_research_bundle@1` for Graph03. Fast/scout mode explicitly states that A08 Claim
+Verification was skipped.
 
-Or use the runner directly:
-
-```bash
-python /home/khudaszek/.codex/plugins/edu-materials-agents/shared/scripts/g02/g02_flow.py run-codex /home/khudaszek/projects/EduMaterialsAgents/mocks/g02/research_graph_input.json
-```
-
-Or run deterministically, without an LLM. This harness validates wiring and uses no-op producers,
-automatic reviewer approvals and automatic user-gate approvals:
+For a no-LLM wiring inspection, the legacy `g02_flow.py inputs` command can still show what the A01
+planner receives:
 
 ```bash
-python shared/scripts/g02/g02_flow.py run mocks/g02/research_graph_input.json
-# inspect what one agent would receive:
 python shared/scripts/g02/g02_flow.py inputs mocks/g02/research_graph_input.json --node g02-a01-planner
 ```
 
-Or drive the real graph through **Codex workers** (each node is an isolated `codex exec`, no API
-key — Codex subscription login; terminal user gates). Local/dev only:
-
-```bash
-python shared/scripts/g02/g02_flow.py run-codex mocks/g02/research_graph_input.json
-# bounded forward smoke for one topic, stopping before A05 requires the complete plan:
-python shared/scripts/g02/g02_flow.py run-codex mocks/g02/research_graph_input.json \
-  --through g02-a02-domain --topic-id TOPIC_BAYESIAN_COMPUTATION
-# single isolated node (cheaper smoke):
-python shared/scripts/g02/runners/codex.py g02-a01-planner mocks/g02/research_graph_input.json
-```
-
-The engine is host-agnostic; execution is the per-host runner (Claude Task subagents vs Codex
-`codex exec`). Real Codex gates show numbered source cards, accept numbers or stable source IDs,
-and require a separate terminal confirmation (`--gates prompt`) or
-pause/resume (`--gates pause`). Automatic synthetic gates exist only in the no-op stub harness.
-Every real producer envelope and stored artifact is validated before A10 runs. A10 runs at most
-once per producer execution. `APPROVED` continues immediately, `BLOCKED` stops the process, and
-`REVISE` permits one targeted producer correction that is deterministically finalized and recorded
-without a second review.
+The engine is host-agnostic; execution is the per-host orchestrator plus MCP tools. Human gates are
+presented by the host and require explicit approval. Deprecated runner and review tools remain in
+source for migration, but the MCP runtime returns `deprecated_tool` for those names.
 
 ## Develop & test
 

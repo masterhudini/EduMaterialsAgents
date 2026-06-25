@@ -13,6 +13,7 @@ import uuid
 from pathlib import Path
 
 from core import paths
+from g02 import credentials
 
 SCOUT_RUNTIME_SUBDIR = Path("g02") / "scout"
 
@@ -111,14 +112,18 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 
 def contact_email(default: str = "") -> str:
-    return env_str("EMAGENTS_RESEARCH_CONTACT_EMAIL") or env_str("POLITE_POOL_EMAIL", default)
+    return (
+        credentials.managed_value("EMAGENTS_RESEARCH_CONTACT_EMAIL")
+        or credentials.managed_value("POLITE_POOL_EMAIL", default)
+    )
 
 
 def provider_keys() -> dict[str, str]:
     return {
-        "openalex_api_key": env_str("OPENALEX_API_KEY"),
-        "s2_api_key": env_str("SEMANTIC_SCHOLAR_API_KEY") or env_str("S2_API_KEY"),
-        "core_api_key": env_str("CORE_API_KEY"),
+        "openalex_api_key": credentials.managed_value("OPENALEX_API_KEY"),
+        "s2_api_key": credentials.managed_value("SEMANTIC_SCHOLAR_API_KEY")
+        or credentials.managed_value("S2_API_KEY"),
+        "core_api_key": "",
     }
 
 

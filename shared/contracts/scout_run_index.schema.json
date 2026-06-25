@@ -13,7 +13,7 @@
     "artifact_version": {"type": "string"},
     "task_id": {"type": "string"},
     "status": {"type": "string", "enum": ["completed", "partial", "failed"]},
-    "execution_profile": {"type": "string", "enum": ["scout"]},
+    "execution_profile": {"type": "string", "enum": ["scout_e2e"]},
     "total_target": {"type": "integer"},
     "allocated_target": {"type": "integer"},
     "plan_ref": {"type": "string"},

@@ -1,12 +1,13 @@
 """g02 (Research Graph) flow — a thin wrapper over the generic ``core.engine``.
 
 The engine drives the manifest (single source of truth: shared/graphs/g02.graph.json) and the
-reviewer/gate/checkpoint machinery. This module supplies only what is g02-specific: the boundary
-contracts, the per-node scoped input (G02-A01 gets a typed research_planner_input@1), the thin
-stub exit bundle, and the human source-selection gate hooks. The public API
+gate/checkpoint machinery. This module supplies only what is g02-specific: the boundary contracts,
+the per-node scoped input (G02-A01 gets a typed research_planner_input@1) and the thin stub exit
+bundle. The active Scout path (A01 -> Scout -> A07 -> A09 -> Human Research Gate) is hosted-only and
+runs through ``reviewed_flow`` when ``run(reviewed=True, pause_on_node=True)``. The public API
 (run / front_door / finalize / node_input_map / load_context / scoped_input / _load_any /
 terminal_gate_handler / GRAPH_ID / INPUT_CONTRACT / OUTPUT_CONTRACT / _cli) is preserved for the
-MCP server, the Codex runner and the tests.
+MCP server and the tests.
 
 Run it directly:
     python3 shared/scripts/g02/g02_flow.py run mocks/g02/research_graph_input.json
@@ -20,18 +21,12 @@ import pathlib as _pl
 # Make `core` / `g02` importable whether run as a module or as a script.
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]))
 
-from core import artifacts, contracts, engine, graphs  # noqa: E402
+from core import engine, graphs  # noqa: E402
 from g02 import planner  # noqa: E402
-from g02 import source_selection  # noqa: E402
 
 GRAPH_ID = "g02"
 INPUT_CONTRACT = "research_graph_input@1"
 OUTPUT_CONTRACT = "user_approved_research_bundle@1"
-
-_SOURCE_GATE = "user-source-selection-gate"
-_SOURCE_INDEX_NODE = "g02-a05-candidate-source-index"
-_SOURCE_INDEX_TYPE = "candidate_source_index"
-_SOURCE_INDEX_CONTRACT = "candidate_source_index@1"
 
 
 def _scoped_input(node: dict, rgi: dict) -> dict:
@@ -67,50 +62,6 @@ def _stub_bundle() -> dict:
     }
 
 
-def _source_index_ref(produced_refs: dict, base):
-    stored = produced_refs.get(_SOURCE_INDEX_NODE)
-    if not isinstance(stored, str):
-        return None
-    return engine._produced_artifact_ref(stored, _SOURCE_INDEX_TYPE, _SOURCE_INDEX_CONTRACT, base=base)
-
-
-def _gate_prepare(gname: str, produced_refs: dict, base) -> dict:
-    """Attach the source-selection prompt to the gate payload when the index is ready."""
-    if gname != _SOURCE_GATE:
-        return {}
-    ref = _source_index_ref(produced_refs, base)
-    if not ref:
-        return {}
-    prepared = source_selection.prepare_source_selection(ref, base=base)
-    if prepared.get("ready"):
-        return {"payload": {"source_selection": prepared["gate_prompt"]}}
-    return {}
-
-
-def _gate_finalize(gname: str, decision, produced_refs: dict, base):
-    """Resolve / validate the human-approved source set after the source-selection gate."""
-    if gname != _SOURCE_GATE:
-        return None
-    ref = _source_index_ref(produced_refs, base)
-    if not ref:
-        return None
-    approved_ref = decision.get("user_approved_source_set_ref") if isinstance(decision, dict) else None
-    if (isinstance(decision, dict) and not approved_ref
-            and isinstance(decision.get("selection"), dict)
-            and isinstance(decision.get("confirmation_token"), str)):
-        finalized = source_selection.finalize_source_selection(
-            ref, decision["selection"], decision["confirmation_token"], base=base)
-        approved_ref = next((item.get("path") for item in finalized.get("produced", [])
-                             if item.get("type") == "user_approved_source_set"), None)
-    if isinstance(approved_ref, str):
-        approved_set = artifacts.hydrate(approved_ref, base=base)
-        validation = contracts.validate(approved_set, "user_approved_source_set@1")
-        if not validation["ok"]:
-            raise ValueError("invalid human approved source set: " + "; ".join(validation["errors"]))
-        return approved_ref
-    return None
-
-
 SPEC = engine.EngineSpec(
     graph_id=GRAPH_ID,
     input_contract=INPUT_CONTRACT,
@@ -121,8 +72,6 @@ SPEC = engine.EngineSpec(
     output_state_field="user_approved_research_bundle",
     artifact_namespace="research",
     emit_name="research_bundle",
-    gate_prepare=_gate_prepare,
-    gate_finalize=_gate_finalize,
 )
 
 
@@ -171,14 +120,16 @@ def run(
     review_results=None,
     usage_reports=None,
     reviewed=False,
-    through="g02-a09-synthesizer",
+    through="user-research-gate",
     topic_ids=None,
 ) -> dict:
-    """Dispatch to the no-op wiring harness or the fail-closed reviewed frontier.
+    """Dispatch to the no-op wiring harness or the active Scout flow.
 
     ``reviewed=False`` is intentionally the default for compatibility with deterministic wiring
-    tests. Every real host entrypoint must pass ``reviewed=True``. Host-driven mode
-    (``pause_on_node=True``) needs no ``node_runner`` — reviewed_flow yields each node to the host.
+    tests. Every real host entrypoint must pass ``reviewed=True``. The active Scout flow runs in two
+    parities, exactly like g01/g03: a nested-Codex run (pass ``node_runner``) drives every A01/A07/A09
+    agent through an isolated ``codex exec`` worker in-process, and a host-driven run
+    (``pause_on_node=True``) yields each node to the host.
     """
     if not reviewed:
         return engine.run(
@@ -186,14 +137,29 @@ def run(
             gate_handler=gate_handler, pause_on_gate=pause_on_gate,
             resume_token=resume_token, decisions=decisions,
         )
-    if node_runner is None and not pause_on_node:
-        raise ValueError("reviewed execution requires a real host node_runner")
     from g02 import reviewed_flow
+
+    if node_runner is not None:
+        return reviewed_flow.run_with_codex(
+            input_ref,
+            node_runner=node_runner,
+            base=base,
+            gate_handler=gate_handler,
+            pause_on_gate=pause_on_gate,
+            resume_token=resume_token,
+            decisions=decisions,
+            through=through,
+            topic_ids=topic_ids,
+        )
+    if not pause_on_node:
+        raise ValueError(
+            "active reviewed (Scout) execution needs either a node_runner (nested Codex) "
+            "or pause_on_node=True (host-driven)"
+        )
 
     return reviewed_flow.run(
         input_ref,
         base=base,
-        node_runner=node_runner,
         gate_handler=gate_handler,
         pause_on_gate=pause_on_gate,
         pause_on_node=pause_on_node,
@@ -206,6 +172,19 @@ def run(
         through=through,
         topic_ids=topic_ids,
     )
+
+
+def make_g02_codex_runner(**options):
+    """Codex runner for g02. The deterministic Scout fanout runs in-process inside reviewed_flow;
+    every A01/A07/A09 agent node is an isolated codex worker, so this reuses the shared runner."""
+    from runners.codex import make_codex_runner
+    return make_codex_runner(GRAPH_ID, **options)
+
+
+_CODEX_THROUGH = [
+    "g02-a01-planner", "research-scout-fanout", "g02-a07-paper-review",
+    "g02-a09-synthesizer", "user-research-gate",
+]
 
 
 def _cli(argv: list[str]) -> int:
@@ -228,8 +207,10 @@ def _cli(argv: list[str]) -> int:
     p = argparse.ArgumentParser(
         prog="g02_flow.py",
         description=(
-            "Research Graph CLI: deterministic seams (front-door / inputs / finalize) "
-            "plus a stub harness (run) — no LLM."
+            "Research Graph CLI: deterministic seams (front-door / inputs / finalize), "
+            "a stub harness (run, no LLM) and a nested-Codex run (run-codex). The host-driven "
+            "Scout flow is driven through the research MCP server (research_run_hosted / "
+            "research_resume)."
         ),
     )
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -252,7 +233,7 @@ def _cli(argv: list[str]) -> int:
 
     sp = sub.add_parser(
         "run-codex",
-        help="run the whole graph with Codex workers (codex exec) + terminal gates",
+        help="run the active Scout flow with nested Codex workers (codex exec) + terminal gate",
     )
     sp.add_argument(
         "context", nargs="?",
@@ -262,7 +243,7 @@ def _cli(argv: list[str]) -> int:
         "--gates",
         choices=["prompt", "pause"],
         default="prompt",
-        help="prompt for both gates on stdin (default) or return a pause/resume token",
+        help="prompt for the Human Research Gate on stdin (default) or return a pause/resume token",
     )
     sp.add_argument("--resume-token", help="resume token returned by an awaiting_user report")
     sp.add_argument(
@@ -271,21 +252,15 @@ def _cli(argv: list[str]) -> int:
     )
     sp.add_argument(
         "--through",
-        default="g02-a09-synthesizer",
-        choices=[
-            "g02-a01-planner", "g02-a02-domain", "g02-a03-canonical-sources",
-            "g02-a04-recent-developments", "g02-a11-market-cases",
-            "g02-a05-candidate-source-index", "user-source-selection-gate",
-            "g02-a06-paper-retrieval", "g02-a07-paper-review",
-            "g02-a09-synthesizer", "user-research-gate",
-        ],
-        help="stop after this implemented stage (default: reviewed A09, then Human Research Gate)",
+        default="user-research-gate",
+        choices=_CODEX_THROUGH,
+        help="stop after this active stage (default: Human Research Gate)",
     )
     sp.add_argument(
         "--topic-id",
         action="append",
         dest="topic_ids",
-        help="restrict discovery to one or more ResearchPlan topics; A05 requires all topics",
+        help="restrict Scout discovery to one or more ResearchPlan topics",
     )
 
     sp = sub.add_parser("finalize", help="validate a result bundle and emit the handoff")
@@ -311,7 +286,6 @@ def _cli(argv: list[str]) -> int:
             handler = terminal_gate_handler if args.gates == "prompt" else None
             out = run(front_door(args.context)["ref"], gate_handler=handler)
         elif args.cmd == "run-codex":
-            from runners.codex import codex_node_runner
             from g02.reviewed_flow import terminal_gate_handler as reviewed_terminal_gate
 
             if args.resume_token and args.context:
@@ -322,7 +296,7 @@ def _cli(argv: list[str]) -> int:
             input_ref = None if args.resume_token else front_door(args.context)["ref"]
             out = run(
                 input_ref,
-                node_runner=codex_node_runner,
+                node_runner=make_g02_codex_runner(),
                 gate_handler=handler,
                 pause_on_gate=(args.gates == "pause"),
                 resume_token=args.resume_token,

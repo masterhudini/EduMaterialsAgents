@@ -24,7 +24,7 @@ from core import artifacts, contracts  # noqa: E402
 from g02 import a07_bridge  # noqa: E402
 
 
-SCOUT_A07_MODEL_TASK_CONTRACT = "a07_review_task@1"
+A07_MODEL_TASK_CONTRACT = "a07_review_task@1"
 RESEARCH_GRAPH_INPUT_CONTRACT = "research_graph_input@1"
 DEFAULT_TASKS_DIR = "tasks"
 DEFAULT_MAX_WORKERS = 4
@@ -217,7 +217,7 @@ def build_a07_review_task(
     lens = work_item["topic_lens"]
     source = work_item["source"]
     task = {
-        "schema_version": SCOUT_A07_MODEL_TASK_CONTRACT,
+        "schema_version": A07_MODEL_TASK_CONTRACT,
         "artifact_version": artifact_version,
         "task_id": work_item["task_id"],
         "topic_id": lens["topic_id"],
@@ -263,7 +263,7 @@ def build_a07_review_task(
             "Return insufficient rather than guessing from weak or irrelevant evidence.",
         ],
     }
-    validation = contracts.validate(task, SCOUT_A07_MODEL_TASK_CONTRACT)
+    validation = contracts.validate(task, A07_MODEL_TASK_CONTRACT)
     if not validation["ok"]:
         raise ValueError("invalid a07_review_task@1: " + "; ".join(validation["errors"]))
     return task

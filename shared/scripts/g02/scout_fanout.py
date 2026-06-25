@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import sys
 from typing import Callable
 
@@ -33,21 +34,30 @@ from g02.scout.providers import (  # noqa: E402
 
 SCOUT_CORPUS_CONTRACT = "scout_retrieved_corpus@1"
 SCOUT_INDEX_CONTRACT = "scout_run_index@1"
-EXECUTION_PROFILE = "scout"
+EXECUTION_PROFILE = "scout_e2e"
 
 
 def default_scout_run_root(task_id: str, *, workspace: str | Path | None = None) -> Path:
     """Return the persistent Scout handoff directory for one task.
 
     A caller-provided workspace remains an exact test/manual override and keeps
-    the legacy ``<workspace>/runs/<task_id>`` layout. Without an override the
-    production handoff is stable and visible to downstream A07:
-    ``outputs/g02/<task_id>/scout``.
+    the ``<workspace>/runs/<task_id>`` layout. Without an override the production
+    handoff lives in the artifact store: ``.emagents/artifacts/g02/scout/runs/<task_id>``.
+    """
+    safe_task = _safe_task_id(task_id)
+    return runtime.runs_dir(workspace) / safe_task
+
+
+def default_knowledge_root(task_id: str, *, workspace: str | Path | None = None) -> Path:
+    """Return the human-readable PDF directory outside ``.emagents``.
+
+    Production writes ``knowledge/g02/<task_id>/<topic-name>/*.pdf``. When tests or manual tools
+    pass an exact Scout workspace, keep the public knowledge tree next to that workspace.
     """
     safe_task = _safe_task_id(task_id)
     if workspace is not None:
-        return runtime.runs_dir(workspace) / safe_task
-    return Path.cwd().resolve() / "outputs" / "g02" / safe_task / "scout"
+        return Path(workspace).expanduser().resolve().parent / "knowledge" / safe_task
+    return Path.cwd().resolve() / "knowledge" / "g02" / safe_task
 
 
 def _json_bytes(value: object) -> bytes:
@@ -71,6 +81,19 @@ def _sha256(path: Path) -> str:
 
 def _safe_task_id(value: str) -> str:
     return runtime.safe_segment(value)
+
+
+def _safe_topic_folder(topic: dict, topic_id: str) -> str:
+    name = str(topic.get("name") or topic_id)
+    return runtime.safe_segment(name)[:96] or runtime.safe_segment(topic_id)
+
+
+def _topic_by_id(plan: dict, topic_id: str) -> dict:
+    return next(
+        (topic for topic in plan.get("topics", [])
+         if isinstance(topic, dict) and topic.get("topic_id") == topic_id),
+        {"name": topic_id},
+    )
 
 
 def _safe_error(exc: Exception) -> str:
@@ -171,7 +194,33 @@ def _manifest_for_topic(topic_root: Path, result: dict | None, error: str | None
     target.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _copy_topic_pdfs(run_root: Path, knowledge_root: Path, plan: dict,
+                     request: dict, result: dict) -> dict[str, str]:
+    topic_id = request["topic_id"]
+    topics = {
+        str(topic.get("topic_id")): topic
+        for topic in plan.get("topics", [])
+        if isinstance(topic, dict) and topic.get("topic_id")
+    }
+    topic = topics.get(topic_id, {"name": topic_id})
+    folder = _safe_topic_folder(topic, topic_id)
+    source_dir = run_root / "topics" / topic_id / "pdf"
+    target_dir = knowledge_root / folder
+    copied: dict[str, str] = {}
+    for filename in result.get("downloaded", []):
+        name = Path(str(filename)).name
+        source = source_dir / name
+        if not source.is_file():
+            continue
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target = target_dir / name
+        shutil.copy2(source, target)
+        copied[name] = target.relative_to(knowledge_root).as_posix()
+    return copied
+
+
 def _topic_corpus(run_root: Path, plan: dict, request: dict, run_id: str,
+                  knowledge_refs: dict[str, str],
                   result: dict) -> dict:
     topic_id = request["topic_id"]
     pdf_dir = run_root / "topics" / topic_id / "pdf"
@@ -201,6 +250,7 @@ def _topic_corpus(run_root: Path, plan: dict, request: dict, run_id: str,
         documents.append({
             "source_id": _source_id(dedup_key),
             "local_ref": pdf_path.relative_to(run_root).as_posix(),
+            "knowledge_ref": knowledge_refs.get(Path(str(item["filename"])).name),
             "sha256": _sha256(pdf_path),
             "byte_count": pdf_path.stat().st_size,
             "doi": _real_doi(item.get("doi")),
@@ -260,10 +310,17 @@ def _apply_cross_topic_dedup(corpora: dict[str, dict]) -> list[dict]:
                 work["topic_ids"].append(topic_id)
             if document["local_ref"] not in work["local_refs"]:
                 work["local_refs"].append(document["local_ref"])
+            knowledge_ref = document.get("knowledge_ref")
+            if knowledge_ref:
+                work.setdefault("knowledge_refs", [])
+                if knowledge_ref not in work["knowledge_refs"]:
+                    work["knowledge_refs"].append(knowledge_ref)
             document_bindings.setdefault(key, []).append(document)
     for key, work in works.items():
         work["topic_ids"].sort()
         work["local_refs"].sort()
+        if "knowledge_refs" in work:
+            work["knowledge_refs"].sort()
         for document in document_bindings[key]:
             document["source_id"] = work["dedup_id"]
             document["topic_ids"] = list(work["topic_ids"])
@@ -283,6 +340,7 @@ def run_scout_fanout(
     plan_or_ref: str | dict,
     *,
     workspace: str | Path | None = None,
+    knowledge_root: str | Path | None = None,
     total_target: int | None = None,
     max_workers: int | None = None,
     topic_runner: Callable[[dict], dict] | None = None,
@@ -298,8 +356,8 @@ def run_scout_fanout(
     requests = scout_request.build_scout_search_requests(plan, total_target=total)
     if not requests:
         raise ValueError("research plan contains no usable Scout topics")
-    if not 4 <= len(requests) <= 6:
-        raise ValueError("scout profile requires a research plan with 4 to 6 topics")
+    if len(requests) > 6:
+        raise ValueError("scout profile requires a research plan with 1 to 6 topics")
     topic_ids = [request["topic_id"] for request in requests]
     if len(set(topic_ids)) != len(topic_ids):
         raise ValueError("scout profile requires unique topic_id values")
@@ -309,6 +367,8 @@ def run_scout_fanout(
         raise ValueError(f"unsafe topic_id values for persistent paths: {unsafe}")
 
     root = default_scout_run_root(plan["task_id"], workspace=workspace)
+    public_root = Path(knowledge_root).expanduser().resolve() if knowledge_root is not None \
+        else default_knowledge_root(plan["task_id"], workspace=workspace)
     if (root / "index.json").exists():
         raise FileExistsError(f"Scout run already finalized: {root}")
     root.mkdir(parents=True, exist_ok=True)
@@ -354,8 +414,12 @@ def run_scout_fanout(
         error = errors.get(topic_id)
         _manifest_for_topic(topic_root, result, error)
         if result is not None:
-            corpus = _topic_corpus(root, plan, request, job["run_id"], result)
+            knowledge_refs = _copy_topic_pdfs(root, public_root, plan, request, result)
+            corpus = _topic_corpus(root, plan, request, job["run_id"], knowledge_refs, result)
             corpora[topic_id] = corpus
+        else:
+            knowledge_refs = {}
+        topic_folder = _safe_topic_folder(_topic_by_id(plan, topic_id), topic_id)
         topic_entries.append({
             "topic_id": topic_id,
             "run_id": job["run_id"],
@@ -365,6 +429,8 @@ def run_scout_fanout(
             "target_n": request["target_n"],
             "request_ref": f"requests/{topic_id}.json",
             "pdf_dir": f"topics/{topic_id}/pdf",
+            "knowledge_dir": str((public_root / topic_folder).resolve()),
+            "knowledge_refs": sorted(knowledge_refs.values()),
             "manifest_ref": f"topics/{topic_id}/MANIFEST.md",
             "retrieved_corpus_ref": (
                 f"topics/{topic_id}/retrieved_corpus.json" if result is not None else None
@@ -401,6 +467,7 @@ def run_scout_fanout(
         "total_target": total,
         "allocated_target": sum(item["target_n"] for item in topic_entries),
         "plan_ref": "plan.json",
+        "knowledge_root": str(public_root.resolve()),
         "topics": topic_entries,
         "deduplicated_works": works,
         "summary": {
@@ -422,12 +489,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Parallel persistent A01 -> Scout fan-out")
     parser.add_argument("research_plan", help="Path or artifact:// ref to research_plan@1")
     parser.add_argument("--workspace", default="", help="Exact Scout workspace override")
+    parser.add_argument("--knowledge-root", default="", help="Exact public PDF knowledge root")
     parser.add_argument("--total-target", type=int, default=None)
     parser.add_argument("--max-workers", type=int, default=None)
     args = parser.parse_args(argv)
     result = run_scout_fanout(
         args.research_plan,
         workspace=args.workspace or None,
+        knowledge_root=args.knowledge_root or None,
         total_target=args.total_target,
         max_workers=args.max_workers,
     )

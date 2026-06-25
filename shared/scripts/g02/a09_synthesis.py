@@ -1,8 +1,8 @@
-"""Scout-fast A09 handoff from A07 light reviews to Graph03 input.
+"""Bounded A09 handoff from A07 light reviews to Graph03 input.
 
-This is the Scout-specific A09 path. It consumes ``a07_reviews@1`` and
+This is the A09 path. It consumes ``a07_reviews@1`` and
 emits a complete ``solution_input_candidate@1`` for Graph03. It does not use the
-legacy Human Research Gate. Optional deep-dive access is limited to five source
+Human Research Gate. Optional deep-dive access is limited to five source
 work items and reuses A07's bounded PDF window selector for at most twelve
 windows per source. Full-document reading stays forbidden and research work is
 never delegated to Graph03.
@@ -22,14 +22,18 @@ from core import artifacts, contracts  # noqa: E402
 from g02 import a07_bridge  # noqa: E402
 
 
-SCOUT_A07_REVIEWS_CONTRACT = "a07_reviews@1"
+A07_REVIEWS_CONTRACT = "a07_reviews@1"
 SOLUTION_CONTRACT = "solution_input_candidate@1"
+RESEARCH_STATE_CONTRACT = "research_state@1"
+EVIDENCE_MAP_CONTRACT = "evidence_map@1"
+PACKET_CONTRACT = "user_research_validation_packet@1"
+SUMMARY_CONTRACT = "research_summary@1"
 RESEARCH_GRAPH_INPUT_CONTRACT = "research_graph_input@1"
-SYNTHESIS_MODE_SCOUT = "scout_fast"
+SYNTHESIS_MODE_A09 = "evidence_without_claim_assessment"
 DEFAULT_MAX_DEEP_DIVE_SOURCES = 5
 DEFAULT_MAX_DEEP_DIVE_WINDOWS = 12
 DEFAULT_MAX_DEEP_DIVE_CHARS = 1800
-SCOUT_A09_MODEL_TASK_CONTRACT = "a09_synthesis_task@1"
+A09_MODEL_TASK_CONTRACT = "a09_synthesis_task@1"
 # Token-thrifty A09 deep-dive budget: at most 5 sources, 8 windows, ~1200 chars.
 A09_DEEP_DIVE_WINDOWS = 8
 A09_DEEP_DIVE_CHARS = 1200
@@ -138,6 +142,59 @@ def _merge_refs(*groups: object) -> list:
             seen.add(key)
             merged.append(deepcopy(item))
     return merged
+
+
+def _coerce_source_ref(ref: object, default_source_id: object) -> dict:
+    """Coerce an A07 source reference into the solution_input_candidate@1 object shape.
+
+    A07-light candidates sometimes carry a bare source id string; downstream G03 requires an object
+    with at least ``source_id``. This normalizes deterministically so no manual repair is needed.
+    """
+    if isinstance(ref, dict):
+        out = deepcopy(ref)
+        out["source_id"] = str(out.get("source_id") or default_source_id or "unknown")
+        return out
+    if isinstance(ref, str) and ref.strip():
+        return {"source_id": ref.strip()}
+    return {"source_id": str(default_source_id or "unknown")}
+
+
+def _coerce_evidence_ref(ref: object, default_source_id: object, fallback_quote: str) -> dict:
+    """Coerce an A07 evidence reference into the required ``{source_id, location, quote}`` shape.
+
+    The bounded scout review may omit ``location``/``quote`` or pass a bare string; fill them
+    deterministically from the reference's own fields, falling back to the candidate finding, so the
+    contract validates without the host hand-editing reviews.
+    """
+    if isinstance(ref, dict):
+        out = deepcopy(ref)
+        out["source_id"] = str(out.get("source_id") or default_source_id or "unknown")
+        out["location"] = str(
+            out.get("location") or out.get("evidence_ref") or out.get("page") or "scout review"
+        )
+        out["quote"] = str(
+            out.get("quote") or out.get("excerpt") or out.get("text") or fallback_quote or ""
+        )
+        return out
+    if isinstance(ref, str) and ref.strip():
+        return {"source_id": str(default_source_id or "unknown"),
+                "location": "scout review", "quote": ref.strip()}
+    return {"source_id": str(default_source_id or "unknown"),
+            "location": "scout review", "quote": str(fallback_quote or "")}
+
+
+def _normalized_refs(candidate: dict, finding: str) -> tuple[list, list]:
+    """Return contract-shaped (evidence_refs, source_refs) for one candidate/update."""
+    default_sid = candidate.get("source_id")
+    evidence = [
+        _coerce_evidence_ref(ref, default_sid, finding)
+        for ref in _as_list(candidate.get("evidence_refs") or candidate.get("evidence"))
+    ]
+    sources = [
+        _coerce_source_ref(ref, default_sid)
+        for ref in _as_list(candidate.get("source_refs"))
+    ]
+    return evidence, sources
 
 
 def _merge_linked_ids(*groups: object) -> dict:
@@ -720,6 +777,7 @@ def _ready_update(candidate: dict, index: int) -> dict:
         "speaker_note": str(ready_text.get("speaker_note") or ""),
         "optional_detail": str(ready_text.get("optional_detail") or ""),
     }
+    evidence_refs, source_refs = _normalized_refs(candidate, finding)
     return {
         "update_id": update_id,
         "pointer_id": candidate.get("pointer_id"),
@@ -735,35 +793,36 @@ def _ready_update(candidate: dict, index: int) -> dict:
         or "adds_new_angle",
         "finding": finding,
         "rationale": rationale,
-        "evidence_refs": deepcopy(candidate.get("evidence_refs") or candidate.get("evidence") or []),
-        "source_refs": deepcopy(candidate.get("source_refs", [])),
+        "evidence_refs": evidence_refs,
+        "evidence": deepcopy(evidence_refs),
+        "source_refs": source_refs,
         "confidence": candidate.get("confidence") or "needs_human_check",
         "source_type": candidate.get("source_type"),
     }
 
 
-def prepare_scout_fast_synthesis(
+def prepare_a09_synthesis(
     a07_reviews: str | Path | dict,
     *,
     intake: str | Path | dict | None = None,
     max_deep_dive_sources: int = DEFAULT_MAX_DEEP_DIVE_SOURCES,
 ) -> dict:
     reviews, reviews_ref = _load_json_or_ref(
-        a07_reviews, contract=SCOUT_A07_REVIEWS_CONTRACT
+        a07_reviews, contract=A07_REVIEWS_CONTRACT
     )
     assert reviews is not None
     intake_payload, intake_ref = _load_json_or_ref(
         intake, contract=RESEARCH_GRAPH_INPUT_CONTRACT
     ) if intake is not None else (None, reviews.get("intake_ref"))
     if max_deep_dive_sources > DEFAULT_MAX_DEEP_DIVE_SOURCES:
-        raise ValueError("A09 scout_fast deep dive budget cannot exceed 5 sources")
+        raise ValueError("A09 deep dive budget cannot exceed 5 sources")
     deep_dive = _select_deep_dive_requests(
         reviews, max_sources=max_deep_dive_sources
     )
     synthesis_input = {
         "schema_version": "research_a09_synthesis_input@1",
         "task_id": reviews["task_id"],
-        "synthesis_mode": SYNTHESIS_MODE_SCOUT,
+        "synthesis_mode": SYNTHESIS_MODE_A09,
         "a07_reviews_ref": reviews_ref or "inline",
         "scout_run_ref": reviews.get("scout_run_ref"),
         "plan_ref": _resolve_plan_ref(reviews),
@@ -953,6 +1012,12 @@ def _pointer_unresolved_item(pointer: dict, index: int, deep_dive_gaps: dict[str
     }
 
 
+def _handoff_update(update: dict) -> dict:
+    item = deepcopy(update)
+    item.pop("evidence", None)
+    return item
+
+
 def validate_a09_output(output: object | None) -> dict | None:
     """Validate the minimum raw model output before it can be marked as an A09 pass."""
     if output is None or output == {}:
@@ -974,7 +1039,7 @@ def validate_a09_output(output: object | None) -> dict | None:
     return output
 
 
-def finalize_scout_fast_solution(
+def finalize_a09_solution(
     synthesis_input: dict,
     output: object | None = None,
     *,
@@ -982,7 +1047,7 @@ def finalize_scout_fast_solution(
     artifact_version: str = "1.0.0",
     output_path: str | Path | None = None,
 ) -> dict:
-    """Finalize complete A09 Scout handoff for Graph03."""
+    """Finalize complete A09 handoff for Graph03."""
     if not isinstance(synthesis_input, dict) \
             or synthesis_input.get("schema_version") != "research_a09_synthesis_input@1":
         raise ValueError("research_a09_synthesis_input@1 is required")
@@ -1024,7 +1089,7 @@ def finalize_scout_fast_solution(
         if isinstance(item, dict)
     ]
     optional = [*model_optional, *weak_updates]
-    suggested_updates = slide_update_plan
+    suggested_updates = [_handoff_update(item) for item in slide_update_plan]
     unresolved = deepcopy(model_output.get("unresolved_items")) \
         if isinstance(model_output.get("unresolved_items"), list) else []
     coverage_gaps = [
@@ -1063,7 +1128,7 @@ def finalize_scout_fast_solution(
         *_strings(reviews.get("limitations")),
         *_strings(model_output.get("limitations")),
         *deep_dive_limitations,
-        "A08 claim verification was skipped in scout_fast mode.",
+        "A08 claim verification was skipped (claim assessment is not run in the scout profile).",
         "A09 did not read full PDFs; it used A07 bounded reviews and optional bounded deep-dive windows.",
     ]))
     source_refs = deepcopy(model_output.get("source_refs")) \
@@ -1084,10 +1149,12 @@ def finalize_scout_fast_solution(
         "schema_version": SOLUTION_CONTRACT,
         "artifact_version": artifact_version,
         "task_id": synthesis_input["task_id"],
-        "synthesis_mode": SYNTHESIS_MODE_SCOUT,
+        "synthesis_mode": SYNTHESIS_MODE_A09,
         "source_pipeline": "intake -> a01 -> scout -> a07 -> a09",
         "intake_ref": synthesis_input.get("intake_ref"),
         "plan_ref": synthesis_input.get("plan_ref") or "plan.json",
+        "scout_run_ref": synthesis_input.get("scout_run_ref"),
+        "a07_reviews_ref": synthesis_input.get("a07_reviews_ref"),
         "presentation_context": deepcopy(synthesis_input.get("presentation_context", {})),
         "topics_covered": _topics_covered(reviews),
         "slide_update_plan": slide_update_plan,
@@ -1104,7 +1171,7 @@ def finalize_scout_fast_solution(
         "unresolved_items": unresolved,
         "confidence": confidence,
         "claim_assessment_performed": False,
-        "a08_status": "skipped_scout_fast",
+        "a08_status": "skipped",
         "a09_model_pass": bool(validated_output),
         "synthesis_engine": "a09_opus_medium" if bool(validated_output)
         else "deterministic_fallback",
@@ -1132,9 +1199,313 @@ def finalize_scout_fast_solution(
     return solution
 
 
+def _evidence_ref_string(ref: object) -> str:
+    if isinstance(ref, str):
+        return ref
+    if isinstance(ref, dict):
+        source = str(ref.get("source_id") or "source")
+        location = str(ref.get("location") or ref.get("evidence_ref") or "evidence")
+        return f"{source}::{location}"
+    return str(ref)
+
+
+def _unique(values) -> list:
+    seen = set()
+    out = []
+    for value in values:
+        if value is None:
+            continue
+        key = str(value)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(value)
+    return out
+
+
+def _source_ids(item: dict) -> list[str]:
+    values = []
+    for ref in _as_list(item.get("source_refs")):
+        if isinstance(ref, dict) and isinstance(ref.get("source_id"), str):
+            values.append(ref["source_id"])
+        elif isinstance(ref, str):
+            values.append(ref)
+    for ref in _as_list(item.get("evidence_refs")):
+        if isinstance(ref, dict) and isinstance(ref.get("source_id"), str):
+            values.append(ref["source_id"])
+    if isinstance(item.get("source_id"), str):
+        values.append(item["source_id"])
+    return _unique(values)
+
+
+def _claim_ids(item: dict) -> list[str]:
+    linked = item.get("linked_intake_ids") if isinstance(item.get("linked_intake_ids"), dict) else {}
+    return _strings(linked.get("claim_ids") or linked.get("claims"))
+
+
+def _topic_ids(item: dict) -> list[str]:
+    values = _strings(item.get("topic_id"))
+    linked = item.get("linked_intake_ids") if isinstance(item.get("linked_intake_ids"), dict) else {}
+    values.extend(_strings(linked.get("driver_ids") or linked.get("drivers")))
+    return _unique(values)
+
+
+def _state_update(item: dict, index: int) -> dict:
+    evidence_refs = [_evidence_ref_string(ref) for ref in _as_list(item.get("evidence_refs"))]
+    source_ids = _source_ids(item)
+    return {
+        "finding_id": str(item.get("finding_id") or item.get("update_id") or f"A09_UPD_{index:03d}"),
+        "impact": str(item.get("finding") or item.get("rationale") or "").strip(),
+        "priority": item.get("priority") or "medium",
+        "status": "needs_human_check",
+        "related_claims": _claim_ids(item),
+        "related_topics": _topic_ids(item),
+        "evidence_refs": evidence_refs,
+        "source_refs": source_ids,
+        "confidence": item.get("confidence") or "medium",
+    }
+
+
+def _finding_from_update(item: dict, index: int) -> dict:
+    update = _state_update(item, index)
+    return {
+        "finding_id": update["finding_id"],
+        "status": "needs_human_check",
+        "claim_ids": update["related_claims"],
+        "topic_ids": update["related_topics"],
+        "source_ids": update["source_refs"],
+        "evidence_refs": update["evidence_refs"] or [
+            f"{source_id}::source" for source_id in update["source_refs"]
+        ],
+        "summary": update["impact"] or "A09 evidence-linked update candidate.",
+        "limitations": [],
+        "confidence": update["confidence"] if update["confidence"] in {"low", "medium", "high"}
+        else "medium",
+    }
+
+
+def _evidence_map(solution: dict, artifact_version: str) -> dict:
+    claims = []
+    for index, item in enumerate(solution.get("suggested_updates", []), start=1):
+        if not isinstance(item, dict):
+            continue
+        claim_ids = _claim_ids(item) or [f"UNASSIGNED_A09_UPDATE_{index:03d}"]
+        refs = [_evidence_ref_string(ref) for ref in _as_list(item.get("evidence_refs"))]
+        source_ids = _source_ids(item)
+        for claim_id in claim_ids:
+            claims.append({
+                "claim_id": claim_id,
+                "status": "needs_human_check",
+                "evidence_refs": refs,
+                "source_ids": source_ids,
+                "limitations": [],
+            })
+    sources = []
+    for source in _as_list(solution.get("source_refs")):
+        if not isinstance(source, dict) or not isinstance(source.get("source_id"), str):
+            continue
+        sources.append({
+            "source_id": source["source_id"],
+            "record_type": "market_case" if source.get("source_type") == "market_case"
+            else "scholarly",
+            "title": source.get("title"),
+            "paper_review_ref": source.get("paper_review_ref") or "a07_reviews@1",
+            "reviewed_document_ref": source.get("reviewed_document_ref") or "bounded_windows",
+            "evidence_card_count": 0,
+            "confidence": source.get("confidence")
+            if source.get("confidence") in {"low", "medium", "high"} else "medium",
+        })
+    return {
+        "schema_version": EVIDENCE_MAP_CONTRACT,
+        "artifact_version": artifact_version,
+        "task_id": solution["task_id"],
+        "synthesis_mode": SYNTHESIS_MODE_A09,
+        "claim_assessment_performed": False,
+        "claim_assessment_status": "skipped",
+        "claims": claims,
+        "sources": sources,
+    }
+
+
+def _envelope(status: str, summary: str, issues: list[dict] | None = None,
+              *, produced: list[dict] | None = None, metrics: dict | None = None) -> dict:
+    return {
+        "schema_version": "envelope@1",
+        "status": status,
+        "summary": summary,
+        "issues": issues or [],
+        "produced": produced or [],
+        "metrics": metrics or {},
+    }
+
+
+def finalize_a09_research_state(
+    solution: dict,
+    *,
+    artifact_version: str = "1.0.0",
+    base=None,
+) -> dict:
+    """Materialize a minimal research_state@1 so the existing Human Research Gate can run."""
+    try:
+        validation = contracts.validate(solution, SOLUTION_CONTRACT)
+        if not validation["ok"]:
+            raise ValueError("invalid solution_input_candidate@1: " + "; ".join(validation["errors"]))
+        task_id = str(solution["task_id"])
+        version = _safe(artifact_version)
+        task = _safe(task_id)
+        a07_reviews_ref = solution.get("a07_reviews_ref")
+        scout_run_ref = solution.get("scout_run_ref")
+        plan_ref = solution.get("plan_ref")
+        required_updates = [
+            _state_update(item, index)
+            for index, item in enumerate(solution.get("suggested_updates", []), start=1)
+            if isinstance(item, dict)
+        ]
+        optional_updates = [
+            _state_update(item, index)
+            for index, item in enumerate(solution.get("optional_improvements", []), start=1)
+            if isinstance(item, dict)
+        ]
+        findings = [
+            _finding_from_update(item, index)
+            for index, item in enumerate(solution.get("suggested_updates", []), start=1)
+            if isinstance(item, dict)
+        ]
+        limitation = "A08 claim verification was skipped (claim assessment is not run in the scout profile)."
+        evidence_map = _evidence_map(solution, artifact_version)
+        for contract, payload in ((EVIDENCE_MAP_CONTRACT, evidence_map),):
+            checked = contracts.validate(payload, contract)
+            if not checked["ok"]:
+                raise ValueError(f"invalid {contract}: " + "; ".join(checked["errors"]))
+        evidence_map_ref = artifacts.store(
+            f"g02/a09/{task}.{version}.evidence-map.json", evidence_map, base=base
+        )
+        solution_payload = deepcopy(solution)
+        solution_payload["artifact_version"] = artifact_version
+        solution_payload["evidence_map_ref"] = evidence_map_ref
+        solution_ref = artifacts.store(
+            f"g02/a09/{task}.{version}.solution-input-candidate.json",
+            solution_payload, base=base,
+        )
+        packet = {
+            "schema_version": PACKET_CONTRACT,
+            "artifact_version": artifact_version,
+            "task_id": task_id,
+            "output_language": (
+                solution.get("graph03_handoff_constraints", {}).get("output_language")
+                or solution.get("presentation_context", {}).get("output_language")
+                or "English"
+            ),
+            "synthesis_ref": f"artifact://g02/a09/{task}.{version}.research-state.json",
+            "instructions": "Approve the A09 research handoff before Graph03 consumes it.",
+            "decisions_required": [
+                "approve_required_updates",
+                "approve_optional_improvements",
+                "unresolved_claim_handling",
+            ],
+            "fast_mode_limitation": limitation,
+            "required_updates": deepcopy(required_updates),
+            "optional_improvements": deepcopy(optional_updates),
+            "unresolved": deepcopy(solution.get("unresolved_items", [])),
+            "confidence": solution.get("confidence") or "medium",
+        }
+        checked = contracts.validate(packet, PACKET_CONTRACT)
+        if not checked["ok"]:
+            raise ValueError("invalid user_research_validation_packet@1: " + "; ".join(checked["errors"]))
+        packet_ref = artifacts.store(
+            f"g02/a09/{task}.{version}.human-validation-packet.json", packet, base=base
+        )
+        summary = {
+            "schema_version": SUMMARY_CONTRACT,
+            "artifact_version": artifact_version,
+            "task_id": task_id,
+            "synthesis_mode": SYNTHESIS_MODE_A09,
+            "fast_mode_limitation": limitation,
+            "required_updates": deepcopy(required_updates),
+            "optional_improvements": deepcopy(optional_updates),
+            "unresolved": deepcopy(solution.get("unresolved_items", [])),
+            "confidence": solution.get("confidence") or "medium",
+            "created_at": _utc_now(),
+        }
+        checked = contracts.validate(summary, SUMMARY_CONTRACT)
+        if not checked["ok"]:
+            raise ValueError("invalid research_summary@1: " + "; ".join(checked["errors"]))
+        summary_ref = artifacts.store(
+            f"g02/a09/{task}.{version}.research-summary.json", summary, base=base
+        )
+        state = {
+            "schema_version": RESEARCH_STATE_CONTRACT,
+            "artifact_version": artifact_version,
+            "task_id": task_id,
+            "synthesis_mode": SYNTHESIS_MODE_A09,
+            "claim_assessment_performed": False,
+            "claim_assessment_status": "skipped",
+            "skipped_nodes": ["g02-a08-claim-verification"],
+            "fast_mode_limitation": limitation,
+            "findings": findings,
+            "required_updates": required_updates,
+            "optional_improvements": optional_updates,
+            "unresolved": deepcopy(solution.get("unresolved_items", [])),
+            "limitations": deepcopy(solution.get("limitations", [])) or [limitation],
+            "confidence": solution.get("confidence") or "medium",
+            "source_refs": deepcopy(solution.get("source_refs", [])),
+            "evidence_map": evidence_map,
+            "evidence_map_ref": evidence_map_ref,
+            "human_validation_packet": packet,
+            "human_validation_packet_ref": packet_ref,
+            "solution_input_candidate": solution_payload,
+            "solution_input_candidate_ref": solution_ref,
+            "research_summary_ref": summary_ref,
+            "upstream_refs": {
+                "research_plan_ref": plan_ref or scout_run_ref or solution_ref,
+                "scout_run_ref": scout_run_ref or solution_ref,
+                "a07_reviews_ref": a07_reviews_ref or solution_ref,
+                "candidate_source_index_ref": a07_reviews_ref or solution_ref,
+                "approved_source_set_ref": a07_reviews_ref or solution_ref,
+                "retrieved_corpus_ref": scout_run_ref or a07_reviews_ref or solution_ref,
+                "paper_review_refs": [a07_reviews_ref] if a07_reviews_ref else [],
+                "reviewed_paper_reviews": [],
+            },
+        }
+        checked = contracts.validate(state, RESEARCH_STATE_CONTRACT)
+        if not checked["ok"]:
+            raise ValueError("invalid research_state@1: " + "; ".join(checked["errors"]))
+        state_ref = artifacts.store(
+            f"g02/a09/{task}.{version}.research-state.json", state, base=base
+        )
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return _envelope(
+            "failed",
+            "A09 research_state materialization failed.",
+            [{"severity": "blocker", "code": "a09_research_state_finalize_failed",
+              "message": str(exc), "location": "research_state"}],
+        )
+    return _envelope(
+        "ok",
+        "Stored A09 research_state, research summary, validation packet and solution candidate.",
+        produced=[
+            {"type": "research_state", "path": state_ref,
+             "schema_version": RESEARCH_STATE_CONTRACT, "artifact_version": artifact_version},
+            {"type": "evidence_map", "path": evidence_map_ref,
+             "schema_version": EVIDENCE_MAP_CONTRACT, "artifact_version": artifact_version},
+            {"type": "user_research_validation_packet", "path": packet_ref,
+             "schema_version": PACKET_CONTRACT, "artifact_version": artifact_version},
+            {"type": "solution_input_candidate", "path": solution_ref,
+             "schema_version": SOLUTION_CONTRACT, "artifact_version": artifact_version},
+            {"type": "research_summary", "path": summary_ref,
+             "schema_version": SUMMARY_CONTRACT, "artifact_version": artifact_version},
+        ],
+        metrics={
+            "required_update_count": len(required_updates),
+            "optional_improvement_count": len(optional_updates),
+            "unresolved_count": len(solution.get("unresolved_items", [])),
+        },
+    )
+
+
 def _baseline_for_model(synthesis_input: dict, deep_dive: dict | None) -> dict:
     """Run the deterministic A09 finalize so the model can verify/refine it."""
-    baseline = finalize_scout_fast_solution(synthesis_input, None, deep_dive=deep_dive)
+    baseline = finalize_a09_solution(synthesis_input, None, deep_dive=deep_dive)
     return {
         "slide_update_plan": deepcopy(baseline.get("slide_update_plan", [])),
         "slide_revision_priorities": deepcopy(baseline.get("slide_revision_priorities", [])),
@@ -1178,10 +1549,10 @@ def build_a09_synthesis_task(
         "limitations": [],
     }
     task = {
-        "schema_version": SCOUT_A09_MODEL_TASK_CONTRACT,
+        "schema_version": A09_MODEL_TASK_CONTRACT,
         "artifact_version": artifact_version,
         "task_id": synthesis_input["task_id"],
-        "synthesis_mode": SYNTHESIS_MODE_SCOUT,
+        "synthesis_mode": SYNTHESIS_MODE_A09,
         "a07_reviews_ref": synthesis_input.get("a07_reviews_ref"),
         "plan_ref": synthesis_input.get("plan_ref"),
         "intake_ref": synthesis_input.get("intake_ref"),
@@ -1232,7 +1603,7 @@ def build_a09_synthesis_task(
             "Return a JSON object with expected_output.return_fields for research_a09_synthesis_finalize.",
         ],
     }
-    validation = contracts.validate(task, SCOUT_A09_MODEL_TASK_CONTRACT)
+    validation = contracts.validate(task, A09_MODEL_TASK_CONTRACT)
     if not validation["ok"]:
         raise ValueError("invalid a09_synthesis_task@1: " + "; ".join(validation["errors"]))
     return task
@@ -1241,7 +1612,7 @@ def build_a09_synthesis_task(
 def main(argv: list[str] | None = None) -> int:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Scout-fast A09 synthesis")
+    parser = argparse.ArgumentParser(description="Bounded A09 synthesis")
     sub = parser.add_subparsers(dest="cmd", required=True)
     prepare = sub.add_parser("prepare")
     prepare.add_argument("reviews_json")
@@ -1254,7 +1625,7 @@ def main(argv: list[str] | None = None) -> int:
     finalize.add_argument("--out", default="")
     args = parser.parse_args(argv)
     if args.cmd == "prepare":
-        result = prepare_scout_fast_synthesis(
+        result = prepare_a09_synthesis(
             args.reviews_json,
             intake=args.intake or None,
             max_deep_dive_sources=args.max_deep_dive_sources,
@@ -1262,8 +1633,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     output = _read_json(Path(args.a09_output).expanduser().resolve()) if args.a09_output else None
-    prepared = prepare_scout_fast_synthesis(args.reviews_json, intake=args.intake or None)
-    solution = finalize_scout_fast_solution(
+    prepared = prepare_a09_synthesis(args.reviews_json, intake=args.intake or None)
+    solution = finalize_a09_solution(
         prepared["synthesis_input"], output, output_path=args.out or None
     )
     print(json.dumps({

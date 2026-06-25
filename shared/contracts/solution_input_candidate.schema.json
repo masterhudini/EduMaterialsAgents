@@ -25,7 +25,7 @@
     "task_id": {"type": "string"},
     "synthesis_mode": {
       "type": "string",
-      "enum": ["evidence_without_claim_assessment", "scout_fast"]
+      "enum": ["evidence_without_claim_assessment"]
     },
     "source_pipeline": {"type": "string"},
     "intake_ref": {"type": ["string", "null"]},
@@ -35,7 +35,7 @@
     "claim_assessment_performed": {"type": "boolean", "enum": [false]},
     "a08_status": {
       "type": "string",
-      "enum": ["skipped_fast_profile", "skipped_scout_fast"]
+      "enum": ["skipped"]
     },
     "a09_model_pass": {"type": "boolean"},
     "synthesis_engine": {
@@ -250,7 +250,7 @@
     "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
     "a08_status": {
       "type": "string",
-      "enum": ["skipped_fast_profile", "skipped_scout_fast"]
+      "enum": ["skipped"]
     },
     "source_pipeline": {"type": "string"},
     "intake_ref": {"type": ["string", "null"]},

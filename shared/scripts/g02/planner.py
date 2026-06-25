@@ -23,10 +23,8 @@ ENVELOPE_CONTRACT = "envelope@1"
 PLANNER_AGENT = "g02-a01-planner"
 REVIEWER_AGENT = "g02-a10-output-reviewer"
 REVIEW_PROFILE = "research_plan"
-DEFAULT_EXECUTION_PROFILE = "fast"
-FAST_MAX_TOPICS = 2
-FAST_CANDIDATE_LIMIT_PER_TOPIC = 12
-FAST_CANDIDATE_POOL_TARGET_PER_TOPIC = 8
+DEFAULT_EXECUTION_PROFILE = "scout_e2e"
+SCOUT_MAX_TOPICS_DEFAULT = 6
 
 PLANNER_FIELDS = (
     "task_id",
@@ -431,55 +429,54 @@ def _limit_value(value: object, fallback: int) -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else fallback
 
 
-def _apply_execution_profile_limits(scoped: dict, *, execution_profile: str | None = None) -> None:
-    """Apply the selected execution profile before A01 reasoning.
+def _clamp_pool_target_to_limit(scoped: dict, *extra_ceilings: object) -> None:
+    """Keep ``selection_profile.candidate_pool_target_per_topic`` at or below the candidate limit.
 
-    The original boundary input remains immutable. ``fast`` retains its existing ceilings.
-    ``scout`` deliberately replaces ``max_topics`` with its profile value so the dedicated
-    4--6-topic planning path is not constrained by the fast prototype's two-topic boundary.
+    The boundary input is a hint from G01; it can legitimately carry a pool target above the
+    approved per-topic candidate limit. Every execution profile clamps it here so the downstream
+    ``selection_target_exceeds_limit`` invariant holds without rejecting an otherwise valid intake.
     """
-    profile_name, profile = _execution_profile_config(execution_profile)
-    if profile_name not in {"fast", "scout"}:
+    selection = scoped.get("selection_profile")
+    if not isinstance(selection, dict):
+        return
+    target = selection.get("candidate_pool_target_per_topic")
+    if not isinstance(target, int) or isinstance(target, bool):
+        return
+    bounds = [target]
+    constraints = scoped.get("constraints")
+    if isinstance(constraints, dict):
+        limit = constraints.get("candidate_limit_per_topic")
+        if isinstance(limit, int) and not isinstance(limit, bool):
+            bounds.append(limit)
+    for ceiling in extra_ceilings:
+        if isinstance(ceiling, int) and not isinstance(ceiling, bool):
+            bounds.append(ceiling)
+    selection["candidate_pool_target_per_topic"] = min(bounds)
+
+
+def _apply_execution_profile_limits(scoped: dict, *, execution_profile: str | None = None) -> None:
+    """Apply the requested execution profile before A01 reasoning.
+
+    The original boundary input remains immutable. The profile is applied only when it is requested
+    explicitly (call argument or ``EMAGENTS_G02_PROFILE``); a bare call leaves the approved boundary
+    limits unchanged. The single ``scout_e2e`` profile replaces ``max_topics`` with its profile value
+    (the 1--6-topic Scout fanout) and clamps the candidate pool target to the candidate limit, so a
+    G01 hint that exceeds the limit is reconciled here rather than failing G02 input validation.
+    """
+    env_profile = os.environ.get("EMAGENTS_G02_PROFILE")
+    requested = execution_profile if isinstance(execution_profile, str) and execution_profile.strip() \
+        else (env_profile if isinstance(env_profile, str) and env_profile.strip() else None)
+    if requested is None:
+        return
+    profile_name, profile = _execution_profile_config(requested)
+    if profile_name != "scout_e2e":
         return
     planner_limits = profile.get("planner") if isinstance(profile.get("planner"), dict) else {}
-    max_topics = _limit_value(planner_limits.get("max_topics"), FAST_MAX_TOPICS)
+    max_topics = _limit_value(planner_limits.get("max_topics"), SCOUT_MAX_TOPICS_DEFAULT)
     constraints = scoped.get("constraints")
-    if profile_name == "scout":
-        if isinstance(constraints, dict):
-            constraints["max_topics"] = max_topics
-        return
-    candidate_limit = _limit_value(
-        planner_limits.get("candidate_limit_per_topic"),
-        FAST_CANDIDATE_LIMIT_PER_TOPIC,
-    )
-    pool_target = _limit_value(
-        planner_limits.get("candidate_pool_target_per_topic"),
-        FAST_CANDIDATE_POOL_TARGET_PER_TOPIC,
-    )
     if isinstance(constraints, dict):
-        current_topics = constraints.get("max_topics")
-        if isinstance(current_topics, int) and not isinstance(current_topics, bool):
-            constraints["max_topics"] = min(current_topics, max_topics)
-        current_candidates = constraints.get("candidate_limit_per_topic")
-        if isinstance(current_candidates, int) and not isinstance(current_candidates, bool):
-            constraints["candidate_limit_per_topic"] = min(
-                current_candidates, candidate_limit
-            )
-    selection = scoped.get("selection_profile")
-    if isinstance(selection, dict):
-        target = selection.get("candidate_pool_target_per_topic")
-        if isinstance(target, int) and not isinstance(target, bool):
-            candidate_ceiling = None
-            constraints = scoped.get("constraints")
-            if isinstance(constraints, dict) and isinstance(
-                    constraints.get("candidate_limit_per_topic"), int):
-                candidate_ceiling = constraints["candidate_limit_per_topic"]
-            ceilings = [pool_target]
-            if isinstance(candidate_ceiling, int) and not isinstance(candidate_ceiling, bool):
-                ceilings.append(candidate_ceiling)
-            selection["candidate_pool_target_per_topic"] = min(
-                target, *ceilings
-            )
+        constraints["max_topics"] = max_topics
+    _clamp_pool_target_to_limit(scoped)
 
 
 def validate_planner_input(planner_input: object) -> dict:
@@ -869,12 +866,6 @@ def validate_research_plan(plan: object, planner_input: dict, *,
         issues.append(_issue(
             "blocker", "topic_limit_exceeded",
             f"plan has {len(topics)} topics but max_topics is {constraints['max_topics']}",
-            "topics",
-        ))
-    if constraints.get("max_topics") == 6 and not 4 <= len(topics) <= 6:
-        issues.append(_issue(
-            "major", "scout_topic_count",
-            "the Scout profile requires 4 to 6 intake-anchored topics",
             "topics",
         ))
 
