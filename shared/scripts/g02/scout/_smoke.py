@@ -191,6 +191,9 @@ def main(argv: list[str] | None = None) -> int:
         s2_api_key=s2_api_key,
         extra_search=extra_search,
         extra_resolvers=extra_resolvers,
+        quota_canonical=request.get("quota_canonical") if request else None,
+        recency_year_from=request.get("recency_year_from") if request else None,
+        snowball=request.get("snowball", False) if request else False,
         dedup_cross_run=args.dedup_cross_run,
         progress=progress,
     )

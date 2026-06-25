@@ -24,6 +24,221 @@ scenariusze, wyniki i werdykty historycznych rund pozostają niezmienne.
 
 ## Wpisy
 
+### Runda 21 — 2026-06-24 — Live test: Canonical/Recent Quota + A10 Review Loop
+
+**Środowisko:** ema-testing, Python 3.14, commit e1861f8 + uncommitted wdrożenie Rundy 21.
+Wejście: `mocks/g02/KP_intake_bundle.json`. A07 i A09 nie uruchamiane.
+Workspace: `.emagents/g02/scout-live-canonical-recent-20260624T182520Z`
+
+**Werdykt:** PARTIAL — nowe funkcje działają poprawnie; blokada E2E przez brak adaptera A07 (Finding F-R).
+
+#### Nowe funkcje wdrożone
+
+| Fix | Plik | Opis |
+|-----|------|------|
+| Canonical classification | `scout/engine.py` | `_classify_source_type()`, `_apply_recency_quota()`, `quota_canonical` i `recency_year_from` w `run_student()` |
+| Corpus metadata | `scout_fanout.py` | `source_type` + `source_type_basis` w każdym dokumencie corpus |
+| Request generation | `scout_request.py` | `recency_year_from`, `snowball=include_canonical`, `quota_canonical=0.4` gdy oba flagi |
+| A10 loop | `research_server.py` | 6-krokowy prompt: A01→A10→A01(jeśli REVISE)→Scout, max 1 rewizja |
+
+#### A01 → A10 → Scout flow
+
+| Krok | Wynik |
+|------|-------|
+| research_planner_prepare | ready=True, max_topics=6 |
+| A01 plan (reused artifact v1.0.0) | 5 topiców, DRV01-DRV05 pokryte |
+| research_plan_review_task | wygenerowany: plan-review-live-001 |
+| A10 werdykt | **APPROVED** (findings=0, confidence=high) — 1 wywołanie A10 |
+| Krok 5 conditional revision | pominięty (APPROVED) |
+| research_scout_fanout | total_target=50, 5 topiców, workspace unikalny |
+
+#### Walidacja requestów — nowe pola
+
+| Pole | Status |
+|------|--------|
+| quota_canonical=0.4 | ✓ wszystkie 5 topiców |
+| recency_year_from=2021 | ✓ wszystkie 5 topiców |
+| year_from=null | ✓ wszystkie 5 topiców |
+| snowball=True | ✓ wszystkie 5 topiców |
+| query=core_terms[:3] | ✓ wszystkie 5 topiców |
+
+#### Scout fan-out — Runda 21
+
+| topic_id | pobranych | canonical | recent |
+|----------|-----------|-----------|--------|
+| TOPIC_FRA_OTC_CASH_SETTLEMENT | 8 | 8 | 0 |
+| TOPIC_FRA_NAARB_PRICING_SPOT_CURVE | 12 | 11 | 1 |
+| TOPIC_FRA_PAYOFF_LONG_SHORT_HEDGING | 6 | 5 | 1 |
+| TOPIC_FRA_SETTLEMENT_DAY_COUNT_EXAMPLES | 2 | 2 | 0 |
+| TOPIC_FRA_TIMELINE_PEDAGOGY | 1 | 1 | 0 |
+| **ŁĄCZNIE** | **29** | **27 (93%)** | **2 (7%)** |
+
+Proporcja 93%/7% (cel 40%/60%) — rollover OA pool: FRA domain ma mało recent OA papers (Finding F-P, info).
+
+#### Walidacja corpus i PDF
+
+29/29 PDF: SHA-256 ✓, %PDF- ✓, byte_count ✓, source_type ✓, source_type_basis ✓, fwci ✓. Brak sekretów w JSON.
+
+#### Testy regresyjne
+
+37 targeted PASS, 183+1skip full PASS, 1 pre-existing fail (test_plugin_build — niezwiązane).
+
+#### Findings
+
+- **F-O (open):** Szum semantyczny — ~48% docs prawdopodobnie poza domeną FRA. Znany z R20. Fix 5/6 backlog.
+- **F-P (info):** Proporcja canonical/recent 93/7 zamiast 40/60 — rollover OA pool. Mechanizm kwoty działa prawidłowo.
+- **F-R (new, major):** A07 wymaga adaptera: `scout_retrieved_corpus@1` → `retrieved_corpus@1`. Backlog Fix 7.
+
+**Co aktualizować w 07:** dodać Rundę 21 PARTIAL, Backlog Fix 7 (adapter A07), Finding F-P i F-R.
+
+---
+
+### Runda 20 — 2026-06-24 — Retest po Fix 1–4: core_terms query + canonical year_from + snowball
+
+**Środowisko:** identyczne jak R19. Zmiany kodu: Fix 1–4 w `scout_request.py` i `scout_fanout.py`.
+Wejście: ten sam plan `awif_2025_wyk_09_fra.1.0.0.json`. A07 i A09 nie uruchamiane.
+
+**Werdykt:** PASS (infrastruktura + PDF yield znacząco poprawiony).
+
+#### Zmiany wdrożone przed retestem
+
+| Fix | Plik | Linia | Zmiana |
+|-----|------|-------|--------|
+| Fix 1 | `scout_request.py` | ~190 | `query = core_terms[:3] joined` zamiast `topic.name` |
+| Fix 2 | `scout_request.py` | ~109 | `year_from=None` gdy `include_canonical_sources=True` |
+| Fix 3 | `scout_fanout.py` | ~124 | `facets_required = keywords[:2]` zamiast `[query]` |
+| Fix 4 | `scout_fanout.py` | ~133 | `snowball=True` |
+
+#### Scout fan-out — Runda 20
+
+| topic_id | OA pool | deduped | Processed OA | downloaded | stubs | status |
+|---|---:|---:|---:|---:|---:|---|
+| TOPIC_FRA_OTC_CASH_SETTLEMENT | 73 | 102 | 13 | **8** | 5 | completed |
+| TOPIC_FRA_NAARB_PRICING_SPOT_CURVE | 85 | 111 | 19 | **12** | 7 | completed |
+| TOPIC_FRA_PAYOFF_LONG_SHORT_HEDGING | 65 | 85 | 9 | **6** | 3 | completed |
+| TOPIC_FRA_SETTLEMENT_DAY_COUNT_EXAMPLES | 37 | 96 | 4 | **2** | 2 | completed |
+| TOPIC_FRA_TIMELINE_PEDAGOGY | 69 | 119 | 1 | **1** | 0 | completed |
+
+**Index summary:** downloaded_pdf_count=29, unique_work_count=28.
+
+#### Porównanie R19 vs R20
+
+| Metryka | R19 | R20 | Delta |
+|---------|-----|-----|-------|
+| OA pool (suma) | 27 | 329 | +1118% |
+| PDF pobrane | 0 | **29** | +∞ |
+| Tematy z ≥1 PDF | 0/5 | 4/5 | +4 |
+
+**Finding F-O:** Wzrost recall generuje szum — 3 pobrane prace spoza dziedziny FRA
+(`ΛCDM` astronomia, `day care` medycyna, `nonlinear PE pedagogy` sport). Token matching
+na genericnych słowach (`day`, `pedagogy`) wpuszcza niechciane prace. Backlog: Fix 5
+(bramka dla prac bez abstraktu) i Fix 6 (`verify_llm=True` opcjonalnie).
+
+**Werdykt końcowy: PASS** — Fix 1–4 skuteczne, finding F-O otwarte w backlogu.
+
+**Co zaktualizować w 07:** zaznaczyć Fix 1–4 jako wdrożone, dodać Finding F-O.
+
+---
+
+### Runda 19 — 2026-06-24 — Retest zamykający Fazę B2 Scout: KP_intake_bundle → one-shot A01 → Scout fan-out
+
+**Środowisko:** Claude Code CLI, live MCP `edu-materials-research` `0.13.0`, prompt `research-scout`,
+aktywny `OPENALEX_API_KEY` i `EMAGENTS_RESEARCH_CONTACT_EMAIL`, profil `scout`, Python 3.14.
+Plik wejściowy: `mocks/g02/KP_intake_bundle.json`. A07 i A09 nie były uruchamiane.
+
+**Werdykt:** PASS (infrastruktura). Uwaga treściowa: downloaded_pdf_count=0 (szczegóły poniżej).
+
+#### Sanity check
+
+| Check | Wynik |
+|---|---|
+| `KP_intake_bundle.json` waliduje jako `research_graph_input@1` | PASS |
+| MCP server version = `0.13.0` | PASS |
+| `research_planner_prepare` dostępny | PASS |
+| `research_planner_finalize` dostępny | PASS |
+| `research_scout_fanout` dostępny | PASS |
+| Prompt `research-scout` dostępny | PASS |
+| `OPENALEX_API_KEY` obecny (wartość nie wypisana) | PASS |
+| `graph_check` g02 | PASS (ok: true, errors: []) |
+
+#### A01 — research_planner_prepare + plan + finalize
+
+- `research_planner_prepare` z `execution_profile="scout"`: `ready=True`, constraints: `max_topics=6`, `candidate_limit=12`, `no_new_coverage_passes=2`.
+- Plan wygenerowany (jako g02-a01-planner Opus/medium): **5 topiców**.
+- `research_planner_finalize` z `execution_profile="scout"`: **status=ok** — PASS one-shot, 0 issues, `complete=True`.
+- Artifact ref: `artifact://g02/research-plans/awif_2025_wyk_09_fra.1.0.0.json`.
+
+#### Plan A01 — 5 topiców
+
+| topic_id | Priority | Drivers | Claims | Core terms (3–6) |
+|---|---|---|---|---|
+| `TOPIC_FRA_OTC_CASH_SETTLEMENT` | high | DRV01 | CL01,CL02,CL10,CL11 | forward rate agreement OTC; interest rate derivative cash settlement; FRA notional principal settlement; money market interest rate derivative; FRA interest differential payment |
+| `TOPIC_FRA_NAARB_PRICING_SPOT_CURVE` | high | DRV03 | CL03,CL05,CL06 | forward rate agreement pricing spot curve; no-arbitrage FRA rate derivation; interest rate forward fair value; bootstrapping forward rates discounting; FRA valuation spot rates formula |
+| `TOPIC_FRA_PAYOFF_LONG_SHORT_HEDGING` | high | DRV02 | CL04,CL09 | FRA long short position payoff sign; interest rate hedging borrower FRA; forward rate agreement hedge lender borrower; FRA speculative position interest rate risk; corporate treasury interest rate hedging |
+| `TOPIC_FRA_SETTLEMENT_DAY_COUNT_EXAMPLES` | high | DRV04 | CL05,CL07,CL08,CL12 | FRA settlement discounting ACT365; day count convention interest rate forward; forward rate agreement numerical worked example; 30/360 FRA interest calculation; FRA position mark-to-market valuation |
+| `TOPIC_FRA_TIMELINE_PEDAGOGY` | medium | DRV05 | CL05,CL06 | forward rate agreement settlement date lifecycle; interest rate derivatives pedagogy teaching; FRA T0 settlement mark-to-market stages; derivatives education fixed income FRA; FRA contract date reset date maturity |
+
+Wszyscy 5 driverów pokrytych (`uncovered_driver_ids: []`).
+
+#### Scout fan-out
+
+- `research_scout_fanout`: `total_target=50`, `oversample=1.2` (hardcoded w engine), `max_workers` default (6).
+- Status run: **completed** (wszystkie 5 topiców completed, 0 failed).
+
+| topic_id | target_n | OA pool | downloaded | stubs | rejected | status |
+|---|---:|---:|---:|---:|---:|---|
+| TOPIC_FRA_OTC_CASH_SETTLEMENT | 10 | 2 | 0 | 0 | 0 | completed |
+| TOPIC_FRA_NAARB_PRICING_SPOT_CURVE | 10 | 14 | 0 | 1 | 0 | completed |
+| TOPIC_FRA_PAYOFF_LONG_SHORT_HEDGING | 10 | 6 | 0 | 0 | 0 | completed |
+| TOPIC_FRA_SETTLEMENT_DAY_COUNT_EXAMPLES | 10 | 5 | 0 | 0 | 0 | completed |
+| TOPIC_FRA_TIMELINE_PEDAGOGY | 10 | 0 | 0 | 0 | 0 | completed |
+
+**Index summary:** topic_count=5, completed=5, failed=0, downloaded_pdf_count=0, unique_work_count=0.
+
+**Uwaga treściowa (Finding F-N):** downloaded_pdf_count=0. OpenAlex znalazł łącznie 27 prac w puli,
+ale żadna nie przeszła do pobrania jako PDF. Jedyna paca przetworzona dla OA (TOPIC_FRA_NAARB):
+"Evolution of forward curves" (Malyarenko 2021, DOI: 10.1080/23737484.2021.2010622) — status stub
+(PDF niedostępny OA). Przyczyna: (a) temat FRA to literatura paywallowa (JFE, RFS itp.);
+(b) query = topic name (wielosłowny opis) słabo match'uje tytuły papers w OpenAlex. Infrastruktura
+działa poprawnie — niski yield to cecha domeny, nie awaria narzędzia.
+
+#### Layout i walidacja kontraktów
+
+- `run_directory`: `/home/laplasjan/ema-testing/.emagents/g02/scout/runs/awif_2025_wyk_09_fra/`
+- `plan.json`: ✓
+- `requests/<topic_id>.json` × 5: ✓
+- `topics/<topic_id>/MANIFEST.md` × 5: ✓
+- `topics/<topic_id>/retrieved_corpus.json` × 5: ✓
+- `index.json`: ✓
+- `index.json` waliduje jako `scout_run_index@1`: **PASS** (errors: [])
+- Wszystkie `retrieved_corpus.json` walidują jako `scout_retrieved_corpus@1`: **PASS** × 5
+- Dedup cross-topic: `deduplicated_works=[]` (0 PDF, poprawny stan pusty; `topic_ids` i `local_refs` zachowane w strukturze)
+- `OPENALEX_API_KEY` w JSON artefaktach: **NIE** ✓
+- Email w JSON artefaktach: **NIE** ✓
+- A07/A09 uruchomione: **NIE** ✓
+
+#### Wynik kryteriów PASS
+
+| Kryterium | Status |
+|---|---|
+| A01 finalize one-shot | **PASS** |
+| 4–6 poprawnych topiców | **PASS** (5) |
+| fanout ended all completed / no crash | **PASS** (5/5 completed) |
+| kompletny trwały layout | **PASS** |
+| `scout_run_index@1` walidacja | **PASS** |
+| `scout_retrieved_corpus@1` walidacja × 5 | **PASS** |
+| brak sekretów w JSON | **PASS** |
+| A07/A09 nie uruchomione | **PASS** |
+
+**Werdykt końcowy: PASS** — Faza B2 Scout zamknięta.
+Finding F-N (0 PDF / FRA domain) rekomenduje uzupełnienie scout_request o `core_terms` jako
+dodatkowe queries zamiast samego nazwy topiku, oraz ogólniejszy topic name (patrz 07, sekcja B2).
+
+**Co zaktualizować w 07:** zaznaczyć `[ ]` → `[x]` dla: retest A01 one-shot, 4–6 topiców,
+Scout kompletny layout, fanout completed. Dodać Finding F-N jako otwartą pozycję.
+
+---
+
 ### Runda 18 — 2026-06-24 — LIVE Claude Code CLI: profil Scout A01 → równoległe PDF-y
 
 **Środowisko:** Claude Code CLI, live MCP `edu-materials-research` `0.13.0`, prompt

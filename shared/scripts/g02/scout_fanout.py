@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core import contracts  # noqa: E402
 from g02 import scout_request  # noqa: E402
 from g02.scout import runtime  # noqa: E402
-from g02.scout.engine import clean_title, run_student  # noqa: E402
+from g02.scout.engine import classify_source_metadata, clean_title, run_student  # noqa: E402
 from g02.scout.providers import (  # noqa: E402
     build_resolvers,
     build_search_providers,
@@ -34,6 +34,20 @@ from g02.scout.providers import (  # noqa: E402
 SCOUT_CORPUS_CONTRACT = "scout_retrieved_corpus@1"
 SCOUT_INDEX_CONTRACT = "scout_run_index@1"
 EXECUTION_PROFILE = "scout"
+
+
+def default_scout_run_root(task_id: str, *, workspace: str | Path | None = None) -> Path:
+    """Return the persistent Scout handoff directory for one task.
+
+    A caller-provided workspace remains an exact test/manual override and keeps
+    the legacy ``<workspace>/runs/<task_id>`` layout. Without an override the
+    production handoff is stable and visible to downstream A07:
+    ``outputs/g02/<task_id>/scout``.
+    """
+    safe_task = _safe_task_id(task_id)
+    if workspace is not None:
+        return runtime.runs_dir(workspace) / safe_task
+    return Path.cwd().resolve() / "outputs" / "g02" / safe_task / "scout"
 
 
 def _json_bytes(value: object) -> bytes:
@@ -117,13 +131,22 @@ def _run_topic_worker(job: dict) -> dict:
         include_s2=cfg["include_s2"],
         search_lang=request.get("lang", "both"),
         facets=request.get("keywords") or None,
-        facets_required=[request["query"]] if request.get("keywords") else None,
+        # Fix 3: anchor fasetowy = core_terms[:2], nie pełne query (topic.name byłoby zbyt
+        # długie jako anchor i generowałoby mało trafne zapytania fasetowe).
+        facets_required=(request.get("keywords") or [])[:2] or None,
         openalex_api_key=openalex_api_key,
         s2_api_key=keys["s2_api_key"],
         extra_search=extra_search,
         extra_resolvers=extra_resolvers,
         oversample=1.2,
         dedup_cross_run=False,
+        # Snowball is opt-in from the approved plan. Plans without a canonical-source
+        # requirement keep the previous provider-call profile.
+        snowball=request.get("snowball", False),
+        # Kwota canonical/recent: proporcja miejsc w target_n zarezerwowanych dla źródeł
+        # kanonicznych (starsze, high-fwci, snowball). None = brak kwoty.
+        quota_canonical=request.get("quota_canonical"),
+        recency_year_from=request.get("recency_year_from"),
     )
     return asdict(result)
 
@@ -160,6 +183,21 @@ def _topic_corpus(run_root: Path, plan: dict, request: dict, run_id: str,
         if not pdf_path.is_file():
             continue
         dedup_key, _, _ = _dedup_identity(item)
+        fwci_value = item.get("fwci")
+        fwci = float(fwci_value) if isinstance(fwci_value, (int, float)) \
+            and not isinstance(fwci_value, bool) else None
+        source_type, source_type_basis = classify_source_metadata(
+            year=item.get("year") if isinstance(item.get("year"), int) else None,
+            fwci=fwci,
+            source=str(item.get("source") or ""),
+            work_type=str(item.get("work_type") or ""),
+            year_from=request.get("recency_year_from"),
+        )
+        if item.get("source_type") in {"canonical", "recent"}:
+            source_type = item["source_type"]
+        if isinstance(item.get("source_type_basis"), str) \
+                and item["source_type_basis"].strip():
+            source_type_basis = item["source_type_basis"].strip()
         documents.append({
             "source_id": _source_id(dedup_key),
             "local_ref": pdf_path.relative_to(run_root).as_posix(),
@@ -168,8 +206,11 @@ def _topic_corpus(run_root: Path, plan: dict, request: dict, run_id: str,
             "doi": _real_doi(item.get("doi")),
             "title": str(item.get("title") or Path(item["filename"]).stem),
             "year": item.get("year") if isinstance(item.get("year"), int) else None,
+            "fwci": fwci,
             "venue": str(item.get("venue") or "") or None,
             "work_type": str(item.get("work_type") or "") or None,
+            "source_type": source_type,
+            "source_type_basis": source_type_basis,
             "topic_ids": [topic_id],
         })
     corpus = {
@@ -267,7 +308,7 @@ def run_scout_fanout(
     if unsafe:
         raise ValueError(f"unsafe topic_id values for persistent paths: {unsafe}")
 
-    root = runtime.runs_dir(workspace) / _safe_task_id(plan["task_id"])
+    root = default_scout_run_root(plan["task_id"], workspace=workspace)
     if (root / "index.json").exists():
         raise FileExistsError(f"Scout run already finalized: {root}")
     root.mkdir(parents=True, exist_ok=True)

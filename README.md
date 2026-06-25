@@ -99,8 +99,9 @@ administrator's `max_documents_per_task` and cannot add sources. A07 reads only 
 bounded text windows from accepted PDFs or A06 market-case bundles. In `fast`, A08 remains skipped
 by graph policy, and A09 produces `research_state@1`, a compact evidence map, a human validation
 packet and a SolutionInputCandidate before pausing at the Human Research Gate. The MCP server
-exposes 52 operations at version `0.13.0`, including the dedicated pre-A07
-`research_scout_fanout` operation.
+exposes 60 operations at version `0.17.0`, including the dedicated pre-A07
+`research_scout_fanout` operation, bounded deep-dive preparation and the obligatory
+`research_scout_a09_task_prepare` Opus/medium verification seam.
 
 Before the first G02-A02 or A11 run, copy `shared/config/g02.providers.example.json` to
 `.emagents/config/g02-providers.json`, set `EMAGENTS_RESEARCH_CONTACT_EMAIL` and provide the
@@ -144,8 +145,8 @@ Then, in Claude Code:
 /plugin                              # shows edu-materials-agents (marketplace: edu-materials)
 ```
 
-Verify the component inventory (expect 11 agents + 21 skills, including DOI verification, A11 and
-g02-orchestrate-research):
+Verify the component inventory (expect 18 agents + 25 skills, including A07 light review,
+obligatory A09 Scout synthesis, DOI verification, A11 and g02-orchestrate-research):
 
 ```bash
 claude plugin details edu-materials-agents

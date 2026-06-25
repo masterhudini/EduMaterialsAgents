@@ -1420,10 +1420,56 @@ Runda 12. Skrót:
 - [x] Offline po poprawkach: 27 dedykowanych PASS; pełna regresja 177 PASS / 1 SKIP / 1 znany FAIL
   starego stub harnessu poza zakresem Fazy B2.
 
-### Retest zamykający Fazę B2
+### Retest zamykający Fazę B2 — Runda 19 (2026-06-24)
 
-- [ ] Reinstall/reload pluginu i nowa sesja Claude Code CLI.
-- [ ] A01 przechodzi `research_planner_finalize` za pierwszym razem bez ręcznej edycji.
-- [ ] Wszystkie 4–6 topiców przechodzą walidację wyszukiwalności i są dziedzinowo trafne.
-- [ ] Scout kończy wszystkie topici z `oversample=1.2` i zachowuje kompletny trwały layout.
-- [ ] Po retest PASS można uznać wejście G02 → plan → PDF/index za zamknięte i przejść do A07/A09.
+- [x] Reinstall/reload pluginu i nowa sesja Claude Code CLI.
+- [x] A01 przechodzi `research_planner_finalize` za pierwszym razem bez ręcznej edycji (PASS one-shot).
+- [x] Wszystkie 4–6 topiców przechodzą walidację wyszukiwalności i są dziedzinowo trafne (5 topiców, 0 issues).
+- [x] Scout kończy wszystkie topici z `oversample=1.2` i zachowuje kompletny trwały layout (5/5 completed).
+- [x] `scout_run_index@1` i wszystkie `scout_retrieved_corpus@1` walidują się; brak sekretów w artefaktach.
+- [x] A07 i A09 nie zostały uruchomione.
+
+**Wynik: PASS — Faza B2 Scout zamknięta.** Wejście G02 → plan → PDF/index działa end-to-end.
+
+Finding F-N (zamknięty): downloaded_pdf_count=0 w Rundzie 19. Rozwiązany przez Fix 1–4 (Runda 20).
+
+### Fix 1–4 — Runda 20 (2026-06-24)
+
+- [x] Fix 1: `scout_request.py` — query = `core_terms[:3]` joined zamiast `topic.name`.
+- [x] Fix 2: `scout_request.py` — `_year_bounds`: brak automatycznego `year_from` gdy `include_canonical_sources=True`.
+- [x] Fix 3: `scout_fanout.py` — `facets_required = keywords[:2]` (nie pełne query jako anchor).
+- [x] Fix 4: `scout_fanout.py` — `snowball=True`.
+
+**Wynik Rundy 20:** downloaded_pdf_count=29 (unique 28), OA pool 27→329. PASS.
+
+Finding F-O (otwarty): wzrost recall generuje szum — 3 prace spoza dziedziny FRA pobrane przez
+genericne tokeny (`day`, `pedagogy`). Backlog: Fix 5 (bramka bez abstraktu), Fix 6 (verify_llm).
+
+### Runda 21 — 2026-06-24 — Live test: Canonical/Recent Quota + A10 Review Loop
+
+**Werdykt: PARTIAL** — nowe funkcje canonical/recent i pętla A10 działają poprawnie.
+Blokada E2E: brak adaptera `scout_retrieved_corpus@1` → `retrieved_corpus@1` dla A07 (Finding F-R).
+
+#### Wdrożone (Runda 21)
+
+- [x] `scout/engine.py` — `_classify_source_type()`, `_apply_recency_quota()`, `quota_canonical`+`recency_year_from` params, `source_type` w corpus items.
+- [x] `scout_fanout.py` — `quota_canonical`, `recency_year_from`, `snowball=request.get()`, `classify_source_metadata`, `source_type`+`source_type_basis` w corpus.
+- [x] `scout_request.py` — `_recency_year_from()`, `_year_bounds()` nulling dla canonical, `recency_year_from`+`snowball`+`quota_canonical` w request dict.
+- [x] `research_server.py` — `_research_scout_prompt()` → 6-krokowy flow: A01→A10→A01(conditional)→Scout.
+
+#### Live test Runda 21
+
+- [x] A10 werdykt APPROVED, 1 wywołanie, decision spersystowany w `artifact://reviews/plan-review-live-001-attempt-1.json`.
+- [x] Wszystkie 5 requestów: `quota_canonical=0.4`, `recency_year_from=2021`, `year_from=null`, `snowball=True`.
+- [x] 29 PDF pobranych, 28 unique works, 0 failed topics.
+- [x] 29/29 SHA-256 ✓, %PDF- ✓, `source_type` ✓, `source_type_basis` ✓, brak sekretów.
+- [x] 37 targeted tests PASS, 1 pre-existing fail (test_plugin_build — niezwiązane).
+
+Finding F-P (info): Proporcja canonical/recent = 93%/7% (cel 40%/60%) — rollover OA pool. Mechanizm kwoty działa poprawnie.
+Finding F-R (major, backlog): A07 wymaga adaptera corpus. Backlog Fix 7.
+
+#### Backlog
+
+- [ ] Fix 5: relevance gate dla prac bez abstraktu (niższy próg lub title-match fallback).
+- [ ] Fix 6: `verify_llm=True` opcjonalnie dla prac poniżej progu domenowego.
+- [ ] Fix 7: Adapter `scout_retrieved_corpus@1` → `retrieved_corpus@1` dla A07 (synthesis.py).

@@ -55,7 +55,7 @@ EXPECTED_GLOBAL_SETTINGS = {
 
 
 EXPECTED_SKILL_SETTINGS = {
-    "g01-orchestrate-intake": ("opus", "low"),
+    "g01-orchestrate-intake": ("opus", "medium"),
     "g02-a01-plan-research-scope": ("opus", "medium"),
     "g02-a05-annotate-source-candidates": ("opus", "medium"),
     "g02-a05-deduplicate-source-records": ("opus", "medium"),
@@ -64,7 +64,9 @@ EXPECTED_SKILL_SETTINGS = {
     "g02-a06-retrieve-open-access-document": ("sonnet", "medium"),
     "g02-a06-validate-retrieved-document": ("sonnet", "medium"),
     "g02-a07-extract-paper-evidence": ("opus", "medium"),
+    "g02-a07-scout-light-review": ("sonnet", "high"),
     "g02-a08-assess-claim-evidence": ("opus", "medium"),
+    "g02-a09-scout-synthesis": ("opus", "medium"),
     "g02-a09-synthesize-research-findings": ("opus", "medium"),
     "g02-a11-extract-case-evidence": ("opus", "medium"),
     "g02-a11-find-market-cases": ("sonnet", "medium"),
@@ -118,7 +120,7 @@ def test_claude_agent_and_skill_model_effort_matrix_is_exact():
     assert actual_globals == EXPECTED_GLOBAL_SETTINGS
 
     actual_skills = {}
-    for skill in (item for item in source_skills() if item.name.startswith("g02-")):
+    for skill in (item for item in source_skills() if item.name.startswith(("g01-", "g02-"))):
         text = (skill / "adapters" / "claude.frontmatter.yaml").read_text(encoding="utf-8")
         model = re.search(r"^model:\s*(\S+)\s*$", text, re.MULTILINE)
         effort = re.search(r"^effort:\s*(\S+)\s*$", text, re.MULTILINE)
@@ -194,6 +196,8 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
             "shared/contracts/retrieved_corpus.schema.json",
             "shared/contracts/retrieval_directory.schema.json",
             "shared/contracts/paper_review.schema.json",
+            "shared/contracts/scout_a07_deep_dive.schema.json",
+            "shared/contracts/scout_a09_model_task.schema.json",
             "shared/contracts/research_state.schema.json",
             "shared/contracts/evidence_map.schema.json",
             "shared/contracts/user_research_validation_packet.schema.json",
@@ -211,6 +215,8 @@ def test_build_renders_all_skills_without_mutating_sources(tmp_path):
             "shared/scripts/g02/oa_retrieval.py",
             "shared/scripts/g02/retrieval.py",
             "shared/scripts/g02/paper_review.py",
+            "shared/scripts/g02/scout_a09_runner.py",
+            "shared/scripts/g02/scout_synthesis.py",
             "shared/scripts/g02/synthesis.py",
         ):
             assert (plugin / relative).is_file(), f"{host}: missing A03 file {relative}"

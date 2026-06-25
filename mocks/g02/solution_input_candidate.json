@@ -1,0 +1,1221 @@
+{
+  "a08_status": "skipped_scout_fast",
+  "a09_model_pass": true,
+  "artifact_version": "1.0.0",
+  "claim_assessment_performed": false,
+  "confidence": "low",
+  "coverage_gaps": [
+    {
+      "coverage_requirements": [
+        {
+          "coverage_id": "COV_FRA_SETTLEMENT_DISCOUNT",
+          "description": "Source documenting that FRA settlement payment at T1 is discounted back to settlement date as present value",
+          "mandatory": true,
+          "minimum_sources": 1,
+          "source_roles": [
+            "canonical"
+          ]
+        },
+        {
+          "coverage_id": "COV_FRA_DAY_COUNT_CONVENTION",
+          "description": "Source detailing ACT/365 or 30/360 day-count convention in FRA interest amount computation with numerical example",
+          "mandatory": true,
+          "minimum_sources": 1,
+          "source_roles": [
+            "canonical",
+            "didactic"
+          ]
+        }
+      ],
+      "gap_type": "no_review_candidate_after_prefilter",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL05",
+          "CL07",
+          "CL08",
+          "CL12"
+        ],
+        "concept_ids": [
+          "C04",
+          "C05",
+          "C06",
+          "C09"
+        ],
+        "driver_ids": [
+          "DRV04"
+        ],
+        "flow_issue_ids": [
+          "FI03"
+        ],
+        "update_need_ids": []
+      },
+      "note": "Scout downloaded PDFs, but the cheap topic prefilter found no source worth sending to A07.",
+      "topic_id": "TOPIC_FRA_SETTLEMENT_DAY_COUNT_EXAMPLES"
+    },
+    {
+      "coverage_requirements": [
+        {
+          "coverage_id": "COV_FRA_TIMELINE_SEPARATION",
+          "description": "Didactic or canonical source with explicit separation of FRA timeline stages: contract date (T0), settlement/reset date (T1) and maturity (T2)",
+          "mandatory": true,
+          "minimum_sources": 1,
+          "source_roles": [
+            "didactic",
+            "canonical"
+          ]
+        },
+        {
+          "coverage_id": "COV_FRA_VALUATION_STAGES",
+          "description": "Source clarifying the three distinct valuation moments: initial FRA rate derivation at T0, settlement payment at T1, and mark-to-market between T0 and T1",
+          "mandatory": false,
+          "minimum_sources": 1,
+          "source_roles": [
+            "didactic",
+            "canonical"
+          ]
+        }
+      ],
+      "gap_type": "no_review_candidate_after_prefilter",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL05",
+          "CL06"
+        ],
+        "concept_ids": [
+          "C02",
+          "C04",
+          "C05",
+          "C06",
+          "C10"
+        ],
+        "driver_ids": [
+          "DRV05"
+        ],
+        "flow_issue_ids": [
+          "FI01",
+          "FI02",
+          "FI04",
+          "FI05"
+        ],
+        "update_need_ids": []
+      },
+      "note": "Scout downloaded PDFs, but the cheap topic prefilter found no source worth sending to A07.",
+      "topic_id": "TOPIC_FRA_TIMELINE_PEDAGOGY"
+    },
+    {
+      "gap_id": "A09_DD_GAP_01",
+      "gap_type": "deep_dive_no_matching_signal",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL03",
+          "CL05",
+          "CL06"
+        ],
+        "concept_ids": [
+          "C04",
+          "C05"
+        ],
+        "driver_ids": [
+          "DRV03"
+        ],
+        "flow_issue_ids": [
+          "FI01",
+          "FI05"
+        ],
+        "update_need_ids": []
+      },
+      "note": "The bounded deep dive found no window with a topic-lens term match.",
+      "pointer_id": "A07_PTR_TOPIC_FRA_NAARB_PRICING_SPOT_CURVE_SCOUT_3EE4E7B9E3DEB80AE026_01",
+      "source_id": "SCOUT_3EE4E7B9E3DEB80AE026",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE"
+    },
+    {
+      "gap_id": "A09_DD_GAP_02",
+      "gap_type": "deep_dive_no_matching_signal",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL03",
+          "CL05",
+          "CL06"
+        ],
+        "concept_ids": [
+          "C04",
+          "C05"
+        ],
+        "driver_ids": [
+          "DRV03"
+        ],
+        "flow_issue_ids": [
+          "FI01",
+          "FI05"
+        ],
+        "update_need_ids": []
+      },
+      "note": "The bounded deep dive found no window with a topic-lens term match.",
+      "pointer_id": "A07_PTR_TOPIC_FRA_NAARB_PRICING_SPOT_CURVE_SCOUT_82FBE3F31A9741471348_01",
+      "source_id": "SCOUT_82FBE3F31A9741471348",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE"
+    },
+    {
+      "gap_id": "A09_DD_GAP_03",
+      "gap_type": "deep_dive_no_matching_signal",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL03",
+          "CL05",
+          "CL06"
+        ],
+        "concept_ids": [
+          "C04",
+          "C05"
+        ],
+        "driver_ids": [
+          "DRV03"
+        ],
+        "flow_issue_ids": [
+          "FI01",
+          "FI05"
+        ],
+        "update_need_ids": []
+      },
+      "note": "The bounded deep dive found no window with a topic-lens term match.",
+      "pointer_id": "A07_PTR_TOPIC_FRA_NAARB_PRICING_SPOT_CURVE_SCOUT_A343DAEE69ED1A50B124_01",
+      "source_id": "SCOUT_A343DAEE69ED1A50B124",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE"
+    },
+    {
+      "gap_id": "A09_DD_GAP_04",
+      "gap_type": "deep_dive_no_matching_signal",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL01",
+          "CL02",
+          "CL10",
+          "CL11"
+        ],
+        "concept_ids": [
+          "C01",
+          "C02",
+          "C04"
+        ],
+        "driver_ids": [
+          "DRV01"
+        ],
+        "flow_issue_ids": [],
+        "update_need_ids": []
+      },
+      "note": "The bounded deep dive found no window with a topic-lens term match.",
+      "pointer_id": "A07_PTR_TOPIC_FRA_OTC_CASH_SETTLEMENT_SCOUT_1C1D1E0E1027F3F68138_01",
+      "source_id": "SCOUT_1C1D1E0E1027F3F68138",
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT"
+    },
+    {
+      "gap_id": "A09_DD_GAP_05",
+      "gap_type": "deep_dive_no_matching_signal",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL01",
+          "CL02",
+          "CL10",
+          "CL11"
+        ],
+        "concept_ids": [
+          "C01",
+          "C02",
+          "C04"
+        ],
+        "driver_ids": [
+          "DRV01"
+        ],
+        "flow_issue_ids": [],
+        "update_need_ids": []
+      },
+      "note": "The bounded deep dive found no window with a topic-lens term match.",
+      "pointer_id": "A07_PTR_TOPIC_FRA_OTC_CASH_SETTLEMENT_SCOUT_3D0367EC3AF9474E834C_01",
+      "source_id": "SCOUT_3D0367EC3AF9474E834C",
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT"
+    }
+  ],
+  "deep_dive_used": [
+    {
+      "deep_dive_id": "A09_DD_01",
+      "limitations": [],
+      "matching_window_count": 0,
+      "pointer_id": "A07_PTR_TOPIC_FRA_NAARB_PRICING_SPOT_CURVE_SCOUT_3EE4E7B9E3DEB80AE026_01",
+      "selection_criterion": "high_priority_claim_without_certain_evidence",
+      "source_id": "SCOUT_3EE4E7B9E3DEB80AE026",
+      "status": "no_matching_signal",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE",
+      "window_count": 4
+    },
+    {
+      "deep_dive_id": "A09_DD_02",
+      "limitations": [],
+      "matching_window_count": 0,
+      "pointer_id": "A07_PTR_TOPIC_FRA_NAARB_PRICING_SPOT_CURVE_SCOUT_82FBE3F31A9741471348_01",
+      "selection_criterion": "high_priority_claim_without_certain_evidence",
+      "source_id": "SCOUT_82FBE3F31A9741471348",
+      "status": "no_matching_signal",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE",
+      "window_count": 2
+    },
+    {
+      "deep_dive_id": "A09_DD_03",
+      "limitations": [],
+      "matching_window_count": 0,
+      "pointer_id": "A07_PTR_TOPIC_FRA_NAARB_PRICING_SPOT_CURVE_SCOUT_A343DAEE69ED1A50B124_01",
+      "selection_criterion": "high_priority_claim_without_certain_evidence",
+      "source_id": "SCOUT_A343DAEE69ED1A50B124",
+      "status": "no_matching_signal",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE",
+      "window_count": 2
+    },
+    {
+      "deep_dive_id": "A09_DD_04",
+      "limitations": [],
+      "matching_window_count": 0,
+      "pointer_id": "A07_PTR_TOPIC_FRA_OTC_CASH_SETTLEMENT_SCOUT_1C1D1E0E1027F3F68138_01",
+      "selection_criterion": "high_priority_claim_without_certain_evidence",
+      "source_id": "SCOUT_1C1D1E0E1027F3F68138",
+      "status": "no_matching_signal",
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT",
+      "window_count": 2
+    },
+    {
+      "deep_dive_id": "A09_DD_05",
+      "limitations": [],
+      "matching_window_count": 0,
+      "pointer_id": "A07_PTR_TOPIC_FRA_OTC_CASH_SETTLEMENT_SCOUT_3D0367EC3AF9474E834C_01",
+      "selection_criterion": "high_priority_claim_without_certain_evidence",
+      "source_id": "SCOUT_3D0367EC3AF9474E834C",
+      "status": "no_matching_signal",
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT",
+      "window_count": 2
+    },
+    {
+      "note": "Fries (2016) Fig.1 window shows USD-3M forward curve calibrated with different collateralization (OIS), corroborating the multi-curve footnote from Baran & Witzany. Added to evidence of the kept update.",
+      "source_id": "SCOUT_82FBE3F31A9741471348",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE",
+      "use": "corroboration"
+    }
+  ],
+  "do_not_change": [],
+  "evidence_map_ref": "/home/laplasjan/ema-testing/.emagents/g02/awif_2025_wyk_09_fra/a07/reviews.json#/presentation_update_candidates",
+  "generated_at": "2026-06-25T06:55:03Z",
+  "graph03_handoff_constraints": {
+    "compact": true,
+    "graph03_must_not_call_g02": true,
+    "locked_sections": [],
+    "no_full_pdfs": true,
+    "no_full_text": true,
+    "output_language": "pl",
+    "ready_to_apply_updates_required": true
+  },
+  "intake_ref": "/home/laplasjan/ema-testing/.emagents/artifacts/handoffs/g02_input.json",
+  "limitations": [
+    "Prepared artifact only: A07 model has not yet produced final presentation_update_candidates.",
+    "PDF reading is bounded to sampled pages and selected text windows; full-document reading is forbidden.",
+    "A08 claim verification was skipped in scout_fast mode.",
+    "A09 did not read full PDFs; it used A07 bounded reviews and optional bounded deep-dive windows."
+  ],
+  "optional_improvements": [],
+  "plan_ref": "/home/laplasjan/ema-testing/.emagents/g02/scout-live-canonical-recent-20260624T182520Z/runs/awif_2025_wyk_09_fra/plan.json",
+  "presentation_context": {
+    "audience_level": "university finance / quantitative finance students",
+    "course_name": "Analiza i wycena instrumentów finansowych",
+    "locked_sections": [],
+    "output_language": "pl",
+    "target_duration_minutes": null,
+    "teaching_goal": "Zweryfikować i wesprzeć wykład o kontraktach FRA: definicje, rozliczenie, wycena stopy FRA, wartość pozycji, przykłady rachunkowe oraz typowe błędy dydaktyczne."
+  },
+  "schema_version": "solution_input_candidate@1",
+  "slide_revision_priorities": [
+    {
+      "priority_score": 13,
+      "reason": "confidence=medium (+1); extension_relation=extends (+1); corroborated by deep dive window from Fries 2016 (+2); links CL06 and CL03 (high-priority claims)",
+      "update_id": "A07_UPD_TOPIC_FRA_NAARB_PRICING_SPOT_CURVE_SCOUT_6B419F2A7E5C613F971E_01"
+    }
+  ],
+  "slide_update_plan": [
+    {
+      "action": "add_or_refine_content",
+      "confidence": "medium",
+      "deep_dive_id": null,
+      "evidence_refs": [
+        {
+          "location": "p.99, window 2",
+          "quote": "Using one curve to both estimating the forward rates and discounting future cash flows is not plausible given the prerequisite of arbitr[age-free pricing]",
+          "source_id": "SCOUT_6B419F2A7E5C613F971E"
+        },
+        {
+          "location": "p.22, Fig.1",
+          "quote": "Forward curve (USD-3M) calibrated from swaps with different collateralization (USD-OIS and EUR-OIS) assuming independence of the market rates",
+          "source_id": "SCOUT_82FBE3F31A9741471348"
+        }
+      ],
+      "extension_relation": "extends",
+      "finding": "Baran & Witzany (2014) and Fries (2016) together confirm that the classical single-curve FRA pricing formula is the correct pedagogical baseline but requires a post-crisis qualifier: forward rate estimation and discounting use separate curves (multi-curve framework) in practice.",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL03",
+          "CL06"
+        ],
+        "concept_ids": [
+          "C05"
+        ],
+        "driver_ids": [
+          "DRV03"
+        ],
+        "flow_issue_ids": [
+          "FI01",
+          "FI05"
+        ],
+        "update_need_ids": []
+      },
+      "pointer_id": null,
+      "rationale": "Verified by two independent sources in the deep dive. Evidence is bounded to extracted windows; full arbitrage proof not visible but context is unambiguous.",
+      "ready_to_apply_text": {
+        "optional_detail": "Corroborated by Fries (2016) Fig.1: USD-3M forward curve calibrated from swaps with USD-OIS vs EUR-OIS collateralization.",
+        "slide_bullet": "Uwaga: po 2008 r. wycena instrumentów opartych na stopach IBOR wymaga rozróżnienia krzywej forward i krzywej dyskontowej (podejście multi-curve). Klasyczna formuła FRA pozostaje punktem wyjścia, lecz w praktyce stosuje się korektę o spread bazowy (zob. Baran & Witzany 2014, POLITICKÁ EKONOMIE; Fries 2016 - koroboracja).",
+        "speaker_note": "Post-2008 multi-curve framework verifies CL06: single-curve FRA formula is pedagogically correct but needs a caveat for real-market practice where IBOR forward curve ≠ OIS discount curve. Baran & Witzany (2014) confirm basis spread presence; Fries (2016) shows calibration of separate OIS and IBOR forward curves."
+      },
+      "source_id": "SCOUT_6B419F2A7E5C613F971E",
+      "source_refs": [
+        {
+          "doi": "10.18267/j.polek.938",
+          "source_id": "SCOUT_6B419F2A7E5C613F971E",
+          "source_type": "canonical",
+          "title": "Yield Curve Construction after Crisis",
+          "venue": "POLITICKÁ EKONOMIE",
+          "year": 2014
+        },
+        {
+          "doi": "10.1007/978-3-319-33446-2_11",
+          "source_id": "SCOUT_82FBE3F31A9741471348",
+          "source_type": "canonical",
+          "title": "Multi-curve Construction",
+          "venue": null,
+          "year": 2016
+        }
+      ],
+      "source_type": null,
+      "target": {
+        "affected_slides": [],
+        "placement": "best_fit_by_graph03",
+        "section": "FRA rate derivation from spot curve: no-arbitrage pricing and initial fair value zero",
+        "section_hint": "FRA rate derivation from spot curve: no-arbitrage pricing and initial fair value zero",
+        "slide_ids": [],
+        "teaching_role": "research_enrichment"
+      },
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE",
+      "update_id": "A07_UPD_TOPIC_FRA_NAARB_PRICING_SPOT_CURVE_SCOUT_6B419F2A7E5C613F971E_01"
+    }
+  ],
+  "source_pipeline": "intake -> a01 -> scout -> a07 -> a09",
+  "source_refs": [
+    {
+      "a07_review_status": "irrelevant_for_topic",
+      "doi": "10.1016/j.apenergy.2021.116697",
+      "source_id": "SCOUT_63345EDF0665E54031DB",
+      "source_type": "canonical",
+      "title": "Policy options for enhancing economic profitability of residential solar photovoltaic with battery energy storage",
+      "venue": "Applied Energy",
+      "year": 2021
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.1111/mafi.12183",
+      "source_id": "SCOUT_A873F50F8A7383522008",
+      "source_type": "canonical",
+      "title": "Affine multiple yield curve models",
+      "venue": "Mathematical Finance",
+      "year": 2018
+    },
+    {
+      "a07_review_status": "context_only",
+      "doi": "10.1016/j.jbankfin.2018.10.001",
+      "source_id": "SCOUT_A343DAEE69ED1A50B124",
+      "source_type": "canonical",
+      "title": "An analysis of the Solvency II regulatory framework’s Smith-Wilson model for the term structure of risk-free interest rates",
+      "venue": "Journal of Banking & Finance",
+      "year": 2018
+    },
+    {
+      "a07_review_status": "useful_for_update",
+      "doi": "10.18267/j.polek.938",
+      "source_id": "SCOUT_6B419F2A7E5C613F971E",
+      "source_type": "canonical",
+      "title": "Yield Curve Construction after Crisis",
+      "venue": "Politická ekonomie",
+      "year": 2014
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.24149/gwp46",
+      "source_id": "SCOUT_582C22F4A54D352BFECA",
+      "source_type": "canonical",
+      "title": "What Determines European Real Exchange Rates?",
+      "venue": "Federal Reserve Bank of Dallas, Globalization and Monetary Policy Institute Working Papers",
+      "year": 2010
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.1017/s0515036100014410",
+      "source_id": "SCOUT_DE16D46F39680EFB17BD",
+      "source_type": "canonical",
+      "title": "Pricing Death: Frameworks for the Valuation and Securitization of Mortality Risk",
+      "venue": "Astin Bulletin",
+      "year": 2006
+    },
+    {
+      "a07_review_status": "context_only",
+      "doi": "10.1007/978-3-319-33446-2_11",
+      "source_id": "SCOUT_82FBE3F31A9741471348",
+      "source_type": "canonical",
+      "title": "Multi-curve Construction",
+      "venue": "Springer proceedings in mathematics & statistics",
+      "year": 2016
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.1007/s10287-018-0319-8",
+      "source_id": "SCOUT_B8D9EED637B030E8D3E8",
+      "source_type": "canonical",
+      "title": "Simulation and evaluation of the distribution of interest rate risk",
+      "venue": "Computational Management Science",
+      "year": 2018
+    },
+    {
+      "a07_review_status": "irrelevant_for_topic",
+      "doi": "10.1080/14697680802637908",
+      "source_id": "SCOUT_64E7F2C75533FACE5BF8",
+      "source_type": "canonical",
+      "title": "Cash management using multi-stage stochastic programming",
+      "venue": "Quantitative Finance",
+      "year": 2009
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.5547/01956574.39.2.ibla",
+      "source_id": "SCOUT_02AF50A01DCEE40B3303",
+      "source_type": "canonical",
+      "title": "Modelling Electricity Swaps with Stochastic Forward Premium Models",
+      "venue": "The Energy Journal",
+      "year": 2017
+    },
+    {
+      "a07_review_status": "context_only",
+      "doi": "10.17016/bulletin.1996.82-2",
+      "source_id": "SCOUT_3EE4E7B9E3DEB80AE026",
+      "source_type": "canonical",
+      "title": "An Analysis of Commercial Bank Exposure to Interest Rate Risk",
+      "venue": "Federal Reserve Bulletin",
+      "year": 1996
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.3386/w31787",
+      "source_id": "SCOUT_145C715DC036D15672B2",
+      "source_type": "recent",
+      "title": "Global Natural Rates in the Long Run: Postwar Macro Trends and the Market-Implied r* in 10 Advanced Economies",
+      "venue": "National Bureau of Economic Research",
+      "year": 2023
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.2202/1534-5998.1088",
+      "source_id": "SCOUT_8F6052A5B64C3DE007BE",
+      "source_type": "canonical",
+      "title": "Monetary Policy When the Nominal Short-Term Interest Rate is Zero",
+      "venue": "Topics in Macroeconomics",
+      "year": 2003
+    },
+    {
+      "a07_review_status": "context_only",
+      "doi": "10.5430/ijfr.v8n4p23",
+      "source_id": "SCOUT_BF55D3014908514BDAC3",
+      "source_type": "canonical",
+      "title": "Bank Lending and Interest- Rate Derivatives",
+      "venue": "International Journal of Financial Research",
+      "year": 2017
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.3386/w23170",
+      "source_id": "SCOUT_26AEDB41596C3999C88D",
+      "source_type": "canonical",
+      "title": "Deviations from Covered Interest Rate Parity",
+      "venue": "National Bureau of Economic Research",
+      "year": 2017
+    },
+    {
+      "a07_review_status": "context_only",
+      "doi": "10.5937/ekopre1404201p",
+      "source_id": "SCOUT_3D0367EC3AF9474E834C",
+      "source_type": "canonical",
+      "title": "Managing interest rate risk with interest rate futures",
+      "venue": "Ekonomika preduzeca",
+      "year": 2014
+    },
+    {
+      "a07_review_status": "context_only",
+      "doi": "10.18267/j.efaj.168",
+      "source_id": "SCOUT_1C1D1E0E1027F3F68138",
+      "source_type": "canonical",
+      "title": "The Czech Crown Money Market as the Source for Pricing Customer Cash Products",
+      "venue": "European Financial and Accounting Journal",
+      "year": 2016
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.3386/w13416",
+      "source_id": "SCOUT_663F7735A17275035988",
+      "source_type": "canonical",
+      "title": "Financial Innovation and the Transactions Demand for Cash",
+      "venue": "National Bureau of Economic Research",
+      "year": 2007
+    },
+    {
+      "a07_review_status": "context_only",
+      "doi": "10.3386/w4801",
+      "source_id": "SCOUT_F3B73071BABBBA188B5C",
+      "source_type": "canonical",
+      "title": "Over-the-Counter Derivatives and Systemic Risk to the Global Financial System",
+      "venue": "National Bureau of Economic Research",
+      "year": 1994
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.47688/rdp2023-05",
+      "source_id": "SCOUT_33EFC78A7BB2C0193CD7",
+      "source_type": "recent",
+      "title": "The Impact of Interest Rates on Bank Profitability: A Retrospective Assessment Using New Cross-country Bank-level Data",
+      "venue": null,
+      "year": 2023
+    },
+    {
+      "a07_review_status": "insufficient",
+      "doi": "10.3384/diss.diva-162576",
+      "source_id": "SCOUT_22CA2A1ECD6E152B261C",
+      "source_type": "canonical",
+      "title": "Optimization-Based Models for Measuring and Hedging Risk in Fixed Income Markets",
+      "venue": "Linköping studies in science and technology. Dissertations",
+      "year": 2019
+    },
+    {
+      "a07_review_status": "context_only",
+      "doi": "10.5089/9781557759993.084",
+      "source_id": "SCOUT_6CE28B2FABF52DE6F4F5",
+      "source_type": "canonical",
+      "title": "Modern Banking and OTC Derivatives Markets: The Transformation of Global Finance and its Implications for Systemic Risk",
+      "venue": "Occasional paper/Occasional paper ",
+      "year": 2001
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.5089/9781557758491.051",
+      "source_id": "SCOUT_A8EBFA70CD940715E331",
+      "source_type": "canonical",
+      "title": "Hedge Funds: What Do We Really Know?",
+      "venue": "Economic issues",
+      "year": 1999
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.5282/edoc.19040",
+      "source_id": "SCOUT_4DB8CED92C2E9589461A",
+      "source_type": "canonical",
+      "title": "The asymptotic behavior of the term structure of interest rates",
+      "venue": "Electronic Theses of LMU Munich (Ludwig-Maximilians-Universität München)",
+      "year": 2015
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.17016/feds.2007.55",
+      "source_id": "SCOUT_5E3273C7627A6A095FF6",
+      "source_type": "canonical",
+      "title": "Implied Interest Rate Skew, Term Premiums, and the \"Conundrum\"",
+      "venue": "Finance and Economics Discussion Series",
+      "year": 2007
+    },
+    {
+      "a07_review_status": "irrelevant_for_topic",
+      "doi": "10.1146/annurev-astro-091916-055313",
+      "source_id": "SCOUT_069D05944B284340FAC4",
+      "source_type": "canonical",
+      "title": "Small-Scale Challenges to the <b><i>Λ</i></b>CDM Paradigm",
+      "venue": "Annual Review of Astronomy and Astrophysics",
+      "year": 2017
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.3310/hta5210",
+      "source_id": "SCOUT_77D8B0DB386A22A44BB8",
+      "source_type": "canonical",
+      "title": "Systematic reviews of the effectiveness of day care for people with severe mental disorders: (1) Acute day hospital versus admission; (2) Vocational rehabilitation; (3) Day hospital versus outpatient care",
+      "venue": "Health Technology Assessment",
+      "year": 2001
+    },
+    {
+      "a07_review_status": "irrelevant",
+      "doi": "10.1080/17408989.2019.1628934",
+      "source_id": "SCOUT_DD7EAE3FA0DF90BA1392",
+      "source_type": "canonical",
+      "title": "Preservice teachers implementing a nonlinear physical education pedagogy",
+      "venue": "Physical Education and Sport Pedagogy",
+      "year": 2019
+    }
+  ],
+  "suggested_updates": [
+    {
+      "action": "add_or_refine_content",
+      "confidence": "medium",
+      "deep_dive_id": null,
+      "evidence_refs": [
+        {
+          "location": "p.99, window 2",
+          "quote": "Using one curve to both estimating the forward rates and discounting future cash flows is not plausible given the prerequisite of arbitr[age-free pricing]",
+          "source_id": "SCOUT_6B419F2A7E5C613F971E"
+        },
+        {
+          "location": "p.22, Fig.1",
+          "quote": "Forward curve (USD-3M) calibrated from swaps with different collateralization (USD-OIS and EUR-OIS) assuming independence of the market rates",
+          "source_id": "SCOUT_82FBE3F31A9741471348"
+        }
+      ],
+      "extension_relation": "extends",
+      "finding": "Baran & Witzany (2014) and Fries (2016) together confirm that the classical single-curve FRA pricing formula is the correct pedagogical baseline but requires a post-crisis qualifier: forward rate estimation and discounting use separate curves (multi-curve framework) in practice.",
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL03",
+          "CL06"
+        ],
+        "concept_ids": [
+          "C05"
+        ],
+        "driver_ids": [
+          "DRV03"
+        ],
+        "flow_issue_ids": [
+          "FI01",
+          "FI05"
+        ],
+        "update_need_ids": []
+      },
+      "pointer_id": null,
+      "rationale": "Verified by two independent sources in the deep dive. Evidence is bounded to extracted windows; full arbitrage proof not visible but context is unambiguous.",
+      "ready_to_apply_text": {
+        "optional_detail": "Corroborated by Fries (2016) Fig.1: USD-3M forward curve calibrated from swaps with USD-OIS vs EUR-OIS collateralization.",
+        "slide_bullet": "Uwaga: po 2008 r. wycena instrumentów opartych na stopach IBOR wymaga rozróżnienia krzywej forward i krzywej dyskontowej (podejście multi-curve). Klasyczna formuła FRA pozostaje punktem wyjścia, lecz w praktyce stosuje się korektę o spread bazowy (zob. Baran & Witzany 2014, POLITICKÁ EKONOMIE; Fries 2016 - koroboracja).",
+        "speaker_note": "Post-2008 multi-curve framework verifies CL06: single-curve FRA formula is pedagogically correct but needs a caveat for real-market practice where IBOR forward curve ≠ OIS discount curve. Baran & Witzany (2014) confirm basis spread presence; Fries (2016) shows calibration of separate OIS and IBOR forward curves."
+      },
+      "source_id": "SCOUT_6B419F2A7E5C613F971E",
+      "source_refs": [
+        {
+          "doi": "10.18267/j.polek.938",
+          "source_id": "SCOUT_6B419F2A7E5C613F971E",
+          "source_type": "canonical",
+          "title": "Yield Curve Construction after Crisis",
+          "venue": "POLITICKÁ EKONOMIE",
+          "year": 2014
+        },
+        {
+          "doi": "10.1007/978-3-319-33446-2_11",
+          "source_id": "SCOUT_82FBE3F31A9741471348",
+          "source_type": "canonical",
+          "title": "Multi-curve Construction",
+          "venue": null,
+          "year": 2016
+        }
+      ],
+      "source_type": null,
+      "target": {
+        "affected_slides": [],
+        "placement": "best_fit_by_graph03",
+        "section": "FRA rate derivation from spot curve: no-arbitrage pricing and initial fair value zero",
+        "section_hint": "FRA rate derivation from spot curve: no-arbitrage pricing and initial fair value zero",
+        "slide_ids": [],
+        "teaching_role": "research_enrichment"
+      },
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE",
+      "update_id": "A07_UPD_TOPIC_FRA_NAARB_PRICING_SPOT_CURVE_SCOUT_6B419F2A7E5C613F971E_01"
+    }
+  ],
+  "synthesis_engine": "a09_opus_medium",
+  "synthesis_mode": "scout_fast",
+  "task_id": "awif_2025_wyk_09_fra",
+  "topics_covered": [
+    {
+      "coverage_note": "needs_a07_review",
+      "linked_claims": [
+        "CL03",
+        "CL05",
+        "CL06"
+      ],
+      "linked_concepts": [
+        "C04",
+        "C05"
+      ],
+      "linked_flow_issues": [
+        "FI01",
+        "FI05"
+      ],
+      "linked_update_needs": [],
+      "name": "FRA rate derivation from spot curve: no-arbitrage pricing and initial fair value zero",
+      "source_count": 10,
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE"
+    },
+    {
+      "coverage_note": "needs_a07_review",
+      "linked_claims": [
+        "CL01",
+        "CL02",
+        "CL10",
+        "CL11"
+      ],
+      "linked_concepts": [
+        "C01",
+        "C02",
+        "C04"
+      ],
+      "linked_flow_issues": [],
+      "linked_update_needs": [],
+      "name": "FRA as OTC interest-rate derivative: construction, notional and cash settlement mechanics",
+      "source_count": 7,
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT"
+    },
+    {
+      "coverage_note": "needs_a07_review",
+      "linked_claims": [
+        "CL04",
+        "CL09"
+      ],
+      "linked_concepts": [
+        "C03",
+        "C08"
+      ],
+      "linked_flow_issues": [],
+      "linked_update_needs": [],
+      "name": "FRA payoff direction and interest rate hedging for borrowers and lenders",
+      "source_count": 6,
+      "topic_id": "TOPIC_FRA_PAYOFF_LONG_SHORT_HEDGING"
+    },
+    {
+      "coverage_note": "coverage_gap",
+      "linked_claims": [
+        "CL05",
+        "CL07",
+        "CL08",
+        "CL12"
+      ],
+      "linked_concepts": [
+        "C04",
+        "C05",
+        "C06",
+        "C09"
+      ],
+      "linked_flow_issues": [
+        "FI03"
+      ],
+      "linked_update_needs": [],
+      "name": "FRA settlement discounting and day-count conventions in worked numerical examples",
+      "source_count": 1,
+      "topic_id": "TOPIC_FRA_SETTLEMENT_DAY_COUNT_EXAMPLES"
+    },
+    {
+      "coverage_note": "coverage_gap",
+      "linked_claims": [
+        "CL05",
+        "CL06"
+      ],
+      "linked_concepts": [
+        "C02",
+        "C04",
+        "C05",
+        "C06",
+        "C10"
+      ],
+      "linked_flow_issues": [
+        "FI01",
+        "FI02",
+        "FI04",
+        "FI05"
+      ],
+      "linked_update_needs": [],
+      "name": "FRA lifecycle pedagogy: separating pricing, settlement and post-inception mark-to-market",
+      "source_count": 1,
+      "topic_id": "TOPIC_FRA_TIMELINE_PEDAGOGY"
+    }
+  ],
+  "unresolved_items": [
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL05",
+          "CL07",
+          "CL08",
+          "CL12"
+        ],
+        "driver_ids": [
+          "DRV04"
+        ]
+      },
+      "question": "No source in Scout corpus addresses FRA settlement discounting formula (CL05: payment discounted to T1). TOPIC_FRA_SETTLEMENT_DAY_COUNT_EXAMPLES had only off-topic downloads (mental health day-care, cosmology).",
+      "recommendation": "New Scout run targeting FRA settlement formula textbooks (Hull, McDonald) or BBA FRA documentation required.",
+      "topic_id": "TOPIC_FRA_SETTLEMENT_DAY_COUNT_EXAMPLES",
+      "why_unresolved": "no_review_candidate_after_prefilter"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL05",
+          "CL06"
+        ],
+        "driver_ids": [
+          "DRV05"
+        ]
+      },
+      "question": "No source addresses the FRA timeline pedagogy (T0/T1/T2 stage separation). TOPIC_FRA_TIMELINE_PEDAGOGY found only a physical education pedagogy paper.",
+      "recommendation": "Targeted re-run with FRA-specific keyword anchors (FRA timeline, settlement date, reset date, maturity date).",
+      "topic_id": "TOPIC_FRA_TIMELINE_PEDAGOGY",
+      "why_unresolved": "no_review_candidate_after_prefilter"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL03",
+          "CL06"
+        ],
+        "driver_ids": [
+          "DRV03"
+        ]
+      },
+      "question": "Multi-curve FRA pricing: no source provides explicit FRA no-arbitrage formula under multi-curve (deep dive windows truncated or abstract only).",
+      "recommendation": "Full-text access to Fries (2016) chapter would resolve; alternatively cite Bianchetti (2010) on single-curve vs multi-curve FRA.",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL06"
+        ]
+      },
+      "question": "Smith-Wilson term-structure model (SCOUT_A343DAEE69ED1A50B124): A07 classified as context_only. Deep dive windows contain copyright page + NS/Svensson discussion. No FRA formula.",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL06"
+        ]
+      },
+      "question": "Commercial bank IR risk paper (Wright & Houpt 1996): A07 context_only. Deep dive p11 discusses bank gap analysis, not FRA formula.",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL01",
+          "CL02"
+        ]
+      },
+      "question": "Czech Crown money market (Staniek 2016): A07 context_only for FRA settlement. Deep dive confirms PRIBOR-based pricing context only, no settlement formula.",
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL01",
+          "CL11"
+        ]
+      },
+      "question": "Zhao & Moser (2017) Bank Lending and IR Derivatives: A07 context_only. Windows show regression methodology; no FRA payoff or OTC settlement mechanics.",
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL01",
+          "CL11"
+        ]
+      },
+      "question": "Darby (1994) OTC Derivatives and Systemic Risk: A07 context_only. 1994 historical paper on OTC market structure; no FRA cash settlement formula.",
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL01",
+          "CL02"
+        ]
+      },
+      "question": "Pepic (2014) Managing IR Risk with Futures: deep dive p2 confirms paper is about IR futures, not FRA OTC cash settlement.",
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL11"
+        ]
+      },
+      "question": "Drees & Nguyen (2001) Modern Banking and OTC Derivatives: A07 context_only. Windows provide institutional OTC market context; no FRA long/short payoff formula.",
+      "topic_id": "TOPIC_FRA_PAYOFF_LONG_SHORT_HEDGING",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL05",
+          "CL07",
+          "CL08",
+          "CL12"
+        ],
+        "concept_ids": [
+          "C04",
+          "C05",
+          "C06",
+          "C09"
+        ],
+        "driver_ids": [
+          "DRV04"
+        ],
+        "flow_issue_ids": [
+          "FI03"
+        ],
+        "update_need_ids": []
+      },
+      "question": "Scout downloaded PDFs, but the cheap topic prefilter found no source worth sending to A07.",
+      "topic_id": "TOPIC_FRA_SETTLEMENT_DAY_COUNT_EXAMPLES",
+      "what_would_resolve": "Run a narrower Scout query or provide a canonical source.",
+      "why_unresolved": "no_review_candidate_after_prefilter"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL05",
+          "CL06"
+        ],
+        "concept_ids": [
+          "C02",
+          "C04",
+          "C05",
+          "C06",
+          "C10"
+        ],
+        "driver_ids": [
+          "DRV05"
+        ],
+        "flow_issue_ids": [
+          "FI01",
+          "FI02",
+          "FI04",
+          "FI05"
+        ],
+        "update_need_ids": []
+      },
+      "question": "Scout downloaded PDFs, but the cheap topic prefilter found no source worth sending to A07.",
+      "topic_id": "TOPIC_FRA_TIMELINE_PEDAGOGY",
+      "what_would_resolve": "Run a narrower Scout query or provide a canonical source.",
+      "why_unresolved": "no_review_candidate_after_prefilter"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL03",
+          "CL05",
+          "CL06"
+        ],
+        "concept_ids": [
+          "C04",
+          "C05"
+        ],
+        "driver_ids": [
+          "DRV03"
+        ],
+        "flow_issue_ids": [
+          "FI01",
+          "FI05"
+        ],
+        "update_need_ids": []
+      },
+      "question": "A07 found useful context but not a ready presentation update.",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE",
+      "what_would_resolve": "Inspect the source under the original topic lens.; deep-dive result: The bounded deep dive found no window with a topic-lens term match.",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL03",
+          "CL05",
+          "CL06"
+        ],
+        "concept_ids": [
+          "C04",
+          "C05"
+        ],
+        "driver_ids": [
+          "DRV03"
+        ],
+        "flow_issue_ids": [
+          "FI01",
+          "FI05"
+        ],
+        "update_need_ids": []
+      },
+      "question": "A07 found useful context but not a ready presentation update.",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE",
+      "what_would_resolve": "Inspect the source under the original topic lens.; deep-dive result: The bounded deep dive found no window with a topic-lens term match.",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL03",
+          "CL05",
+          "CL06"
+        ],
+        "concept_ids": [
+          "C04",
+          "C05"
+        ],
+        "driver_ids": [
+          "DRV03"
+        ],
+        "flow_issue_ids": [
+          "FI01",
+          "FI05"
+        ],
+        "update_need_ids": []
+      },
+      "question": "A07 found useful context but not a ready presentation update.",
+      "topic_id": "TOPIC_FRA_NAARB_PRICING_SPOT_CURVE",
+      "what_would_resolve": "Inspect the source under the original topic lens.; deep-dive result: The bounded deep dive found no window with a topic-lens term match.",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL01",
+          "CL02",
+          "CL10",
+          "CL11"
+        ],
+        "concept_ids": [
+          "C01",
+          "C02",
+          "C04"
+        ],
+        "driver_ids": [
+          "DRV01"
+        ],
+        "flow_issue_ids": [],
+        "update_need_ids": []
+      },
+      "question": "A07 found useful context but not a ready presentation update.",
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT",
+      "what_would_resolve": "Inspect the source under the original topic lens.",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL01",
+          "CL02",
+          "CL10",
+          "CL11"
+        ],
+        "concept_ids": [
+          "C01",
+          "C02",
+          "C04"
+        ],
+        "driver_ids": [
+          "DRV01"
+        ],
+        "flow_issue_ids": [],
+        "update_need_ids": []
+      },
+      "question": "A07 found useful context but not a ready presentation update.",
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT",
+      "what_would_resolve": "Inspect the source under the original topic lens.; deep-dive result: The bounded deep dive found no window with a topic-lens term match.",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL01",
+          "CL02",
+          "CL10",
+          "CL11"
+        ],
+        "concept_ids": [
+          "C01",
+          "C02",
+          "C04"
+        ],
+        "driver_ids": [
+          "DRV01"
+        ],
+        "flow_issue_ids": [],
+        "update_need_ids": []
+      },
+      "question": "A07 found useful context but not a ready presentation update.",
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT",
+      "what_would_resolve": "Inspect the source under the original topic lens.; deep-dive result: The bounded deep dive found no window with a topic-lens term match.",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL01",
+          "CL02",
+          "CL10",
+          "CL11"
+        ],
+        "concept_ids": [
+          "C01",
+          "C02",
+          "C04"
+        ],
+        "driver_ids": [
+          "DRV01"
+        ],
+        "flow_issue_ids": [],
+        "update_need_ids": []
+      },
+      "question": "A07 found useful context but not a ready presentation update.",
+      "topic_id": "TOPIC_FRA_OTC_CASH_SETTLEMENT",
+      "what_would_resolve": "Inspect the source under the original topic lens.",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    },
+    {
+      "linked_intake_ids": {
+        "claim_ids": [
+          "CL04",
+          "CL09"
+        ],
+        "concept_ids": [
+          "C03",
+          "C08"
+        ],
+        "driver_ids": [
+          "DRV02"
+        ],
+        "flow_issue_ids": [],
+        "update_need_ids": []
+      },
+      "question": "A07 found useful context but not a ready presentation update.",
+      "topic_id": "TOPIC_FRA_PAYOFF_LONG_SHORT_HEDGING",
+      "what_would_resolve": "Inspect the source under the original topic lens.",
+      "why_unresolved": "lookup_pointer_not_resolved"
+    }
+  ]
+}

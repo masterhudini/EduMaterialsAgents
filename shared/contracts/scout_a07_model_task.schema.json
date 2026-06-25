@@ -1,0 +1,44 @@
+{
+  "title": "One host-model G02-A07 Scout light review task",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "topic_id", "source_id",
+    "work_input_ref", "topic_lens", "source", "prefilter", "selected_windows",
+    "intake_context", "model_policy", "expected_output", "rules"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["scout_a07_model_task@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "topic_id": {"type": "string"},
+    "source_id": {"type": "string"},
+    "work_input_ref": {"type": "string"},
+    "topic_lens": {"type": "object"},
+    "source": {"type": "object"},
+    "prefilter": {"type": "object"},
+    "selected_windows": {"type": "array", "items": {"type": "object"}},
+    "intake_context": {"type": "object"},
+    "model_policy": {
+      "type": "object",
+      "required": ["recommended_model", "reasoning_effort", "parallel_unit"],
+      "properties": {
+        "recommended_model": {"type": "string"},
+        "reasoning_effort": {"type": "string"},
+        "parallel_unit": {"type": "string", "enum": ["topic_source"]},
+        "full_pdf_forbidden": {"type": "boolean"}
+      }
+    },
+    "expected_output": {
+      "type": "object",
+      "required": ["finalizer", "review_status_enum"],
+      "properties": {
+        "finalizer": {"type": "string"},
+        "review_status_enum": {"type": "array", "items": {"type": "string"}},
+        "candidate_fields": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "rules": {"type": "array", "items": {"type": "string"}}
+  }
+}
