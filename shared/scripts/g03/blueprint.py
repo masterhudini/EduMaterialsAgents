@@ -283,9 +283,17 @@ def _linked_intake_ids(item: dict) -> dict:
     linked = item.get("linked_intake_ids")
     if isinstance(linked, dict):
         return linked
-    related = item.get("related_claims") or item.get("linked_claims") or item.get("claim_ids")
+    related = (
+        item.get("related_claims")
+        or item.get("linked_claims")
+        or item.get("linked_claim_ids")
+        or item.get("claim_ids")
+    )
     claim_ids = _strings(related)
-    concept_ids = _strings(item.get("related_concepts") or item.get("linked_concepts") or item.get("concept_ids"))
+    concept_ids = _strings(
+        item.get("related_concepts") or item.get("linked_concepts") or item.get("linked_concept_ids")
+        or item.get("concept_ids")
+    )
     result: dict[str, list[str]] = {}
     if claim_ids:
         result["claim_ids"] = claim_ids
@@ -314,6 +322,19 @@ def _market_case_items(payload: object) -> list[dict]:
     return [payload]
 
 
+def _recommendation_source_ids(item: dict) -> list[str]:
+    ids = _source_ids(item.get("source_refs") or item.get("sources"))
+    for ref in _as_list(item.get("literature_refs")):
+        if isinstance(ref, dict):
+            value = ref.get("source_id") or ref.get("evidence_ref") or ref.get("doi") or ref.get("title")
+        else:
+            value = ref
+        if value:
+            ids.append(str(value))
+    ids.extend(_strings(item.get("web_case_refs")))
+    return _dedupe_in_order(ids)
+
+
 def _extract_additive_candidates(research: dict, *, base=None) -> list[dict]:
     """Normalize additive G02 hints into local G03 candidate cards.
 
@@ -326,21 +347,23 @@ def _extract_additive_candidates(research: dict, *, base=None) -> list[dict]:
         if not isinstance(item, dict):
             continue
         candidate_id = str(
-            _first_present(item, ("claim_id", "recommendation_id", "finding_id", "id"))
+            _first_present(item, ("recommendation_id", "claim_id", "finding_id", "id"))
             or f"recommended_claim_{index:03d}"
         )
         finding = str(
             _first_present(item, ("claim", "finding", "summary", "text", "title"))
             or "Recommended claim."
         )
-        rationale = str(_first_present(item, ("rationale", "reason", "note", "teaching_role")) or "")
+        rationale = str(
+            _first_present(item, ("why_interesting", "rationale", "reason", "note", "teaching_role")) or ""
+        )
         candidates.append({
             "candidate_id": candidate_id,
             "kind": "recommended_claim",
             "finding": finding,
             "rationale": rationale,
             "linked_intake_ids": _linked_intake_ids(item),
-            "source_refs": _source_ids(item.get("source_refs") or item.get("sources")),
+            "source_refs": _recommendation_source_ids(item),
             "evidence_basis": [f"recommended_claim:{candidate_id}"],
             "source_pointer": f"#/recommended_claims/{index - 1}",
         })

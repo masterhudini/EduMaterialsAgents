@@ -435,11 +435,15 @@ class G03SolutionInputTests(unittest.TestCase):
     def test_recommended_claims_feed_blueprint_and_slide_plan(self) -> None:
         request = copy.deepcopy(_load("mocks/g03/solution_request.candidate.json"))
         request["research_bundle"]["recommended_claims"] = [{
-            "claim_id": "RC_FRA_HEDGE_ACCOUNTING",
+            "recommendation_id": "REC_FRA_HEDGE_ACCOUNTING",
+            "topic_id": "TOPIC_FRA",
             "claim": "Show how FRA valuation connects to hedge-accounting documentation.",
-            "rationale": "Useful additive bridge between pricing mechanics and real treasury use.",
-            "linked_intake_ids": {"claim_ids": ["CL03"], "concept_ids": []},
-            "source_refs": [{"source_id": "SRC_FRA_CASE"}],
+            "why_interesting": "Useful additive bridge between pricing mechanics and real treasury use.",
+            "support_basis": "both",
+            "literature_refs": [{"source_id": "SRC_FRA_LIT", "location": "p. 12", "quote": "FRA hedge use"}],
+            "web_case_refs": ["MC_FRA_BANK_TREASURY"],
+            "linked_claim_ids": ["CL03"],
+            "confidence": "high",
         }]
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -450,14 +454,14 @@ class G03SolutionInputTests(unittest.TestCase):
         deferred = {item["item_id"]: item for item in result["deferred_items"]}
         additive_slots = [
             slot for slot in plan["slots"]
-            if "recommended_claim:RC_FRA_HEDGE_ACCOUNTING" in slot.get("evidence_basis", [])
+            if "recommended_claim:REC_FRA_HEDGE_ACCOUNTING" in slot.get("evidence_basis", [])
         ]
 
-        self.assertIn("RC_FRA_HEDGE_ACCOUNTING", deferred)
-        self.assertIn("Recommended additive claim", deferred["RC_FRA_HEDGE_ACCOUNTING"]["reason"])
+        self.assertIn("REC_FRA_HEDGE_ACCOUNTING", deferred)
+        self.assertIn("Recommended additive claim", deferred["REC_FRA_HEDGE_ACCOUNTING"]["reason"])
         self.assertTrue(additive_slots, "recommended claim should create an additive ADD slot")
         self.assertTrue(all(slot["status"] == "ADD" for slot in additive_slots))
-        self.assertEqual(additive_slots[0]["source_refs"], ["SRC_FRA_CASE"])
+        self.assertEqual(additive_slots[0]["source_refs"], ["SRC_FRA_LIT", "MC_FRA_BANK_TREASURY"])
 
     def test_market_case_findings_ref_feeds_blueprint_and_slide_plan(self) -> None:
         request = copy.deepcopy(_load("mocks/g03/solution_request.candidate.json"))
