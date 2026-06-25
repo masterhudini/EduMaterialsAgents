@@ -30,10 +30,10 @@ research_paper_review_task, research_synthesis_prepare,
 research_synthesis_finalize, research_synthesis_review_task,
 research_bundle_finalize,
 research_review_prepare, research_review_finalize,
-research_finalize, research_scout_fanout, research_scout_a07_prepare,
-research_scout_a07_tasks_prepare, research_scout_a07_partial_finalize, research_scout_a07_aggregate,
-  research_scout_synthesis_prepare, research_scout_deep_dive_windows,
-  research_scout_a09_task_prepare, research_scout_synthesis_finalize,
+research_finalize, research_scout_fanout, research_a07_prepare,
+research_a07_tasks_prepare, research_a07_partial_finalize, research_a07_aggregate,
+  research_a09_synthesis_prepare, research_a09_deep_dive_windows,
+  research_a09_task_prepare, research_a09_synthesis_finalize,
 research_run_stub, research_run_codex.
 """
 from __future__ import annotations
@@ -61,10 +61,10 @@ from g02 import paper_review  # noqa: E402
 from g02 import synthesis  # noqa: E402
 from g02 import planner  # noqa: E402
 from g02 import scout_fanout  # noqa: E402
-from g02 import scout_a07_bridge  # noqa: E402
-from g02 import scout_a07_runner  # noqa: E402
-from g02 import scout_a09_runner  # noqa: E402
-from g02 import scout_synthesis  # noqa: E402
+from g02 import a07_bridge  # noqa: E402
+from g02 import a07_runner  # noqa: E402
+from g02 import a09_runner  # noqa: E402
+from g02 import a09_synthesis  # noqa: E402
 from g02 import provider_config  # noqa: E402
 from g02 import credentials  # noqa: E402
 from g02 import providers  # noqa: E402
@@ -752,8 +752,8 @@ def _scout_fanout(args: dict):
     )
 
 
-def _scout_a07_prepare(args: dict):
-    return scout_a07_bridge.build_scout_a07_reviews(
+def _a07_prepare(args: dict):
+    return a07_bridge.build_a07_reviews(
         args["scout_run_dir"],
         output_dir=args.get("output_dir"),
         intake_ref=args.get("intake_ref"),
@@ -762,8 +762,8 @@ def _scout_a07_prepare(args: dict):
     )
 
 
-def _scout_a07_tasks_prepare(args: dict):
-    return scout_a07_runner.write_scout_a07_model_tasks(
+def _a07_tasks_prepare(args: dict):
+    return a07_runner.write_a07_review_tasks(
         args["a07_dir"],
         output_dir=args.get("output_dir"),
         intake=args.get("intake"),
@@ -774,8 +774,8 @@ def _scout_a07_tasks_prepare(args: dict):
     )
 
 
-def _scout_a07_partial_finalize(args: dict):
-    return scout_a07_bridge.finalize_scout_a07_partial(
+def _a07_partial_finalize(args: dict):
+    return a07_bridge.finalize_a07_partial(
         args["work_input_path"],
         args["output"],
         output_path=args.get("output_path"),
@@ -783,12 +783,12 @@ def _scout_a07_partial_finalize(args: dict):
     )
 
 
-def _scout_a07_aggregate(args: dict):
-    return scout_a07_bridge.aggregate_scout_a07_reviews(args["a07_dir"])
+def _a07_aggregate(args: dict):
+    return a07_bridge.aggregate_a07_reviews(args["a07_dir"])
 
 
-def _scout_synthesis_prepare(args: dict):
-    return scout_synthesis.prepare_scout_fast_synthesis(
+def _a09_synthesis_prepare(args: dict):
+    return a09_synthesis.prepare_scout_fast_synthesis(
         args["reviews_json"],
         intake=args.get("intake"),
         max_deep_dive_sources=args.get("max_deep_dive_sources", 5),
@@ -796,13 +796,13 @@ def _scout_synthesis_prepare(args: dict):
 
 
 def _scout_deep_dive_windows(args: dict):
-    prepared = scout_synthesis.prepare_scout_fast_synthesis(
+    prepared = a09_synthesis.prepare_scout_fast_synthesis(
         args["reviews_json"],
         intake=args.get("intake"),
         max_deep_dive_sources=args.get("max_deep_dive_sources", 5),
     )
     synthesis_input = prepared["synthesis_input"]
-    return scout_synthesis.gather_deep_dive_windows(
+    return a09_synthesis.gather_deep_dive_windows(
         synthesis_input["reviews"],
         synthesis_input["deep_dive_requests"],
         max_windows=args.get("max_windows", 12),
@@ -810,8 +810,8 @@ def _scout_deep_dive_windows(args: dict):
     )
 
 
-def _scout_a09_task_prepare(args: dict):
-    built = scout_a09_runner.build_a09_task(
+def _a09_task_prepare(args: dict):
+    built = a09_runner.build_a09_task(
         args["reviews_json"],
         intake=args.get("intake"),
         max_deep_dive_sources=args.get("max_deep_dive_sources", 5),
@@ -824,13 +824,13 @@ def _scout_a09_task_prepare(args: dict):
     }
 
 
-def _scout_synthesis_finalize(args: dict):
-    prepared = scout_synthesis.prepare_scout_fast_synthesis(
+def _a09_synthesis_finalize(args: dict):
+    prepared = a09_synthesis.prepare_scout_fast_synthesis(
         args["reviews_json"],
         intake=args.get("intake"),
         max_deep_dive_sources=args.get("max_deep_dive_sources", 5),
     )
-    return scout_synthesis.finalize_scout_fast_solution(
+    return a09_synthesis.finalize_scout_fast_solution(
         prepared["synthesis_input"],
         args.get("output"),
         deep_dive=args.get("deep_dive"),
@@ -1798,7 +1798,7 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_a07_prepare",
+        "name": "research_a07_prepare",
         "description": "Prepare bounded, parallel-safe A07 light-review work items from one "
                        "Scout run directory. Reads Scout plan, requests, index, topic corpora "
                        "and sampled PDF windows, then writes reviews.json plus immutable "
@@ -1831,8 +1831,8 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_a07_tasks_prepare",
-        "description": "Build compact scout_a07_model_task@1 JSON files from pending A07 work "
+        "name": "research_a07_tasks_prepare",
+        "description": "Build compact a07_review_task@1 JSON files from pending A07 work "
                        "items. Each task includes selected PDF windows and only the linked "
                        "intake context needed for one topic/source model review.",
         "inputSchema": {
@@ -1868,7 +1868,7 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_a07_partial_finalize",
+        "name": "research_a07_partial_finalize",
         "description": "Validate and persist one A07 light-review worker result. The worker "
                        "must pass the immutable work input path and its JSON output; this tool "
                        "writes only partial/<topic_id>/<source_id>.review.json atomically.",
@@ -1896,8 +1896,8 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_a07_aggregate",
-        "description": "Aggregate A07 partial review files into one scout_a07_reviews@1 "
+        "name": "research_a07_aggregate",
+        "description": "Aggregate A07 partial review files into one a07_reviews@1 "
                        "reviews.json without worker write contention.",
         "inputSchema": {
             "type": "object",
@@ -1911,7 +1911,7 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_synthesis_prepare",
+        "name": "research_a09_synthesis_prepare",
         "description": "Prepare the Scout-fast A09 synthesis input from aggregated A07 reviews "
                        "and optional intake. Selects at most five bounded deep-dive source slots.",
         "inputSchema": {
@@ -1919,7 +1919,7 @@ TOOLS = [
             "properties": {
                 "reviews_json": {
                     "type": "string",
-                    "description": "Path or artifact ref to scout_a07_reviews@1"
+                    "description": "Path or artifact ref to a07_reviews@1"
                 },
                 "intake": {
                     "type": "string",
@@ -1934,7 +1934,7 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_deep_dive_windows",
+        "name": "research_a09_deep_dive_windows",
         "description": "Gather up to twelve bounded additional PDF windows for each of at most "
                        "five auditable A09 Scout deep-dive requests. Missing PDFs fail open with "
                        "an explicit limitation.",
@@ -1943,7 +1943,7 @@ TOOLS = [
             "properties": {
                 "reviews_json": {
                     "type": "string",
-                    "description": "Path or artifact ref to scout_a07_reviews@1"
+                    "description": "Path or artifact ref to a07_reviews@1"
                 },
                 "intake": {
                     "type": "string",
@@ -1966,8 +1966,8 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_a09_task_prepare",
-        "description": "Build the obligatory scout_a09_model_task@1 for an Opus/medium "
+        "name": "research_a09_task_prepare",
+        "description": "Build the obligatory a09_synthesis_task@1 for an Opus/medium "
                        "verification pass. The tool prepares the deterministic baseline and "
                        "bounded deep dive with at most five sources, eight windows per source "
                        "and 1200 characters per window.",
@@ -1976,7 +1976,7 @@ TOOLS = [
             "properties": {
                 "reviews_json": {
                     "type": "string",
-                    "description": "Path or artifact ref to aggregated scout_a07_reviews@1"
+                    "description": "Path or artifact ref to aggregated a07_reviews@1"
                 },
                 "intake": {
                     "type": ["string", "object"],
@@ -1999,7 +1999,7 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_synthesis_finalize",
+        "name": "research_a09_synthesis_finalize",
         "description": "Finalize the Scout-fast A09 output as solution_input_candidate@1 for "
                        "Graph03. The final contract must contain concrete slide-update guidance; "
                        "Graph03 must not call back into G02.",
@@ -2008,7 +2008,7 @@ TOOLS = [
             "properties": {
                 "reviews_json": {
                     "type": "string",
-                    "description": "Path or artifact ref to scout_a07_reviews@1"
+                    "description": "Path or artifact ref to a07_reviews@1"
                 },
                 "intake": {
                     "type": "string",
@@ -2016,11 +2016,11 @@ TOOLS = [
                 },
                 "output": {
                     "type": "object",
-                    "description": "Raw g02-a09-scout-synthesis JSON with plan, priorities, optional improvements, unresolved items and confidence. Omit only after a failed or unavailable model attempt to request deterministic fallback."
+                    "description": "Raw g02-a09-synthesize JSON with plan, priorities, optional improvements, unresolved items and confidence. Omit only after a failed or unavailable model attempt to request deterministic fallback."
                 },
                 "deep_dive": {
                     "type": "object",
-                    "description": "Optional scout_a07_deep_dive@1 package returned by research_scout_deep_dive_windows"
+                    "description": "Optional a07_deep_dive@1 package returned by research_a09_deep_dive_windows"
                 },
                 "output_path": {
                     "type": "string",
@@ -2306,28 +2306,28 @@ def _research_scout_e2e_prompt(context: str) -> dict:
                     "revise only if that one review returns REVISE, then call research_scout_fanout "
                     "with total_target=50.\n\n"
                     "After Scout completes, continue:\n\n"
-                    "STEP 8 - A07 prepare: call research_scout_a07_prepare with "
+                    "STEP 8 - A07 prepare: call research_a07_prepare with "
                     "scout_run_dir=<run_directory> and intake_ref=<this context>. This writes "
                     "reviews.json and work/<topic_id>/<source_id>.input.json files.\n\n"
-                    "STEP 9 - A07 model tasks: call research_scout_a07_tasks_prepare with "
+                    "STEP 9 - A07 model tasks: call research_a07_tasks_prepare with "
                     "a07_dir=<A07 output dir> and intake=<this context>. It writes "
-                    "scout_a07_model_task@1 files under tasks/. Each task is one topic/source unit.\n\n"
+                    "a07_review_task@1 files under tasks/. Each task is one topic/source unit.\n\n"
                     "STEP 10 - A07 light worker loop: for each task file, act as "
-                    "g02-a07-scout-light-review. Use Sonnet/high when the host supports model "
+                    "g02-a07-review-source. Use Sonnet/high when the host supports model "
                     "selection. Read only the task JSON, selected_windows and compact intake_context. "
                     "Do not read the full PDF. Produce the raw A07 JSON output and immediately call "
-                    "research_scout_a07_partial_finalize with work_input_path=<a07_dir>/<work_input_ref> "
+                    "research_a07_partial_finalize with work_input_path=<a07_dir>/<work_input_ref> "
                     "and output=<raw A07 JSON>. Multiple tasks may run in parallel, but each worker "
                     "writes only its own partial review through the finalizer.\n\n"
-                    "STEP 11 - Aggregate: call research_scout_a07_aggregate with a07_dir=<A07 output dir>. "
+                    "STEP 11 - Aggregate: call research_a07_aggregate with a07_dir=<A07 output dir>. "
                     "Continue only with the aggregated reviews.json.\n\n"
                     "STEP 12 - Obligatory A09 scout_fast model pass: call "
-                    "research_scout_a09_task_prepare with reviews_json=<a07_dir>/reviews.json, "
+                    "research_a09_task_prepare with reviews_json=<a07_dir>/reviews.json, "
                     "intake=<this context>, max_deep_dive_sources=5, deep_dive_windows=8 and "
-                    "deep_dive_chars=1200. The result contains one scout_a09_model_task@1 plus its "
-                    "bounded deep_dive package. Act once as g02-a09-scout-synthesis using Opus with "
+                    "deep_dive_chars=1200. The result contains one a09_synthesis_task@1 plus its "
+                    "bounded deep_dive package. Act once as g02-a09-synthesize using Opus with "
                     "medium effort. Read only the task, verify and refine deterministic_baseline, and "
-                    "return the skill's raw JSON object. Then call research_scout_synthesis_finalize "
+                    "return the skill's raw JSON object. Then call research_a09_synthesis_finalize "
                     "with the same reviews_json and intake, deep_dive=<task-prepare deep_dive>, and "
                     "output=<raw A09 JSON>. A09 must not add evidence or read PDFs. If the model attempt "
                     "fails or is unavailable, call the finalizer without output but with the same "
@@ -2393,14 +2393,14 @@ DISPATCH = {
     "research_review_finalize": _review_finalize,
     "research_finalize": _finalize,
     "research_scout_fanout": _scout_fanout,
-    "research_scout_a07_prepare": _scout_a07_prepare,
-    "research_scout_a07_tasks_prepare": _scout_a07_tasks_prepare,
-    "research_scout_a07_partial_finalize": _scout_a07_partial_finalize,
-    "research_scout_a07_aggregate": _scout_a07_aggregate,
-    "research_scout_synthesis_prepare": _scout_synthesis_prepare,
-    "research_scout_deep_dive_windows": _scout_deep_dive_windows,
-    "research_scout_a09_task_prepare": _scout_a09_task_prepare,
-    "research_scout_synthesis_finalize": _scout_synthesis_finalize,
+    "research_a07_prepare": _a07_prepare,
+    "research_a07_tasks_prepare": _a07_tasks_prepare,
+    "research_a07_partial_finalize": _a07_partial_finalize,
+    "research_a07_aggregate": _a07_aggregate,
+    "research_a09_synthesis_prepare": _a09_synthesis_prepare,
+    "research_a09_deep_dive_windows": _scout_deep_dive_windows,
+    "research_a09_task_prepare": _a09_task_prepare,
+    "research_a09_synthesis_finalize": _a09_synthesis_finalize,
     "research_run_stub": _run_stub,
     "research_run_codex": _run_codex,
     "research_run_hosted": _run_hosted,

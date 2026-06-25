@@ -14,13 +14,13 @@ SCRIPTS = ROOT / "shared" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from core import contracts  # noqa: E402
-from g02 import scout_a07_bridge, scout_a09_runner, scout_synthesis  # noqa: E402
-from tests import test_g02_scout_a07_bridge as bridge_fixtures  # noqa: E402
+from g02 import a07_bridge, a09_runner, a09_synthesis  # noqa: E402
+from tests import test_g02_a07_bridge as bridge_fixtures  # noqa: E402
 
 
 def _reviews(*, candidates=None, pointers=None, gaps=None, source_reviews=None) -> dict:
     return {
-        "schema_version": "scout_a07_reviews@1",
+        "schema_version": "a07_reviews@1",
         "artifact_version": "1.0.0",
         "task_id": "T_SYNTHESIS",
         "status": "completed",
@@ -110,8 +110,8 @@ def _pointer(index: int, *, source_type: str | None = None) -> dict:
 
 
 def _solution(reviews: dict, *, deep_dive=None) -> dict:
-    prepared = scout_synthesis.prepare_scout_fast_synthesis(reviews)
-    solution = scout_synthesis.finalize_scout_fast_solution(
+    prepared = a09_synthesis.prepare_scout_fast_synthesis(reviews)
+    solution = a09_synthesis.finalize_scout_fast_solution(
         prepared["synthesis_input"], deep_dive=deep_dive
     )
     checked = contracts.validate(solution, "solution_input_candidate@1")
@@ -131,7 +131,7 @@ class ScoutSynthesisTests(unittest.TestCase):
         second["linked_intake_ids"]["flow_issue_ids"] = ["FLOW_1"]
         third = _candidate("UPD_3", "A different signal", source_id="SRC_2")
 
-        deduped = scout_synthesis._dedup_candidates([first, second, third])
+        deduped = a09_synthesis._dedup_candidates([first, second, third])
 
         self.assertEqual(len(deduped), 2)
         self.assertEqual(deduped[0]["candidate_id"], "UPD_2")
@@ -143,12 +143,12 @@ class ScoutSynthesisTests(unittest.TestCase):
 
     def test_grouping_keeps_same_slide_adjacent_and_stable(self) -> None:
         updates = [
-            scout_synthesis._ready_update(_candidate("UPD_A", "A", slides=[12]), 1),
-            scout_synthesis._ready_update(_candidate("UPD_B", "B", slides=[13]), 2),
-            scout_synthesis._ready_update(_candidate("UPD_C", "C", source_id="SRC_3", slides=[12]), 3),
+            a09_synthesis._ready_update(_candidate("UPD_A", "A", slides=[12]), 1),
+            a09_synthesis._ready_update(_candidate("UPD_B", "B", slides=[13]), 2),
+            a09_synthesis._ready_update(_candidate("UPD_C", "C", source_id="SRC_3", slides=[12]), 3),
         ]
 
-        grouped = scout_synthesis._group_updates(updates)
+        grouped = a09_synthesis._group_updates(updates)
 
         self.assertEqual([item["update_id"] for item in grouped], ["UPD_A", "UPD_C", "UPD_B"])
         solution = _solution(_reviews(candidates=[
@@ -236,8 +236,8 @@ class ScoutSynthesisTests(unittest.TestCase):
             reviews = _reviews(candidates=[candidate], pointers=pointers)
             reviews["scout_run_ref"] = str(run)
 
-            first = scout_synthesis._select_deep_dive_requests(reviews, max_sources=5)
-            second = scout_synthesis._select_deep_dive_requests(reviews, max_sources=5)
+            first = a09_synthesis._select_deep_dive_requests(reviews, max_sources=5)
+            second = a09_synthesis._select_deep_dive_requests(reviews, max_sources=5)
 
         self.assertEqual(first, second)
         self.assertEqual(len(first), 5)
@@ -252,10 +252,10 @@ class ScoutSynthesisTests(unittest.TestCase):
             tmp = Path(temp)
             run = bridge_fixtures.ScoutA07BridgeTests()._make_run(tmp)
             out = tmp / "a07"
-            reviews = scout_a07_bridge.build_scout_a07_reviews(
+            reviews = a07_bridge.build_a07_reviews(
                 run, output_dir=out, max_scan_pages=2
             )
-            prepared = scout_synthesis.prepare_scout_fast_synthesis(reviews)
+            prepared = a09_synthesis.prepare_scout_fast_synthesis(reviews)
             requests = prepared["synthesis_input"]["deep_dive_requests"]
             selected_count = next(
                 item["selected_window_count"] for item in reviews["source_reviews"]
@@ -272,16 +272,16 @@ class ScoutSynthesisTests(unittest.TestCase):
                 "text": f"Expanded window {index}",
             } for index in range(1, selected_count + 3)]
             with mock.patch.object(
-                scout_a07_bridge, "select_pdf_windows", return_value=(expanded, [])
+                a07_bridge, "select_pdf_windows", return_value=(expanded, [])
             ):
-                package = scout_synthesis.gather_deep_dive_windows(reviews, requests)
+                package = a09_synthesis.gather_deep_dive_windows(reviews, requests)
             self.assertGreater(len(package["requests"][0]["additional_windows"]), selected_count)
             self.assertLessEqual(len(package["requests"][0]["additional_windows"]), 12)
-            self.assertTrue(contracts.validate(package, "scout_a07_deep_dive@1")["ok"])
+            self.assertTrue(contracts.validate(package, "a07_deep_dive@1")["ok"])
 
             pdf_path = run / "topics" / "TOPIC_FRA_SETTLEMENT" / "pdf" / "fra_settlement.pdf"
             pdf_path.unlink()
-            missing = scout_synthesis.gather_deep_dive_windows(reviews, requests)
+            missing = a09_synthesis.gather_deep_dive_windows(reviews, requests)
             self.assertEqual(missing["requests"][0]["additional_windows"], [])
             self.assertTrue(missing["requests"][0]["limitation"])
 
@@ -293,7 +293,7 @@ class ScoutSynthesisTests(unittest.TestCase):
                 {"source_id": "SRC_2", "title": "Source 2", "source_type": "recent"},
             ],
         )
-        prepared = scout_synthesis.prepare_scout_fast_synthesis(reviews)
+        prepared = a09_synthesis.prepare_scout_fast_synthesis(reviews)
         requests = deepcopy(prepared["synthesis_input"]["deep_dive_requests"])
         by_source = {item["source_id"]: item for item in requests}
         by_source["SRC_1"]["additional_windows"] = [{
@@ -321,7 +321,7 @@ class ScoutSynthesisTests(unittest.TestCase):
         by_source["SRC_2"]["limitations"] = []
         by_source["SRC_2"]["limitation"] = None
         deep_dive = {
-            "schema_version": "scout_a07_deep_dive@1",
+            "schema_version": "a07_deep_dive@1",
             "artifact_version": "1.0.0",
             "task_id": reviews["task_id"],
             "scout_run_ref": reviews["scout_run_ref"],
@@ -331,7 +331,7 @@ class ScoutSynthesisTests(unittest.TestCase):
             "limitations": [],
         }
 
-        solution = scout_synthesis.finalize_scout_fast_solution(
+        solution = a09_synthesis.finalize_scout_fast_solution(
             prepared["synthesis_input"], deep_dive=deep_dive
         )
 
@@ -363,13 +363,13 @@ class ScoutSynthesisTests(unittest.TestCase):
             )
         )
         intake["task_id"] = "T_SYNTHESIS"
-        built = scout_a09_runner.build_a09_task(
+        built = a09_runner.build_a09_task(
             _reviews(candidates=[candidate]),
             intake=intake,
         )
 
         task = built["task"]
-        checked = contracts.validate(task, "scout_a09_model_task@1")
+        checked = contracts.validate(task, "a09_synthesis_task@1")
         self.assertTrue(checked["ok"], checked["errors"])
         self.assertEqual(task["model_policy"]["recommended_model"], "opus")
         self.assertEqual(task["model_policy"]["reasoning_effort"], "medium")
@@ -384,7 +384,7 @@ class ScoutSynthesisTests(unittest.TestCase):
             "FI01",
         )
         with self.assertRaisesRegex(ValueError, "between 1 and 8"):
-            scout_a09_runner.build_a09_task(
+            a09_runner.build_a09_task(
                 _reviews(candidates=[candidate]), deep_dive_windows=9
             )
 
@@ -405,7 +405,7 @@ class ScoutSynthesisTests(unittest.TestCase):
                 "confidence": "medium",
             }
 
-        result = scout_a09_runner.run_scout_a09(reviews, executor)
+        result = a09_runner.run_a09(reviews, executor)
 
         self.assertTrue(result["a09_model_pass"])
         self.assertEqual(result["synthesis_engine"], "a09_opus_medium")
@@ -419,7 +419,7 @@ class ScoutSynthesisTests(unittest.TestCase):
         def executor(_task: dict) -> dict:
             raise RuntimeError("fixture executor failure")
 
-        result = scout_a09_runner.run_scout_a09(reviews, executor)
+        result = a09_runner.run_a09(reviews, executor)
 
         self.assertFalse(result["a09_model_pass"])
         self.assertEqual(result["synthesis_engine"], "deterministic_fallback")
@@ -427,14 +427,14 @@ class ScoutSynthesisTests(unittest.TestCase):
         checked = contracts.validate(result["solution"], "solution_input_candidate@1")
         self.assertTrue(checked["ok"], checked["errors"])
 
-        prepared = scout_synthesis.prepare_scout_fast_synthesis(reviews)
-        empty_output = scout_synthesis.finalize_scout_fast_solution(
+        prepared = a09_synthesis.prepare_scout_fast_synthesis(reviews)
+        empty_output = a09_synthesis.finalize_scout_fast_solution(
             prepared["synthesis_input"], output={}
         )
         self.assertFalse(empty_output["a09_model_pass"])
         self.assertEqual(empty_output["synthesis_engine"], "deterministic_fallback")
         with self.assertRaisesRegex(ValueError, "A09 output missing"):
-            scout_synthesis.finalize_scout_fast_solution(
+            a09_synthesis.finalize_scout_fast_solution(
                 prepared["synthesis_input"], output={"confidence": "medium"}
             )
 

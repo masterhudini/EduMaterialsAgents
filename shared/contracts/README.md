@@ -22,20 +22,20 @@ Versioned JSON-Schema files (a small subset: `type`, `required`, `properties`, `
   `scout_retrieved_corpus.schema.json` and `scout_run_index.schema.json` describe the persistent
   pre-A07 PDF handoff produced by the parallel Scout profile. They are deliberately distinct from
   A06 `retrieved_corpus@1`, which remains tied to human source selection and validated A06 policy.
-- `scout_a07_reviews.schema.json` describes the bounded Scout-to-A07 light-review handoff. It
+- `a07_reviews.schema.json` describes the bounded Scout-to-A07 light-review handoff. It
   records per-topic/source work items, parallel partial-output locations, presentation update
   candidates, lookup pointers, coverage gaps and irrelevant sources before A09 prepares the final
   Graph03 handoff.
-- `scout_a07_partial_review.schema.json` is the single-worker A07 result for one Scout
+- `a07_review.schema.json` is the single-worker A07 result for one Scout
   `(topic_id, source_id)` work item. Workers write these under `partial/<topic>/<source>.review.json`;
-  the parent aggregator rebuilds `scout_a07_reviews@1` from them.
-- `scout_a07_model_task.schema.json` is the compact host-model task for one Scout A07 light review.
+  the parent aggregator rebuilds `a07_reviews@1` from them.
+- `a07_review_task.schema.json` is the compact host-model task for one Scout A07 light review.
   It carries one immutable work item, selected PDF windows and only the linked intake cards needed
   to decide whether the source adds presentation-facing substance.
-- `scout_a07_deep_dive.schema.json` is the bounded A09 follow-up package for at most five selected
+- `a07_deep_dive.schema.json` is the bounded A09 follow-up package for at most five selected
   A07 lookup pointers. It records the selection criterion, up to twelve additional windows per
   source and explicit fail-open limitations before deterministic finalization.
-- `scout_a09_model_task.schema.json` is the compact host-model task for the obligatory G02-A09
+- `a09_synthesis_task.schema.json` is the compact host-model task for the obligatory G02-A09
   scout_fast pass (opus/medium). It carries the deterministic baseline plan to verify and refine,
   the A07 candidates, linked intake cards and bounded deep-dive windows (at most five sources,
   eight windows and 1200 characters per window), with full-PDF reading forbidden.

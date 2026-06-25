@@ -1,14 +1,14 @@
 ---
-name: g02-a07-scout-light-review
-description: Review one Scout-downloaded source through bounded PDF windows and linked intake context, producing presentation-facing update candidates for A09 scout_fast. Use only for scout_a07_model_task@1.
+name: g02-a07-review-source
+description: Review one Scout-downloaded source through bounded PDF windows and linked intake context, producing presentation-facing update candidates for A09 scout_fast. Use only for a07_review_task@1.
 ---
 
 # Scout Light A07 Review
 
 ## Contract
 
-Consume one validated `scout_a07_model_task@1`. Produce a JSON object accepted by
-`research_scout_a07_partial_finalize`, which normalizes it into `scout_a07_partial_review@1`.
+Consume one validated `a07_review_task@1`. Produce a JSON object accepted by
+`research_a07_partial_finalize`, which normalizes it into `a07_review@1`.
 
 ## Workflow
 

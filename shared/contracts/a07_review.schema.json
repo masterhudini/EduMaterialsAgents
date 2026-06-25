@@ -9,7 +9,7 @@
     "coverage_gaps", "limitations", "confidence", "created_from"
   ],
   "properties": {
-    "schema_version": {"type": "string", "enum": ["scout_a07_partial_review@1"]},
+    "schema_version": {"type": "string", "enum": ["a07_review@1"]},
     "artifact_version": {"type": "string"},
     "task_id": {"type": "string"},
     "topic_id": {"type": "string"},

@@ -1,14 +1,14 @@
 ---
-name: g02-a09-scout-synthesis
-description: Verify and refine the deterministic scout_fast baseline into the final Graph03 contract, using A07 candidates and bounded deep-dive windows only. Use only for scout_a09_model_task@1.
+name: g02-a09-synthesize
+description: Verify and refine the deterministic scout_fast baseline into the final Graph03 contract, using A07 candidates and bounded deep-dive windows only. Use only for a09_synthesis_task@1.
 ---
 
 # Scout A09 Synthesis (verify and refine)
 
 ## Contract
 
-Consume one validated `scout_a09_model_task@1`. Produce a JSON object accepted by
-`research_scout_synthesis_finalize`, which merges it into the final
+Consume one validated `a09_synthesis_task@1`. Produce a JSON object accepted by
+`research_a09_synthesis_finalize`, which merges it into the final
 `solution_input_candidate@1` that ends Graph 02. You are a verifier, not a fresh author: the task
 already carries a deterministic baseline plan; your job is to check and improve it.
 

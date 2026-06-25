@@ -1,6 +1,6 @@
 """Scout-fast A09 handoff from A07 light reviews to Graph03 input.
 
-This is the Scout-specific A09 path. It consumes ``scout_a07_reviews@1`` and
+This is the Scout-specific A09 path. It consumes ``a07_reviews@1`` and
 emits a complete ``solution_input_candidate@1`` for Graph03. It does not use the
 legacy Human Research Gate. Optional deep-dive access is limited to five source
 work items and reuses A07's bounded PDF window selector for at most twelve
@@ -19,17 +19,17 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core import artifacts, contracts  # noqa: E402
-from g02 import scout_a07_bridge  # noqa: E402
+from g02 import a07_bridge  # noqa: E402
 
 
-SCOUT_A07_REVIEWS_CONTRACT = "scout_a07_reviews@1"
+SCOUT_A07_REVIEWS_CONTRACT = "a07_reviews@1"
 SOLUTION_CONTRACT = "solution_input_candidate@1"
 RESEARCH_GRAPH_INPUT_CONTRACT = "research_graph_input@1"
 SYNTHESIS_MODE_SCOUT = "scout_fast"
 DEFAULT_MAX_DEEP_DIVE_SOURCES = 5
 DEFAULT_MAX_DEEP_DIVE_WINDOWS = 12
 DEFAULT_MAX_DEEP_DIVE_CHARS = 1800
-SCOUT_A09_MODEL_TASK_CONTRACT = "scout_a09_model_task@1"
+SCOUT_A09_MODEL_TASK_CONTRACT = "a09_synthesis_task@1"
 # Token-thrifty A09 deep-dive budget: at most 5 sources, 8 windows, ~1200 chars.
 A09_DEEP_DIVE_WINDOWS = 8
 A09_DEEP_DIVE_CHARS = 1200
@@ -616,8 +616,8 @@ def gather_deep_dive_windows(
         run_ref = reviews.get("scout_run_ref")
         if not isinstance(run_ref, str) or not run_ref:
             raise ValueError("scout_run_ref is missing")
-        loaded = scout_a07_bridge._load_scout_run(run_ref)
-        lenses = scout_a07_bridge._topic_lenses(loaded["plan"], loaded["requests"])
+        loaded = a07_bridge._load_scout_run(run_ref)
+        lenses = a07_bridge._topic_lenses(loaded["plan"], loaded["requests"])
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         package_limitations.append(f"deep_dive_run_unavailable: {exc}")
 
@@ -646,7 +646,7 @@ def gather_deep_dive_windows(
                 limitations.append("deep_dive_topic_lens_missing")
             else:
                 try:
-                    windows, issues = scout_a07_bridge.select_pdf_windows(
+                    windows, issues = a07_bridge.select_pdf_windows(
                         loaded["root"], document, lens,
                         max_windows=max_windows,
                         max_chars=max_chars,
@@ -661,7 +661,7 @@ def gather_deep_dive_windows(
         package_requests.append(enriched)
 
     package = {
-        "schema_version": "scout_a07_deep_dive@1",
+        "schema_version": "a07_deep_dive@1",
         "artifact_version": "1.0.0",
         "task_id": str(reviews.get("task_id") or ""),
         "scout_run_ref": str(reviews.get("scout_run_ref") or ""),
@@ -670,9 +670,9 @@ def gather_deep_dive_windows(
         "requests": package_requests,
         "limitations": package_limitations,
     }
-    validation = contracts.validate(package, "scout_a07_deep_dive@1")
+    validation = contracts.validate(package, "a07_deep_dive@1")
     if not validation["ok"]:
-        raise ValueError("invalid scout_a07_deep_dive@1: " + "; ".join(validation["errors"]))
+        raise ValueError("invalid a07_deep_dive@1: " + "; ".join(validation["errors"]))
     return package
 
 
@@ -743,13 +743,13 @@ def _ready_update(candidate: dict, index: int) -> dict:
 
 
 def prepare_scout_fast_synthesis(
-    scout_a07_reviews: str | Path | dict,
+    a07_reviews: str | Path | dict,
     *,
     intake: str | Path | dict | None = None,
     max_deep_dive_sources: int = DEFAULT_MAX_DEEP_DIVE_SOURCES,
 ) -> dict:
     reviews, reviews_ref = _load_json_or_ref(
-        scout_a07_reviews, contract=SCOUT_A07_REVIEWS_CONTRACT
+        a07_reviews, contract=SCOUT_A07_REVIEWS_CONTRACT
     )
     assert reviews is not None
     intake_payload, intake_ref = _load_json_or_ref(
@@ -761,10 +761,10 @@ def prepare_scout_fast_synthesis(
         reviews, max_sources=max_deep_dive_sources
     )
     synthesis_input = {
-        "schema_version": "research_scout_synthesis_input@1",
+        "schema_version": "research_a09_synthesis_input@1",
         "task_id": reviews["task_id"],
         "synthesis_mode": SYNTHESIS_MODE_SCOUT,
-        "scout_a07_reviews_ref": reviews_ref or "inline",
+        "a07_reviews_ref": reviews_ref or "inline",
         "scout_run_ref": reviews.get("scout_run_ref"),
         "plan_ref": _resolve_plan_ref(reviews),
         "intake_ref": intake_ref,
@@ -822,9 +822,9 @@ def _deep_dive_candidates(
 ) -> tuple[list[dict], list[dict], set[str], list[dict]]:
     if not isinstance(deep_dive, dict):
         return [], [], set(), []
-    validation = contracts.validate(deep_dive, "scout_a07_deep_dive@1")
+    validation = contracts.validate(deep_dive, "a07_deep_dive@1")
     if not validation["ok"]:
-        raise ValueError("invalid scout_a07_deep_dive@1: " + "; ".join(validation["errors"]))
+        raise ValueError("invalid a07_deep_dive@1: " + "; ".join(validation["errors"]))
     pointers = _pointer_lookup(reviews)
     sources = _source_review_map(reviews)
     candidates = []
@@ -953,7 +953,7 @@ def _pointer_unresolved_item(pointer: dict, index: int, deep_dive_gaps: dict[str
     }
 
 
-def validate_scout_a09_output(output: object | None) -> dict | None:
+def validate_a09_output(output: object | None) -> dict | None:
     """Validate the minimum raw model output before it can be marked as an A09 pass."""
     if output is None or output == {}:
         return None
@@ -984,9 +984,9 @@ def finalize_scout_fast_solution(
 ) -> dict:
     """Finalize complete A09 Scout handoff for Graph03."""
     if not isinstance(synthesis_input, dict) \
-            or synthesis_input.get("schema_version") != "research_scout_synthesis_input@1":
-        raise ValueError("research_scout_synthesis_input@1 is required")
-    validated_output = validate_scout_a09_output(output)
+            or synthesis_input.get("schema_version") != "research_a09_synthesis_input@1":
+        raise ValueError("research_a09_synthesis_input@1 is required")
+    validated_output = validate_a09_output(output)
     model_output = validated_output or {}
     reviews = synthesis_input["reviews"]
     deep_dive_candidates, deep_dive_gaps, consumed_pointers, deep_dive_audit = \
@@ -1098,7 +1098,7 @@ def finalize_scout_fast_solution(
         if isinstance(model_output.get("do_not_change"), list) else [],
         "coverage_summary": _coverage_summary(reviews, suggested_updates, optional, coverage_gaps),
         "coverage_gaps": coverage_gaps,
-        "evidence_map_ref": f"{synthesis_input.get('scout_a07_reviews_ref', 'inline')}#/presentation_update_candidates",
+        "evidence_map_ref": f"{synthesis_input.get('a07_reviews_ref', 'inline')}#/presentation_update_candidates",
         "source_refs": source_refs,
         "limitations": limitations,
         "unresolved_items": unresolved,
@@ -1145,7 +1145,7 @@ def _baseline_for_model(synthesis_input: dict, deep_dive: dict | None) -> dict:
     }
 
 
-def build_scout_a09_model_task(
+def build_a09_synthesis_task(
     synthesis_input: dict,
     deep_dive: dict | None = None,
     *,
@@ -1158,8 +1158,8 @@ def build_scout_a09_model_task(
     PDFs stay forbidden; the deep-dive budget is at most five sources.
     """
     if not isinstance(synthesis_input, dict) \
-            or synthesis_input.get("schema_version") != "research_scout_synthesis_input@1":
-        raise ValueError("research_scout_synthesis_input@1 is required")
+            or synthesis_input.get("schema_version") != "research_a09_synthesis_input@1":
+        raise ValueError("research_a09_synthesis_input@1 is required")
     reviews = synthesis_input["reviews"]
     presentation_context = deepcopy(synthesis_input.get("presentation_context", {}))
     intake_context = deepcopy(synthesis_input.get("intake_context", {}))
@@ -1168,7 +1168,7 @@ def build_scout_a09_model_task(
         if isinstance(item, dict)
     ]
     deep_dive_package = deep_dive if isinstance(deep_dive, dict) else {
-        "schema_version": "scout_a07_deep_dive@1",
+        "schema_version": "a07_deep_dive@1",
         "artifact_version": "1.0.0",
         "task_id": str(reviews.get("task_id") or ""),
         "scout_run_ref": str(reviews.get("scout_run_ref") or ""),
@@ -1182,7 +1182,7 @@ def build_scout_a09_model_task(
         "artifact_version": artifact_version,
         "task_id": synthesis_input["task_id"],
         "synthesis_mode": SYNTHESIS_MODE_SCOUT,
-        "scout_a07_reviews_ref": synthesis_input.get("scout_a07_reviews_ref"),
+        "a07_reviews_ref": synthesis_input.get("a07_reviews_ref"),
         "plan_ref": synthesis_input.get("plan_ref"),
         "intake_ref": synthesis_input.get("intake_ref"),
         "deterministic_baseline": _baseline_for_model(synthesis_input, deep_dive),
@@ -1211,7 +1211,7 @@ def build_scout_a09_model_task(
             "full_pdf_forbidden": True,
         },
         "expected_output": {
-            "finalizer": "research_scout_synthesis_finalize",
+            "finalizer": "research_a09_synthesis_finalize",
             "return_fields": [
                 "slide_update_plan",
                 "slide_revision_priorities",
@@ -1229,12 +1229,12 @@ def build_scout_a09_model_task(
             "Drop weak or unsupported updates; keep every kept update tied to linked_intake_ids and evidence.",
             "Turn each useful deep-dive window into a ready slide update; otherwise leave it as a coverage gap.",
             "Never hand Graph03 a bare lookup pointer or a request for more research.",
-            "Return a JSON object with expected_output.return_fields for research_scout_synthesis_finalize.",
+            "Return a JSON object with expected_output.return_fields for research_a09_synthesis_finalize.",
         ],
     }
     validation = contracts.validate(task, SCOUT_A09_MODEL_TASK_CONTRACT)
     if not validation["ok"]:
-        raise ValueError("invalid scout_a09_model_task@1: " + "; ".join(validation["errors"]))
+        raise ValueError("invalid a09_synthesis_task@1: " + "; ".join(validation["errors"]))
     return task
 
 

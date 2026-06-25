@@ -1427,14 +1427,14 @@ jako override testowy/manualny. Bez override `shared/scripts/g02/scout_fanout.py
 
 ### 23.2 A07 pozostaje agentem; bridge jest warstwą techniczną
 
-Nowy moduł `shared/scripts/g02/scout_a07_bridge.py` nie zastępuje agenta A07. Jego rola:
+Nowy moduł `shared/scripts/g02/a07_bridge.py` nie zastępuje agenta A07. Jego rola:
 
 - zwalidować katalog Scouta (`plan.json`, `index.json`, requesty, per-topic `scout_retrieved_corpus@1`);
 - zbudować soczewkę topicu z A01;
 - wykonać tani prefilter dokumentów przed użyciem LLM;
 - wyciąć krótkie, celowane okna tekstowe z PDF;
 - zapisać równoległe work items dla przyszłego A07 Sonnet/high;
-- utworzyć agregat `reviews.json` zgodny z `scout_a07_reviews@1`.
+- utworzyć agregat `reviews.json` zgodny z `a07_reviews@1`.
 
 Agent A07 w trybie Scout pracuje później na małych pakietach `(topic_id, source_id)`, nie na całych
 PDF-ach ani na całym katalogu.
@@ -1476,7 +1476,7 @@ Tylko źródła z realnym sygnałem topicu powinny trafiać do drogiego A07 Sonn
 
 ### 23.5 Kontrakt roboczy A07
 
-Dodano kontrakt `shared/contracts/scout_a07_reviews.schema.json` (`scout_a07_reviews@1`). W stanie
+Dodano kontrakt `shared/contracts/a07_reviews.schema.json` (`a07_reviews@1`). W stanie
 `prepared` zawiera:
 
 - `topic_reviews[]`;
@@ -1520,7 +1520,7 @@ może wykonać samą pracę modelową na przygotowanych work itemach.
 
 ### 24.1 Skąd A07 bierze soczewkę topicu
 
-Soczewka topicu nie jest tworzona przez LLM i nie jest odtwarzana heurystycznie. `scout_a07_bridge.py`
+Soczewka topicu nie jest tworzona przez LLM i nie jest odtwarzana heurystycznie. `a07_bridge.py`
 składa ją deterministycznie z dwóch źródeł:
 
 - `plan.json`, czyli utrwalonego planu A01 `research_plan@1`;
@@ -1534,8 +1534,8 @@ prezentacji?".
 
 ### 24.2 Trwały zapis pracy równoległej A07
 
-Dodano kontrakt `shared/contracts/scout_a07_partial_review.schema.json`
-(`scout_a07_partial_review@1`). Każdy worker A07 dostaje jeden plik:
+Dodano kontrakt `shared/contracts/a07_review.schema.json`
+(`a07_review@1`). Każdy worker A07 dostaje jeden plik:
 
 ```text
 work/<topic_id>/<source_id>.input.json
@@ -1547,7 +1547,7 @@ i zapisuje jeden wynik:
 partial/<topic_id>/<source_id>.review.json
 ```
 
-Worker nie dotyka `reviews.json`. Agregację wykonuje osobny krok `aggregate_scout_a07_reviews()`, który
+Worker nie dotyka `reviews.json`. Agregację wykonuje osobny krok `aggregate_a07_reviews()`, który
 czyta partiale, aktualizuje statusy źródeł i odbudowuje:
 
 - `presentation_update_candidates[]`;
@@ -1560,8 +1560,8 @@ brak ryzyka utraty wyniku przez nadpisanie.
 
 ### 24.3 A09 scout_fast jako finalny handoff do G03
 
-Dodano `shared/scripts/g02/scout_synthesis.py`, czyli Scout-specyficzną ścieżkę A09. Wejściem jest
-zagregowany `scout_a07_reviews@1`, opcjonalnie z intake `research_graph_input@1`. Wyjściem jest gotowy
+Dodano `shared/scripts/g02/a09_synthesis.py`, czyli Scout-specyficzną ścieżkę A09. Wejściem jest
+zagregowany `a07_reviews@1`, opcjonalnie z intake `research_graph_input@1`. Wyjściem jest gotowy
 `solution_input_candidate@1` z:
 
 - `synthesis_mode = "scout_fast"`;
@@ -1586,11 +1586,11 @@ testowe uruchamia A09 z narzędziami do dodatkowych bounded windows.
 
 Serwer MCP rozszerzono do wersji `0.14.0` o narzędzia:
 
-- `research_scout_a07_prepare`;
-- `research_scout_a07_partial_finalize`;
-- `research_scout_a07_aggregate`;
-- `research_scout_synthesis_prepare`;
-- `research_scout_synthesis_finalize`.
+- `research_a07_prepare`;
+- `research_a07_partial_finalize`;
+- `research_a07_aggregate`;
+- `research_a09_synthesis_prepare`;
+- `research_a09_synthesis_finalize`.
 
 Dodano test offline, który przechodzi przez całą ścieżkę bez live calli: fake Scout run -> A07 work
 items -> partial review -> agregacja -> A09 `scout_fast` -> walidacja `solution_input_candidate@1`.
@@ -1601,8 +1601,8 @@ Do środowiska testowego zostaje:
 
 1. uruchomić live Scout według istniejącej ścieżki;
 2. uruchomić realnego A07 Sonnet/high równolegle po `work/*.input.json`;
-3. zapisywać wyniki przez `research_scout_a07_partial_finalize`;
-4. wykonać `research_scout_a07_aggregate`;
+3. zapisywać wyniki przez `research_a07_partial_finalize`;
+4. wykonać `research_a07_aggregate`;
 5. uruchomić A09 scout_fast i sprawdzić finalny `solution_input_candidate@1` na wejściu G03.
 
 W repo nie uruchamiano live testów ani modelu A07. Zmieniona została tylko ścieżka deterministyczna i
@@ -1614,11 +1614,11 @@ offline kontrakty potrzebne do bezpiecznego spięcia testowego.
 
 Po dodatkowej weryfikacji rozdzielono dwa pojęcia:
 
-- `scout_a07_bridge.py` przygotowuje dane i okna PDF;
-- `scout_a07_runner.py` przygotowuje zadania modelowe A07 i wykonuje je przez hostowy executor.
+- `a07_bridge.py` przygotowuje dane i okna PDF;
+- `a07_runner.py` przygotowuje zadania modelowe A07 i wykonuje je przez hostowy executor.
 
-Dodano kontrakt `shared/contracts/scout_a07_model_task.schema.json`
-(`scout_a07_model_task@1`). Jest to wejście dla jednego wywołania A07 light:
+Dodano kontrakt `shared/contracts/a07_review_task.schema.json`
+(`a07_review_task@1`). Jest to wejście dla jednego wywołania A07 light:
 
 - jeden `topic_id` i `source_id`;
 - `topic_lens` z A01 i requestu Scouta;
@@ -1626,18 +1626,18 @@ Dodano kontrakt `shared/contracts/scout_a07_model_task.schema.json`
 - tylko `selected_windows[]`, bez całego PDF;
 - `intake_context`, czyli skompaktowane karty intake powiązane z topicem;
 - `model_policy`: `recommended_model=sonnet`, `reasoning_effort=high`, `full_pdf_forbidden=true`;
-- oczekiwany finalizer `research_scout_a07_partial_finalize`.
+- oczekiwany finalizer `research_a07_partial_finalize`.
 
 W `topic_lens.linked_intake_ids` dodano także `driver_ids`, żeby A07 widział nie tylko claimy,
 koncepty i flow issues, ale również pierwotny powód researchu z G01/A01.
 
 ### 25.1 Runner A07 light
 
-Nowy moduł `shared/scripts/g02/scout_a07_runner.py` realizuje brakujący blok wykonawczy:
+Nowy moduł `shared/scripts/g02/a07_runner.py` realizuje brakujący blok wykonawczy:
 
 ```text
 reviews.json + work/*.input.json
-  -> tasks/*.task.json (scout_a07_model_task@1)
+  -> tasks/*.task.json (a07_review_task@1)
   -> executor A07 Sonnet/high
   -> partial/*.review.json
   -> aggregate reviews.json
@@ -1645,9 +1645,9 @@ reviews.json + work/*.input.json
 
 Najważniejsze funkcje:
 
-- `build_scout_a07_model_task(work_input_path, intake=...)`;
-- `write_scout_a07_model_tasks(a07_dir, intake=...)`;
-- `run_scout_a07_light(a07_dir, executor, max_workers=...)`;
+- `build_a07_review_task(work_input_path, intake=...)`;
+- `write_a07_review_tasks(a07_dir, intake=...)`;
+- `run_a07_light(a07_dir, executor, max_workers=...)`;
 - `command_executor([...])` dla środowiska, które chce podpiąć zewnętrzną komendę JSON stdin/stdout.
 
 Runner jest równoległy na poziomie `(topic_id, source_id)`. Każdy worker zapisuje tylko swój partial
@@ -1656,30 +1656,30 @@ zapisu przez równoległe wywołania.
 
 ### 25.2 Skill A07 Scout light
 
-Dodano skill `skills/g02-a07-scout-light-review` z bindingiem Claude:
+Dodano skill `skills/g02-a07-review-source` z bindingiem Claude:
 
 ```yaml
 model: sonnet
 effort: high
 ```
 
-Skill mówi A07, że ma czytać wyłącznie `scout_a07_model_task@1`, nie pełny PDF, oraz zwracać surowy
-JSON dla `research_scout_a07_partial_finalize`. Wyjściem mają być przede wszystkim
+Skill mówi A07, że ma czytać wyłącznie `a07_review_task@1`, nie pełny PDF, oraz zwracać surowy
+JSON dla `research_a07_partial_finalize`. Wyjściem mają być przede wszystkim
 `presentation_update_candidates[]`, czyli substancja do prezentacji, nie ogólne streszczenie pracy.
 
 ### 25.3 MCP
 
 Serwer MCP podniesiono do `0.15.0` i dodano:
 
-- `research_scout_a07_tasks_prepare` do tworzenia `scout_a07_model_task@1`.
+- `research_a07_tasks_prepare` do tworzenia `a07_review_task@1`.
 
 Istniejące narzędzia:
 
-- `research_scout_a07_prepare`;
-- `research_scout_a07_partial_finalize`;
-- `research_scout_a07_aggregate`;
-- `research_scout_synthesis_prepare`;
-- `research_scout_synthesis_finalize`;
+- `research_a07_prepare`;
+- `research_a07_partial_finalize`;
+- `research_a07_aggregate`;
+- `research_a09_synthesis_prepare`;
+- `research_a09_synthesis_finalize`;
 
 tworzą teraz pełną ścieżkę narzędziową od katalogu Scouta do finalnego kontraktu A09.
 
@@ -1689,13 +1689,13 @@ Zostawiono prompt `research-scout` jako bezpieczny wariant Scout-only, kończąc
 Dodano osobny prompt `research-scout-e2e`, który prowadzi środowisko hosta przez:
 
 1. A01/A10/Scout;
-2. `research_scout_a07_prepare`;
-3. `research_scout_a07_tasks_prepare`;
+2. `research_a07_prepare`;
+3. `research_a07_tasks_prepare`;
 4. pętlę A07 light po taskach;
-5. `research_scout_a07_partial_finalize`;
-6. `research_scout_a07_aggregate`;
-7. `research_scout_synthesis_prepare`;
-8. `research_scout_synthesis_finalize`.
+5. `research_a07_partial_finalize`;
+6. `research_a07_aggregate`;
+7. `research_a09_synthesis_prepare`;
+8. `research_a09_synthesis_finalize`.
 
 ### 25.5 Co nadal wymaga live/model sprawdzenia
 
@@ -1703,8 +1703,8 @@ Kodowo istnieje już realny interfejs dla A07, ale w tym środowisku nie uruchom
 Do sprawdzenia w środowisku testowym:
 
 1. live Scout z kluczem OpenAlex;
-2. `research_scout_a07_prepare` na realnym katalogu `outputs/g02/<task_id>/scout`;
-3. `research_scout_a07_tasks_prepare` i kontrola, czy taski zawierają właściwe karty intake;
+2. `research_a07_prepare` na realnym katalogu `outputs/g02/<task_id>/scout`;
+3. `research_a07_tasks_prepare` i kontrola, czy taski zawierają właściwe karty intake;
 4. realna pętla A07 Sonnet/high po taskach;
 5. agregacja `reviews.json`;
 6. A09 `scout_fast`;
@@ -1720,7 +1720,7 @@ realnym przebiegiem LIVE w osobnym środowisku (WSL). Live nie był uruchamiany 
 
 ### 26.1 Prefilter A07 odzaszyty z domeny FRA (P1a)
 
-`shared/scripts/g02/scout_a07_bridge.py` zawierał zaszyty słownik `DOMAIN_ANCHORS` (wyłącznie
+`shared/scripts/g02/a07_bridge.py` zawierał zaszyty słownik `DOMAIN_ANCHORS` (wyłącznie
 słownictwo FRA/stóp procentowych), special-case `"fra"` w `prefilter_source` oraz FRA-specyficzne
 tokeny w `GENERIC_TOKENS` (`day`, `count`, `pricing`, `value`, `valuation`, `cash`). Skutek: dla
 dowolnej domeny innej niż FRA `domain_hits` było zawsze puste, więc żadne źródło nie mogło osiągnąć
@@ -1758,11 +1758,11 @@ który dowodzi: źródło na temat → `review_candidate`, słabe → `context_o
 ### 26.4 Rejestracja skilla A07 light w manifeście (P2)
 
 Binding `model: sonnet` / `effort: high` istniał w
-`skills/g02-a07-scout-light-review/adapters/claude.frontmatter.yaml` (poprawna konwencja repo —
+`skills/g02-a07-review-source/adapters/claude.frontmatter.yaml` (poprawna konwencja repo —
 binding jest w adapterze, nie w `SKILL.md`), ale sam skill **nie był wpisany w
 `plugin.manifest.json`**, więc build go nie pakował i bundle miał 23 skille przy 24 na dysku (to
 też było źródłem niezwiązanego z resztą faila `test_plugin_build`). Dodano
-`skills/g02-a07-scout-light-review` do manifestu. Build Claude renderuje teraz skill z wmergowanym
+`skills/g02-a07-review-source` do manifestu. Build Claude renderuje teraz skill z wmergowanym
 frontmatterem `model: "sonnet"`, `effort: "high"`; dysk i manifest = 24 skille; `graph_check`
 zielony. Świadoma decyzja (najmniej inwazyjna): A07 light pozostaje krokiem sterowanym MCP +
 promptem, bez własnego węzła grafu. Rejestracja węzła w grafie jest odłożona do osobnej, bardziej
@@ -1770,26 +1770,26 @@ promptem, bez własnego węzła grafu. Rejestracja węzła w grafie jest odłoż
 
 ### 26.5 Utwardzenie styku A07 model → partial (P3)
 
-`normalize_scout_a07_partial` przestał zakładać, że model zawsze odda listy. Dodano `_as_list`,
+`normalize_a07_partial` przestał zakładać, że model zawsze odda listy. Dodano `_as_list`,
 więc `null`/obiekt w `presentation_update_candidates`/`lookup_pointers`/`coverage_gaps` nie wywala
 już normalizacji (`enumerate(None)`), tylko jest traktowany jak pusta lista. `command_executor`
-w `scout_a07_runner.py` dostał `parse_model_json`, który toleruje realny output modelu czatowego:
+w `a07_runner.py` dostał `parse_model_json`, który toleruje realny output modelu czatowego:
 strict JSON → blok ```json → najszerszy `{...}`. Dodano `test_normalize_tolerates_loose_model_output`
 (kandydat tylko z `finding`, puste/`null` kolekcje, pusty obiekt, oraz JSON w bloku fenced) — każdy
-przypadek waliduje się jako `scout_a07_partial_review@1` bez ręcznych poprawek.
+przypadek waliduje się jako `a07_review@1` bez ręcznych poprawek.
 
 ### 26.6 Traceability A09 → A01 (P4)
 
-`scout_synthesis.finalize_scout_fast_solution` ustawiał `plan_ref="plan.json"` na sztywno. Teraz
-`plan_ref` jest składany z `scout_run_ref` + `plan_ref` z `scout_a07_reviews@1` (lub zachowuje
+`a09_synthesis.finalize_scout_fast_solution` ustawiał `plan_ref="plan.json"` na sztywno. Teraz
+`plan_ref` jest składany z `scout_run_ref` + `plan_ref` z `a07_reviews@1` (lub zachowuje
 `artifact://`), więc handoff do G03 wskazuje realny plan A01, nie samą nazwę pliku.
 
 ### 26.7 Status A09 w trybie scout i granica G03
 
 A09 w trybie scout ma deterministyczny baseline oraz obowiązkowy modelowy przebieg
-Opus/medium sterowany przez MCP i prompt. `research_scout_a09_task_prepare` przygotowuje baseline,
-compact intake i bounded deep dive, a host uruchamia `g02-a09-scout-synthesis` dokładnie raz.
-`research_scout_synthesis_finalize` scala zwrócone poprawki z deterministycznymi zabezpieczeniami.
+Opus/medium sterowany przez MCP i prompt. `research_a09_task_prepare` przygotowuje baseline,
+compact intake i bounded deep dive, a host uruchamia `g02-a09-synthesize` dokładnie raz.
+`research_a09_synthesis_finalize` scala zwrócone poprawki z deterministycznymi zabezpieczeniami.
 Awaria albo brak modelu daje jawny `deterministic_fallback`, bez zatrzymania handoffu do G03.
 Legacy `g02-a09-synthesizer` pozostaje bez zmian na grafie i w manifeście.
 
@@ -1799,8 +1799,8 @@ i `placement`. Pozwala to utrzymać zgodność ze ścieżką Scout oraz nazewnic
 
 ### 26.8 Weryfikacja DEV offline (ten blok)
 
-- `py_compile` dla `scout_a07_bridge.py`, `scout_a07_runner.py`, `scout_synthesis.py`: PASS.
-- `tests/test_g02_scout_a07_bridge.py` + `tests/test_g02_scout_request.py`: 16 PASS (było 14;
+- `py_compile` dla `a07_bridge.py`, `a07_runner.py`, `a09_synthesis.py`: PASS.
+- `tests/test_g02_a07_bridge.py` + `tests/test_g02_scout_request.py`: 16 PASS (było 14;
   +`test_prefilter_generalizes_to_non_fra_domain`, +`test_normalize_tolerates_loose_model_output`).
 - `graph_check` (source): `ok: true`, `errors: none`.
 - Build Claude: skill A07 light renderowany z bindingiem sonnet/high; manifest = dysk = 24 skille.
@@ -1813,7 +1813,7 @@ i pełny `pytest`.
 
 ### 27.1 Deduplikacja, grupowanie i priorytety
 
-`shared/scripts/g02/scout_synthesis.py` zawiera trzy jawne etapy decyzyjne:
+`shared/scripts/g02/a09_synthesis.py` zawiera trzy jawne etapy decyzyjne:
 
 1. `_dedup_candidates` scala kandydatów według `topic_id`, `source_id` i znormalizowanego początku
    `finding`. Przy kolizji zachowuje wariant o wyższym confidence oraz sumuje identyfikatory intake,
@@ -1837,7 +1837,7 @@ canonical, wartościowe źródło recent oraz pozostały nierozwiązany pointer.
 `gather_deep_dive_windows` lokalizuje run przez `scout_run_ref`, odtwarza topic lens i korzysta z
 tego samego `select_pdf_windows`, co A07. Limit wynosi 12 okien po 1800 znaków na źródło. Brak PDF,
 corpus albo parsera daje pustą listę okien i jawną limitation. Pakiet waliduje kontrakt
-`scout_a07_deep_dive@1`. Obowiązkowy modelowy A09 stosuje niższy budżet 8 okien po 1200 znaków;
+`a07_deep_dive@1`. Obowiązkowy modelowy A09 stosuje niższy budżet 8 okien po 1200 znaków;
 limit 12/1800 pozostaje wyłącznie ogólnym capem deterministycznego narzędzia.
 
 Okno z `matched_terms` tworzy ostrożny szkic gotowej aktualizacji z cytowanym fragmentem. Brak
@@ -1846,14 +1846,14 @@ pozostaje jawnie nierozwiązany.
 
 ### 27.3 MCP, G03 i status modelowego A09
 
-Serwer MCP ma wersję `0.17.0` i udostępnia `research_scout_a09_task_prepare`. STEP 12 wymaga jednego
-przebiegu `g02-a09-scout-synthesis` z Opus/medium, następnie przekazuje jego JSON i ten sam pakiet
-deep dive do `research_scout_synthesis_finalize`. Model weryfikuje oraz poprawia baseline, nie tworzy
+Serwer MCP ma wersję `0.17.0` i udostępnia `research_a09_task_prepare`. STEP 12 wymaga jednego
+przebiegu `g02-a09-synthesize` z Opus/medium, następnie przekazuje jego JSON i ten sam pakiet
+deep dive do `research_a09_synthesis_finalize`. Model weryfikuje oraz poprawia baseline, nie tworzy
 niezależnej syntezy i nie ma dostępu do pełnych PDF.
 
 ### 27.4 Weryfikacja DEV
 
-Zakres testów w `tests/test_g02_scout_synthesis.py` obejmuje A1–A4 i B1–B3. Kontrola końcowa
+Zakres testów w `tests/test_g02_a09_synthesis.py` obejmuje A1–A4 i B1–B3. Kontrola końcowa
 obejmuje także regresję A07 bridge, MCP, `py_compile`, `graph_check` oraz build pluginu Claude.
 
 ## 28. Obowiązkowy modelowy A09 jako weryfikator baseline
@@ -1870,17 +1870,17 @@ obejmuje także regresję A07 bridge, MCP, `py_compile`, `graph_check` oraz buil
 
 ### 28.2 Kontrakt i compact intake
 
-`scout_a09_model_task@1` zawiera deterministyczny plan, kandydatów A07, pakiet deep dive,
+`a09_synthesis_task@1` zawiera deterministyczny plan, kandydatów A07, pakiet deep dive,
 presentation context i compact intake. Compact intake obejmuje wyłącznie karty wskazane przez
 `linked_intake_ids`: research drivers, claims, concepts, flow issues i update needs. Pozwala to
 modelowi porównać rekomendację ze znaczeniem claimu bez przekazywania pełnego intake.
 
 `model_policy` zapisuje faktyczny budżet pakietu deep dive, w tym `max_chars_per_window`.
-`expected_output` kieruje surowy JSON do `research_scout_synthesis_finalize`.
+`expected_output` kieruje surowy JSON do `research_a09_synthesis_finalize`.
 
 ### 28.3 Runner i audyt fallbacku
 
-`shared/scripts/g02/scout_a09_runner.py` realizuje kolejno: prepare, deep dive 5/8/1200,
+`shared/scripts/g02/a09_runner.py` realizuje kolejno: prepare, deep dive 5/8/1200,
 deterministyczny baseline, budowę taska, pojedyncze wywołanie executora i finalizację. Runner odrzuca
 pusty albo niekompletny output modelu. Przy braku executora lub wyjątku zachowuje błąd w wyniku
 runnera i przechodzi na deterministyczny handoff.
@@ -1892,12 +1892,12 @@ runnera i przechodzi na deterministyczny handoff.
 
 ### 28.4 MCP i STEP 12
 
-`research_scout_a09_task_prepare` zwraca jeden `scout_a09_model_task@1` oraz dokładnie ten pakiet
+`research_a09_task_prepare` zwraca jeden `a09_synthesis_task@1` oraz dokładnie ten pakiet
 deep dive, który musi trafić do finalizera. Prompt `research-scout-e2e` nakazuje hostowi:
 
 1. przygotować task z budżetem 5/8/1200;
-2. uruchomić `g02-a09-scout-synthesis` jako Opus/medium dokładnie raz;
-3. przekazać surowy JSON oraz pakiet deep dive do `research_scout_synthesis_finalize`;
+2. uruchomić `g02-a09-synthesize` jako Opus/medium dokładnie raz;
+3. przekazać surowy JSON oraz pakiet deep dive do `research_a09_synthesis_finalize`;
 4. przy awarii wywołać finalizer bez `output`, bez fabrykowania odpowiedzi modelu.
 
 ### 28.5 Testy i stan weryfikacji

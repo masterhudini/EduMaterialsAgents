@@ -9,7 +9,7 @@
     "intake_context", "model_policy", "expected_output", "rules"
   ],
   "properties": {
-    "schema_version": {"type": "string", "enum": ["scout_a07_model_task@1"]},
+    "schema_version": {"type": "string", "enum": ["a07_review_task@1"]},
     "artifact_version": {"type": "string"},
     "task_id": {"type": "string"},
     "topic_id": {"type": "string"},

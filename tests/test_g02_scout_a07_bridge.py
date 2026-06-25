@@ -13,7 +13,7 @@ SCRIPTS = ROOT / "shared" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from core import contracts  # noqa: E402
-from g02 import scout_a07_bridge, scout_a07_runner, scout_fanout, scout_synthesis  # noqa: E402
+from g02 import a07_bridge, a07_runner, scout_fanout, a09_synthesis  # noqa: E402
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -256,22 +256,22 @@ class ScoutA07BridgeTests(unittest.TestCase):
                 "coverage_requirements": [],
             }],
         }
-        lens = scout_a07_bridge._topic_lenses(plan, {})["TOPIC_SCALABLE_BAYES"]
+        lens = a07_bridge._topic_lenses(plan, {})["TOPIC_SCALABLE_BAYES"]
         # No FRA vocabulary should leak into a Bayesian topic lens.
         self.assertNotIn("fra", lens["anchor_tokens"])
         self.assertIn("variational", lens["anchor_tokens"])
 
-        on_topic = scout_a07_bridge.prefilter_source(
+        on_topic = a07_bridge.prefilter_source(
             {"title": "Scalable variational inference for Bayesian neural networks",
              "venue": "Journal of Machine Learning Research", "work_type": "article"},
             lens,
         )
-        background = scout_a07_bridge.prefilter_source(
+        background = a07_bridge.prefilter_source(
             {"title": "Posterior predictive checks in applied statistics",
              "venue": "Statistical Science", "work_type": "article"},
             lens,
         )
-        off_domain = scout_a07_bridge.prefilter_source(
+        off_domain = a07_bridge.prefilter_source(
             {"title": "Systematic reviews of day care for people with mental disorders",
              "venue": "Health Technology Assessment", "work_type": "article"},
             lens,
@@ -286,14 +286,14 @@ class ScoutA07BridgeTests(unittest.TestCase):
             run = self._make_run(tmp)
             out = tmp / "outputs" / "g02" / "T_SCOUT_A07" / "a07"
 
-            reviews = scout_a07_bridge.build_scout_a07_reviews(
+            reviews = a07_bridge.build_a07_reviews(
                 run,
                 output_dir=out,
                 intake_ref="mocks/g02/KP_intake_bundle.json",
                 max_scan_pages=2,
             )
 
-            checked = contracts.validate(reviews, "scout_a07_reviews@1")
+            checked = contracts.validate(reviews, "a07_reviews@1")
             self.assertTrue(checked["ok"], checked["errors"])
             self.assertTrue((out / "reviews.json").is_file())
             self.assertEqual(reviews["status"], "prepared")
@@ -319,7 +319,7 @@ class ScoutA07BridgeTests(unittest.TestCase):
             tmp = Path(temp)
             run = self._make_run(tmp)
             out = tmp / "outputs" / "g02" / "T_SCOUT_A07" / "a07"
-            reviews = scout_a07_bridge.build_scout_a07_reviews(
+            reviews = a07_bridge.build_a07_reviews(
                 run,
                 output_dir=out,
                 intake_ref=str(ROOT / "mocks" / "g02" / "KP_intake_bundle.json"),
@@ -329,7 +329,7 @@ class ScoutA07BridgeTests(unittest.TestCase):
                         if item["source_id"] == "SCOUT_GOOD")
             work_path = out / good["work_input_ref"]
 
-            partial = scout_a07_bridge.finalize_scout_a07_partial(work_path, {
+            partial = a07_bridge.finalize_a07_partial(work_path, {
                 "review_status": "useful_for_update",
                 "confidence": "medium",
                 "presentation_update_candidates": [{
@@ -346,13 +346,13 @@ class ScoutA07BridgeTests(unittest.TestCase):
                 "limitations": ["Fixture A07 review."],
             })
 
-            self.assertTrue(contracts.validate(partial, "scout_a07_partial_review@1")["ok"])
-            aggregated = scout_a07_bridge.aggregate_scout_a07_reviews(out)
+            self.assertTrue(contracts.validate(partial, "a07_review@1")["ok"])
+            aggregated = a07_bridge.aggregate_a07_reviews(out)
             self.assertEqual(aggregated["status"], "completed")
             self.assertEqual(len(aggregated["presentation_update_candidates"]), 1)
-            self.assertTrue(contracts.validate(aggregated, "scout_a07_reviews@1")["ok"])
+            self.assertTrue(contracts.validate(aggregated, "a07_reviews@1")["ok"])
 
-            prepared = scout_synthesis.prepare_scout_fast_synthesis(
+            prepared = a09_synthesis.prepare_scout_fast_synthesis(
                 out / "reviews.json",
                 intake=ROOT / "mocks" / "g02" / "KP_intake_bundle.json",
             )
@@ -360,7 +360,7 @@ class ScoutA07BridgeTests(unittest.TestCase):
             self.assertLessEqual(
                 len(prepared["synthesis_input"]["deep_dive_requests"]), 5
             )
-            solution = scout_synthesis.finalize_scout_fast_solution(
+            solution = a09_synthesis.finalize_scout_fast_solution(
                 prepared["synthesis_input"],
             )
             checked = contracts.validate(solution, "solution_input_candidate@1")
@@ -375,7 +375,7 @@ class ScoutA07BridgeTests(unittest.TestCase):
             tmp = Path(temp)
             run = self._make_run(tmp)
             out = tmp / "outputs" / "g02" / "T_SCOUT_A07" / "a07"
-            reviews = scout_a07_bridge.build_scout_a07_reviews(
+            reviews = a07_bridge.build_a07_reviews(
                 run,
                 output_dir=out,
                 intake_ref=str(ROOT / "mocks" / "g02" / "KP_intake_bundle.json"),
@@ -385,12 +385,12 @@ class ScoutA07BridgeTests(unittest.TestCase):
                         if item["source_id"] == "SCOUT_GOOD")
             work_path = out / good["work_input_ref"]
 
-            task = scout_a07_runner.build_scout_a07_model_task(
+            task = a07_runner.build_a07_review_task(
                 work_path,
                 intake=ROOT / "mocks" / "g02" / "KP_intake_bundle.json",
             )
 
-            checked = contracts.validate(task, "scout_a07_model_task@1")
+            checked = contracts.validate(task, "a07_review_task@1")
             self.assertTrue(checked["ok"], checked["errors"])
             self.assertEqual(task["model_policy"]["recommended_model"], "sonnet")
             self.assertEqual(task["model_policy"]["reasoning_effort"], "high")
@@ -400,7 +400,7 @@ class ScoutA07BridgeTests(unittest.TestCase):
             self.assertTrue(task["intake_context"]["research_drivers"])
             self.assertTrue(task["topic_lens"]["linked_intake_ids"]["driver_ids"])
 
-            prepared_tasks = scout_a07_runner.write_scout_a07_model_tasks(
+            prepared_tasks = a07_runner.write_a07_review_tasks(
                 out,
                 intake=ROOT / "mocks" / "g02" / "KP_intake_bundle.json",
             )
@@ -408,7 +408,7 @@ class ScoutA07BridgeTests(unittest.TestCase):
             self.assertTrue((out / prepared_tasks["tasks"][0]["task_ref"]).is_file())
 
             def fake_executor(model_task: dict) -> dict:
-                self.assertEqual(model_task["schema_version"], "scout_a07_model_task@1")
+                self.assertEqual(model_task["schema_version"], "a07_review_task@1")
                 self.assertTrue(model_task["model_policy"]["full_pdf_forbidden"])
                 return {
                     "review_status": "useful_for_update",
@@ -433,7 +433,7 @@ class ScoutA07BridgeTests(unittest.TestCase):
                     "limitations": ["Offline executor fixture."],
                 }
 
-            run_result = scout_a07_runner.run_scout_a07_light(
+            run_result = a07_runner.run_a07_light(
                 out,
                 fake_executor,
                 intake=ROOT / "mocks" / "g02" / "KP_intake_bundle.json",
@@ -444,13 +444,13 @@ class ScoutA07BridgeTests(unittest.TestCase):
             aggregated = run_result["aggregate"]
             self.assertEqual(aggregated["status"], "completed")
             self.assertEqual(len(aggregated["presentation_update_candidates"]), 1)
-            self.assertTrue(contracts.validate(aggregated, "scout_a07_reviews@1")["ok"])
+            self.assertTrue(contracts.validate(aggregated, "a07_reviews@1")["ok"])
 
-            prepared = scout_synthesis.prepare_scout_fast_synthesis(
+            prepared = a09_synthesis.prepare_scout_fast_synthesis(
                 out / "reviews.json",
                 intake=ROOT / "mocks" / "g02" / "KP_intake_bundle.json",
             )
-            solution = scout_synthesis.finalize_scout_fast_solution(
+            solution = a09_synthesis.finalize_scout_fast_solution(
                 prepared["synthesis_input"],
             )
             self.assertTrue(contracts.validate(solution, "solution_input_candidate@1")["ok"])
@@ -459,12 +459,12 @@ class ScoutA07BridgeTests(unittest.TestCase):
     def test_normalize_tolerates_loose_model_output(self) -> None:
         # Real A07 model responses omit optional fields and send null where the
         # contract expects arrays. Normalization must stay crash-free and still
-        # produce a valid scout_a07_partial_review@1 without manual fixes.
+        # produce a valid a07_review@1 without manual fixes.
         with tempfile.TemporaryDirectory() as temp:
             tmp = Path(temp)
             run = self._make_run(tmp)
             out = tmp / "outputs" / "g02" / "T_SCOUT_A07" / "a07"
-            reviews = scout_a07_bridge.build_scout_a07_reviews(
+            reviews = a07_bridge.build_a07_reviews(
                 run, output_dir=out, max_scan_pages=2
             )
             good = next(i for i in reviews["source_reviews"]
@@ -482,27 +482,27 @@ class ScoutA07BridgeTests(unittest.TestCase):
                 "coverage_gaps": None,
                 "limitations": None,
             }
-            partial = scout_a07_bridge.normalize_scout_a07_partial(
+            partial = a07_bridge.normalize_a07_partial(
                 work_item, loose, work_input_ref=good["work_input_ref"]
             )
-            checked = contracts.validate(partial, "scout_a07_partial_review@1")
+            checked = contracts.validate(partial, "a07_review@1")
             self.assertTrue(checked["ok"], checked["errors"])
             self.assertEqual(partial["review_status"], "useful_for_update")
             self.assertEqual(len(partial["presentation_update_candidates"]), 1)
             self.assertTrue(partial["presentation_update_candidates"][0]["confidence"])
 
             # Fully empty object: status inferred from prefilter, still valid.
-            empty_partial = scout_a07_bridge.normalize_scout_a07_partial(
+            empty_partial = a07_bridge.normalize_a07_partial(
                 work_item, {}, work_input_ref=good["work_input_ref"]
             )
             self.assertTrue(
-                contracts.validate(empty_partial, "scout_a07_partial_review@1")["ok"]
+                contracts.validate(empty_partial, "a07_review@1")["ok"]
             )
 
             # A chat model wraps JSON in a fenced block plus prose; recover it.
             fenced = ("Here is the review:\n```json\n"
                       "{\"review_status\": \"context_only\", \"confidence\": \"low\"}\n```\n")
-            recovered = scout_a07_runner.parse_model_json(fenced)
+            recovered = a07_runner.parse_model_json(fenced)
             self.assertEqual(recovered["review_status"], "context_only")
 
     def test_default_scout_run_root_uses_outputs_without_workspace(self) -> None:

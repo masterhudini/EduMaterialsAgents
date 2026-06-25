@@ -34,8 +34,8 @@ except Exception:  # noqa: BLE001
     PdfReader = None
 
 
-SCOUT_A07_REVIEWS_CONTRACT = "scout_a07_reviews@1"
-SCOUT_A07_PARTIAL_CONTRACT = "scout_a07_partial_review@1"
+SCOUT_A07_REVIEWS_CONTRACT = "a07_reviews@1"
+SCOUT_A07_PARTIAL_CONTRACT = "a07_review@1"
 SCOUT_INDEX_CONTRACT = "scout_run_index@1"
 SCOUT_CORPUS_CONTRACT = "scout_retrieved_corpus@1"
 SCOUT_REQUEST_CONTRACT = "scout_search_request@1"
@@ -497,7 +497,7 @@ def _work_item_payload(task_id: str, lens: dict, document: dict,
                        prefilter: dict, windows: list[dict], issues: list[str],
                        intake_ref: str | None) -> dict:
     return {
-        "schema_version": "scout_a07_work_item@1",
+        "schema_version": "a07_work_item@1",
         "artifact_version": "1.0.0",
         "task_id": task_id,
         "topic_lens": deepcopy(lens),
@@ -520,7 +520,7 @@ def _work_item_payload(task_id: str, lens: dict, document: dict,
     }
 
 
-def build_scout_a07_reviews(
+def build_a07_reviews(
     scout_run_dir: str | Path,
     *,
     output_dir: str | Path | None = None,
@@ -532,7 +532,7 @@ def build_scout_a07_reviews(
 ) -> dict:
     """Prepare A07 light-review work items and an aggregate placeholder.
 
-    The returned artifact is valid ``scout_a07_reviews@1`` with status
+    The returned artifact is valid ``a07_reviews@1`` with status
     ``prepared``. It intentionally contains no final presentation update
     candidates until the A07 model workers fill their partial review files.
     """
@@ -782,16 +782,16 @@ def _pointer_defaults(pointer: dict, work_item: dict, index: int) -> dict:
     }
 
 
-def normalize_scout_a07_partial(
+def normalize_a07_partial(
     work_item: dict,
     output: object,
     *,
     artifact_version: str = "1.0.0",
     work_input_ref: str = "",
 ) -> dict:
-    """Normalize one A07 model response into ``scout_a07_partial_review@1``."""
-    if not isinstance(work_item, dict) or work_item.get("schema_version") != "scout_a07_work_item@1":
-        raise ValueError("scout_a07_work_item@1 is required")
+    """Normalize one A07 model response into ``a07_review@1``."""
+    if not isinstance(work_item, dict) or work_item.get("schema_version") != "a07_work_item@1":
+        raise ValueError("a07_work_item@1 is required")
     if not isinstance(output, dict):
         raise ValueError("A07 output must be an object")
     lens = work_item["topic_lens"]
@@ -852,7 +852,7 @@ def normalize_scout_a07_partial(
     return partial
 
 
-def finalize_scout_a07_partial(
+def finalize_a07_partial(
     work_input_path: str | Path,
     output: object,
     *,
@@ -864,7 +864,7 @@ def finalize_scout_a07_partial(
     work_item = _read_json(work_path)
     a07_root = work_path.parents[2] if len(work_path.parents) >= 3 else work_path.parent
     work_ref = _rel(work_path, a07_root)
-    partial = normalize_scout_a07_partial(
+    partial = normalize_a07_partial(
         work_item, output, artifact_version=artifact_version, work_input_ref=work_ref
     )
     destination = Path(output_path).expanduser().resolve() if output_path else (
@@ -874,7 +874,7 @@ def finalize_scout_a07_partial(
     return partial
 
 
-def aggregate_scout_a07_reviews(a07_dir: str | Path) -> dict:
+def aggregate_a07_reviews(a07_dir: str | Path) -> dict:
     """Rebuild ``reviews.json`` from worker partials without worker contention."""
     root = Path(a07_dir).expanduser().resolve()
     aggregate_path = root / "reviews.json"
@@ -934,7 +934,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", default="", help="Override A07 output directory")
     parser.add_argument("--intake-ref", default="", help="Optional research_graph_input@1 ref/path")
     args = parser.parse_args(argv)
-    result = build_scout_a07_reviews(
+    result = build_a07_reviews(
         args.scout_run_dir,
         output_dir=args.output_dir or None,
         intake_ref=args.intake_ref or None,

@@ -21,10 +21,10 @@ from typing import Callable, Iterable
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core import artifacts, contracts  # noqa: E402
-from g02 import scout_a07_bridge  # noqa: E402
+from g02 import a07_bridge  # noqa: E402
 
 
-SCOUT_A07_MODEL_TASK_CONTRACT = "scout_a07_model_task@1"
+SCOUT_A07_MODEL_TASK_CONTRACT = "a07_review_task@1"
 RESEARCH_GRAPH_INPUT_CONTRACT = "research_graph_input@1"
 DEFAULT_TASKS_DIR = "tasks"
 DEFAULT_MAX_WORKERS = 4
@@ -196,7 +196,7 @@ def _relative(path: Path, root: Path) -> str:
         return str(path.resolve())
 
 
-def build_scout_a07_model_task(
+def build_a07_review_task(
     work_input_path: str | Path,
     *,
     intake: str | Path | dict | None = None,
@@ -205,8 +205,8 @@ def build_scout_a07_model_task(
     """Build one compact A07 host-model task from an immutable work item."""
     work_path = Path(work_input_path).expanduser().resolve()
     work_item = _read_json(work_path)
-    if work_item.get("schema_version") != "scout_a07_work_item@1":
-        raise ValueError("scout_a07_work_item@1 is required")
+    if work_item.get("schema_version") != "a07_work_item@1":
+        raise ValueError("a07_work_item@1 is required")
     a07_root = _a07_root_from_work_path(work_path)
     intake_value = intake if intake is not None else work_item.get("intake_ref")
     intake_payload, intake_ref = _load_json_or_artifact(
@@ -239,7 +239,7 @@ def build_scout_a07_model_task(
             "full_pdf_forbidden": True,
         },
         "expected_output": {
-            "finalizer": "research_scout_a07_partial_finalize",
+            "finalizer": "research_a07_partial_finalize",
             "review_status_enum": [
                 "useful_for_update", "context_only", "irrelevant", "insufficient"
             ],
@@ -265,7 +265,7 @@ def build_scout_a07_model_task(
     }
     validation = contracts.validate(task, SCOUT_A07_MODEL_TASK_CONTRACT)
     if not validation["ok"]:
-        raise ValueError("invalid scout_a07_model_task@1: " + "; ".join(validation["errors"]))
+        raise ValueError("invalid a07_review_task@1: " + "; ".join(validation["errors"]))
     return task
 
 
@@ -281,9 +281,9 @@ def pending_source_reviews(
     """Return source review records that still require an A07 worker."""
     root = Path(a07_dir).expanduser().resolve()
     aggregate = _read_json(root / "reviews.json")
-    validation = contracts.validate(aggregate, "scout_a07_reviews@1")
+    validation = contracts.validate(aggregate, "a07_reviews@1")
     if not validation["ok"]:
-        raise ValueError("invalid scout_a07_reviews@1: " + "; ".join(validation["errors"]))
+        raise ValueError("invalid a07_reviews@1: " + "; ".join(validation["errors"]))
     topics = set(topic_ids or [])
     sources = set(source_ids or [])
     allowed_statuses = set()
@@ -309,7 +309,7 @@ def pending_source_reviews(
     return selected
 
 
-def write_scout_a07_model_tasks(
+def write_a07_review_tasks(
     a07_dir: str | Path,
     *,
     output_dir: str | Path | None = None,
@@ -331,7 +331,7 @@ def write_scout_a07_model_tasks(
         limit=limit,
     ):
         work_path = root / source["work_input_ref"]
-        task = build_scout_a07_model_task(work_path, intake=intake)
+        task = build_a07_review_task(work_path, intake=intake)
         task_path = out_root / _safe_segment(task["topic_id"]) / f"{_safe_segment(task['source_id'])}.task.json"
         _write_json(task_path, task)
         written.append({
@@ -410,7 +410,7 @@ def command_executor(command: list[str], *, timeout_seconds: int = DEFAULT_EXECU
     return _execute
 
 
-def run_scout_a07_light(
+def run_a07_light(
     a07_dir: str | Path,
     executor: Callable[[dict], dict],
     *,
@@ -434,7 +434,7 @@ def run_scout_a07_light(
         limit=limit,
     )
     if not pending:
-        aggregate = scout_a07_bridge.aggregate_scout_a07_reviews(root)
+        aggregate = a07_bridge.aggregate_a07_reviews(root)
         return {
             "a07_dir": str(root),
             "processed_count": 0,
@@ -448,14 +448,14 @@ def run_scout_a07_light(
 
     def _one(source: dict) -> dict:
         work_path = root / source["work_input_ref"]
-        task = build_scout_a07_model_task(work_path, intake=intake)
+        task = build_a07_review_task(work_path, intake=intake)
         try:
             output = executor(task)
         except Exception as exc:  # noqa: BLE001
             if fail_fast:
                 raise
             output = _failure_output(f"A07 executor failed for {task['source_id']}: {type(exc).__name__}: {exc}")
-        partial = scout_a07_bridge.finalize_scout_a07_partial(work_path, output)
+        partial = a07_bridge.finalize_a07_partial(work_path, output)
         return {
             "topic_id": task["topic_id"],
             "source_id": task["source_id"],
@@ -478,7 +478,7 @@ def run_scout_a07_light(
                 })
                 if fail_fast:
                     raise
-    aggregate = scout_a07_bridge.aggregate_scout_a07_reviews(root)
+    aggregate = a07_bridge.aggregate_a07_reviews(root)
     return {
         "a07_dir": str(root),
         "processed_count": len(partials),
@@ -529,7 +529,7 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.cmd == "prepare-tasks":
-        result = write_scout_a07_model_tasks(
+        result = write_a07_review_tasks(
             args.a07_dir,
             output_dir=args.out or None,
             intake=args.intake or None,
@@ -543,7 +543,7 @@ def main(argv: list[str] | None = None) -> int:
         if command and command[0] == "--":
             command = command[1:]
         executor = command_executor(command, timeout_seconds=args.timeout_seconds)
-        result = run_scout_a07_light(
+        result = run_a07_light(
             args.a07_dir,
             executor,
             intake=args.intake or None,
@@ -562,7 +562,7 @@ def main(argv: list[str] | None = None) -> int:
             "candidate_count": len(result["aggregate"].get("presentation_update_candidates", [])),
         }
     else:
-        result = scout_a07_bridge.aggregate_scout_a07_reviews(args.a07_dir)
+        result = a07_bridge.aggregate_a07_reviews(args.a07_dir)
         result = {
             "a07_dir": str(Path(args.a07_dir).expanduser().resolve()),
             "status": result["status"],

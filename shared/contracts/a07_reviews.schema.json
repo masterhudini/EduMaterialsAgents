@@ -10,7 +10,7 @@
     "coverage_gaps", "irrelevant_sources", "limitations"
   ],
   "properties": {
-    "schema_version": {"type": "string", "enum": ["scout_a07_reviews@1"]},
+    "schema_version": {"type": "string", "enum": ["a07_reviews@1"]},
     "artifact_version": {"type": "string"},
     "task_id": {"type": "string"},
     "status": {"type": "string", "enum": ["prepared", "partial", "completed", "failed"]},
