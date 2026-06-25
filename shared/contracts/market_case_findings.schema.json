@@ -1,0 +1,46 @@
+{
+  "title": "G02-A11 real-world / market case findings for one Scout run (host web search, additive stream)",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "status", "plan_ref",
+    "intake_ref", "discovery_method", "cases", "topics_covered", "limitations"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["market_case_findings@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "status": {"type": "string", "enum": ["prepared", "partial", "completed", "failed"]},
+    "plan_ref": {"type": "string"},
+    "intake_ref": {"type": ["string", "null"]},
+    "discovery_method": {"type": "string", "enum": ["host_web_search"]},
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "case_id", "topic_id", "title", "what_happened", "didactic_mechanism",
+          "source_url", "source_title", "observed_at", "materiality", "why_interesting"
+        ],
+        "properties": {
+          "case_id": {"type": "string"},
+          "topic_id": {"type": "string"},
+          "claim_ids": {"type": "array", "items": {"type": "string"}},
+          "title": {"type": "string"},
+          "institution_or_event": {"type": ["string", "null"]},
+          "event_date": {"type": ["string", "null"]},
+          "what_happened": {"type": "string"},
+          "didactic_mechanism": {"type": "string"},
+          "source_url": {"type": "string"},
+          "source_title": {"type": "string"},
+          "observed_at": {"type": "string"},
+          "materiality": {"type": "string", "enum": ["documented", "weak_signal"]},
+          "why_interesting": {"type": "string"}
+        }
+      }
+    },
+    "topics_covered": {"type": "array", "items": {"type": "object"}},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  }
+}

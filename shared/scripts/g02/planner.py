@@ -87,9 +87,10 @@ SEARCH_STOPWORDS = {
 def research_plan_output_template(planner_input: dict) -> dict:
     """Return the exact output skeleton A01 must fill.
 
-    Fixed boundary-owned values are already populated. The single topic entry is
-    a structural template, not a valid topic, and must be repeated 4--6 times in
-    the Scout profile. This removes contract-key recall from model reasoning.
+    Fixed boundary-owned values are already populated. The single topic entry is a structural
+    template, not a valid topic; repeat it only as needed within the graph-derived
+    ``constraints.min_topics`` and ``constraints.max_topics``. This removes contract-key recall
+    from model reasoning.
     """
     constraints = planner_input.get("constraints", {})
     selection = planner_input.get("selection_profile", {})
@@ -459,9 +460,9 @@ def _apply_execution_profile_limits(scoped: dict, *, execution_profile: str | No
 
     The original boundary input remains immutable. The profile is applied only when it is requested
     explicitly (call argument or ``EMAGENTS_G02_PROFILE``); a bare call leaves the approved boundary
-    limits unchanged. The single ``scout_e2e`` profile replaces ``max_topics`` with its profile value
-    (the 1--6-topic Scout fanout) and clamps the candidate pool target to the candidate limit, so a
-    G01 hint that exceeds the limit is reconciled here rather than failing G02 input validation.
+    limits unchanged. The single ``scout_e2e`` profile replaces ``max_topics`` with its graph
+    profile value and clamps the candidate pool target to the candidate limit, so a G01 hint that
+    exceeds the limit is reconciled here rather than failing G02 input validation.
     """
     env_profile = os.environ.get("EMAGENTS_G02_PROFILE")
     requested = execution_profile if isinstance(execution_profile, str) and execution_profile.strip() \

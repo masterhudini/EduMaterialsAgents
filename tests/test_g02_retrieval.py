@@ -31,6 +31,8 @@ def _runtime(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENALEX_API_KEY", "openalex-test-key")
     if not os.getenv("CORE_API_KEY"):
         monkeypatch.setenv("CORE_API_KEY", "core-test-key")
+    # Model a session that completed research_provider_setup so managed_environment keeps the creds.
+    monkeypatch.setenv("EMAGENTS_G02_PROVIDER_CREDENTIALS", "provider_setup")
 
 
 def _load(name):

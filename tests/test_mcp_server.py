@@ -36,16 +36,20 @@ class MCPServerTests(unittest.TestCase):
 
         tools = srv.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         names = {t["name"] for t in tools["result"]["tools"]}
-        self.assertEqual(len(names), 20)
+        self.assertEqual(len(names), 24)
         self.assertEqual(names, {"research_front_door", "research_node_input",
                                  "research_planner_prepare", "research_planner_finalize",
                                  "research_human_gate_prepare",
                                  "research_bundle_finalize",
                                  "research_finalize", "research_scout_fanout",
+                                 "research_a11_prepare",
+                                 "research_a11_finalize",
                                  "research_a07_prepare",
                                  "research_a07_tasks_prepare",
                                  "research_a07_partial_finalize",
                                  "research_a07_aggregate",
+                                 "research_a08_prepare",
+                                 "research_a08_finalize",
                                  "research_a09_task_prepare",
                                  "research_a09_synthesis_finalize",
                                  "research_a09_research_state_finalize",

@@ -24,6 +24,8 @@ def _runtime(tmp_path, monkeypatch):
     monkeypatch.setenv("EMAGENTS_HOME", str(tmp_path / ".emagents"))
     monkeypatch.setenv("EMAGENTS_RESEARCH_CONTACT_EMAIL", "tests@example.com")
     monkeypatch.setenv("OPENALEX_API_KEY", "openalex-test-key")
+    # Model a session that completed research_provider_setup so managed_environment keeps the creds.
+    monkeypatch.setenv("EMAGENTS_G02_PROVIDER_CREDENTIALS", "provider_setup")
 
 
 def _record() -> dict:

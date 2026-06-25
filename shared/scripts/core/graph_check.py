@@ -18,6 +18,7 @@ Run whenever the node set changes:
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from . import contracts
@@ -41,6 +42,22 @@ _G02_RETIRED_OR_FLOW_COPY_TERMS = (
     "domain/canonical/recent",
     "market-case discovery",
     "source-selection gate",
+)
+_G02_A01_TOPIC_POLICY_FILES = (
+    "agents/g02-a01-planner.md",
+    "skills/g02-a01-plan-research-scope/SKILL.md",
+    "shared/scripts/g02/planner.py",
+    "shared/scripts/mcp/research_server.py",
+    "shared/scripts/g02/scout/README.md",
+)
+_G02_A01_TOPIC_POLICY_PATTERNS = (
+    re.compile(r"\b[14]\s*[-–]\s*6\s+(?:topics?|groups?)\b", re.IGNORECASE),
+    re.compile(r"\bfour\s+to\s+six\s+(?:topics?|groups?)\b", re.IGNORECASE),
+    re.compile(r"\bnormally\s+two\b", re.IGNORECASE),
+    re.compile(r"\bscoped\s+limit\s+is\s+six\b", re.IGNORECASE),
+    re.compile(r"\bdefault\s+fast\s+profile\b", re.IGNORECASE),
+    re.compile(r"\bdo\s+not\s+create\s+a\s+third\s+topic\b", re.IGNORECASE),
+    re.compile(r"\bmust\s+be\s+repeated\s+4\s*--\s*6\s+times\b", re.IGNORECASE),
 )
 
 
@@ -139,6 +156,24 @@ def _check_g02_orchestrator_text(root: Path, orchestrator: str, manifest_path: P
                     f"{manifest_path.name}: {rel} contains hardcoded/retired G02 flow term "
                     f"{term!r}; derive active sequence from g02.graph.json or the MCP prompt"
                 )
+
+
+def _check_g02_a01_topic_policy_text(root: Path, manifest_path: Path, errors: list[str]) -> None:
+    """Reject copied topic-count policy outside the graph-derived planner input."""
+    for rel_name in _G02_A01_TOPIC_POLICY_FILES:
+        path = root / rel_name
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for pattern in _G02_A01_TOPIC_POLICY_PATTERNS:
+            match = pattern.search(text)
+            if not match:
+                continue
+            errors.append(
+                f"{manifest_path.name}: {rel_name} contains hardcoded G02 planner "
+                f"topic-count policy {match.group(0)!r}; use graph-derived "
+                "constraints.min_topics/max_topics instead"
+            )
 
 
 def check_manifest(
@@ -287,6 +322,9 @@ def check_manifest(
             )
         if graph_id == "g02":
             _check_g02_orchestrator_text(root, orchestrator, manifest_path, errors)
+
+    if graph_id == "g02":
+        _check_g02_a01_topic_policy_text(root, manifest_path, errors)
 
     return {
         "ok": not errors,

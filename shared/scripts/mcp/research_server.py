@@ -41,6 +41,8 @@ from g02 import a07_bridge  # noqa: E402
 from g02 import a07_runner  # noqa: E402
 from g02 import a09_runner  # noqa: E402
 from g02 import a09_synthesis  # noqa: E402
+from g02 import a11_cases  # noqa: E402
+from g02 import a08_recommend  # noqa: E402
 from g02 import provider_config  # noqa: E402
 from g02 import credentials  # noqa: E402
 from g02 import providers  # noqa: E402
@@ -111,6 +113,10 @@ def _workflow_ops() -> dict:
         "planner_finalize": _graph_op("g02-a01-planner", "finalize", manifest),
         "provider_setup": _graph_op("research-scout-fanout", "provider_setup", manifest),
         "scout_run": _graph_op("research-scout-fanout", "run", manifest),
+        "a11_prepare": _graph_op("g02-a11-market-cases", "prepare", manifest),
+        "a11_finalize": _graph_op("g02-a11-market-cases", "finalize", manifest),
+        "a08_prepare": _graph_op("g02-a08-claim-verification", "prepare", manifest),
+        "a08_finalize": _graph_op("g02-a08-claim-verification", "finalize", manifest),
         "a07_prepare": _graph_op("g02-a07-paper-review", "prepare", manifest),
         "a07_tasks": _graph_op("g02-a07-paper-review", "prepare_tasks", manifest),
         "a07_partial": _graph_op("g02-a07-paper-review", "partial_finalize", manifest),
@@ -322,11 +328,18 @@ def _provider_setup(args: dict):
             auth = "none"
         rows.append({**item, "ready": ready, "authentication": auth})
     openalex_ready = has_email and has_key
+    stored_now = bool(saved.get("stored"))
     return {
         "tier": "email" if has_email else "minimal",
         "contact_email_configured": has_email,
         "openalex_token_configured": has_key,
         "openalex_ready": openalex_ready,
+        "user_decision_required": not stored_now,
+        "decision_options": [
+            "provide email",
+            "provide email and openalex_key",
+            "continue without additional provider credentials",
+        ],
         "saved": saved,
         "active_providers": [r["provider"] for r in rows if r["ready"]],
         "catalog": rows,
@@ -904,6 +917,54 @@ def _a07_aggregate(args: dict):
             "lookup_pointer_count": len(aggregate.get("lookup_pointers", [])),
             "coverage_gap_count": len(aggregate.get("coverage_gaps", [])),
         },
+    )
+
+
+def _a11_prepare(args: dict):
+    plan_ref = args["plan_ref"]
+    if isinstance(plan_ref, dict) and plan_ref.get("schema_version") == "envelope@1":
+        plan_ref = _produced_path(plan_ref, "research_plan@1", artifact_type="research_plan")
+    return a11_cases.prepare_a11(plan_ref, intake_ref=args.get("intake_ref"))
+
+
+def _a11_finalize(args: dict):
+    plan_ref = args["plan_ref"]
+    if isinstance(plan_ref, dict) and plan_ref.get("schema_version") == "envelope@1":
+        plan_ref = _produced_path(plan_ref, "research_plan@1", artifact_type="research_plan")
+    return a11_cases.finalize_a11(
+        plan_ref,
+        args.get("output"),
+        intake_ref=args.get("intake_ref"),
+        artifact_version=args.get("artifact_version", "1.0.0"),
+    )
+
+
+def _a08_prepare(args: dict):
+    candidate_ref = args["candidate_ref"]
+    if isinstance(candidate_ref, dict) and candidate_ref.get("schema_version") == "envelope@1":
+        candidate_ref = _produced_path(candidate_ref, a09_synthesis.SOLUTION_CONTRACT,
+                                       artifact_type="solution_input_candidate")
+    findings_ref = args.get("findings_ref")
+    if isinstance(findings_ref, dict) and findings_ref.get("schema_version") == "envelope@1":
+        findings_ref = _produced_path(findings_ref, a11_cases.FINDINGS_CONTRACT,
+                                      artifact_type="market_case_findings")
+    return a08_recommend.prepare_a08(candidate_ref, findings_ref=findings_ref)
+
+
+def _a08_finalize(args: dict):
+    candidate_ref = args["candidate_ref"]
+    if isinstance(candidate_ref, dict) and candidate_ref.get("schema_version") == "envelope@1":
+        candidate_ref = _produced_path(candidate_ref, a09_synthesis.SOLUTION_CONTRACT,
+                                       artifact_type="solution_input_candidate")
+    findings_ref = args.get("findings_ref")
+    if isinstance(findings_ref, dict) and findings_ref.get("schema_version") == "envelope@1":
+        findings_ref = _produced_path(findings_ref, a11_cases.FINDINGS_CONTRACT,
+                                      artifact_type="market_case_findings")
+    return a08_recommend.finalize_a08(
+        candidate_ref,
+        findings_ref=findings_ref,
+        output=args.get("output"),
+        artifact_version=args.get("artifact_version"),
     )
 
 
@@ -2119,6 +2180,97 @@ TOOLS = [
         }
     },
     {
+        "name": "research_a11_prepare",
+        "description": "Prepare the agent-facing A11 market-case task from a research_plan@1. Returns "
+                       "the topics to illustrate, output language and the exact market_case_findings@1 "
+                       "case shape. A11 finds cases through the host's native web search; there is no "
+                       "provider API seam.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_ref": {
+                    "type": ["string", "object"],
+                    "description": "artifact:// ref to research_plan@1, or envelope from research_planner_finalize"
+                },
+                "intake_ref": {
+                    "type": "string",
+                    "description": "Optional research_graph_input@1 ref for compact context"
+                }
+            },
+            "required": ["plan_ref"]
+        }
+    },
+    {
+        "name": "research_a11_finalize",
+        "description": "Validate and persist market_case_findings@1 from the A11 agent's raw "
+                       "web-search output. Cases that cannot be coerced into the contract are dropped "
+                       "and summarised as a limitation. Omit output for the deterministic empty "
+                       "fallback so the graph never blocks. Returns envelope@1 with the "
+                       "market_case_findings@1 descriptor in produced[].",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_ref": {
+                    "type": ["string", "object"],
+                    "description": "artifact:// ref to research_plan@1, or envelope from research_planner_finalize"
+                },
+                "output": {
+                    "type": "object",
+                    "description": "Raw g02-a11-market-cases JSON: {\"cases\": [...], \"limitations\": [...]}. Omit only after a failed or unavailable web attempt for the deterministic empty fallback."
+                },
+                "intake_ref": {"type": "string", "description": "Optional research_graph_input@1 ref"},
+                "artifact_version": {"type": "string", "description": "Findings artifact version; default 1.0.0"}
+            },
+            "required": ["plan_ref"]
+        }
+    },
+    {
+        "name": "research_a08_prepare",
+        "description": "Prepare the agent-facing A08 task: bind A09's solution_input_candidate@1 "
+                       "(scholarly synthesis) and A11's market_case_findings@1 (web cases) into a "
+                       "request for additive, per-topic claim recommendations. A08 uses no web search.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "candidate_ref": {
+                    "type": ["string", "object"],
+                    "description": "artifact:// ref to solution_input_candidate@1, or envelope from research_a09_synthesis_finalize"
+                },
+                "findings_ref": {
+                    "type": ["string", "object"],
+                    "description": "Optional artifact:// ref to market_case_findings@1, or envelope from research_a11_finalize"
+                }
+            },
+            "required": ["candidate_ref"]
+        }
+    },
+    {
+        "name": "research_a08_finalize",
+        "description": "Enrich solution_input_candidate@1 with the additive recommended_claims array "
+                       "and persist it. Omit output for the deterministic fallback (recommendations "
+                       "derived from web cases and top scholarly updates). Returns envelope@1 whose "
+                       "produced solution_input_candidate@1 is the recommendation-enriched handoff.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "candidate_ref": {
+                    "type": ["string", "object"],
+                    "description": "artifact:// ref to solution_input_candidate@1, or envelope from research_a09_synthesis_finalize"
+                },
+                "findings_ref": {
+                    "type": ["string", "object"],
+                    "description": "Optional artifact:// ref to market_case_findings@1, or envelope from research_a11_finalize"
+                },
+                "output": {
+                    "type": "object",
+                    "description": "Raw g02-a08-claim-verification JSON: {\"recommended_claims\": [...]}. Omit only after a failed or unavailable model attempt for the deterministic fallback."
+                },
+                "artifact_version": {"type": "string", "description": "Enriched candidate artifact version"}
+            },
+            "required": ["candidate_ref"]
+        }
+    },
+    {
         "name": "research_a09_synthesis_prepare",
         "description": "Prepare the Bounded A09 synthesis input from aggregated A07 reviews "
                        "and optional intake. Selects at most five bounded deep-dive source slots.",
@@ -2472,16 +2624,22 @@ def _research_scout_prompt(context: str) -> dict:
                     f"STEP 1 — Prepare: call {ops['planner_prepare']} with "
                     "execution_profile='scout_e2e'. This returns research_planner_input@1 and "
                     "plan_output_template.\n\n"
-                    "STEP 2 — Plan (acting as g02-a01-planner, Opus/medium): create 1-6 "
-                    "intake-anchored, bibliographically searchable topics following the "
-                    "plan_output_template. Each topic must have a stable TOPIC_ID, 3-6 "
+                    "STEP 2 — Plan (acting as g02-a01-planner, Opus/medium): create a "
+                    "graph-bounded set of intake-anchored, bibliographically searchable topics "
+                    "following the plan_output_template. Use "
+                    "research_planner_input.constraints.min_topics/max_topics; do not hardcode "
+                    "or infer a topic-count quota. Each topic must have a stable TOPIC_ID, 3-6 "
                     f"core_terms and coverage units linked to approved drivers. Call "
                     f"{ops['planner_finalize']} with input=<original research_graph_input>, "
                     "plan=<complete plan object> and execution_profile='scout_e2e'. The produced "
                     "research_plan descriptor uses path=<artifact:// ref>; retain that path "
                     "and artifact_version.\n\n"
-                    f"STEP 3 — Provider readiness: call {ops['provider_setup']} with no arguments. "
-                    "If the user provides email/openalex_key, call it again with those values before Scout.\n\n"
+                    f"STEP 3 — Provider readiness: call {ops['provider_setup']} with no arguments, "
+                    "present the ready/missing providers to the user, and ask for a provider "
+                    "decision. Do not continue to Scout until the user either supplies email / "
+                    "openalex_key values or explicitly chooses to continue without additional "
+                    "provider credentials. If the user supplies values, call "
+                    f"{ops['provider_setup']} again with exactly those values before Scout.\n\n"
                     f"STEP 4 — Scout: call {ops['scout_run']} with the final "
                     f"research_plan artifact ref from STEP 2, total_target={ops['scout_target']}. Report "
                     "run_directory and index summary. Stop before A07 and A09. Do not call "
@@ -2514,7 +2672,11 @@ def _research_scout_e2e_prompt(context: str) -> dict:
                     "payload finalize_op with the provided finalize_args filled with the raw model JSON, "
                     "then call research_resume with node_results keyed by payload.node_key. After the "
                     "A01 planner finalizer succeeds and before resuming, call research_provider_setup "
-                    "if the user wants to provide email/openalex_key for Scout.\n"
+                    "with no arguments, present provider readiness, and ask the user for a provider "
+                    "decision. Do not continue to Scout until the user either supplies email / "
+                    "openalex_key values or explicitly chooses to continue without additional "
+                    "provider credentials. If values are supplied, call research_provider_setup "
+                    "again with exactly those values.\n"
                     "   - awaiting_user: present the User Research Gate summary and collect explicit "
                     "decisions, then call research_resume with decisions={'user-research-gate': <decision>}.\n"
                     "   - completed: output_ref is the user_approved_research_bundle@1 for Graph03.\n\n"
@@ -2584,6 +2746,10 @@ DISPATCH = {
     "research_a07_tasks_prepare": _a07_tasks_prepare,
     "research_a07_partial_finalize": _a07_partial_finalize,
     "research_a07_aggregate": _a07_aggregate,
+    "research_a11_prepare": _a11_prepare,
+    "research_a11_finalize": _a11_finalize,
+    "research_a08_prepare": _a08_prepare,
+    "research_a08_finalize": _a08_finalize,
     "research_a09_synthesis_prepare": _a09_synthesis_prepare,
     "research_a09_deep_dive_windows": _scout_deep_dive_windows,
     "research_a09_task_prepare": _a09_task_prepare,

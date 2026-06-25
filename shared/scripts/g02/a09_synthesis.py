@@ -1128,7 +1128,7 @@ def finalize_a09_solution(
         *_strings(reviews.get("limitations")),
         *_strings(model_output.get("limitations")),
         *deep_dive_limitations,
-        "A08 claim verification was skipped (claim assessment is not run in the scout profile).",
+        "Formal claim verification is not run; G02 instead recommends interesting, well-documented claims per topic (recommended_claims) for the teacher to consider.",
         "A09 did not read full PDFs; it used A07 bounded reviews and optional bounded deep-dive windows.",
     ]))
     source_refs = deepcopy(model_output.get("source_refs")) \
@@ -1371,7 +1371,7 @@ def finalize_a09_research_state(
             for index, item in enumerate(solution.get("suggested_updates", []), start=1)
             if isinstance(item, dict)
         ]
-        limitation = "A08 claim verification was skipped (claim assessment is not run in the scout profile)."
+        limitation = "Formal claim verification is not run; G02 instead recommends interesting, well-documented claims per topic (recommended_claims) for the teacher to consider."
         evidence_map = _evidence_map(solution, artifact_version)
         for contract, payload in ((EVIDENCE_MAP_CONTRACT, evidence_map),):
             checked = contracts.validate(payload, contract)
@@ -1440,7 +1440,7 @@ def finalize_a09_research_state(
             "synthesis_mode": SYNTHESIS_MODE_A09,
             "claim_assessment_performed": False,
             "claim_assessment_status": "not_in_workflow",
-            "skipped_nodes": ["g02-a08-claim-verification"],
+            "skipped_nodes": [],
             "fast_mode_limitation": limitation,
             "findings": findings,
             "required_updates": required_updates,

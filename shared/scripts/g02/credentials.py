@@ -6,8 +6,9 @@ the running process, and DELETE the file as soon as a real provider query succee
 credentials live only in the process's memory (and any Scout child it forks), never lingering on
 disk. Treated like a password: local/dev only, gitignored. Pure stdlib.
 
-Scope (polite-pool set): the contact email unlocks OpenAlex (polite pool), arXiv, Crossref and
-Unpaywall; the OpenAlex key is an OPTIONAL premium booster. No key is ever required.
+Scope: the contact email unlocks arXiv, Crossref and Unpaywall. OpenAlex is enabled only when the
+user supplies both contact email and the free OpenAlex API token collected through
+``research_provider_setup``; without that pair OpenAlex is skipped.
 """
 from __future__ import annotations
 

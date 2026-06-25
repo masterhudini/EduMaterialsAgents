@@ -58,15 +58,15 @@ produced artifact.
    issues, drivers linked to multiple approved cards, central concepts used by several claims and
    drivers that unblock downstream evidence or retrieval. Medium-priority drivers can ride inside
    a higher-priority topic when they strengthen the same operational investigation.
-4. In the default fast profile, create no more than the scoped `constraints.max_topics` topics,
-   normally two. When the scoped limit is six (the `scout` profile), choose **four to six** distinct,
-   evidence-searchable topic groups; do not mechanically emit six when four or five cover the
-   approved intake better. Select the highest-value groups by the driver score above. Do not keep
-   the first groups merely because they appeared first in the input.
+4. Create only as many evidence-searchable topic groups as needed to cover the approved research
+   drivers within the scoped `constraints.min_topics` and `constraints.max_topics` supplied by
+   `research_planner_input@1`. The graph execution profile owns numeric topic limits; do not infer
+   a fixed quota from examples, prior runs or profile names. Select the highest-value groups by the
+   driver score above. Do not keep the first groups merely because they appeared first in the input.
 5. Group drivers when they share an approved investigation purpose, compatible terminology and a
-   usable evidence route. If a lower-priority driver does not fit inside the selected fast-profile
-   topics, put it in `uncovered_driver_ids` with an `input_issues` entry explaining the prototype
-   scope tradeoff instead of creating another topic.
+   usable evidence route. If a lower-priority driver does not fit within the scoped graph limits,
+   put it in `uncovered_driver_ids` with an `input_issues` entry explaining the scope tradeoff
+   instead of creating another topic.
 6. Give each topic one operational purpose, priority no lower than its highest-priority driver and
    at least one approved domain. Its name must be a concise established research field, method
    family or technical problem that can be used directly as an academic search query. Derive it
@@ -116,8 +116,8 @@ top-level schema/version/task/scope/constraints/language/review fields.
 ## Acceptance Criteria
 
 - `RP-01`: Every topic has a stable `TOPIC_*` ID, bounded purpose, priority and at least one
-  approved research driver; under the `scout` profile the plan has 4–6 topics with bibliographically
-  searchable technical names.
+  approved research driver; the total topic count satisfies the scoped graph constraints and every
+  topic has a bibliographically searchable technical name.
 - `RP-02`: Every approved driver is covered or declared as an input issue. All high-priority
   drivers are covered before approval.
 - `RP-03`: Every topic declares required source roles and observable `COV_*` coverage units linked
