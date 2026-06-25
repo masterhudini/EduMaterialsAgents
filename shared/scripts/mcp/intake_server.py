@@ -105,6 +105,11 @@ def _image_path(args: dict):
 _HOSTED = server_core.hosted_handlers(gf)   # run_hosted / resume / get_artifact, shared across graphs
 
 
+def _trace(args: dict):
+    from core import event_log
+    return event_log.open_log(gf.GRAPH_ID, run_id=args["run_id"]).summary()
+
+
 def _understanding_finalize(args: dict):
     return intake.finalize_understanding(args["task_id"], args["understanding"])
 
@@ -193,7 +198,18 @@ TOOLS = [
                                     "node_failures": {"type": "object",
                                                       "description": "{node_name: {summary, issues}}"},
                                     "decisions": {"type": "object",
-                                                  "description": "{gate_name: decision} for a user gate"}}}},
+                                                  "description": "{gate_name: decision} for a user gate"},
+                                    "usage_reports": {"type": "object",
+                                                      "description": "OPTIONAL token tracing: {node_name: "
+                                                                     "{input_tokens, output_tokens, model}}. Attach "
+                                                                     "the model usage YOU spent playing the node — "
+                                                                     "only the host knows it. Omit if unavailable."}}}},
+    {"name": "intake_trace",
+     "description": "Return the trace summary for a run: per-agent/per-tool durations and per-node "
+                    "token usage (input/output) rolled up, plus run totals. Pass the run's "
+                    "resume_token as run_id.",
+     "inputSchema": {"type": "object", "required": ["run_id"],
+                     "properties": {"run_id": {"type": "string", "description": "the run's resume_token"}}}},
     {"name": "intake_get_artifact",
      "description": "Hydrate (read) an artifact:// ref, e.g. an upstream slide_views the current "
                     "hosted node needs as input.",
@@ -267,6 +283,7 @@ DISPATCH = {
     "intake_run_hosted": _HOSTED["run_hosted"],
     "intake_resume": _HOSTED["resume"],
     "intake_get_artifact": _HOSTED["get_artifact"],
+    "intake_trace": _trace,
     "intake_extract_images": _extract_images,
     "intake_image_path": _image_path,
     "intake_describe_slides": _describe_slides,
@@ -283,6 +300,14 @@ PROMPTS = [
      "arguments": [{"name": "context",
                     "description": "Path or artifact:// ref to an intake_graph_input bundle.",
                     "required": True}]},
+    {"name": "refresh-lecture",
+     "description": "Semantic 'odswiez wyklad' / 'odśwież wykład' / 'odswiez materialy edukacyjne' / "
+                    "'odśwież materiały edukacyjne' / 'refresh lecture' entrypoint — run the COMPLETE "
+                    "workflow (Intake g01 -> Research g02 -> Solution g03) over a lecture PDF and "
+                    "produce an approved solution_blueprint@1.",
+     "arguments": [{"name": "context",
+                    "description": "Path to the lecture PDF (or artifact:// ref).",
+                    "required": True}]},
 ]
 
 
@@ -290,6 +315,22 @@ def _prompt(name: str, args: dict) -> dict:
     context = args.get("context")
     if not context:
         raise ValueError("missing required prompt argument 'context'")
+    if name == "refresh-lecture":
+        return {
+            "description": "Semantic 'odswiez wyklad' entrypoint for the full g01->g02->g03 workflow.",
+            "messages": [{"role": "user", "content": {"type": "text", "text": (
+                "The user asked to odswiez wyklad / odśwież materiały edukacyjne. Run the COMPLETE "
+                "edu-materials-agents workflow (Intake -> Research -> Solution) over this lecture: "
+                f"{context}\n\n"
+                "Use the orchestrate-workflow skill. Drive g01 host-driven (intake_upload then "
+                "intake_run_hosted), capturing BOTH the research_graph_input@1 handoff AND the "
+                "lecture_baseline@1 ref produced by g01-a04-lecture-baseline. Then research_run_hosted "
+                "with the research_graph_input to get user_approved_research_bundle@1. Then "
+                "solution_run_hosted with {lecture_baseline_ref, research_bundle_ref} to get "
+                "solution_blueprint@1. Honor every human gate. Inside a Codex session use "
+                "*_run_hosted/*_resume, never *_run_codex. For a no-LLM wiring check, run "
+                "shared/scripts/workflow.py run-stub.")}}],
+        }
     return {
         "description": "Semantic 'zrob intake' entrypoint for an intake_graph_input bundle.",
         "messages": [{"role": "user", "content": {"type": "text", "text": (

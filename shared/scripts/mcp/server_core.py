@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))  # -> shared/scripts
@@ -72,14 +73,18 @@ def make_handle(*, server_info, tools, dispatch, prompts=(), prompt_handler=None
             node_id = os.environ.get("EMAGENTS_NODE_ID", "mcp-client")
             audit = event_log.open_log(f"{run_id}-{log_ns}")
             audit.append(node_id, name, detail={"argument_keys": sorted(arguments)})
+            t0 = time.perf_counter()
             try:
                 out = fn(arguments)
-                audit.append(node_id, name, status="ok", detail={"is_error": False})
+                audit.span(node_id, name, kind="tool",
+                           duration_ms=(time.perf_counter() - t0) * 1000.0,
+                           detail={"is_error": False})
                 return _result(mid, {"content": [{"type": "text",
                                                   "text": json.dumps(out, ensure_ascii=False)}]})
             except Exception as exc:  # tool error -> result with isError, not a protocol error
-                audit.append(node_id, name, status="failed",
-                             detail={"is_error": True, "exception_type": type(exc).__name__})
+                audit.span(node_id, name, kind="tool", status="failed",
+                           duration_ms=(time.perf_counter() - t0) * 1000.0,
+                           detail={"is_error": True, "exception_type": type(exc).__name__})
                 return _result(mid, {"content": [{"type": "text", "text": f"error: {exc}"}],
                                      "isError": True})
         return _error(mid, -32601, f"method not found: {method}")
@@ -97,9 +102,12 @@ def hosted_handlers(flow) -> dict:
         return flow.run(flow.front_door(args["context"])["ref"], pause_on_node=True, pause_on_gate=True)
 
     def resume(args: dict):
+        # usage_reports lets a host attach the model tokens it (and only it) knows for a played
+        # node — that is what makes token tracing work for Claude, not just nested codex.
         return flow.run(resume_token=args["resume_token"], pause_on_node=True, pause_on_gate=True,
                         node_results=args.get("node_results"), node_failures=args.get("node_failures"),
-                        review_decisions=args.get("review_decisions"), decisions=args.get("decisions"))
+                        review_decisions=args.get("review_decisions"), decisions=args.get("decisions"),
+                        usage_reports=args.get("usage_reports"))
 
     def get_artifact(args: dict):
         from core import artifacts

@@ -9,7 +9,10 @@ Drive the graph host-driven through MCP, playing each LLM node yourself:
      perform the node's task for `input`, then call the named `finalize_op` (`solution_blueprint_finalize`)
      with `{task_id, blueprint}`. Take `produced[0].path` and call
      `solution_resume(resume_token, node_results={node: ref})`. If you genuinely cannot produce the node,
-     call `solution_resume(resume_token, node_failures={node: {summary, issues}})`.
+     call `solution_resume(resume_token, node_failures={node: {summary, issues}})`. **Tracing:** if you
+     know the model tokens you spent on this node, also pass
+     `usage_reports={node: {input_tokens, output_tokens, model}}` — only the host knows them. Omit if
+     your harness does not expose usage (the run is still traced for timings and decisions).
    - **`awaiting_review`**: review the `artifact_ref` against `review_profile` + the node's acceptance
      criteria (read it with `solution_get_artifact`). Resume with
      `solution_resume(resume_token, review_decisions={node: {decision, findings}})` where decision is

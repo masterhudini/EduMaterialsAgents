@@ -10,7 +10,9 @@ Drive the graph host-driven through MCP, playing each LLM node yourself:
      (e.g. `intake_understanding_finalize` / `intake_synthesis_finalize`) with `{task_id, <artifact>}`.
      Take `produced[0].path` and call `intake_resume(resume_token, node_results={node: ref})`. If you
      genuinely cannot produce the node, call `intake_resume(resume_token, node_failures={node: {summary,
-     issues}})`.
+     issues}})`. **Tracing:** if your harness exposes the model tokens you spent on this node, also pass
+     `usage_reports={node: {input_tokens, output_tokens, model}}` — only the host knows them; omit if
+     unavailable (timings and decisions are still traced).
    - **`awaiting_review`**: review the `artifact_ref` against `review_profile` + the node's acceptance
      criteria (read it with `intake_get_artifact`). Resume with
      `intake_resume(resume_token, review_decisions={node: {decision, findings}})` where decision is

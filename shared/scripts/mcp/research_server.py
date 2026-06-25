@@ -795,6 +795,37 @@ def _run_codex(args: dict):
     )
 
 
+def _run_hosted(args: dict):
+    """Start a HOST-DRIVEN reviewed g02 run (no nested codex). Each producer/reviewer yields
+    awaiting_node/awaiting_review; the host plays it (calling the node's finalize op) and resumes."""
+    context = args.get("context")
+    if not context:
+        raise ValueError("context is required")
+    ref = rf.front_door(context)["ref"]
+    return rf.run(ref, reviewed=True, pause_on_node=True, pause_on_gate=True,
+                  through=args.get("through", "g02-a09-synthesizer"),
+                  topic_ids=args.get("topic_ids"))
+
+
+def _resume(args: dict):
+    """Resume a host-driven run. Producers resume with node_results={node: finalize_envelope};
+    reviewers with review_results={node: review_finalize_envelope}; gates with decisions; a node the
+    host cannot produce with node_failures. Optional usage_reports={node: {input_tokens,
+    output_tokens, model}} carries the model tokens only the host knows (token tracing for Claude)."""
+    return rf.run(None, reviewed=True, pause_on_node=True, pause_on_gate=True,
+                  resume_token=args["resume_token"],
+                  node_results=args.get("node_results"), node_failures=args.get("node_failures"),
+                  review_results=args.get("review_results"), decisions=args.get("decisions"),
+                  usage_reports=args.get("usage_reports"),
+                  through=args.get("through", "g02-a09-synthesizer"),
+                  topic_ids=args.get("topic_ids"))
+
+
+def _trace(args: dict):
+    from core import event_log
+    return event_log.open_log(f"{rf.GRAPH_ID}-reviewed", run_id=args["run_id"]).summary()
+
+
 TOOLS = [
     {
         "name": "research_front_door",
@@ -1979,6 +2010,49 @@ TOOLS = [
             },
         },
     },
+    {
+        "name": "research_run_hosted",
+        "description": "Start a HOST-DRIVEN reviewed g02 run (no nested codex exec). Each producer "
+                       "yields {status:'awaiting_node', resume_token, node, input, upstream, "
+                       "finalize_op, protocol}; play it (call its finalize op) and call "
+                       "research_resume with node_results. Each reviewed producer then yields "
+                       "{status:'awaiting_review', node, review_task, artifact_ref}; review it (call "
+                       "research_review_finalize) and resume with review_results. Human gates yield "
+                       "awaiting_user. Use this to drive g02 from a Claude/Codex session.",
+        "inputSchema": {"type": "object", "required": ["context"],
+                        "properties": {"context": {"type": "string",
+                                                   "description": "path or artifact:// ref to a research_graph_input bundle"},
+                                       "through": {"type": "string"},
+                                       "topic_ids": {"type": "array", "items": {"type": "string"}}}},
+    },
+    {
+        "name": "research_resume",
+        "description": "Resume a host-driven g02 run with exactly one of: node_results={node: "
+                       "finalize_envelope} (after playing a producer + its finalize op); "
+                       "review_results={node: review_finalize_envelope} (after playing the reviewer "
+                       "via research_review_finalize); node_failures={node: {summary, issues}}; or "
+                       "decisions={gate: ...} for a human gate. Optional usage_reports={node: "
+                       "{input_tokens, output_tokens, model}} records the model tokens only the host "
+                       "knows (token tracing). Returns the next awaiting_* or the run report.",
+        "inputSchema": {"type": "object", "required": ["resume_token"],
+                        "properties": {"resume_token": {"type": "string"},
+                                       "node_results": {"type": "object"},
+                                       "review_results": {"type": "object"},
+                                       "node_failures": {"type": "object"},
+                                       "decisions": {"type": "object"},
+                                       "usage_reports": {"type": "object",
+                                                         "description": "{node: {input_tokens, output_tokens, model}} — omit if unavailable"},
+                                       "through": {"type": "string"},
+                                       "topic_ids": {"type": "array", "items": {"type": "string"}}}},
+    },
+    {
+        "name": "research_trace",
+        "description": "Return the trace summary for a run: per-agent/per-tool durations and per-node "
+                       "token usage (input/output) rolled up, plus run totals. Pass the run's "
+                       "resume_token as run_id.",
+        "inputSchema": {"type": "object", "required": ["run_id"],
+                        "properties": {"run_id": {"type": "string", "description": "the run's resume_token"}}},
+    },
 ]
 
 PROMPTS = [
@@ -2227,6 +2301,9 @@ DISPATCH = {
     "research_scout_synthesis_finalize": _scout_synthesis_finalize,
     "research_run_stub": _run_stub,
     "research_run_codex": _run_codex,
+    "research_run_hosted": _run_hosted,
+    "research_resume": _resume,
+    "research_trace": _trace,
 }
 
 

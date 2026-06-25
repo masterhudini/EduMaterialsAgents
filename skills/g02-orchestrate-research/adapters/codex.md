@@ -1,33 +1,46 @@
 ## Host Adapter: Codex
 
-- Use the installed Research Graph MCP or equivalent node-agent adapter for validation, scoped input,
-  agent execution, artifact persistence and final handoff.
-- Do not simulate physical node agents by copying their work into the orchestrator context.
-- For semantic requests such as "zrob research", "zrób research" or "run the research graph", use
-  the MCP tool `research_run_codex` when available:
+**Preferred when you are already in a Codex session — you ARE the worker (no nested `codex exec`).**
+Drive the Research Graph host-driven through MCP, playing each producer and reviewer yourself:
 
-  ```json
-  {"context": "<path-or-artifact-ref>", "gates": "pause"}
-  ```
+1. `research_run_hosted({context, through?, topic_ids?})` over a `research_graph_input@1` path/ref.
+2. Loop on the response:
+   - **`awaiting_node`**: hydrate `upstream` refs with `research_node_input` if needed, perform the
+     producer node's task for `input`, then call the node's `finalize_op` named in the payload (e.g.
+     `research_planner_finalize` / `research_domain_finalize` / … / `research_synthesis_finalize`).
+     Resume with the RETURNED ENVELOPE: `research_resume({resume_token, node_results={node: <finalize
+     envelope>}})` — g02 passes the whole finalize envelope, not just a ref. If you cannot produce the
+     node, resume with `node_failures={node: {summary, issues}}`. **Tracing:** if your harness exposes
+     the model tokens you spent, also pass `usage_reports={node: {input_tokens, output_tokens, model}}`
+     (omit if unavailable — timings and decisions are still traced).
+   - **`awaiting_review`**: review the `artifact_ref` against the `review_task` (acceptance criteria,
+     prohibited behaviors). Call `research_review_finalize({task, decision})` to persist your
+     `review_decision@1`, then resume with `research_resume({resume_token, review_results={node:
+     <review finalize envelope>}})`. APPROVED advances; REVISE re-asks the producer (one correction);
+     BLOCKED fails. Review honestly — it is a real quality gate, not a rubber stamp.
+   - **`awaiting_user`**: present the human gate (the two-step source-selection gate, then the Human
+     Research Gate — `research_summary@1` is in the payload, show that digest). Collect the required
+     decisions and resume with `research_resume({resume_token, decisions={gate: …}})`. Never
+     auto-approve a human gate.
+   - **`research_run_report@1`** (status `completed`): done — `output_ref` is the approved
+     `user_approved_research_bundle@1` handoff to g03. The report's `trace` carries per-agent/tool
+     durations and the token roll-up; `research_trace({run_id: resume_token})` returns it any time.
+3. Never write artifacts yourself; the `*_finalize` ops persist them server-side. Do not simulate
+   physical node agents by copying their work into the orchestrator context.
 
-  `gates: "pause"` is the default and preserves human gates by returning `awaiting_user` with a
-  `resume_token`; resume with the same tool using `resume_token` and `decisions`. The reviewed
-  runner never auto-approves a human gate.
-- The Codex runtime adapter drives the deterministic engine with **Codex workers**: each node runs
-  as an isolated `codex exec` call. Entry point (headless/local, subscription login, no API key):
+**Fallback — nested workers (NOT inside a Codex session):** `research_run_codex({context, gates:
+"pause"})` spawns isolated `codex exec` workers and cannot initialise under an outer read-only
+sandbox. Use it only from a non-Codex shell or CI:
 
-  ```bash
-  python3 "<plugin-root>/shared/scripts/g02/g02_flow.py" run-codex <context> [--gates prompt|pause]
-  ```
+```bash
+python3 "<plugin-root>/shared/scripts/g02/g02_flow.py" run-codex <context> --gates pause
+```
 
-  This loads and validates the boundary input, runs the implemented A01–A06 frontier via isolated
-  `codex exec`, applies one fail-closed review per producer with at most one unreviewed correction,
-  and hosts the numbered two-step source gate on the
-  terminal (`--gates prompt`). It returns `research_run_report@1`; later A07–A09 execution remains
-  outside this bounded runner until those producers are implemented.
-- The Codex plugin manifest does not register plugin-local `commands/` as slash commands. Do not
-  tell the user to use `/research` in Codex; `/research` is Claude-only for now.
-- Do not simulate physical node agents by copying their work into the orchestrator context — each
-  node is a separate `codex exec` worker reading its own agent prompt (shipped under `agents/`).
-- If the `codex` CLI is unavailable or the user is not logged in, validate the boundary input and
-  report `external_dependency_blocked`, naming the missing capability (codex CLI / login).
+`research_run_stub` is a no-LLM wiring smoke (auto-approves synthetic gates). If the `codex` CLI is
+unavailable or the user is not logged in, validate the boundary input and report
+`external_dependency_blocked`, naming the missing capability (codex CLI / login).
+
+The deterministic seams remain MCP tools from the `edu-materials-research` server (call them as
+tools, never shell out): `research_front_door {context}`, `research_node_input {ref, node}`,
+`research_doi_verify[_batch]`, `research_finalize {bundle}`. The Codex plugin manifest does not
+register plugin-local `commands/`; `/research` is Claude-only for now.
