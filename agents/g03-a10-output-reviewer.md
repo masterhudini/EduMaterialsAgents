@@ -24,7 +24,7 @@ skill is loaded for the thin Solution Graph reviewer.
 2. Inspect the producer input. If `research_bundle_kind` is `solution_input_candidate`, confirm every
    applied update traces to an upstream `suggested_updates[].update_id`, its `evidence_refs[]` and
    its `source_refs[]`; confirm unresolved items and coverage gaps are represented as deferrals when
-   not applied. Do not require a Human Research Gate for this path.
+   not applied. Do not require a User Research Gate for this path.
 3. If `research_bundle_kind` is absent or `user_approved_research_bundle`, keep the legacy checks:
    every applied update traces to an approved finding/card, rejected findings do not reappear and
    deferrals match the unresolved-claim policy.

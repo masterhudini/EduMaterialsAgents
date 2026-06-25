@@ -19,7 +19,7 @@
       "enum": ["evidence_without_claim_assessment"]
     },
     "claim_assessment_performed": {"type": "boolean", "enum": [false]},
-    "claim_assessment_status": {"type": "string", "enum": ["skipped_fast_profile"]},
+    "claim_assessment_status": {"type": "string", "enum": ["not_in_workflow"]},
     "skipped_nodes": {"type": "array", "items": {"type": "string"}},
     "fast_mode_limitation": {"type": "string"},
     "findings": {

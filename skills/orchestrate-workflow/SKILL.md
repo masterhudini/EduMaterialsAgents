@@ -6,9 +6,9 @@ description: Run the complete educational-materials workflow end to end — Inta
 # Orchestrate Workflow (g01 → g02 → g03)
 
 Run the three graphs in sequence and carry the approved boundary artifacts between them. Do NOT do
-any producer/reviewer work here — each graph has its own orchestrator, isolated agents, reviewer and
-human gates. This skill only sequences them and threads the refs. Every human gate inside each graph
-still fires; never skip or auto-approve them.
+any producer work here — each graph has its own orchestrator, isolated agents and human gates. This
+skill only sequences them and threads the refs. Every human gate inside each graph still fires;
+never skip or auto-approve them.
 
 ## The chain (boundaries are contracts, carried as `artifact://` refs)
 
@@ -27,9 +27,9 @@ g01 has TWO exits: `research_graph_input@1` (its handoff, straight into g02) and
    have the `research_graph_input@1` handoff. ALSO capture the **`lecture_baseline@1` ref** produced
    by `g01-a04-lecture-baseline` (its finalize op returns it during the run) — you will need it for
    g03. The user intake gate runs here.
-2. **Research (g02)** — run the `g02-orchestrate-research` loop with the `research_graph_input@1` from
-   step 1. On completion the report's `output_ref` is the approved `user_approved_research_bundle@1`.
-   The two-step source-selection gate and the Human Research Gate run here.
+2. **Research (g02)** — run `g02-orchestrate-research` with the `research_graph_input@1` from
+   step 1. The current G02 path is A01 -> Scout -> A07 -> A09 -> Human Research Gate. On completion
+   its final bundle ref is the approved `user_approved_research_bundle@1`.
 3. **Solution (g03)** — run the `g03-orchestrate-solution` loop with both refs from steps 1–2:
    `{lecture_baseline_ref, research_bundle_ref}`. On completion you have the approved
    `solution_blueprint@1`. The user solution gate runs here.

@@ -320,7 +320,7 @@ def _make_evidence_map(paper_reviews: list[dict], approved: dict, corpus: dict) 
         "task_id": corpus["task_id"],
         "synthesis_mode": SYNTHESIS_MODE_FAST,
         "claim_assessment_performed": False,
-        "claim_assessment_status": "skipped_fast_profile",
+        "claim_assessment_status": "not_in_workflow",
         "claims": sorted(claims.values(), key=lambda item: item["claim_id"]),
         "sources": sorted(source_cards, key=lambda item: item["source_id"]),
     }
@@ -544,8 +544,8 @@ def _source_ids_from_item(item: dict) -> list[str]:
 def _evidence_ref_objects(item: dict, source_catalog: dict[str, dict]) -> list[dict]:
     """Return Graph03-ready evidence refs as objects, never raw strings.
 
-    Scout A09 and the regular fast A09 both feed this boundary. Older producers may still emit
-    ``evidence_refs`` as artifact-pointer strings, while the Scout handoff needs cited snippets
+    Bounded A09 and the regular fast A09 both feed this boundary. Older producers may still emit
+    ``evidence_refs`` as artifact-pointer strings, while the bounded A09 handoff needs cited snippets
     with source, location and quote. This normalizer preserves pointer strings as locations when
     no better fields exist, but always returns the object shape expected by the downstream handoff.
     """
@@ -777,7 +777,7 @@ def _default_solution_candidate(state: dict, synthesis_input: dict) -> dict:
         "limitations": deepcopy(state.get("limitations", [])),
         "unresolved_items": deepcopy(state.get("unresolved", [])),
         "confidence": state.get("confidence"),
-        "a08_status": "skipped_fast_profile",
+        "claim_assessment_status": "not_in_workflow",
     }
 
 
@@ -790,7 +790,7 @@ def _normalize_state(synthesis_input: dict, output: object, artifact_version: st
     state.setdefault("task_id", synthesis_input["task_id"])
     state.setdefault("synthesis_mode", SYNTHESIS_MODE_FAST)
     state.setdefault("claim_assessment_performed", False)
-    state.setdefault("claim_assessment_status", "skipped_fast_profile")
+    state.setdefault("claim_assessment_status", "not_in_workflow")
     state.setdefault("skipped_nodes", ["g02-a08-claim-verification"])
     state.setdefault("fast_mode_limitation", synthesis_input["fast_mode_limitation"])
     state["evidence_map"] = deepcopy(synthesis_input["draft_evidence_map"])
@@ -1275,7 +1275,7 @@ def prepare_human_research_gate(research_state_ref: str, *, base=None) -> dict:
         "context": {
             "task_id": state.get("task_id"),
             "synthesis_mode": state.get("synthesis_mode"),
-            "a08_status": state.get("claim_assessment_status"),
+            "claim_assessment_status": state.get("claim_assessment_status"),
         },
     }
 
@@ -1383,7 +1383,7 @@ def finalize_research_bundle(research_state_ref: str, decision: dict, *,
             "rejected_findings": rejected,
             "unresolved_claim_policy": {
                 "action": unresolved_action,
-                "a08_status": "skipped_fast_profile",
+                "claim_assessment_status": "not_in_workflow",
                 "fast_mode_limitation": state.get("fast_mode_limitation"),
             },
             "human_gate_decision": {
@@ -1400,7 +1400,7 @@ def finalize_research_bundle(research_state_ref: str, decision: dict, *,
                 "explicit_limitations": deepcopy(state.get("limitations", [])),
                 "unresolved_items": unresolved_items,
                 "claim_assessment_performed": False,
-                "a08_status": "skipped_fast_profile",
+                "claim_assessment_status": "not_in_workflow",
             },
             "approved_at": approved_at,
         }

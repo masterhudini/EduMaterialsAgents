@@ -1,4 +1,4 @@
-"""Human-readable rendering for ``solution_blueprint@1``.
+"""User-readable rendering for ``solution_blueprint@1``.
 
 The blueprint remains the typed G03 deliverable. This module adds the user-facing view: a compact
 Markdown plan and a short console summary that can be shown at the solution gate or after approval.
@@ -156,7 +156,7 @@ def inline_summary(blueprint_or_ref, *, base=None) -> str:
 
 
 def render_markdown(blueprint_or_ref, *, base=None) -> str:
-    """Render ``solution_blueprint@1`` as a human-readable Markdown plan."""
+    """Render ``solution_blueprint@1`` as a user-readable Markdown plan."""
     blueprint = load_blueprint(blueprint_or_ref, base=base)
     polish = _is_polish(blueprint.get("output_language"))
     labels = _labels(polish)

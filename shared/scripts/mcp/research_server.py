@@ -3,38 +3,14 @@
 
 Implements the minimal MCP stdio protocol (JSON-RPC 2.0, newline-delimited) BY HAND — no
 third-party dependencies, so it runs with the system python3 like the rest of the plugin.
-Claude Code / Codex launch it via .mcp.json with ${CLAUDE_PLUGIN_ROOT}; the deterministic seams
-wrap shared/scripts/g02/g02_flow.py.
+Claude Code / Codex launch it via .mcp.json with ${CLAUDE_PLUGIN_ROOT}. New G02 runs use the
+current Scout -> A07 -> A09 toolchain exposed by tools/list. Retired A02-A06/A08/A11 and review
+helpers are deprecated and blocked at the MCP runtime boundary, but kept in source for now.
 
 Methods: initialize, notifications/* (ignored), ping, tools/list, tools/call.
-Tools: research_front_door, research_node_input, research_planner_prepare,
-research_planner_finalize, research_plan_review_task, research_provider_status,
-research_domain_prepare, research_query_plan_generate_fast, research_metadata_search,
-research_doi_verify,
-research_doi_verify_batch, research_domain_finalize,
-research_domain_review_task, research_canonical_prepare, research_citation_expand,
-research_canonical_finalize, research_canonical_review_task,
-research_recent_prepare, research_recent_finalize, research_recent_review_task,
-research_market_cases_prepare, research_web_case_search,
-research_market_cases_finalize, research_market_cases_review_task,
-research_candidate_index_prepare, research_candidate_index_finalize,
-research_candidate_index_review_task,
-research_source_selection_prepare, research_source_selection_validate,
-research_source_selection_finalize, research_retrieval_prepare,
-research_oa_resolve, research_document_retrieve, research_document_validate,
-research_retrieval_finalize, research_retrieval_review_task,
-research_web_case_extract,
-research_paper_review_prepare, research_document_text_index,
-research_document_text_window, research_paper_review_finalize,
-research_paper_review_task, research_synthesis_prepare,
-research_synthesis_finalize, research_synthesis_review_task,
-research_bundle_finalize,
-research_review_prepare, research_review_finalize,
-research_finalize, research_scout_fanout, research_scout_a07_prepare,
-research_scout_a07_tasks_prepare, research_scout_a07_partial_finalize, research_scout_a07_aggregate,
-  research_scout_synthesis_prepare, research_scout_deep_dive_windows,
-  research_scout_a09_task_prepare, research_scout_synthesis_finalize,
-research_run_stub, research_run_codex.
+Active tools: A01 planner prepare/finalize, Scout fanout, A07 prepare/tasks/partial
+finalize/aggregate, A09 task/finalize/research-state materialization, User Research Gate and
+bundle finalize.
 """
 from __future__ import annotations
 
@@ -61,10 +37,10 @@ from g02 import paper_review  # noqa: E402
 from g02 import synthesis  # noqa: E402
 from g02 import planner  # noqa: E402
 from g02 import scout_fanout  # noqa: E402
-from g02 import scout_a07_bridge  # noqa: E402
-from g02 import scout_a07_runner  # noqa: E402
-from g02 import scout_a09_runner  # noqa: E402
-from g02 import scout_synthesis  # noqa: E402
+from g02 import a07_bridge  # noqa: E402
+from g02 import a07_runner  # noqa: E402
+from g02 import a09_runner  # noqa: E402
+from g02 import a09_synthesis  # noqa: E402
 from g02 import provider_config  # noqa: E402
 from g02 import credentials  # noqa: E402
 from g02 import providers  # noqa: E402
@@ -78,6 +54,108 @@ SERVER_INFO = {"name": "edu-materials-research", "version": "0.17.0"}
 
 
 # ---- tool implementations (return JSON-serializable values) --------------
+
+def _mcp_envelope(status: str, summary: str, *, produced=None, issues=None, metrics=None) -> dict:
+    return {
+        "schema_version": "envelope@1",
+        "status": status,
+        "produced": produced or [],
+        "summary": summary,
+        "issues": issues or [],
+        "metrics": metrics or {},
+    }
+
+
+def _graph_manifest() -> dict:
+    return graphs.load(rf.GRAPH_ID)
+
+
+def _graph_node(name: str, manifest: dict | None = None) -> dict:
+    manifest = manifest or _graph_manifest()
+    for node in manifest.get("nodes", []):
+        if node.get("name") == name:
+            return node
+    raise KeyError(f"g02 graph node not found: {name}")
+
+
+def _graph_op(node_name: str, op_name: str, manifest: dict | None = None) -> str:
+    node = _graph_node(node_name, manifest)
+    operations = node.get("operations") or {}
+    if op_name not in operations:
+        raise KeyError(f"g02 graph operation not found: {node_name}.{op_name}")
+    return operations[op_name]
+
+
+def _graph_operation_names(manifest: dict | None = None) -> set[str]:
+    manifest = manifest or _graph_manifest()
+    names = set()
+    for node in manifest.get("nodes", []):
+        operations = node.get("operations") or {}
+        if isinstance(operations, dict):
+            names.update(str(value) for value in operations.values() if value)
+    return names
+
+
+def _workflow_ops() -> dict:
+    manifest = _graph_manifest()
+    return {
+        "sequence": list(manifest.get("sequence", [])),
+        "default_profile": manifest.get("default_execution_profile", "scout_e2e"),
+        "scout_target": (
+            manifest.get("execution_profiles", {})
+            .get("scout_e2e", {})
+            .get("scout", {})
+            .get("total_target", 50)
+        ),
+        "planner_prepare": _graph_op("g02-a01-planner", "prepare", manifest),
+        "planner_finalize": _graph_op("g02-a01-planner", "finalize", manifest),
+        "provider_setup": _graph_op("research-scout-fanout", "provider_setup", manifest),
+        "scout_run": _graph_op("research-scout-fanout", "run", manifest),
+        "a07_prepare": _graph_op("g02-a07-paper-review", "prepare", manifest),
+        "a07_tasks": _graph_op("g02-a07-paper-review", "prepare_tasks", manifest),
+        "a07_partial": _graph_op("g02-a07-paper-review", "partial_finalize", manifest),
+        "a07_aggregate": _graph_op("g02-a07-paper-review", "aggregate", manifest),
+        "a09_task": _graph_op("g02-a09-synthesizer", "prepare_task", manifest),
+        "a09_solution": _graph_op("g02-a09-synthesizer", "finalize_solution", manifest),
+        "a09_state": _graph_op("g02-a09-synthesizer", "finalize_research_state", manifest),
+        "gate_prepare": _graph_op("user-research-gate", "prepare", manifest),
+        "gate_finalize": _graph_op("user-research-gate", "finalize", manifest),
+    }
+
+
+def _read_artifact_or_path(ref: str):
+    if ref.startswith(artifacts.SCHEME):
+        return artifacts.hydrate(ref)
+    return json.loads(pathlib.Path(ref).expanduser().resolve().read_text(encoding="utf-8"))
+
+
+def _produced_payload(envelope: dict, schema_version: str, *, artifact_type: str | None = None) -> dict:
+    for descriptor in envelope.get("produced", []):
+        if not isinstance(descriptor, dict):
+            continue
+        if descriptor.get("schema_version") != schema_version:
+            continue
+        if artifact_type and descriptor.get("type") != artifact_type:
+            continue
+        path = descriptor.get("path")
+        if not isinstance(path, str):
+            continue
+        return _read_artifact_or_path(path)
+    raise ValueError(f"envelope has no produced {schema_version} descriptor")
+
+
+def _produced_path(envelope: dict, schema_version: str, *, artifact_type: str | None = None) -> str:
+    for descriptor in envelope.get("produced", []):
+        if not isinstance(descriptor, dict):
+            continue
+        if descriptor.get("schema_version") != schema_version:
+            continue
+        if artifact_type and descriptor.get("type") != artifact_type:
+            continue
+        path = descriptor.get("path")
+        if isinstance(path, str) and path:
+            return path
+    raise ValueError(f"envelope has no produced {schema_version} path")
 
 def _front_door(args: dict):
     return rf.front_door(args["context"])
@@ -223,8 +301,9 @@ def _provider_setup(args: dict):
     creds = {k: args[k] for k in ("email", "openalex_key") if args.get(k)}
     saved = credentials.save(creds) if creds else {"stored": []}
     credentials.overlay()                                # reflect any on-disk creds in os.environ
-    has_email = bool(os.environ.get("EMAGENTS_RESEARCH_CONTACT_EMAIL", "").strip())
-    has_key = bool(os.environ.get("OPENALEX_API_KEY", "").strip())
+    env = credentials.managed_environment(os.environ)
+    has_email = bool(env.get("EMAGENTS_RESEARCH_CONTACT_EMAIL", "").strip())
+    has_key = bool(env.get("OPENALEX_API_KEY", "").strip())
     rows = []
     for item in PROVIDER_CATALOG:
         req = item["requires"]
@@ -747,13 +826,14 @@ def _scout_fanout(args: dict):
     return scout_fanout.run_scout_fanout(
         args["research_plan_ref"],
         workspace=args.get("workspace"),
+        knowledge_root=args.get("knowledge_root"),
         total_target=args.get("total_target"),
         max_workers=args.get("max_workers"),
     )
 
 
-def _scout_a07_prepare(args: dict):
-    return scout_a07_bridge.build_scout_a07_reviews(
+def _a07_prepare(args: dict):
+    return a07_bridge.build_a07_reviews(
         args["scout_run_dir"],
         output_dir=args.get("output_dir"),
         intake_ref=args.get("intake_ref"),
@@ -762,8 +842,8 @@ def _scout_a07_prepare(args: dict):
     )
 
 
-def _scout_a07_tasks_prepare(args: dict):
-    return scout_a07_runner.write_scout_a07_model_tasks(
+def _a07_tasks_prepare(args: dict):
+    return a07_runner.write_a07_review_tasks(
         args["a07_dir"],
         output_dir=args.get("output_dir"),
         intake=args.get("intake"),
@@ -774,35 +854,89 @@ def _scout_a07_tasks_prepare(args: dict):
     )
 
 
-def _scout_a07_partial_finalize(args: dict):
-    return scout_a07_bridge.finalize_scout_a07_partial(
+def _a07_partial_finalize(args: dict):
+    work_path = pathlib.Path(args["work_input_path"]).expanduser().resolve()
+    a07_root = work_path.parents[2] if len(work_path.parents) >= 3 else work_path.parent
+    work_ref = a07_bridge._rel(work_path, a07_root)
+    output_path = pathlib.Path(args["output_path"]).expanduser().resolve() if args.get("output_path") else (
+        a07_root / a07_bridge._partial_ref_for_work_ref(work_ref)
+    )
+    partial = a07_bridge.finalize_a07_partial(
         args["work_input_path"],
         args["output"],
-        output_path=args.get("output_path"),
+        output_path=output_path,
         artifact_version=args.get("artifact_version", "1.0.0"),
+    )
+    return _mcp_envelope(
+        "ok",
+        "Stored A07 partial review.",
+        produced=[{
+            "type": "a07_review",
+            "path": str(output_path),
+            "schema_version": a07_bridge.A07_PARTIAL_CONTRACT,
+            "artifact_version": args.get("artifact_version", "1.0.0"),
+        }],
+        metrics={
+            "presentation_update_count": len(partial.get("presentation_update_candidates", [])),
+            "lookup_pointer_count": len(partial.get("lookup_pointers", [])),
+            "coverage_gap_count": len(partial.get("coverage_gaps", [])),
+        },
     )
 
 
-def _scout_a07_aggregate(args: dict):
-    return scout_a07_bridge.aggregate_scout_a07_reviews(args["a07_dir"])
+def _a07_aggregate(args: dict):
+    a07_dir = pathlib.Path(args["a07_dir"]).expanduser().resolve()
+    aggregate = a07_bridge.aggregate_a07_reviews(a07_dir)
+    reviews_path = a07_dir / "reviews.json"
+    artifact_version = aggregate.get("artifact_version") or args.get("artifact_version", "1.0.0")
+    return _mcp_envelope(
+        "ok",
+        "Stored aggregated A07 reviews.",
+        produced=[{
+            "type": "a07_reviews",
+            "path": str(reviews_path),
+            "schema_version": a07_bridge.A07_REVIEWS_CONTRACT,
+            "artifact_version": artifact_version,
+        }],
+        metrics={
+            "source_review_count": len(aggregate.get("source_reviews", [])),
+            "presentation_update_count": len(aggregate.get("presentation_update_candidates", [])),
+            "lookup_pointer_count": len(aggregate.get("lookup_pointers", [])),
+            "coverage_gap_count": len(aggregate.get("coverage_gaps", [])),
+        },
+    )
 
 
-def _scout_synthesis_prepare(args: dict):
-    return scout_synthesis.prepare_scout_fast_synthesis(
-        args["reviews_json"],
+def _a09_synthesis_prepare(args: dict):
+    reviews_json = args["reviews_json"]
+    if isinstance(reviews_json, dict) and reviews_json.get("schema_version") == "envelope@1":
+        reviews_json = _produced_path(
+            reviews_json,
+            a07_bridge.A07_REVIEWS_CONTRACT,
+            artifact_type="a07_reviews",
+        )
+    return a09_synthesis.prepare_a09_synthesis(
+        reviews_json,
         intake=args.get("intake"),
         max_deep_dive_sources=args.get("max_deep_dive_sources", 5),
     )
 
 
 def _scout_deep_dive_windows(args: dict):
-    prepared = scout_synthesis.prepare_scout_fast_synthesis(
-        args["reviews_json"],
+    reviews_json = args["reviews_json"]
+    if isinstance(reviews_json, dict) and reviews_json.get("schema_version") == "envelope@1":
+        reviews_json = _produced_path(
+            reviews_json,
+            a07_bridge.A07_REVIEWS_CONTRACT,
+            artifact_type="a07_reviews",
+        )
+    prepared = a09_synthesis.prepare_a09_synthesis(
+        reviews_json,
         intake=args.get("intake"),
         max_deep_dive_sources=args.get("max_deep_dive_sources", 5),
     )
     synthesis_input = prepared["synthesis_input"]
-    return scout_synthesis.gather_deep_dive_windows(
+    return a09_synthesis.gather_deep_dive_windows(
         synthesis_input["reviews"],
         synthesis_input["deep_dive_requests"],
         max_windows=args.get("max_windows", 12),
@@ -810,9 +944,16 @@ def _scout_deep_dive_windows(args: dict):
     )
 
 
-def _scout_a09_task_prepare(args: dict):
-    built = scout_a09_runner.build_a09_task(
-        args["reviews_json"],
+def _a09_task_prepare(args: dict):
+    reviews_json = args["reviews_json"]
+    if isinstance(reviews_json, dict) and reviews_json.get("schema_version") == "envelope@1":
+        reviews_json = _produced_path(
+            reviews_json,
+            a07_bridge.A07_REVIEWS_CONTRACT,
+            artifact_type="a07_reviews",
+        )
+    built = a09_runner.build_a09_task(
+        reviews_json,
         intake=args.get("intake"),
         max_deep_dive_sources=args.get("max_deep_dive_sources", 5),
         deep_dive_windows=args.get("deep_dive_windows", 8),
@@ -824,91 +965,135 @@ def _scout_a09_task_prepare(args: dict):
     }
 
 
-def _scout_synthesis_finalize(args: dict):
-    prepared = scout_synthesis.prepare_scout_fast_synthesis(
-        args["reviews_json"],
+def _a09_synthesis_finalize(args: dict):
+    reviews_json = args["reviews_json"]
+    if isinstance(reviews_json, dict) and reviews_json.get("schema_version") == "envelope@1":
+        reviews_json = _produced_path(
+            reviews_json,
+            a07_bridge.A07_REVIEWS_CONTRACT,
+            artifact_type="a07_reviews",
+        )
+    prepared = a09_synthesis.prepare_a09_synthesis(
+        reviews_json,
         intake=args.get("intake"),
         max_deep_dive_sources=args.get("max_deep_dive_sources", 5),
     )
-    return scout_synthesis.finalize_scout_fast_solution(
+    artifact_version = args.get("artifact_version", "1.0.0")
+    solution = a09_synthesis.finalize_a09_solution(
         prepared["synthesis_input"],
         args.get("output"),
         deep_dive=args.get("deep_dive"),
-        artifact_version=args.get("artifact_version", "1.0.0"),
+        artifact_version=artifact_version,
         output_path=args.get("output_path"),
+    )
+    if args.get("output_path"):
+        output_ref = str(pathlib.Path(args["output_path"]).expanduser().resolve())
+    else:
+        task = a09_synthesis._safe(str(solution["task_id"]))
+        version = a09_synthesis._safe(str(artifact_version))
+        output_ref = artifacts.store(
+            f"g02/a09/{task}.{version}.solution-input-candidate.pre-gate.json",
+            solution,
+        )
+    return _mcp_envelope(
+        "ok",
+        "Stored A09 solution input candidate.",
+        produced=[{
+            "type": "solution_input_candidate",
+            "path": output_ref,
+            "schema_version": a09_synthesis.SOLUTION_CONTRACT,
+            "artifact_version": artifact_version,
+        }],
+        metrics={
+            "a09_model_pass": bool(solution.get("a09_model_pass")),
+            "suggested_update_count": len(solution.get("suggested_updates", [])),
+            "optional_improvement_count": len(solution.get("optional_improvements", [])),
+            "unresolved_count": len(solution.get("unresolved_items", [])),
+        },
     )
 
 
-def _run_codex(args: dict):
-    """Run or resume the graph through Codex workers.
-
-    MCP tools are not an interactive stdin surface, so the default gate behavior is pause/resume.
-    Human approval is never simulated in the reviewed runner. Use research_run_stub for a no-op
-    wiring smoke that intentionally auto-approves its synthetic gates.
-    """
-    from runners.codex import codex_node_runner
-
-    gates = args.get("gates", "pause")
-    if gates != "pause":
-        raise ValueError("reviewed Codex runs require gates='pause'")
-
-    resume_token = args.get("resume_token")
-    decisions = args.get("decisions")
-    if resume_token:
-        return rf.run(
-            None,
-            node_runner=codex_node_runner,
-            pause_on_gate=True,
-            resume_token=resume_token,
-            decisions=decisions,
-            reviewed=True,
-            through=args.get("through", "g02-a09-synthesizer"),
-            topic_ids=args.get("topic_ids"),
+def _a09_research_state_finalize(args: dict):
+    solution = args.get("solution")
+    if isinstance(solution, dict) and solution.get("schema_version") == "envelope@1":
+        solution = _produced_payload(
+            solution,
+            a09_synthesis.SOLUTION_CONTRACT,
+            artifact_type="solution_input_candidate",
         )
+    if not isinstance(solution, dict):
+        if args.get("reviews_json") is None:
+            raise ValueError("solution or reviews_json is required")
+        envelope = _a09_synthesis_finalize(args)
+        solution = _produced_payload(
+            envelope,
+            a09_synthesis.SOLUTION_CONTRACT,
+            artifact_type="solution_input_candidate",
+        )
+    return a09_synthesis.finalize_a09_research_state(
+        solution,
+        artifact_version=args.get("artifact_version", "1.0.0"),
+    )
 
+
+def _human_gate_prepare(args: dict):
+    return synthesis.prepare_human_research_gate(args["research_state_ref"])
+
+
+def _run_codex(args: dict):
+    """Run or resume g02 through nested Codex workers, mirroring the g01/g03 codex entrypoints.
+
+    Deterministic Scout fanout runs in-process; each A01/A07/A09 agent is an isolated codex worker.
+    MCP is not an interactive stdin surface, so gates pause/resume and user approval is never
+    simulated."""
+    if args.get("gates", "pause") != "pause":
+        raise ValueError("Codex runs require gates='pause'")
+    runner = rf.make_g02_codex_runner()
+    through = args.get("through", "user-research-gate")
+    resume_token = args.get("resume_token")
+    if resume_token:
+        return rf.run(None, node_runner=runner, reviewed=True, pause_on_gate=True,
+                      resume_token=resume_token, decisions=args.get("decisions"),
+                      through=through, topic_ids=args.get("topic_ids"))
     context = args.get("context")
     if not context:
         raise ValueError("context is required when resume_token is absent")
-    ref = rf.front_door(context)["ref"]
+    return rf.run(rf.front_door(context)["ref"], node_runner=runner, reviewed=True,
+                  pause_on_gate=True, through=through, topic_ids=args.get("topic_ids"))
+
+
+def _run_hosted(args: dict):
+    context = args.get("context")
+    if not context:
+        raise ValueError("context is required")
+    front_door = rf.front_door(context)
     return rf.run(
-        ref,
-        node_runner=codex_node_runner,
-        pause_on_gate=True,
+        front_door["ref"],
         reviewed=True,
-        through=args.get("through", "g02-a09-synthesizer"),
+        pause_on_node=True,
+        pause_on_gate=True,
+        through=args.get("through", "user-research-gate"),
         topic_ids=args.get("topic_ids"),
     )
 
 
-def _run_hosted(args: dict):
-    """Start a HOST-DRIVEN reviewed g02 run (no nested codex). Each producer/reviewer yields
-    awaiting_node/awaiting_review; the host plays it (calling the node's finalize op) and resumes."""
-    context = args.get("context")
-    if not context:
-        raise ValueError("context is required")
-    ref = rf.front_door(context)["ref"]
-    return rf.run(ref, reviewed=True, pause_on_node=True, pause_on_gate=True,
-                  through=args.get("through", "g02-a09-synthesizer"),
-                  topic_ids=args.get("topic_ids"))
-
-
 def _resume(args: dict):
-    """Resume a host-driven run. Producers resume with node_results={node: finalize_envelope};
-    reviewers with review_results={node: review_finalize_envelope}; gates with decisions; a node the
-    host cannot produce with node_failures. Optional usage_reports={node: {input_tokens,
-    output_tokens, model}} carries the model tokens only the host knows (token tracing for Claude)."""
-    return rf.run(None, reviewed=True, pause_on_node=True, pause_on_gate=True,
-                  resume_token=args["resume_token"],
-                  node_results=args.get("node_results"), node_failures=args.get("node_failures"),
-                  review_results=args.get("review_results"), decisions=args.get("decisions"),
-                  usage_reports=args.get("usage_reports"),
-                  through=args.get("through", "g02-a09-synthesizer"),
-                  topic_ids=args.get("topic_ids"))
+    return rf.run(
+        reviewed=True,
+        pause_on_node=True,
+        pause_on_gate=True,
+        resume_token=args["resume_token"],
+        node_results=args.get("node_results"),
+        node_failures=args.get("node_failures"),
+        decisions=args.get("decisions"),
+        usage_reports=args.get("usage_reports"),
+        through=args.get("through", "user-research-gate"),
+    )
 
 
 def _trace(args: dict):
     from core import event_log
-    return event_log.open_log(f"{rf.GRAPH_ID}-reviewed", run_id=args["run_id"]).summary()
+    return event_log.open_log(f"{args['run_id']}-mcp").summary()
 
 
 TOOLS = [
@@ -952,7 +1137,7 @@ TOOLS = [
                 },
                 "previous_plan_ref": {"type": "string"},
                 "revision_items": {"type": "array", "items": {"type": "object"}},
-                "execution_profile": {"type": "string", "enum": ["fast", "scout"]},
+                "execution_profile": {"type": "string", "enum": ["scout_e2e"]},
             },
             "required": ["input"],
         },
@@ -972,7 +1157,7 @@ TOOLS = [
                 "plan": {"type": "object"},
                 "previous_plan_ref": {"type": "string"},
                 "revision_items": {"type": "array", "items": {"type": "object"}},
-                "execution_profile": {"type": "string", "enum": ["fast", "scout"]},
+                "execution_profile": {"type": "string", "enum": ["scout_e2e"]},
             },
             "required": ["input", "plan"],
         },
@@ -1003,7 +1188,7 @@ TOOLS = [
                 "attempt": {"type": "integer"},
                 "previous_decision_ref": {"type": "string"},
                 "producer_revision_response": {"type": "object"},
-                "execution_profile": {"type": "string", "enum": ["fast", "scout"]},
+                "execution_profile": {"type": "string", "enum": ["scout_e2e"]},
             },
             "required": ["input", "artifact", "review_id"],
         },
@@ -1389,7 +1574,7 @@ TOOLS = [
         "name": "research_candidate_index_finalize",
         "description": "Deterministically deduplicate and rank reviewed candidates, create "
                        "basis-labelled content descriptions and persist CandidateSourceIndex "
-                       "plus candidate_source_review.md for the human gate.",
+                       "plus candidate_source_review.md for the user gate.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -1665,7 +1850,7 @@ TOOLS = [
     },
     {
         "name": "research_synthesis_finalize",
-        "description": "Persist research_state@1, compact evidence map, human validation packet "
+        "description": "Persist research_state@1, compact evidence map, user validation packet "
                        "and SolutionInputCandidate while making the skipped A08 limitation explicit.",
         "inputSchema": {
             "type": "object",
@@ -1718,8 +1903,21 @@ TOOLS = [
         },
     },
     {
+        "name": "research_human_gate_prepare",
+        "description": "Prepare the User Research Gate packet from a research_state@1 ref. "
+                       "Returns the research_summary@1 digest, validation packet and decision "
+                       "template for user approval before Graph03 handoff.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "research_state_ref": {"type": "string"}
+            },
+            "required": ["research_state_ref"]
+        }
+    },
+    {
         "name": "research_bundle_finalize",
-        "description": "After the Human Research Gate approves reviewed A09, validate and store "
+        "description": "After the User Research Gate approves reviewed A09, validate and store "
                        "the compact user_approved_research_bundle@1 for Graph03.",
         "inputSchema": {
             "type": "object",
@@ -1774,9 +1972,10 @@ TOOLS = [
     {
         "name": "research_scout_fanout",
         "description": "Run the dedicated deterministic Scout profile from one persisted "
-                       "research_plan@1. Starts one process per topic, requires OPENALEX_API_KEY "
-                       "from env, and persists plan, requests, PDFs, manifests, per-topic Scout "
-                       "corpora and index.json. Does not run A07, A09, run or run-codex.",
+                       "research_plan@1. Starts one process per topic, uses only provider "
+                       "credentials collected through research_provider_setup, persists machine "
+                       "artifacts under .emagents, and copies user-readable PDFs under knowledge/. "
+                       "Does not run A07, A09, run or run-codex.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -1786,7 +1985,11 @@ TOOLS = [
                 },
                 "workspace": {
                     "type": "string",
-                    "description": "Optional exact Scout workspace; defaults under .emagents"
+                    "description": "Optional exact Scout machine-artifact workspace; defaults under .emagents"
+                },
+                "knowledge_root": {
+                    "type": "string",
+                    "description": "Optional exact public PDF root; defaults to knowledge/g02/<task_id>"
                 },
                 "total_target": {
                     "type": "integer",
@@ -1798,7 +2001,7 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_a07_prepare",
+        "name": "research_a07_prepare",
         "description": "Prepare bounded, parallel-safe A07 light-review work items from one "
                        "Scout run directory. Reads Scout plan, requests, index, topic corpora "
                        "and sampled PDF windows, then writes reviews.json plus immutable "
@@ -1808,7 +2011,7 @@ TOOLS = [
             "properties": {
                 "scout_run_dir": {
                     "type": "string",
-                    "description": "Path to outputs/g02/<task_id>/scout or a legacy Scout run dir"
+                    "description": "Path to .emagents/artifacts/g02/scout/runs/<task_id> or a legacy Scout run dir"
                 },
                 "output_dir": {
                     "type": "string",
@@ -1831,8 +2034,8 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_a07_tasks_prepare",
-        "description": "Build compact scout_a07_model_task@1 JSON files from pending A07 work "
+        "name": "research_a07_tasks_prepare",
+        "description": "Build compact a07_review_task@1 JSON files from pending A07 work "
                        "items. Each task includes selected PDF windows and only the linked "
                        "intake context needed for one topic/source model review.",
         "inputSchema": {
@@ -1868,7 +2071,7 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_a07_partial_finalize",
+        "name": "research_a07_partial_finalize",
         "description": "Validate and persist one A07 light-review worker result. The worker "
                        "must pass the immutable work input path and its JSON output; this tool "
                        "writes only partial/<topic_id>/<source_id>.review.json atomically.",
@@ -1896,30 +2099,35 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_a07_aggregate",
-        "description": "Aggregate A07 partial review files into one scout_a07_reviews@1 "
-                       "reviews.json without worker write contention.",
+        "name": "research_a07_aggregate",
+        "description": "Aggregate A07 partial review files into one a07_reviews@1 "
+                       "reviews.json without worker write contention. Returns envelope@1 with "
+                       "the aggregated a07_reviews@1 descriptor in produced[].",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "a07_dir": {
                     "type": "string",
                     "description": "Directory containing reviews.json, work/ and partial/"
+                },
+                "artifact_version": {
+                    "type": "string",
+                    "description": "Aggregated reviews artifact version; defaults to reviews.json artifact_version"
                 }
             },
             "required": ["a07_dir"]
         }
     },
     {
-        "name": "research_scout_synthesis_prepare",
-        "description": "Prepare the Scout-fast A09 synthesis input from aggregated A07 reviews "
+        "name": "research_a09_synthesis_prepare",
+        "description": "Prepare the Bounded A09 synthesis input from aggregated A07 reviews "
                        "and optional intake. Selects at most five bounded deep-dive source slots.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "reviews_json": {
-                    "type": "string",
-                    "description": "Path or artifact ref to scout_a07_reviews@1"
+                    "type": ["string", "object"],
+                    "description": "Path/artifact ref to a07_reviews@1, or envelope from research_a07_aggregate"
                 },
                 "intake": {
                     "type": "string",
@@ -1934,16 +2142,16 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_deep_dive_windows",
+        "name": "research_a09_deep_dive_windows",
         "description": "Gather up to twelve bounded additional PDF windows for each of at most "
-                       "five auditable A09 Scout deep-dive requests. Missing PDFs fail open with "
+                       "five auditable A09 deep-dive requests. Missing PDFs fail open with "
                        "an explicit limitation.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "reviews_json": {
-                    "type": "string",
-                    "description": "Path or artifact ref to scout_a07_reviews@1"
+                    "type": ["string", "object"],
+                    "description": "Path/artifact ref to a07_reviews@1, or envelope from research_a07_aggregate"
                 },
                 "intake": {
                     "type": "string",
@@ -1966,8 +2174,8 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_a09_task_prepare",
-        "description": "Build the obligatory scout_a09_model_task@1 for an Opus/medium "
+        "name": "research_a09_task_prepare",
+        "description": "Build the obligatory a09_synthesis_task@1 for an Opus/medium "
                        "verification pass. The tool prepares the deterministic baseline and "
                        "bounded deep dive with at most five sources, eight windows per source "
                        "and 1200 characters per window.",
@@ -1975,8 +2183,8 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "reviews_json": {
-                    "type": "string",
-                    "description": "Path or artifact ref to aggregated scout_a07_reviews@1"
+                    "type": ["string", "object"],
+                    "description": "Path/artifact ref to aggregated a07_reviews@1, or envelope from research_a07_aggregate"
                 },
                 "intake": {
                     "type": ["string", "object"],
@@ -1999,16 +2207,16 @@ TOOLS = [
         }
     },
     {
-        "name": "research_scout_synthesis_finalize",
-        "description": "Finalize the Scout-fast A09 output as solution_input_candidate@1 for "
+        "name": "research_a09_synthesis_finalize",
+        "description": "Finalize the Bounded A09 output as solution_input_candidate@1 for "
                        "Graph03. The final contract must contain concrete slide-update guidance; "
                        "Graph03 must not call back into G02.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "reviews_json": {
-                    "type": "string",
-                    "description": "Path or artifact ref to scout_a07_reviews@1"
+                    "type": ["string", "object"],
+                    "description": "Path/artifact ref to a07_reviews@1, or envelope from research_a07_aggregate"
                 },
                 "intake": {
                     "type": "string",
@@ -2016,11 +2224,11 @@ TOOLS = [
                 },
                 "output": {
                     "type": "object",
-                    "description": "Raw g02-a09-scout-synthesis JSON with plan, priorities, optional improvements, unresolved items and confidence. Omit only after a failed or unavailable model attempt to request deterministic fallback."
+                    "description": "Raw g02-a09-synthesizer JSON with plan, priorities, optional improvements, unresolved items and confidence. Omit only after a failed or unavailable model attempt to request deterministic fallback."
                 },
                 "deep_dive": {
                     "type": "object",
-                    "description": "Optional scout_a07_deep_dive@1 package returned by research_scout_deep_dive_windows"
+                    "description": "Optional a07_deep_dive@1 package returned by research_a09_deep_dive_windows"
                 },
                 "output_path": {
                     "type": "string",
@@ -2039,6 +2247,42 @@ TOOLS = [
         }
     },
     {
+        "name": "research_a09_research_state_finalize",
+        "description": "Materialize a research_state@1, research_summary@1 and "
+                       "user_research_validation_packet@1 from the A09 "
+                       "solution_input_candidate@1 so the User Research Gate can approve the "
+                       "G02->G03 bundle.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "solution": {
+                    "type": "object",
+                    "description": "solution_input_candidate@1 returned by research_a09_synthesis_finalize"
+                },
+                "reviews_json": {
+                    "type": "string",
+                    "description": "Optional fallback: recompute the deterministic A09 solution from reviews_json"
+                },
+                "intake": {
+                    "type": "string",
+                    "description": "Optional research_graph_input@1 path/ref for fallback recomputation"
+                },
+                "output": {
+                    "type": "object",
+                    "description": "Optional raw A09 output for fallback recomputation"
+                },
+                "deep_dive": {
+                    "type": "object",
+                    "description": "Optional a07_deep_dive@1 for fallback recomputation"
+                },
+                "artifact_version": {
+                    "type": "string",
+                    "description": "Materialized artifact version; default 1.0.0"
+                }
+            }
+        }
+    },
+    {
         "name": "research_run_stub",
         "description": "Run the whole Research Graph with STUB nodes (no LLM) — wiring test. "
                        "Returns the output handoff descriptor.",
@@ -2050,11 +2294,11 @@ TOOLS = [
     },
     {
         "name": "research_run_codex",
-        "description": "Semantic entrypoint for 'zrob research', 'zrób research' or "
-                       "'run research graph' in Codex. "
-                       "Validate the input and run the fast reviewed frontier with isolated Codex "
-                       "workers through reviewed A09, then pause at human gates. User gates always "
-                       "use pause/resume because MCP tools cannot read interactive stdin.",
+        "description": "Run the active G02 Scout flow with NESTED Codex workers (codex exec): "
+                       "deterministic Scout fanout runs in-process and each A01/A07/A09 agent is an "
+                       "isolated worker, then pause at the User Research Gate. Use research_run_hosted "
+                       "instead when the calling session should play each agent itself. User gates "
+                       "always use pause/resume because MCP tools cannot read interactive stdin.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -2066,7 +2310,7 @@ TOOLS = [
                 "gates": {
                     "type": "string",
                     "enum": ["pause"],
-                    "description": "Human gate handoff/resume mode (default and only reviewed mode).",
+                    "description": "User gate handoff/resume mode (default and only reviewed mode).",
                 },
                 "resume_token": {
                     "type": "string",
@@ -2079,18 +2323,15 @@ TOOLS = [
                 "through": {
                     "type": "string",
                     "enum": [
-                        "g02-a01-planner", "g02-a02-domain", "g02-a03-canonical-sources",
-                        "g02-a04-recent-developments", "g02-a11-market-cases",
-                        "g02-a05-candidate-source-index", "user-source-selection-gate",
-                        "g02-a06-paper-retrieval", "g02-a07-paper-review",
+                        "g02-a01-planner", "research-scout-fanout", "g02-a07-paper-review",
                         "g02-a09-synthesizer", "user-research-gate"
                     ],
-                    "description": "Last implemented stage to execute; defaults to reviewed A09 and pauses at the Human Research Gate."
+                    "description": "Last active stage to execute; defaults to the User Research Gate."
                 },
                 "topic_ids": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Optional bounded topic subset; A05 requires the complete plan."
+                    "description": "Optional bounded Scout topic subset."
                 },
             },
         },
@@ -2113,13 +2354,12 @@ TOOLS = [
     },
     {
         "name": "research_run_hosted",
-        "description": "Start a HOST-DRIVEN reviewed g02 run (no nested codex exec). Each producer "
-                       "yields {status:'awaiting_node', resume_token, node, input, upstream, "
-                       "finalize_op, protocol}; play it (call its finalize op) and call "
-                       "research_resume with node_results. Each reviewed producer then yields "
-                       "{status:'awaiting_review', node, review_task, artifact_ref}; review it (call "
-                       "research_review_finalize) and resume with review_results. Human gates yield "
-                       "awaiting_user. Use this to drive g02 from a Claude/Codex session.",
+        "description": "Start the active HOST-DRIVEN G02 Scout E2E run (no nested codex exec). "
+                       "The runner executes deterministic Scout/A07/A09 finalizer steps itself and "
+                       "pauses only for model work: A01 planning, each A07 bounded source review, "
+                       "A09 synthesis and the User Research Gate. Awaiting node payloads include "
+                       "node_key, input, upstream, finalize_op and finalize_args; call the finalize "
+                       "op and resume with node_results keyed by node_key.",
         "inputSchema": {"type": "object", "required": ["context"],
                         "properties": {"context": {"type": "string",
                                                    "description": "path or artifact:// ref to a research_graph_input bundle"},
@@ -2128,11 +2368,10 @@ TOOLS = [
     },
     {
         "name": "research_resume",
-        "description": "Resume a host-driven g02 run with exactly one of: node_results={node: "
-                       "finalize_envelope} (after playing a producer + its finalize op); "
-                       "review_results={node: review_finalize_envelope} (after playing the reviewer "
-                       "via research_review_finalize); node_failures={node: {summary, issues}}; or "
-                       "decisions={gate: ...} for a human gate. Optional usage_reports={node: "
+        "description": "Resume a host-driven g02 Scout E2E run with exactly one of: "
+                       "node_results={node_key: finalize_envelope} after playing an awaited model "
+                       "node and its finalize op; node_failures={node_key: {summary, issues}}; or "
+                       "decisions={gate: ...} for the User Research Gate. Optional usage_reports={node_key: "
                        "{input_tokens, output_tokens, model}} records the model tokens only the host "
                        "knows (token tracing). Returns the next awaiting_* or the run report.",
         "inputSchema": {"type": "object", "required": ["resume_token"],
@@ -2155,6 +2394,17 @@ TOOLS = [
                         "properties": {"run_id": {"type": "string", "description": "the run's resume_token"}}},
     },
 ]
+
+BASE_ACTIVE_TOOL_NAMES = {
+    "research_front_door",
+    "research_node_input",
+    "research_finalize",
+    "research_run_hosted",
+    "research_run_codex",
+    "research_resume",
+}
+ACTIVE_TOOL_NAMES = BASE_ACTIVE_TOOL_NAMES | _graph_operation_names()
+ACTIVE_TOOLS = [tool for tool in TOOLS if tool.get("name") in ACTIVE_TOOL_NAMES]
 
 PROMPTS = [
     {
@@ -2183,9 +2433,9 @@ PROMPTS = [
     },
     {
         "name": "research-scout-e2e",
-        "description": "Run the Scout path through A07 light reviews and A09 scout_fast, producing "
-                       "solution_input_candidate@1 for Graph03. Live Scout and host-model A07 are "
-                       "still performed by the host environment.",
+        "description": "Run the Scout discovery path through A07 light reviews, A09 and the "
+                       "User Research Gate. Live Scout and host-model A07 are still performed "
+                       "by the host environment.",
         "arguments": [
             {
                 "name": "context",
@@ -2198,30 +2448,18 @@ PROMPTS = [
 
 
 def _research_prompt(context: str) -> dict:
-    return {
-        "description": "Semantic 'zrob research' entrypoint for a research_graph_input bundle.",
-        "messages": [
-            {
-                "role": "user",
-                "content": {
-                    "type": "text",
-                    "text": (
-                        "The user asked to zrob research / zrób research. Use the "
-                        "edu-materials-agents orchestrate-research workflow for this "
-                        f"research_graph_input bundle: {context}\n\n"
-                        "For the full Codex workflow, call research_run_codex with gates='pause' "
-                        "so human gates return an awaiting_user resume token. For a deterministic "
-                        "wiring check only, use research_run_stub."
-                    ),
-                },
-            },
-        ],
-    }
+    prompt = _research_scout_e2e_prompt(context)
+    prompt["description"] = (
+        "Semantic 'zrob research' entrypoint for the current hosted Scout -> A07 -> A09 workflow."
+    )
+    return prompt
 
 
 def _research_scout_prompt(context: str) -> dict:
+    ops = _workflow_ops()
+    sequence = " -> ".join(ops["sequence"])
     return {
-        "description": "Claude-hosted A01 → A10 review (max 1) → Scout workflow.",
+        "description": "Claude-hosted A01 -> Scout workflow without A10 review.",
         "messages": [{
             "role": "user",
             "content": {
@@ -2229,62 +2467,25 @@ def _research_scout_prompt(context: str) -> dict:
                 "text": (
                     "Run only the Edu Materials scout milestone for this research_graph_input: "
                     f"{context}\n\n"
-                    "STEP 1 — Prepare: call research_planner_prepare with "
-                    "execution_profile='scout'. This returns research_planner_input@1 and "
+                    "Tool names and sequence are read from shared/graphs/g02.graph.json. "
+                    f"Graph sequence: {sequence}.\n\n"
+                    f"STEP 1 — Prepare: call {ops['planner_prepare']} with "
+                    "execution_profile='scout_e2e'. This returns research_planner_input@1 and "
                     "plan_output_template.\n\n"
-                    "STEP 2 — Plan (acting as g02-a01-planner, Opus/medium): create 4-6 "
+                    "STEP 2 — Plan (acting as g02-a01-planner, Opus/medium): create 1-6 "
                     "intake-anchored, bibliographically searchable topics following the "
                     "plan_output_template. Each topic must have a stable TOPIC_ID, 3-6 "
-                    "core_terms and coverage units linked to approved drivers. Call "
-                    "research_planner_finalize with input=<original research_graph_input>, "
-                    "plan=<complete plan object> and execution_profile='scout'. The produced "
+                    f"core_terms and coverage units linked to approved drivers. Call "
+                    f"{ops['planner_finalize']} with input=<original research_graph_input>, "
+                    "plan=<complete plan object> and execution_profile='scout_e2e'. The produced "
                     "research_plan descriptor uses path=<artifact:// ref>; retain that path "
                     "and artifact_version.\n\n"
-                    "STEP 3 — Build review task: call research_plan_review_task with "
-                    "input=<original research_graph_input>, "
-                    "artifact={type:'research_plan', ref:<descriptor.path>, "
-                    "schema_version:'research_plan@1', artifact_version:<artifact_version>}, "
-                    "review_id='plan-review-001', execution_profile='scout'.\n\n"
-                    "STEP 4 — Isolate review input: call research_review_prepare with the exact "
-                    "review_task returned by STEP 3. Continue only when ready=true. Review the "
-                    "hydrated artifact from this response, not a remembered draft.\n\n"
-                    "STEP 5 — One review only (acting as g02-a10-output-reviewer): use the exact "
-                    "acceptance_criteria, evidence_requirements and prohibited_behaviors from "
-                    "the review_task. In particular assess driver/claim relevance, query-quality "
-                    "and specificity of core_terms, balanced driver coverage, semantic separation "
-                    "of topics, and whether each topic can discover both canonical and recent "
-                    "sources when both are required. Produce a review_decision@1 with decision "
-                    "APPROVED or REVISE. Use REVISE "
-                    "only when a mandatory criterion is genuinely violated; do not invent "
-                    "findings. Copy audit identity from the task and fill every required field: "
-                    "schema_version='review_decision@1', review_id, task_id, "
-                    "logical_review_node, reviewer_agent='g02-a10-output-reviewer', "
-                    "producer_agent, artifact_ref, artifact_version, review_profile, "
-                    "decision, confidence ('low', 'medium' or 'high'), attempt=1, summary, "
-                    "findings, closed_finding_ids=[], and advisories=[]. Every finding requires "
-                    "finding_id, criterion_id from the task, severity ('minor' or 'major' for "
-                    "REVISE), location, observed, required_correction and evidence_refs. For "
-                    "APPROVED use findings=[], root_cause=null and revision_scope=null. For "
-                    "REVISE set root_cause="
-                    "'producer_error', revision_scope.target_agent=producer_agent, "
-                    "revision_scope.finding_ids=[all finding IDs]. "
-                    "Then call research_review_finalize with task=<review_task> and "
-                    "decision=<your decision object>.\n\n"
-                    "STEP 6 — Conditional revision (only if STEP 5 decision was REVISE, "
-                    "acting again as g02-a01-planner): revise the plan to address all "
-                    "findings from the review decision, preserve unaffected plan content, and "
-                    "advance artifact_version (for example 1.0.0 → 1.0.1). Call "
-                    "research_planner_finalize with input=<original research_graph_input>, "
-                    "plan=<complete revised plan>, execution_profile='scout', "
-                    "previous_plan_ref=<STEP 2 descriptor.path> and "
-                    "revision_items=<findings list from the review decision>. Use the produced "
-                    "descriptor.path as the final plan ref. Do not invoke A10 again: the maximum "
-                    "is exactly one review. If decision was APPROVED, skip this step.\n\n"
-                    "STEP 7 — Scout: call research_scout_fanout with the final "
-                    "research_plan artifact ref (from STEP 2 if APPROVED, from STEP 6 if "
-                    "revised), total_target=50. Report run_directory and index summary. "
-                    "Stop before A07 and A09. Do not call research_run_stub or "
-                    "research_run_codex."
+                    f"STEP 3 — Provider readiness: call {ops['provider_setup']} with no arguments. "
+                    "If the user provides email/openalex_key, call it again with those values before Scout.\n\n"
+                    f"STEP 4 — Scout: call {ops['scout_run']} with the final "
+                    f"research_plan artifact ref from STEP 2, total_target={ops['scout_target']}. Report "
+                    "run_directory and index summary. Stop before A07 and A09. Do not call "
+                    "research_run_stub, research_run_codex or any A10 review tool."
                 ),
             },
         }],
@@ -2292,49 +2493,35 @@ def _research_scout_prompt(context: str) -> dict:
 
 
 def _research_scout_e2e_prompt(context: str) -> dict:
+    ops = _workflow_ops()
+    sequence = " -> ".join(ops["sequence"])
     return {
-        "description": "Scout -> A07 light -> A09 scout_fast workflow.",
+        "description": "Hosted Scout -> A07 light -> A09 workflow.",
         "messages": [{
             "role": "user",
             "content": {
                 "type": "text",
                 "text": (
-                    "Run the Edu Materials Scout E2E workflow for this research_graph_input: "
+                    "Run the Edu Materials hosted Scout E2E workflow for this research_graph_input: "
                     f"{context}\n\n"
-                    "First complete the same A01/A10/Scout steps as the research-scout prompt: "
-                    "prepare and finalize a scout research_plan@1, run exactly one A10 plan review, "
-                    "revise only if that one review returns REVISE, then call research_scout_fanout "
-                    "with total_target=50.\n\n"
-                    "After Scout completes, continue:\n\n"
-                    "STEP 8 - A07 prepare: call research_scout_a07_prepare with "
-                    "scout_run_dir=<run_directory> and intake_ref=<this context>. This writes "
-                    "reviews.json and work/<topic_id>/<source_id>.input.json files.\n\n"
-                    "STEP 9 - A07 model tasks: call research_scout_a07_tasks_prepare with "
-                    "a07_dir=<A07 output dir> and intake=<this context>. It writes "
-                    "scout_a07_model_task@1 files under tasks/. Each task is one topic/source unit.\n\n"
-                    "STEP 10 - A07 light worker loop: for each task file, act as "
-                    "g02-a07-scout-light-review. Use Sonnet/high when the host supports model "
-                    "selection. Read only the task JSON, selected_windows and compact intake_context. "
-                    "Do not read the full PDF. Produce the raw A07 JSON output and immediately call "
-                    "research_scout_a07_partial_finalize with work_input_path=<a07_dir>/<work_input_ref> "
-                    "and output=<raw A07 JSON>. Multiple tasks may run in parallel, but each worker "
-                    "writes only its own partial review through the finalizer.\n\n"
-                    "STEP 11 - Aggregate: call research_scout_a07_aggregate with a07_dir=<A07 output dir>. "
-                    "Continue only with the aggregated reviews.json.\n\n"
-                    "STEP 12 - Obligatory A09 scout_fast model pass: call "
-                    "research_scout_a09_task_prepare with reviews_json=<a07_dir>/reviews.json, "
-                    "intake=<this context>, max_deep_dive_sources=5, deep_dive_windows=8 and "
-                    "deep_dive_chars=1200. The result contains one scout_a09_model_task@1 plus its "
-                    "bounded deep_dive package. Act once as g02-a09-scout-synthesis using Opus with "
-                    "medium effort. Read only the task, verify and refine deterministic_baseline, and "
-                    "return the skill's raw JSON object. Then call research_scout_synthesis_finalize "
-                    "with the same reviews_json and intake, deep_dive=<task-prepare deep_dive>, and "
-                    "output=<raw A09 JSON>. A09 must not add evidence or read PDFs. If the model attempt "
-                    "fails or is unavailable, call the finalizer without output but with the same "
-                    "deep_dive; never fabricate model output. The result will record "
-                    "a09_model_pass=false and synthesis_engine=deterministic_fallback.\n\n"
-                    "Final output is solution_input_candidate@1 for Graph03. Graph03 must not be asked "
-                    "to call G02 or do further research. Do not call research_run_stub or research_run_codex."
+                    "The active sequence is read from shared/graphs/g02.graph.json: "
+                    f"{sequence}. Use research_run_hosted as the single runtime entrypoint; "
+                    "do not manually replay a copied sequence and do not run A10 review.\n\n"
+                    "1. Call research_run_hosted with context=<this context> and through='user-research-gate'.\n"
+                    "2. Loop on the returned status:\n"
+                    "   - awaiting_node: run the named node using only the payload input. For A07 use "
+                    "only selected_windows and compact intake_context; never read full PDFs. Call the "
+                    "payload finalize_op with the provided finalize_args filled with the raw model JSON, "
+                    "then call research_resume with node_results keyed by payload.node_key. After the "
+                    "A01 planner finalizer succeeds and before resuming, call research_provider_setup "
+                    "if the user wants to provide email/openalex_key for Scout.\n"
+                    "   - awaiting_user: present the User Research Gate summary and collect explicit "
+                    "decisions, then call research_resume with decisions={'user-research-gate': <decision>}.\n"
+                    "   - completed: output_ref is the user_approved_research_bundle@1 for Graph03.\n\n"
+                    "The hosted runner performs deterministic Scout fanout, A07 aggregation, A09 "
+                    "research_state materialization and bundle finalization. Graph03 must not be asked "
+                    "to call G02 or do further research. Do not call research_run_stub or "
+                    "research_run_codex."
                 ),
             },
         }],
@@ -2393,20 +2580,40 @@ DISPATCH = {
     "research_review_finalize": _review_finalize,
     "research_finalize": _finalize,
     "research_scout_fanout": _scout_fanout,
-    "research_scout_a07_prepare": _scout_a07_prepare,
-    "research_scout_a07_tasks_prepare": _scout_a07_tasks_prepare,
-    "research_scout_a07_partial_finalize": _scout_a07_partial_finalize,
-    "research_scout_a07_aggregate": _scout_a07_aggregate,
-    "research_scout_synthesis_prepare": _scout_synthesis_prepare,
-    "research_scout_deep_dive_windows": _scout_deep_dive_windows,
-    "research_scout_a09_task_prepare": _scout_a09_task_prepare,
-    "research_scout_synthesis_finalize": _scout_synthesis_finalize,
+    "research_a07_prepare": _a07_prepare,
+    "research_a07_tasks_prepare": _a07_tasks_prepare,
+    "research_a07_partial_finalize": _a07_partial_finalize,
+    "research_a07_aggregate": _a07_aggregate,
+    "research_a09_synthesis_prepare": _a09_synthesis_prepare,
+    "research_a09_deep_dive_windows": _scout_deep_dive_windows,
+    "research_a09_task_prepare": _a09_task_prepare,
+    "research_a09_synthesis_finalize": _a09_synthesis_finalize,
+    "research_a09_research_state_finalize": _a09_research_state_finalize,
+    "research_human_gate_prepare": _human_gate_prepare,
     "research_run_stub": _run_stub,
     "research_run_codex": _run_codex,
     "research_run_hosted": _run_hosted,
     "research_resume": _resume,
     "research_trace": _trace,
 }
+
+
+DEPRECATED_TOOL_NAMES = set(DISPATCH).difference(ACTIVE_TOOL_NAMES)
+
+
+def _deprecated_tool_notice(name: str) -> dict:
+    return {
+        "schema_version": "research_current_workflow_notice@1",
+        "status": "deprecated_tool",
+        "tool": name,
+        "replacement_prompt": "research-scout-e2e",
+        "active_tools": sorted(ACTIVE_TOOL_NAMES),
+        "summary": (
+            f"{name} is retained in source for legacy tests and migration only, "
+            "but it is not executable through the current MCP runtime. Use the "
+            "Scout -> A07 -> A09 -> User Research Gate workflow."
+        ),
+    }
 
 
 # ---- JSON-RPC plumbing ---------------------------------------------------
@@ -2455,17 +2662,34 @@ def handle(msg: dict):
             prompt = _research_prompt(context)
         return _result(mid, prompt)
     if method == "tools/list":
-        return _result(mid, {"tools": TOOLS})
+        return _result(mid, {"tools": ACTIVE_TOOLS})
     if method == "tools/call":
         name = params.get("name")
-        fn = DISPATCH.get(name)
-        if fn is None:
-            return _error(mid, -32602, f"unknown tool {name!r}")
         arguments = params.get("arguments") or {}
         run_id = os.environ.get("EMAGENTS_RUN_ID", "unscoped")
         node_id = os.environ.get("EMAGENTS_NODE_ID", "mcp-client")
         audit = event_log.open_log(f"{run_id}-mcp")
-        audit.append(node_id, name, detail={"argument_keys": sorted(arguments)})
+        audit.append(node_id, name or "unknown_tool", detail={
+            "argument_keys": sorted(arguments),
+            "deprecated": name in DEPRECATED_TOOL_NAMES,
+        })
+        if name in DEPRECATED_TOOL_NAMES:
+            audit.append(node_id, name, status="deprecated", detail={
+                "is_error": False,
+                "deprecated": True,
+            })
+            return _result(mid, {"content": [{"type": "text",
+                                              "text": json.dumps(
+                                                  _deprecated_tool_notice(name),
+                                                  ensure_ascii=False,
+                                              )}]})
+        if name not in ACTIVE_TOOL_NAMES:
+            audit.append(node_id, name or "unknown_tool", status="failed", detail={
+                "is_error": True,
+                "error_type": "unknown_tool",
+            })
+            return _error(mid, -32602, f"unknown tool {name!r}")
+        fn = DISPATCH[name]
         try:
             out = fn(arguments)
             audit.append(node_id, name, status="ok", detail={"is_error": False})

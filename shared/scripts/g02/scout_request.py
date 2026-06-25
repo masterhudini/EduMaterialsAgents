@@ -12,6 +12,7 @@ import json
 import os
 
 from core import artifacts, contracts, graphs
+from g02 import credentials
 
 SCOUT_SEARCH_REQUEST_CONTRACT = "scout_search_request@1"
 RESEARCH_PLAN_CONTRACT = "research_plan@1"
@@ -29,8 +30,9 @@ def scout_sources() -> dict:
     arXiv + Crossref are always in scope (no credentials). Returns the ``run_student`` gate flags
     plus the extra-source name set.
     """
-    has_email = bool(os.environ.get("EMAGENTS_RESEARCH_CONTACT_EMAIL", "").strip())
-    has_openalex_key = bool(os.environ.get("OPENALEX_API_KEY", "").strip())
+    env = credentials.managed_environment(os.environ)
+    has_email = bool(env.get("EMAGENTS_RESEARCH_CONTACT_EMAIL", "").strip())
+    has_openalex_key = bool(env.get("OPENALEX_API_KEY", "").strip())
     return {
         "include_openalex": has_email and has_openalex_key,
         "include_s2": True,
@@ -91,12 +93,11 @@ def _target_n(*, default: int = DEFAULT_TARGET_N) -> int:
     return max(MIN_TARGET_N, value)
 
 
-def scout_profile_settings(profile_name: str = "scout") -> dict:
+def scout_profile_settings(profile_name: str = "scout_e2e") -> dict:
     """Return validated Scout settings from the graph manifest.
 
     Keeping this lookup here gives the A01 -> Scout adapter one authoritative
-    total-budget knob while preserving the legacy per-topic default for callers
-    outside the dedicated ``scout`` profile.
+    total-budget knob, read from the single ``scout_e2e`` execution profile.
     """
     manifest = graphs.load("g02")
     profiles = manifest.get("execution_profiles", {})

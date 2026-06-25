@@ -8,7 +8,7 @@
     "max_windows_per_source", "max_chars_per_window", "requests", "limitations"
   ],
   "properties": {
-    "schema_version": {"type": "string", "enum": ["scout_a07_deep_dive@1"]},
+    "schema_version": {"type": "string", "enum": ["a07_deep_dive@1"]},
     "artifact_version": {"type": "string"},
     "task_id": {"type": "string"},
     "scout_run_ref": {"type": "string"},

@@ -2,7 +2,7 @@
 
 g03 is the first place the two upstream sides meet: the lecture skeleton from g01
 (``lecture_baseline@1``) and the research hand-off from g02 — either the official
-``solution_input_candidate@1`` contract or the legacy human-gated
+``solution_input_candidate@1`` contract or the legacy user-gated
 ``user_approved_research_bundle@1`` (selected by ``research_bundle_kind``).
 Neither is the other graph's full state — each is a purpose-built, targeted slice. This module
 builds the thin composite boundary (``solution_graph_input@1``, a pair of refs) the engine drives

@@ -9,9 +9,9 @@ Co dostaje Graph03 na wejściu i jak to czytać. Źródłem prawdy o kształcie 
   (`lecture_baseline@1`) i hand-off badawczy z G02.
 - Granica wejściowa to cienka para refów: `solution_graph_input@1`.
 - Strona badawcza ma **dwa warianty** wskazywane przez `research_bundle_kind`:
-  - `solution_input_candidate` → **oficjalny** kontrakt (`solution_input_candidate@1`), bez Human
+  - `solution_input_candidate` → **oficjalny** kontrakt (`solution_input_candidate@1`), bez User
     Research Gate po stronie G02;
-  - `user_approved_research_bundle` → legacy, ścieżka z Human Research Gate (`user_approved_research_bundle@1`).
+  - `user_approved_research_bundle` → legacy, ścieżka z User Research Gate (`user_approved_research_bundle@1`).
 - Oficjalnym, finalnym kontraktem badawczym G02 jest **`solution_input_candidate@1`** i to on jest
   samowystarczalnym kontekstem badawczym dla G03.
 
@@ -24,7 +24,7 @@ Co dostaje Graph03 na wejściu i jak to czytać. Źródłem prawdy o kształcie 
   "output_language": "Polish",
   "lecture_baseline_ref": "artifact://g01/.../lecture_baseline.json",   // szkielet slajdów (G01)
   "research_bundle_ref":  "artifact://g02/.../solution_input_candidate.json",
-  "research_bundle_kind": "solution_input_candidate"                    // scout_fast
+  "research_bundle_kind": "solution_input_candidate"
 }
 ```
 
@@ -56,11 +56,11 @@ Przykład realny: `mocks/g02/EXAMPLE g02-a09-solution_input_candidate.artifact.j
 |---|---|
 | `schema_version` | `"solution_input_candidate@1"` |
 | `task_id` | zgodny z intake/G01 |
-| `synthesis_mode` | `"scout_fast"` |
+| `synthesis_mode` | `"evidence_without_claim_assessment"` |
 | `source_pipeline` | `"intake -> a01 -> scout -> a07 -> a09"` |
 | `intake_ref`, `plan_ref` | refy do `research_graph_input@1` i `research_plan@1` (mogą być null poza realnym łańcuchem) |
 | `claim_assessment_performed` | `false` — **A08 jest w trybie scout pominięte** |
-| `a08_status` | `"skipped_scout_fast"` |
+| `claim_assessment_status` | `"not_in_workflow"` |
 | `a09_model_pass` | `true` jeśli realny A09 (opus/medium) zweryfikował baseline; `false` przy fallbacku |
 | `synthesis_engine` | `"a09_opus_medium"` albo `"deterministic_fallback"` |
 | `confidence` | `low` / `medium` / `high` |

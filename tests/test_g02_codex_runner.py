@@ -21,6 +21,12 @@ class Log:
     def append(self, *args, **kwargs):
         self.entries.append((args, kwargs))
 
+    def span(self, *args, **kwargs):
+        self.entries.append(("span", args, kwargs))
+
+    def usage(self, *args, **kwargs):
+        self.entries.append(("usage", args, kwargs))
+
 
 def _process_with(payload):
     def run(cmd, **kwargs):

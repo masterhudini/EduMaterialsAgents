@@ -9,6 +9,7 @@ SCRIPTS = ROOT / "shared" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from g02.scout import _smoke, runtime  # noqa: E402
+from g02 import credentials  # noqa: E402
 from g02.scout.engine import RunResult  # noqa: E402
 
 
@@ -27,7 +28,23 @@ def test_runtime_paths_live_under_emagents_home(tmp_path, monkeypatch):
     assert pdf_dir.is_dir()
 
 
-def test_runtime_reads_only_process_env_for_provider_values(monkeypatch):
+def test_runtime_ignores_ambient_provider_values(monkeypatch):
+    monkeypatch.setenv("EMAGENTS_RESEARCH_CONTACT_EMAIL", "research@example.edu")
+    monkeypatch.setenv("OPENALEX_API_KEY", "oa-key")
+    monkeypatch.setenv("SEMANTIC_SCHOLAR_API_KEY", "s2-key")
+    monkeypatch.setenv("CORE_API_KEY", "core-key")
+    monkeypatch.delenv(credentials.MARKER_ENV, raising=False)
+
+    assert runtime.contact_email() == ""
+    assert runtime.provider_keys() == {
+        "openalex_api_key": "",
+        "s2_api_key": "",
+        "core_api_key": "",
+    }
+
+
+def test_runtime_reads_agent_collected_provider_values(monkeypatch):
+    monkeypatch.setenv(credentials.MARKER_ENV, credentials.MARKER_VALUE)
     monkeypatch.setenv("EMAGENTS_RESEARCH_CONTACT_EMAIL", "research@example.edu")
     monkeypatch.setenv("OPENALEX_API_KEY", "oa-key")
     monkeypatch.setenv("SEMANTIC_SCHOLAR_API_KEY", "s2-key")
@@ -37,7 +54,7 @@ def test_runtime_reads_only_process_env_for_provider_values(monkeypatch):
     assert runtime.provider_keys() == {
         "openalex_api_key": "oa-key",
         "s2_api_key": "s2-key",
-        "core_api_key": "core-key",
+        "core_api_key": "",
     }
 
 

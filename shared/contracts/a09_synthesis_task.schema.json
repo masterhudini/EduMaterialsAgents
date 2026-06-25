@@ -1,5 +1,5 @@
 {
-  "title": "One host-model G02-A09 scout_fast synthesis task (verify and refine the deterministic baseline)",
+  "title": "One host-model G02-A09 synthesis task (verify and refine the deterministic baseline)",
   "x-version": "1.0",
   "x-major": 1,
   "type": "object",
@@ -9,11 +9,11 @@
     "presentation_context", "model_policy", "expected_output", "rules"
   ],
   "properties": {
-    "schema_version": {"type": "string", "enum": ["scout_a09_model_task@1"]},
+    "schema_version": {"type": "string", "enum": ["a09_synthesis_task@1"]},
     "artifact_version": {"type": "string"},
     "task_id": {"type": "string"},
-    "synthesis_mode": {"type": "string", "enum": ["scout_fast"]},
-    "scout_a07_reviews_ref": {"type": ["string", "null"]},
+    "synthesis_mode": {"type": "string", "enum": ["evidence_without_claim_assessment"]},
+    "a07_reviews_ref": {"type": ["string", "null"]},
     "plan_ref": {"type": ["string", "null"]},
     "intake_ref": {"type": ["string", "null"]},
     "deterministic_baseline": {
@@ -38,7 +38,7 @@
         "schema_version", "max_windows_per_source", "max_chars_per_window", "requests"
       ],
       "properties": {
-        "schema_version": {"type": "string", "enum": ["scout_a07_deep_dive@1"]},
+        "schema_version": {"type": "string", "enum": ["a07_deep_dive@1"]},
         "max_windows_per_source": {"type": "integer"},
         "max_chars_per_window": {"type": "integer"},
         "requests": {"type": "array", "items": {"type": "object"}}

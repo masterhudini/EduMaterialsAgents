@@ -13,7 +13,7 @@
     "task_id": {"type": "string"},
     "synthesis_mode": {"type": "string", "enum": ["evidence_without_claim_assessment"]},
     "claim_assessment_performed": {"type": "boolean", "enum": [false]},
-    "claim_assessment_status": {"type": "string", "enum": ["skipped_fast_profile"]},
+    "claim_assessment_status": {"type": "string", "enum": ["not_in_workflow"]},
     "claims": {
       "type": "array",
       "items": {

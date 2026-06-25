@@ -13,16 +13,17 @@ SCRIPTS = ROOT / "shared" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from core import contracts  # noqa: E402
+from g02 import credentials  # noqa: E402
 from g02 import scout_fanout  # noqa: E402
 from g02.scout.engine import RunResult  # noqa: E402
 
 FIXTURE = ROOT / "mocks" / "g02" / "EXAMPLE g02-a01-planner.artifact.json"
 
 
-def _four_topic_plan() -> dict:
+def _n_topic_plan(n: int) -> dict:
     source = json.loads(FIXTURE.read_text(encoding="utf-8"))
     topics = []
-    for index in range(4):
+    for index in range(n):
         topic = copy.deepcopy(source["topics"][index % len(source["topics"])])
         topic["topic_id"] = f"TOPIC_SCOUT_{index + 1}"
         topic["name"] = f"Technical search field {index + 1}"
@@ -30,6 +31,10 @@ def _four_topic_plan() -> dict:
     source["topics"] = topics
     source["global_constraints"]["max_topics"] = 6
     return source
+
+
+def _four_topic_plan() -> dict:
+    return _n_topic_plan(4)
 
 
 def _fake_topic_runner(job: dict) -> dict:
@@ -71,6 +76,7 @@ def _fake_topic_runner(job: dict) -> dict:
 
 
 def test_fanout_persists_complete_layout_and_cross_topic_membership(tmp_path, monkeypatch):
+    monkeypatch.setenv(credentials.MARKER_ENV, credentials.MARKER_VALUE)
     monkeypatch.setenv("OPENALEX_API_KEY", "offline-test-key")
     workspace = tmp_path / "scout"
 
@@ -89,6 +95,7 @@ def test_fanout_persists_complete_layout_and_cross_topic_membership(tmp_path, mo
     assert index["allocated_target"] == 48
     assert index["summary"]["downloaded_pdf_count"] == 4
     assert index["summary"]["unique_work_count"] == 3
+    assert Path(index["knowledge_root"]) == tmp_path / "knowledge" / "RESEARCH_MOCK_001"
 
     for topic in index["topics"]:
         topic_id = topic["topic_id"]
@@ -100,6 +107,10 @@ def test_fanout_persists_complete_layout_and_cross_topic_membership(tmp_path, mo
         assert contracts.validate(corpus, "scout_retrieved_corpus@1")["ok"]
         document = corpus["documents"][0]
         assert (run_root / document["local_ref"]).is_file()
+        assert document["knowledge_ref"]
+        assert (Path(index["knowledge_root"]) / document["knowledge_ref"]).is_file()
+        assert topic["knowledge_refs"] == [document["knowledge_ref"]]
+        assert Path(topic["knowledge_dir"]).is_dir()
         assert len(document["sha256"]) == 64
         assert document["source_type"] == "recent"
         assert document["source_type_basis"]
@@ -109,6 +120,7 @@ def test_fanout_persists_complete_layout_and_cross_topic_membership(tmp_path, mo
                   if item["doi"] == "10.1000/shared")
     assert shared["topic_ids"] == ["TOPIC_SCOUT_1", "TOPIC_SCOUT_2"]
     assert len(shared["local_refs"]) == 2
+    assert len(shared["knowledge_refs"]) == 2
     for topic_id in shared["topic_ids"]:
         corpus = json.loads((run_root / "topics" / topic_id / "retrieved_corpus.json")
                             .read_text(encoding="utf-8"))
@@ -116,38 +128,32 @@ def test_fanout_persists_complete_layout_and_cross_topic_membership(tmp_path, mo
         assert corpus["documents"][0]["source_id"] == shared["dedup_id"]
 
 
-def test_fanout_requires_openalex_key_before_creating_output(tmp_path, monkeypatch):
-    monkeypatch.delenv("OPENALEX_API_KEY", raising=False)
-
-    with pytest.raises(Exception, match="OPENALEX_API_KEY"):
-        scout_fanout.run_scout_fanout(
-            _four_topic_plan(), workspace=tmp_path / "scout",
-            topic_runner=_fake_topic_runner,
-        )
-
-    assert not (tmp_path / "scout").exists()
-
-
-def test_fanout_rejects_non_scout_topic_count(tmp_path, monkeypatch):
+def test_fanout_rejects_more_than_six_topics(tmp_path, monkeypatch):
+    monkeypatch.setenv(credentials.MARKER_ENV, credentials.MARKER_VALUE)
     monkeypatch.setenv("OPENALEX_API_KEY", "offline-test-key")
-    plan = _four_topic_plan()
-    plan["topics"] = plan["topics"][:3]
+    plan = _n_topic_plan(7)
 
-    with pytest.raises(ValueError, match="4 to 6 topics"):
+    with pytest.raises(ValueError, match="1 to 6 topics"):
         scout_fanout.run_scout_fanout(
             plan, workspace=tmp_path / "scout", topic_runner=_fake_topic_runner
         )
 
 
-def test_default_run_root_points_to_outputs_handoff(monkeypatch, tmp_path):
+def test_default_run_root_points_to_artifact_store_and_knowledge(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("EMAGENTS_HOME", str(tmp_path / ".emagents"))
 
     root = scout_fanout.default_scout_run_root("RESEARCH MOCK 001")
+    knowledge = scout_fanout.default_knowledge_root("RESEARCH MOCK 001")
 
-    assert root == tmp_path / "outputs" / "g02" / "RESEARCH_MOCK_001" / "scout"
+    assert root == (
+        tmp_path / ".emagents" / "artifacts" / "g02" / "scout" / "runs" / "RESEARCH_MOCK_001"
+    )
+    assert knowledge == tmp_path / "knowledge" / "g02" / "RESEARCH_MOCK_001"
 
 
 def test_fanout_redacts_provider_key_from_worker_error(tmp_path, monkeypatch):
+    monkeypatch.setenv(credentials.MARKER_ENV, credentials.MARKER_VALUE)
     monkeypatch.setenv("OPENALEX_API_KEY", "super-secret-offline-key")
 
     def failed_runner(job):
@@ -164,6 +170,7 @@ def test_fanout_redacts_provider_key_from_worker_error(tmp_path, monkeypatch):
 
 
 def test_production_topic_worker_uses_approved_oversample(tmp_path, monkeypatch):
+    monkeypatch.setenv(credentials.MARKER_ENV, credentials.MARKER_VALUE)
     monkeypatch.setenv("OPENALEX_API_KEY", "offline-test-key")
     captured = {}
 

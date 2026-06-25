@@ -1,162 +1,147 @@
-"""The thin Research Graph must run end-to-end (no LLM) and emit a valid output bundle.
-
-Also guards manifest/registration coherence and the boundary contracts. Stdlib only; runtime
-artifacts go to a tmp dir via EMAGENTS_HOME.
-"""
+"""Research Graph manifest coherence for the active Scout E2E path."""
 import json
+import os
 import sys
+import tempfile
+import unittest
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "shared" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from core import artifacts, contracts, graph_check, graphs, handoff  # noqa: E402
-from g02 import g02_flow  # noqa: E402
+from core import contracts, graph_check, graphs  # noqa: E402
 
 SEED = ROOT / "tests" / "fixtures" / "research_graph_input.example.json"
 
 
-@pytest.fixture(autouse=True)
-def _tmp_home(tmp_path, monkeypatch):
-    monkeypatch.setenv("EMAGENTS_HOME", str(tmp_path / ".emagents"))
+class ResearchGraphTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        os.environ["EMAGENTS_HOME"] = str(Path(self._tmp.name) / ".emagents")
 
+    def test_seed_satisfies_input_contract(self):
+        seed = json.loads(SEED.read_text())
+        self.assertTrue(contracts.validate(seed, "research_graph_input@1")["ok"])
 
-def test_seed_satisfies_input_contract():
-    seed = json.loads(SEED.read_text())
-    assert contracts.validate(seed, "research_graph_input@1")["ok"]
+    def test_active_g02_graph_is_scout_e2e_without_review(self):
+        manifest = graphs.load("g02")
+        self.assertEqual(manifest["default_execution_profile"], "scout_e2e")
+        self.assertIsNone(manifest["reviewer"])
+        profile = manifest["execution_profiles"]["scout_e2e"]
+        self.assertEqual(profile["implemented_terminal_stage"], "user-research-gate")
+        self.assertEqual(profile["review_mode"], "none")
+        self.assertEqual(profile["scout"]["total_target"], 50)
+        self.assertEqual(manifest["sequence"], [
+            "g02-a01-planner",
+            "research-scout-fanout",
+            "g02-a07-paper-review",
+            "g02-a09-synthesizer",
+            "user-research-gate",
+        ])
 
+    def test_active_g02_nodes_reference_current_mcp_operations(self):
+        nodes = {node["name"]: node for node in graphs.load("g02")["nodes"]}
+        self.assertEqual(nodes["g02-a01-planner"]["operations"], {
+            "prepare": "research_planner_prepare",
+            "finalize": "research_planner_finalize",
+        })
+        self.assertEqual(nodes["research-scout-fanout"]["operations"], {
+            "provider_setup": "research_provider_setup",
+            "run": "research_scout_fanout",
+        })
+        self.assertEqual(
+            nodes["g02-a07-paper-review"]["operations"]["prepare_tasks"],
+            "research_a07_tasks_prepare",
+        )
+        self.assertEqual(
+            nodes["g02-a09-synthesizer"]["operations"]["finalize_research_state"],
+            "research_a09_research_state_finalize",
+        )
+        self.assertEqual(
+            nodes["user-research-gate"]["operations"]["finalize"],
+            "research_bundle_finalize",
+        )
+        self.assertEqual(
+            nodes["user-research-gate"]["operations"]["trace"],
+            "research_trace",
+        )
 
-def test_graph_runs_end_to_end_and_emits_valid_bundle():
-    seed = json.loads(SEED.read_text())
-    in_ref = artifacts.store("handoffs/research_graph_input.json", seed)
+    def test_manifest_matches_registration(self):
+        res = graph_check.check_all()
+        self.assertTrue(res["ok"], res)
 
-    desc = g02_flow.run(in_ref)
+        manifest = graphs.load("g02")
+        registered = graph_check.registered_component_names()
+        for node in graphs.nodes(manifest):
+            if node["kind"] == "agent":
+                self.assertIn(node["name"], registered)
+            if node["kind"] == "user-gate":
+                self.assertNotIn(node["name"], registered)
 
-    assert desc["type"] == "user_approved_research_bundle"
-    assert desc["schema_version"] == "user_approved_research_bundle@1"
-
-    # the emitted bundle is loadable and satisfies its contract
-    bundle = handoff.load_handoff(desc, contract_ref="user_approved_research_bundle@1")
-    assert "approved_update_findings" in bundle
-
-
-def test_nodes_receive_mocked_context():
-    """The graph must hand the loaded context to every agent node."""
-    seed = json.loads(SEED.read_text())
-    in_ref = artifacts.store("handoffs/research_graph_input.json", seed)
-
-    seen = []
-
-    def spy(node, ctx, log):
-        # The universal reviewer runs through the same node_runner; approve it and skip recording
-        # so this test inspects only the producer-agent context.
-        if node.get("kind") == "reviewer":
-            return {"status": "ok", "produced": [], "summary": "review", "issues": [],
-                    "artifact": {"verdict": "APPROVED"}}
-        seen.append((node["name"], ctx["input"]["task_id"], len(ctx["input"]["claim_cards"])))
-        return {"status": "ok", "produced": [], "summary": "spy", "issues": []}
-
-    g02_flow.run(in_ref, node_runner=spy)
-
-    names = [n for n, _, _ in seen]
-    manifest = graphs.load("g02")
-    expected_agents = [node["name"] for node in graphs.nodes(manifest)
-                       if node.get("kind") == "agent"]
-    # Every producer from the manifest ran; reviewer and user gates are control steps.
-    assert names == expected_agents
-    assert "g02-a01-planner" in names and "g02-a09-synthesizer" in names
-    # every node received the SAME mocked context (task_id + claim cards visible)
-    assert all(task_id == "RESEARCH_001" and n_claims == 1 for _, task_id, n_claims in seen)
-
-
-def test_stub_harness_revise_runs_one_correction_without_second_review():
-    seed = json.loads(SEED.read_text())
-    in_ref = artifacts.store("handoffs/research_graph_input.json", seed)
-    producer_calls = {}
-    reviewer_calls = {}
-
-    def runner(node, ctx, log):
-        if node.get("kind") == "reviewer":
-            target = ctx["review"]["target"]
-            reviewer_calls[target] = reviewer_calls.get(target, 0) + 1
-            if target == "g02-a01-planner":
-                return {
-                    "status": "ok", "produced": [], "summary": "revise", "issues": [],
-                    "artifact": {
-                        "decision": "REVISE",
-                        "findings": [{"severity": "major", "finding_id": "RF_ONCE"}],
+    def test_graph_check_validates_script_and_user_gate_contracts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            graph_path = Path(temp) / "bad.graph.json"
+            graph_path.write_text(json.dumps({
+                "graph_id": "bad",
+                "nodes": [
+                    {
+                        "name": "bad-script",
+                        "kind": "script",
+                        "output_contract": "definitely_missing@1",
                     },
-                }
-            return {"status": "ok", "produced": [], "summary": "approved", "issues": [],
-                    "artifact": {"decision": "APPROVED", "findings": []}}
-        name = node["name"]
-        producer_calls[name] = producer_calls.get(name, 0) + 1
-        return {"status": "ok", "produced": [], "summary": "producer", "issues": []}
+                    {
+                        "name": "bad-gate",
+                        "kind": "user-gate",
+                        "produces": ["also_missing@1"],
+                    },
+                ],
+                "sequence": ["bad-script", "bad-gate"],
+            }), encoding="utf-8")
+            res = graph_check.check_manifest(graph_path, plugin_root=ROOT)
+        self.assertFalse(res["ok"], res)
+        self.assertIn("bad-script", "\n".join(res["errors"]))
+        self.assertIn("bad-gate", "\n".join(res["errors"]))
 
-    result = g02_flow.run(in_ref, node_runner=runner)
-    assert result["type"] == "user_approved_research_bundle"
-    assert producer_calls["g02-a01-planner"] == 2
-    assert reviewer_calls["g02-a01-planner"] == 1
-    assert all(count == 1 for count in reviewer_calls.values())
+    def test_graph_check_validates_g02_operations_against_research_mcp(self):
+        manifest = graphs.load("g02")
+        mutated = json.loads(json.dumps(manifest))
+        mutated["nodes"][0]["operations"]["prepare"] = "research_missing_operation"
+        with tempfile.TemporaryDirectory() as temp:
+            graph_path = Path(temp) / "g02.graph.json"
+            graph_path.write_text(json.dumps(mutated), encoding="utf-8")
+            res = graph_check.check_manifest(graph_path, plugin_root=ROOT)
+        self.assertFalse(res["ok"], res)
+        self.assertIn("research_missing_operation", "\n".join(res["errors"]))
 
+    def test_graph_check_rejects_hardcoded_g02_adapter_flow_terms(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "shared" / "contracts").mkdir(parents=True)
+            for schema in (ROOT / "shared" / "contracts").glob("*.schema.json"):
+                (root / "shared" / "contracts" / schema.name).write_text(
+                    schema.read_text(encoding="utf-8"),
+                    encoding="utf-8",
+                )
+            (root / "agents").mkdir()
+            for name in ("g02-a01-planner", "g02-a07-paper-review", "g02-a09-synthesizer"):
+                (root / "agents" / f"{name}.md").write_text("---\nname: x\n---\n", encoding="utf-8")
+            skill = root / "skills" / "g02-orchestrate-research"
+            (skill / "adapters").mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                "Read shared/graphs/g02.graph.json as source of truth.",
+                encoding="utf-8",
+            )
+            (skill / "adapters" / "codex.md").write_text(
+                "Follow this copied sequence: A01 prepare/finalize, Scout fanout.",
+                encoding="utf-8",
+            )
+            graph_path = root / "g02.graph.json"
+            graph_path.write_text(json.dumps(graphs.load("g02")), encoding="utf-8")
+            res = graph_check.check_manifest(graph_path, plugin_root=root)
+        self.assertFalse(res["ok"], res)
+        self.assertIn("hardcoded/retired G02 flow term", "\n".join(res["errors"]))
 
-def test_node_input_map_exposes_per_agent_context():
-    """The harness can show exactly what each agent node receives (for isolated agent testing)."""
-    seed = json.loads(SEED.read_text())
-    manifest = graphs.load("g02")
-    inputs = g02_flow.node_input_map(seed, manifest)
-    expected_agents = {node["name"] for node in graphs.nodes(manifest)
-                       if node.get("kind") == "agent"}
-    assert set(inputs) == expected_agents
-    assert inputs["g02-a01-planner"]["task_id"] == "RESEARCH_001"
-    assert inputs["g02-a08-claim-verification"]["claim_cards"][0]["claim_id"] == "CLM_001"
-
-
-def test_load_context_validates(tmp_path):
-    good = tmp_path / "good.json"
-    good.write_text(SEED.read_text())
-    assert g02_flow.load_context(good)["task_id"] == "RESEARCH_001"
-
-    bad = tmp_path / "bad.json"
-    bad.write_text('{"task_id": "x"}')
-    with pytest.raises(ValueError):
-        g02_flow.load_context(bad)
-
-
-def test_run_rejects_bad_input():
-    bad_ref = artifacts.store("handoffs/bad.json", {"task_id": "x"})  # missing required fields
-    with pytest.raises(ValueError):
-        g02_flow.run(bad_ref)
-
-
-def test_manifest_matches_registration():
-    res = graph_check.check_all()
-    assert res["ok"], res
-
-    # every agent node in the manifest has a component file on disk; gates do not
-    manifest = graphs.load("g02")
-    registered = graph_check.registered_component_names()
-    for node in graphs.nodes(manifest):
-        if node["kind"] == "agent":
-            assert node["name"] in registered
-        if node["kind"] == "user-gate":
-            assert node["name"] not in registered
-
-
-def test_a07_contracts_keep_classic_node_and_scout_handoff_separate():
-    manifest = graphs.load("g02")
-    a07 = next(node for node in graphs.nodes(manifest)
-               if node["name"] == "g02-a07-paper-review")
-
-    assert a07["output_contract"] == "paper_review@1"
-    assert a07["produces"] == ["paper_review@1"]
-
-    scout_contracts = manifest["execution_profiles"]["scout"]["handoff_contracts"]
-    assert scout_contracts["a07_partial_review"] == "scout_a07_partial_review@1"
-    assert scout_contracts["a07_aggregate"] == "scout_a07_reviews@1"
-    assert scout_contracts["a09_output"] == "solution_input_candidate@1"
-    assert scout_contracts["a07_aggregate"] != a07["output_contract"]
-    assert "a07_review@1" not in json.dumps(manifest)
+if __name__ == "__main__":
+    unittest.main()

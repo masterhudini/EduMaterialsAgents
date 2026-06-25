@@ -1,7 +1,7 @@
 {
-  "a08_status": "skipped_scout_fast",
   "a09_model_pass": false,
   "artifact_version": "1.0.0",
+  "claim_assessment_status": "not_in_workflow",
   "claim_assessment_performed": false,
   "confidence": "medium",
   "coverage_gaps": [
@@ -53,7 +53,7 @@
   },
   "intake_ref": null,
   "limitations": [
-    "A08 claim verification was skipped in scout_fast mode.",
+    "Claim assessment is not part of this workflow.",
     "A09 did not read full PDFs; it used A07 bounded reviews and optional bounded deep-dive windows."
   ],
   "optional_improvements": [],
@@ -323,7 +323,7 @@
     }
   ],
   "synthesis_engine": "deterministic_fallback",
-  "synthesis_mode": "scout_fast",
+  "synthesis_mode": "evidence_without_claim_assessment",
   "task_id": "T_SYNTHESIS",
   "topics_covered": [
     {

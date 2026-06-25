@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import copy
-import io
 import json
 from pathlib import Path
 import sys
@@ -14,7 +13,7 @@ SCRIPTS = ROOT / "shared" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from core import artifacts, contracts, graphs  # noqa: E402
-from g02 import reviewed_flow, synthesis  # noqa: E402
+from g02 import synthesis  # noqa: E402
 
 MOCKS = ROOT / "mocks" / "g02"
 TASK = "RESEARCH_MOCK_001"
@@ -177,42 +176,12 @@ def _upstream_refs():
     return plan_ref, index_ref, approved_ref, corpus_ref, paper_ref
 
 
-def _reviewed_descriptor(paper_ref):
-    paper = artifacts.hydrate(paper_ref)
-    decision = {
-        "schema_version": "review_decision@1",
-        "review_id": "REV_A09_PAPER",
-        "task_id": TASK,
-        "logical_review_node": "g02-a07-paper-review-review",
-        "reviewer_agent": "g02-a10-output-reviewer",
-        "producer_agent": "g02-a07-paper-review",
-        "artifact_ref": paper_ref,
-        "artifact_version": paper["artifact_version"],
-        "review_profile": "paper_evidence",
-        "decision": "APPROVED",
-        "findings": [],
-        "advisories": [],
-        "closed_finding_ids": [],
-        "revision_scope": None,
-        "root_cause": None,
-        "confidence": "high",
-        "attempt": 1,
-        "summary": "Approved fixture review.",
-    }
-    decision_ref = artifacts.store("g02/review-decisions/a09-paper.json", decision)
-    return {
-        "paper_review_ref": paper_ref,
-        "review_decision_ref": decision_ref,
-        "revision_completion_ref": None,
-    }
-
-
 def test_a09_fast_synthesis_without_a08_creates_research_state_and_packet():
     refs = _upstream_refs()
     prepared = synthesis.prepare_synthesis(
         refs[0], refs[1], refs[2], refs[3], [refs[4]],
         profile={
-            **graphs.load("g02")["execution_profiles"]["fast"],
+            **graphs.load("g02")["execution_profiles"]["scout_e2e"],
             "require_reviewed_a07_provenance": False,
         },
     )
@@ -255,20 +224,6 @@ def test_a09_fast_synthesis_without_a08_creates_research_state_and_packet():
     assert contracts.validate(state, "research_state@1")["ok"]
 
 
-def test_fast_profile_requires_exact_a07_review_provenance():
-    refs = _upstream_refs()
-    profile = graphs.load("g02")["execution_profiles"]["fast"]
-    rejected = synthesis.prepare_synthesis(
-        refs[0], refs[1], refs[2], refs[3], [refs[4]], profile=profile,
-    )
-    assert not rejected["ready"]
-    prepared = synthesis.prepare_synthesis(
-        refs[0], refs[1], refs[2], refs[3], [refs[4]], profile=profile,
-        reviewed_paper_reviews=[_reviewed_descriptor(refs[4])],
-    )
-    assert prepared["ready"], prepared.get("envelope")
-
-
 def test_a09_preserves_retrieval_gaps_when_no_document_was_downloaded():
     refs = _upstream_refs()
     corpus = artifacts.hydrate(refs[3])
@@ -279,7 +234,7 @@ def test_a09_preserves_retrieval_gaps_when_no_document_was_downloaded():
     corpus_ref = artifacts.store("g02/retrieved-corpora/a09-unavailable.json", corpus)
     prepared = synthesis.prepare_synthesis(
         refs[0], refs[1], refs[2], corpus_ref, [],
-        profile=graphs.load("g02")["execution_profiles"]["fast"],
+        profile=graphs.load("g02")["execution_profiles"]["scout_e2e"],
         reviewed_paper_reviews=[],
     )
     assert prepared["ready"], prepared.get("envelope")
@@ -338,35 +293,20 @@ def test_human_research_gate_bundle_finalize_after_approval_only():
     bundle_ref = approved["produced"][0]["path"]
     bundle = artifacts.hydrate(bundle_ref)
     assert bundle["solution_handoff"]["claim_assessment_performed"] is False
-    assert bundle["solution_handoff"]["a08_status"] == "skipped_fast_profile"
+    assert bundle["solution_handoff"]["claim_assessment_status"] == "not_in_workflow"
     assert contracts.validate(bundle, "user_approved_research_bundle@1")["ok"]
 
 
-def test_reviewed_flow_stage_order_skips_a08_and_reaches_research_gate():
-    assert "g02-a07-paper-review" in reviewed_flow.STAGES
-    assert "g02-a09-synthesizer" in reviewed_flow.STAGES
-    profile = graphs.load("g02")["execution_profiles"]["fast"]
+def test_active_graph_scout_e2e_skips_a08_and_reaches_research_gate():
+    manifest = graphs.load("g02")
+    assert manifest["sequence"] == [
+        "g02-a01-planner",
+        "research-scout-fanout",
+        "g02-a07-paper-review",
+        "g02-a09-synthesizer",
+        "user-research-gate",
+    ]
+    profile = manifest["execution_profiles"]["scout_e2e"]
     assert profile["skip_nodes"] == ["g02-a08-claim-verification"]
-    assert profile["implemented_terminal_stage"] == "g02-a09-synthesizer"
-
-
-def test_terminal_research_gate_collects_all_three_decisions(monkeypatch):
-    monkeypatch.setattr("sys.stdin", io.StringIO("yes\nno\nkeep\nCONFIRM\n"))
-    decision = reviewed_flow.terminal_gate_handler({
-        "gate": reviewed_flow.RESEARCH_GATE,
-        "human_validation_packet": {
-            "output_language": "English",
-            "required_updates": [],
-            "optional_improvements": [],
-            "unresolved": [],
-            "confidence": "medium",
-            "fast_mode_limitation": "A08 skipped.",
-        },
-        "context": {"task_id": TASK},
-    })
-    assert decision == {
-        "status": "approved",
-        "approve_required_updates": True,
-        "approve_optional_improvements": False,
-        "unresolved_claim_handling": "keep_as_unresolved_items",
-    }
+    assert profile["implemented_terminal_stage"] == "user-research-gate"
+    assert profile["review_mode"] == "none"

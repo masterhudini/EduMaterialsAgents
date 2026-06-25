@@ -17,7 +17,7 @@
     "limitations",
     "unresolved_items",
     "confidence",
-    "a08_status"
+    "claim_assessment_status"
   ],
   "properties": {
     "schema_version": {"type": "string", "enum": ["solution_input_candidate@1"]},
@@ -25,7 +25,7 @@
     "task_id": {"type": "string"},
     "synthesis_mode": {
       "type": "string",
-      "enum": ["evidence_without_claim_assessment", "scout_fast"]
+      "enum": ["evidence_without_claim_assessment"]
     },
     "source_pipeline": {"type": "string"},
     "intake_ref": {"type": ["string", "null"]},
@@ -33,9 +33,9 @@
     "evidence_map_ref": {"type": "string"},
     "generated_at": {"type": "string"},
     "claim_assessment_performed": {"type": "boolean", "enum": [false]},
-    "a08_status": {
+    "claim_assessment_status": {
       "type": "string",
-      "enum": ["skipped_fast_profile", "skipped_scout_fast"]
+      "enum": ["not_in_workflow"]
     },
     "a09_model_pass": {"type": "boolean"},
     "synthesis_engine": {

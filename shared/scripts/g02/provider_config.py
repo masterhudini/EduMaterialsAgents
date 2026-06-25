@@ -798,7 +798,9 @@ def load_config(config_path: str | Path | None = None, *,
     if env is None:                         # real path: pick up any host-supplied session creds
         from g02 import credentials
         credentials.overlay()
-    environment = env if env is not None else os.environ
+        environment = credentials.managed_environment(os.environ)
+    else:
+        environment = env
     source = _resolve_source(config_path, environment)
     payload = _with_crossref_defaults(_read_json(source))
     assert isinstance(payload, dict)

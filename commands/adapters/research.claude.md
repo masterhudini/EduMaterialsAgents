@@ -1,15 +1,14 @@
 ## Host Adapter: Claude Code
 
-Use the `orchestrate-research` skill as the conversational runtime. Start by calling the
-plugin-provided MCP front door with the command argument, then drive producer agents through the
-Task/Agent tool and use MCP seams for deterministic validation, scoped input and final handoff.
+Use the `g02-orchestrate-research` skill and the hosted MCP loop:
 
-For a deterministic wiring check without producer agents, call `research_run_stub` with the same
-context argument.
+1. `research_run_hosted({context: <command argument>, through: "user-research-gate"})`.
+2. On `awaiting_node`, run the requested producer, call its returned `finalize_op`, then resume with
+   `node_results` keyed by `node_key`.
+3. After A01 finalizes and before resuming, call `research_provider_setup` if the user wants to
+   provide email or an OpenAlex key for Scout.
+4. On `awaiting_user`, present the Human Research Gate and resume only after explicit approval.
+5. On `completed`, `output_ref` is the approved `user_approved_research_bundle@1`.
 
-The default execution profile is `fast`. Use the review-task MCP builders unchanged; do not
-hand-build `review_task@1`. A01 plans at most two priority-selected topics, discovery uses bounded
-provider calls, A07 reviews each accepted source, A08 is skipped with an explicit limitation, and
-A09 is the default reviewed terminal producer. A10 is mandatory for A01, A05, A06 and A09; A07 is
-reviewed conditionally. After reviewed A09, pause at the Human Research Gate and call
-`research_bundle_finalize` only after human approval.
+Do not use `research_run_codex`, `research_run_stub`, A10 review tools or the retired source
+selection / A02-A06 path.

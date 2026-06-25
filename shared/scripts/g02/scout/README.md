@@ -28,7 +28,7 @@ Optional provider keys are read from process environment variables:
 
 The production pre-A07 runner accepts one finalized `research_plan@1`, requires 4–6 topics and
 `OPENALEX_API_KEY`, then starts one child process per topic. Its stable output is
-`<workspace>/runs/<task_id>/` with `plan.json`, per-topic requests/PDFs/manifests/corpora and one
+`<workspace>/runs/<task_id>/` with `plan.json`, per-topic requests/manifests/corpora and one
 cross-topic `index.json`. Deduplication happens only after every topic finishes, so retrieval never
 suppresses a paper relevant to another topic.
 

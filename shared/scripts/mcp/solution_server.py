@@ -57,7 +57,7 @@ def _run_stub(args: dict):
 
 def _run_codex(args: dict):
     """Run or resume g03 through Codex workers. MCP is not an interactive stdin surface, so the
-    default gate behavior is pause/resume; human approval is never simulated."""
+    default gate behavior is pause/resume; user approval is never simulated."""
     if args.get("gates", "pause") != "pause":
         raise ValueError("Codex runs require gates='pause'")
     runner = gf.make_g03_codex_runner()
@@ -174,7 +174,7 @@ TOOLS = [
      "inputSchema": {"type": "object", "required": ["context"], "properties": {"context": _CONTEXT}}},
     {"name": "solution_blueprint_render",
      "description": "Render a solution_blueprint@1, or a G03 context that can build one, into a "
-                    "human-readable Markdown plan plus a short inline console summary. This is a "
+                    "user-readable Markdown plan plus a short inline console summary. This is a "
                     "view only; it does not replace the solution_blueprint@1 deliverable.",
      "inputSchema": {"type": "object",
                      "properties": {"blueprint": {"type": ["object", "string"],

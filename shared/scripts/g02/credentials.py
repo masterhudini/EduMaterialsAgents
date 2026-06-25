@@ -25,6 +25,14 @@ FIELDS = {
     "email": "EMAGENTS_RESEARCH_CONTACT_EMAIL",
     "openalex_key": "OPENALEX_API_KEY",
 }
+MARKER_ENV = "EMAGENTS_G02_PROVIDER_CREDENTIALS"
+MARKER_VALUE = "provider_setup"
+MANAGED_ENV_NAMES = {
+    *FIELDS.values(),
+    "POLITE_POOL_EMAIL",
+    "SEMANTIC_SCHOLAR_API_KEY",
+    "S2_API_KEY",
+}
 
 _purged = False
 
@@ -46,6 +54,7 @@ def save(creds: dict) -> dict:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(json.dumps(env_map, ensure_ascii=False) + "\n", encoding="utf-8")
         os.environ.update(env_map)          # take effect immediately in this process
+        os.environ[MARKER_ENV] = MARKER_VALUE
     return {"stored": sorted(k for k in (creds or {}) if k in FIELDS and str(creds.get(k)).strip())}
 
 
@@ -66,7 +75,37 @@ def overlay() -> list[str]:
         if isinstance(value, str) and value.strip():
             os.environ[env_name] = value
             keys.append(env_name)
+    if keys:
+        os.environ[MARKER_ENV] = MARKER_VALUE
     return keys
+
+
+def is_managed(env: dict | None = None) -> bool:
+    """True when provider creds came through ``research_provider_setup``."""
+    active = os.environ if env is None else env
+    return active.get(MARKER_ENV) == MARKER_VALUE
+
+
+def managed_environment(env: dict | None = None) -> dict:
+    """Copy env and strip provider creds unless the setup marker is present.
+
+    Raw shell credentials must not silently influence the active G02 run. The agent first asks the
+    user and calls ``research_provider_setup``; after that the marker is inherited by Scout child
+    processes as process transport only.
+    """
+    active = dict(os.environ if env is None else env)
+    if is_managed(active):
+        return active
+    for name in MANAGED_ENV_NAMES:
+        active.pop(name, None)
+    return active
+
+
+def managed_value(name: str, default: str = "", env: dict | None = None) -> str:
+    active = os.environ if env is None else env
+    if not is_managed(active):
+        return default
+    return str(active.get(name, "") or default).strip()
 
 
 def purge() -> bool:

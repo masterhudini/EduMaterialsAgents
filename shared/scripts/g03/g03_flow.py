@@ -110,7 +110,7 @@ def _cli(argv):
 
         p = argparse.ArgumentParser(
             prog="g03_flow.py",
-            description="G03 blueprint helpers: build solution_blueprint@1 and render it for humans.")
+            description="G03 blueprint helpers: build solution_blueprint@1 and render it for users.")
         sub = p.add_subparsers(dest="cmd", required=True)
         sp = sub.add_parser("build-blueprint")
         sp.add_argument("context")

@@ -67,7 +67,7 @@
     "evidence_map_ref": "inline#/presentation_update_candidates",
     "generated_at": "2026-06-25T08:00:29Z",
     "claim_assessment_performed": false,
-    "a08_status": "skipped_fast_profile",
+    "claim_assessment_status": "not_in_workflow",
     "a09_model_pass": false,
     "synthesis_engine": "deterministic_fallback",
     "presentation_context": {

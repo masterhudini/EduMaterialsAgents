@@ -1,7 +1,7 @@
 {
   "name": "edu-materials-agents",
   "version": "0.11.0",
-  "description": "Agent-stack plugin for improving educational / lecture materials through reviewed agent graphs (intake -> research -> solution).",
+  "description": "Agent-stack plugin for improving educational / lecture materials through agent graphs (intake -> research -> solution).",
   "author": {
     "name": "khudasze"
   },
@@ -24,8 +24,8 @@
   },
   "interface": {
     "displayName": "Edu Materials Agents",
-    "shortDescription": "Improve lecture materials through reviewed research agent graphs.",
-    "longDescription": "Runs reviewed agent graphs for educational material improvement. G02 discovery includes scholarly and market-case streams. After source selection, A06 retrieves legal OA files and gated market cases. Fast mode reviews each accepted source in A07, skips A08 explicitly, synthesizes a reviewed A09 research state, pauses at Human Research Gate and finalizes a compact Graph03 bundle only after user approval.",
+    "shortDescription": "Improve lecture materials through intake, research and solution agent graphs.",
+    "longDescription": "Runs agent graphs for educational material improvement. The active G02 path plans with A01, runs deterministic Scout discovery, reads bounded Scout windows in A07, synthesizes with A09, pauses at the Human Research Gate and finalizes a compact Graph03 bundle only after user approval.",
     "developerName": "khudasze",
     "capabilities": [
       "Interactive",
@@ -43,28 +43,10 @@
       "skills/g01-orchestrate-intake",
       "skills/g03-orchestrate-solution",
       "skills/g02-a01-plan-research-scope",
-      "skills/g02-a05-annotate-source-candidates",
-      "skills/g02-a05-deduplicate-source-records",
-      "skills/g02-a05-rank-source-candidates",
-      "skills/g02-a06-resolve-open-access",
-      "skills/g02-a06-retrieve-open-access-document",
-      "skills/g02-a06-validate-retrieved-document",
-      "skills/g02-a07-extract-paper-evidence",
-      "skills/g02-a07-scout-light-review",
-      "skills/g02-a08-assess-claim-evidence",
-      "skills/g02-a09-synthesize-research-findings",
-      "skills/g02-a09-scout-synthesis",
-      "skills/g02-a11-extract-case-evidence",
-      "skills/g02-a11-find-market-cases",
+      "skills/g02-a07-review-source",
+      "skills/g02-a09-synthesize",
       "skills/g02-assess-source-coverage",
-      "skills/g02-classify-source-role",
-      "skills/g02-expand-citation-graph",
-      "skills/g02-expand-research-query",
-      "skills/g02-normalize-source-metadata",
-      "skills/g02-orchestrate-research",
-      "skills/g02-review-research-output",
-      "skills/g02-search-scholarly-metadata",
-      "skills/g02-verify-doi-metadata"
+      "skills/g02-orchestrate-research"
     ],
     "agents": [
       "agents/g01-a01-pdf-intake.md",
@@ -73,16 +55,8 @@
       "agents/g01-a04-lecture-baseline.md",
       "agents/g01-a10-output-reviewer.md",
       "agents/g02-a01-planner.md",
-      "agents/g02-a02-domain.md",
-      "agents/g02-a03-canonical-sources.md",
-      "agents/g02-a04-recent-developments.md",
-      "agents/g02-a05-candidate-source-index.md",
-      "agents/g02-a06-paper-retrieval.md",
       "agents/g02-a07-paper-review.md",
-      "agents/g02-a08-claim-verification.md",
       "agents/g02-a09-synthesizer.md",
-      "agents/g02-a10-output-reviewer.md",
-      "agents/g02-a11-market-cases.md",
       "agents/g03-a01-solution-architect.md",
       "agents/g03-a10-output-reviewer.md"
     ],
