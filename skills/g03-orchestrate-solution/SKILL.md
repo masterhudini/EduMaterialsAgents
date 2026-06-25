@@ -1,6 +1,6 @@
 ---
 name: g03-orchestrate-solution
-description: Run the Solution Graph from a dual-input solution_graph_input@1 request joining g01 lecture_baseline@1 with g02 solution_input_candidate@1, while still accepting legacy user_approved_research_bundle@1, through the isolated solution-architect producer, one universal reviewer and the user solution gate, emitting the approved solution_blueprint@1 deliverable.
+description: Run the Solution Graph from a dual-input solution_graph_input@1 request joining g01 lecture_baseline@1 with g02 solution_input_candidate@1 (legacy user_approved_research_bundle@1 still accepted) through four isolated producers (solution-architect, slide-architect, slide-designer, prompt-builder), one universal reviewer and two user gates, emitting the approved presentation_prompt@1 deliverable plus the secondary solution_blueprint@1.
 ---
 
 # Orchestrate Solution
@@ -18,10 +18,11 @@ Agents never address the user; relay their questions and explain every required 
 - Prefer `research_bundle_kind: "solution_input_candidate"` for the official G02 hand-off
   (`solution_input_candidate@1`). Continue to accept `user_approved_research_bundle` as the legacy
   reviewed path when explicitly provided or inferred.
-- Produce only a validated `solution_blueprint@1` deliverable after the user solution gate: the
-  approved lecture outline, the applied update plan, deferred items and source attribution.
-- Also render the approved blueprint as a user-readable Markdown plan and a short inline summary.
-  The render is a view only; it never replaces `solution_blueprint@1`.
+- Produce a validated `presentation_prompt@1` deliverable (the primary exit) after the final user
+  gate: a single ready-to-paste Markdown generator prompt for the chosen tool. The intermediate
+  `solution_blueprint@1`, `slide_plan@1` and `slide_design_set@1` are persisted secondary exits.
+- Also render the approved prompt as a user-readable Markdown `.md` and surface the secondary
+  blueprint. The render is a view only; it never replaces `presentation_prompt@1`.
 - Persist intermediate artifacts and carry refs instead of full documents in orchestration context.
 - Use `envelope@1` for execution status and `review_decision@1` for reviewer verdicts.
 
@@ -37,19 +38,25 @@ Agents never address the user; relay their questions and explain every required 
    history. Handle `APPROVED` / `REVISE` / `BLOCKED` per the manifest revision policy.
 5. For each `user-gate` node, present decisions declared in `required_decisions`; collect explicit
    user authorization and resume with those decisions. Never infer or auto-approve gate decisions.
-6. In the current graph this means: run `g03-a01-solution-architect` through the graph, let it
-   hydrate `lecture_baseline@1` plus the research bundle selected by `research_bundle_kind`, review
-   the produced `solution_blueprint@1`, then run the User Solution Gate.
-7. Emit the graph `exit_artifact` only after the final gate and contract validation succeed.
-8. Render the approved blueprint to Markdown plus inline summary, then present that view to the
-   user alongside the final artifact ref.
+6. In the current graph this means, in `sequence` order: `g03-a01-solution-architect`
+   (`solution_blueprint@1`, the evidence layer) -> `g03-a02-slide-architect` (`slide_plan@1`) ->
+   **User Change-Plan Gate** (approve the deck and collect `select_target_tool`:
+   notebooklm / gamma / gpt_pro) -> `g03-a03-slide-designer` (`slide_design_set@1`) ->
+   `g03-a04-prompt-builder` (`presentation_prompt@1`, using the tool chosen at the gate) ->
+   **User Final-Review Gate**. Each producer is reviewed by `g03-a10-output-reviewer` with its
+   per-node `review_profile` before the next step.
+7. Emit the graph `exit_artifact` (`presentation_prompt@1`) only after the final gate and contract
+   validation succeed.
+8. Render the approved prompt to Markdown with `solution_prompt_render`, then present that view to
+   the user alongside the final artifact ref and the secondary `solution_blueprint@1` ref.
 
 ## Output requirements
 
-- The only thing crossing the boundary is the `solution_blueprint@1` deliverable plus
-  `artifact://` refs inside it. Never emit full research or intake states.
-- The final user-facing view is Markdown generated from the approved blueprint. It must include the
-  outline, applied updates, deferrals and source attribution.
+- The primary deliverable crossing the boundary is `presentation_prompt@1` plus `artifact://` refs
+  inside it; `solution_blueprint@1`, `slide_plan@1` and `slide_design_set@1` are persisted secondary
+  exits. Never emit full research or intake states.
+- The final user-facing view is the Markdown generator prompt rendered from the approved
+  `presentation_prompt@1`, alongside the secondary blueprint ref.
 - Default user-readable output to English when `output_language` is absent.
 
 ## Boundaries

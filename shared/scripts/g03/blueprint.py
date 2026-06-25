@@ -72,6 +72,47 @@ def _normalise_composite(path_or_ref, *, base=None) -> tuple[dict, str | None]:
     return composite, ref
 
 
+def _sanitize_candidate(research: dict) -> dict:
+    """Defensively complete partial ``optional_improvements`` so one malformed lower-priority entry
+    cannot block the whole G03 front door.
+
+    The contract requires optional improvements to carry the same field set as suggested updates;
+    older or hand-authored candidates sometimes omit them. We backfill the required scaffolding with
+    empty values (optional improvements are non-essential deferral material — the substantive
+    ``suggested_updates`` are untouched) and drop non-dict entries. The post-hydration contract
+    validation stays strict, so this never hides a malformed ``suggested_updates``. Returns a copy.
+    """
+    if research.get("schema_version") != CANDIDATE_CONTRACT \
+            or not isinstance(research.get("optional_improvements"), list):
+        return research
+    result = deepcopy(research)
+    sanitized: list[dict] = []
+    for index, item in enumerate(result.get("optional_improvements") or [], start=1):
+        if not isinstance(item, dict):
+            continue
+        item.setdefault("update_id", f"OPT_{index:03d}")
+        item.setdefault("finding", "")
+        item.setdefault("rationale", "")
+        if not isinstance(item.get("linked_intake_ids"), dict):
+            item["linked_intake_ids"] = {}
+        if not isinstance(item.get("target"), dict):
+            item["target"] = {}
+        ready = item.get("ready_to_apply_text")
+        ready = ready if isinstance(ready, dict) else {}
+        ready.setdefault("slide_bullet", "")
+        ready.setdefault("speaker_note", "")
+        ready.setdefault("optional_detail", "")
+        item["ready_to_apply_text"] = ready
+        if not isinstance(item.get("evidence_refs"), list):
+            item["evidence_refs"] = []
+        if not isinstance(item.get("source_refs"), list):
+            item["source_refs"] = []
+        item.setdefault("confidence", "needs_human_check")
+        sanitized.append(item)
+    result["optional_improvements"] = sanitized
+    return result
+
+
 def hydrate_solution_context(path_or_ref, *, base=None) -> dict:
     """Hydrate G03 input refs and validate the selected research side."""
     composite, composite_ref = _normalise_composite(path_or_ref, base=base)
@@ -83,6 +124,8 @@ def hydrate_solution_context(path_or_ref, *, base=None) -> dict:
     research_kind = composite.get("research_bundle_kind") or LEGACY_KIND
     research_contract = CANDIDATE_CONTRACT if research_kind == CANDIDATE_KIND else LEGACY_CONTRACT
     research = artifacts.hydrate(composite["research_bundle_ref"], base=base)
+    if research_kind == CANDIDATE_KIND:
+        research = _sanitize_candidate(research)
     checked = contracts.validate(research, research_contract)
     if not checked["ok"]:
         raise ValueError(f"invalid {research_contract}: " + "; ".join(checked["errors"]))
@@ -236,6 +279,122 @@ def _source_ids(refs: object) -> list[str]:
     return _dedupe_in_order(ids)
 
 
+def _linked_intake_ids(item: dict) -> dict:
+    linked = item.get("linked_intake_ids")
+    if isinstance(linked, dict):
+        return linked
+    related = item.get("related_claims") or item.get("linked_claims") or item.get("claim_ids")
+    claim_ids = _strings(related)
+    concept_ids = _strings(item.get("related_concepts") or item.get("linked_concepts") or item.get("concept_ids"))
+    result: dict[str, list[str]] = {}
+    if claim_ids:
+        result["claim_ids"] = claim_ids
+    if concept_ids:
+        result["concept_ids"] = concept_ids
+    return result
+
+
+def _first_present(item: dict, keys: tuple[str, ...]) -> object:
+    for key in keys:
+        value = item.get(key)
+        if value not in (None, "", []):
+            return value
+    return None
+
+
+def _market_case_items(payload: object) -> list[dict]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        return []
+    for key in ("market_case_findings", "findings", "cases", "items"):
+        items = payload.get(key)
+        if isinstance(items, list):
+            return [item for item in items if isinstance(item, dict)]
+    return [payload]
+
+
+def _extract_additive_candidates(research: dict, *, base=None) -> list[dict]:
+    """Normalize additive G02 hints into local G03 candidate cards.
+
+    These hints are intentionally non-blocking and never become required slide updates here. They
+    give the blueprint a visible audit trail so later G03 stages can decide whether to add slides.
+    """
+    candidates: list[dict] = []
+
+    for index, item in enumerate(_as_list(research.get("recommended_claims")), start=1):
+        if not isinstance(item, dict):
+            continue
+        candidate_id = str(
+            _first_present(item, ("claim_id", "recommendation_id", "finding_id", "id"))
+            or f"recommended_claim_{index:03d}"
+        )
+        finding = str(
+            _first_present(item, ("claim", "finding", "summary", "text", "title"))
+            or "Recommended claim."
+        )
+        rationale = str(_first_present(item, ("rationale", "reason", "note", "teaching_role")) or "")
+        candidates.append({
+            "candidate_id": candidate_id,
+            "kind": "recommended_claim",
+            "finding": finding,
+            "rationale": rationale,
+            "linked_intake_ids": _linked_intake_ids(item),
+            "source_refs": _source_ids(item.get("source_refs") or item.get("sources")),
+            "evidence_basis": [f"recommended_claim:{candidate_id}"],
+            "source_pointer": f"#/recommended_claims/{index - 1}",
+        })
+
+    inline_cases = _as_list(research.get("market_case_findings"))
+    case_sources: list[tuple[str, list[dict]]] = []
+    if inline_cases:
+        case_sources.append(("#/market_case_findings", [item for item in inline_cases if isinstance(item, dict)]))
+
+    ref = research.get("market_case_findings_ref")
+    if isinstance(ref, str) and ref.startswith(artifacts.SCHEME):
+        try:
+            case_sources.append((ref, _market_case_items(artifacts.hydrate(ref, base=base))))
+        except Exception:
+            candidates.append({
+                "candidate_id": "market_case_findings_ref_unavailable",
+                "kind": "market_case_ref_unavailable",
+                "finding": f"Market case findings ref could not be hydrated: {ref}",
+                "rationale": "The additive market-case ref is optional and did not block G03.",
+                "linked_intake_ids": {},
+                "source_refs": [],
+                "evidence_basis": ["market_case_ref:unavailable"],
+                "source_pointer": ref,
+            })
+
+    case_counter = 0
+    for source_pointer, items in case_sources:
+        for source_index, item in enumerate(items):
+            case_counter += 1
+            candidate_id = str(
+                _first_present(item, ("case_id", "finding_id", "item_id", "id", "source_id"))
+                or f"market_case_{case_counter:03d}"
+            )
+            finding = str(
+                _first_present(item, ("finding", "summary", "case_summary", "claim", "text", "title"))
+                or "Market case finding."
+            )
+            rationale = str(_first_present(item, ("rationale", "implication", "teaching_value", "note")) or "")
+            candidates.append({
+                "candidate_id": candidate_id,
+                "kind": "market_case",
+                "finding": finding,
+                "rationale": rationale,
+                "linked_intake_ids": _linked_intake_ids(item),
+                "source_refs": _source_ids(item.get("source_refs") or item.get("sources")),
+                "evidence_basis": [f"market_case:{candidate_id}"],
+                "source_pointer": (
+                    f"{source_pointer}/{source_index}" if source_pointer.startswith("#") else source_pointer
+                ),
+            })
+
+    return candidates
+
+
 def _section_for(slide_ids: list[str], indexes: dict) -> str | None:
     for slide_id in slide_ids:
         section_id = indexes["section_by_slide"].get(slide_id)
@@ -285,7 +444,12 @@ def _deferred(item_id: object, reason: str, related_claim: str | None = None) ->
     return item
 
 
-def _candidate_blueprint(context: dict, indexes: dict) -> tuple[list[dict], list[dict], dict[str, list[str]]]:
+def _candidate_blueprint(
+    context: dict,
+    indexes: dict,
+    *,
+    base=None,
+) -> tuple[list[dict], list[dict], dict[str, list[str]]]:
     composite = context["composite"]
     lecture_ref = composite["lecture_baseline_ref"]
     research_ref = composite["research_bundle_ref"]
@@ -355,6 +519,24 @@ def _candidate_blueprint(context: dict, indexes: dict) -> tuple[list[dict], list
         deferred.append(_deferred(
             gap.get("gap_id") or f"coverage_gap_{index:03d}",
             reason,
+            _first_string(linked.get("claim_ids")),
+        ))
+
+    for candidate in _extract_additive_candidates(research, base=base):
+        linked = candidate.get("linked_intake_ids") if isinstance(candidate.get("linked_intake_ids"), dict) else {}
+        label = "Recommended additive claim"
+        if candidate.get("kind") == "market_case":
+            label = "Market case finding"
+        elif candidate.get("kind") == "market_case_ref_unavailable":
+            label = "Market case findings ref"
+        reason_parts = [f"{label} not applied automatically: {candidate.get('finding') or ''}".strip()]
+        if candidate.get("rationale"):
+            reason_parts.append(f"Rationale: {candidate['rationale']}")
+        if candidate.get("source_pointer"):
+            reason_parts.append(f"Source: {candidate['source_pointer']}")
+        deferred.append(_deferred(
+            candidate.get("candidate_id"),
+            " ".join(reason_parts),
             _first_string(linked.get("claim_ids")),
         ))
     return applied, deferred, source_usage
@@ -432,7 +614,7 @@ def build_blueprint(path_or_ref, *, base=None) -> dict:
     lecture = context["lecture_baseline"]
     indexes = _lecture_indexes(lecture)
     if context["research_bundle_kind"] == CANDIDATE_KIND:
-        applied, deferred, source_usage = _candidate_blueprint(context, indexes)
+        applied, deferred, source_usage = _candidate_blueprint(context, indexes, base=base)
     else:
         applied, deferred, source_usage = _legacy_blueprint(context, indexes)
 

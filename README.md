@@ -86,6 +86,19 @@ reviews plus bounded deep-dive windows, records whether the model pass succeeded
 `solution_input_candidate@1`, then pauses for user approval before emitting
 `user_approved_research_bundle@1`.
 
+The Solution Graph (`g03`) joins g01's `lecture_baseline@1` with g02's research hand-off and turns
+them into a full plan for a NEW deck plus a ready-to-paste generator prompt. Four isolated producers
+run in sequence: `g03-a01-solution-architect` grounds research findings into existing slides
+(`solution_blueprint@1`); `g03-a02-slide-architect` assigns a change status to every existing slide
+and proposes NEW slides (grounded in g02 coverage gaps / unresolved items / optional improvements)
+interleaved between them (`slide_plan@1`); the User Change-Plan Gate approves the deck and picks the
+target tool; `g03-a03-slide-designer` designs every slide with a 6-10 sentence narrative
+(`slide_design_set@1`); `g03-a04-prompt-builder` renders the final Markdown prompt for the chosen
+tool (NotebookLM / Gamma / GPT Pro) via one of three tool skills (`presentation_prompt@1`); the User
+Final-Review Gate approves it. The primary exit is `presentation_prompt@1`; `solution_blueprint@1`,
+`slide_plan@1` and `slide_design_set@1` are persisted secondary exits. Each producer is checked by
+`g03-a10-output-reviewer` with its per-node review profile.
+
 The current MCP public surface exposes the active Scout/A07/A09 operations. Retired A02-A06,
 A08, A11, source-selection and `research_run_*` flow surfaces are not listed for new runs. The
 old modules remain in the repo as legacy implementation/test material until removed fully.

@@ -1,0 +1,39 @@
+{
+  "title": "PresentationPrompt — the G03 exit deliverable: a single Markdown prompt (full structure, design and per-slide descriptions) tailored to the chosen generator tool (g03-a04).",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "task_id", "output_language", "target_tool", "prompt_markdown"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["presentation_prompt@1"]},
+    "task_id": {"type": "string"},
+    "output_language": {"type": "string"},
+    "target_tool": {"type": "string", "enum": ["notebooklm", "gamma", "gpt_pro"]},
+    "prompt_markdown": {"type": "string"},
+    "slide_count": {"type": "integer"},
+    "source_list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_ref"],
+        "properties": {
+          "source_ref": {"type": "string"},
+          "title": {"type": "string"},
+          "doi": {"type": "string"}
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "slide_plan_ref": {"type": "string"},
+        "slide_design_set_ref": {"type": "string"},
+        "solution_blueprint_ref": {"type": "string"},
+        "tool_choice_ref": {"type": "string"}
+      }
+    },
+    "render_ref": {"type": "string"}
+  }
+}

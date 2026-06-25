@@ -557,6 +557,10 @@ profilem etapu.
 | `paper_evidence` | Evidence location, metoda, findings, ograniczenia, relacja z claimem i access level. |
 | `claim_assessment` | Wszystkie wymiary oceny, dowody przeciwne, confidence i coverage. |
 | `research_synthesis` | Każda rekomendacja ma evidence refs, unresolved są jawne, handoff jest kompaktowy. |
+| `solution_blueprint` (g03-a01) | Applied updates trace do findings/cards, placement po kluczach `lecture_baseline@1`, brak zmian na locked, `change_summary` w języku wykładu, apply-vs-defer uzasadnione. |
+| `slide_plan` (g03-a02) | Każdy istniejący slajd ma status z dozwolonego słownika; nowe sloty ugruntowane w `evidence_basis` (coverage_gap/unresolved/optional/topic) z pozycją wstawienia; locked nieruszane; brak dowodów spoza candidate. |
+| `slide_design` (g03-a03) | Wpis na każdy non-REMOVE slot; `narrative` 6–10 zdań i slajdo-specyficzny; `body`/`design`/`speaker_notes` spójne; `source_refs` zachowane; język wykładu; plan niezmieniony. |
+| `presentation_prompt` (g03-a04) | `target_tool` zgodny z bramką; `prompt_markdown` kompletny i samowystarczalny dla narzędzia (struktura + per-slajd + źródła); nic spoza zatwierdzonego `slide_design_set@1`. |
 
 ## 8. Katalog skilli G02
 

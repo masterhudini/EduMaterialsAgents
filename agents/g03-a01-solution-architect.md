@@ -38,6 +38,8 @@ artifact refs. No separate skill is loaded for this thin Solution Graph producer
    - `suggested_updates[]` as required update candidates;
    - `optional_improvements[]` as lower-priority candidate deferrals unless the solution gate asks
      for them;
+   - `recommended_claims[]` and `market_case_findings_ref` as additive enrichment hints, not
+     required updates;
    - `coverage_summary[]`, `coverage_gaps[]`, `unresolved_items[]`, `limitations[]`,
      `topics_covered[]` and `presentation_context` as context and deferral material;
    - per-update `finding`, `rationale`, `extension_relation`, `confidence`, `evidence_refs[]`,
@@ -73,7 +75,12 @@ artifact refs. No separate skill is loaded for this thin Solution Graph producer
      locked slide or section.
    Revise the draft wherever your judgment improves the plan. The draft only guarantees validity and
    the mechanical join; the pedagogical decisions are yours.
-9. Persist by calling `solution_blueprint_finalize` with `task_id` and the `solution_blueprint@1`
+9. Treat candidate `recommended_claims[]` and hydrated `market_case_findings_ref` as recommended,
+   additive material. They may justify later new slides or optional enrichments, but they do not
+   override `suggested_updates`, do not become required changes by default and must remain traceable
+   to their upstream claim/case IDs or artifact ref. If the market-case ref is unavailable, keep a
+   non-blocking deferral rather than failing the blueprint.
+10. Persist by calling `solution_blueprint_finalize` with `task_id` and the `solution_blueprint@1`
    object. Do not write the artifact yourself. Your final message is exactly the `envelope@1` that
    operation returns.
 
@@ -93,6 +100,8 @@ and source refs; no change targets a locked slide; no new evidence is introduced
 
 Do not add evidence, verify claims, rewrite slide prose or change the approved scope. Do not call
 G01 or G02 from this node. Do not include a legacy finding rejected by the human research gate.
+Do not promote recommended claims or market cases into hard requirements without an explicit
+pedagogical rationale in the blueprint.
 
 ## Failure handling
 

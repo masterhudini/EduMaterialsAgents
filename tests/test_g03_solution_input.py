@@ -17,7 +17,10 @@ sys.path.insert(0, str(SCRIPTS))
 from core import artifacts, contracts  # noqa: E402
 from g03 import blueprint  # noqa: E402
 from g03 import g03_flow  # noqa: E402
+from g03 import prompt_build  # noqa: E402
 from g03 import render as solution_render  # noqa: E402
+from g03 import slide_design  # noqa: E402
+from g03 import slide_plan  # noqa: E402
 from g03 import solution  # noqa: E402
 from mcp import solution_server as solution_srv  # noqa: E402
 
@@ -249,63 +252,122 @@ class G03SolutionInputTests(unittest.TestCase):
         self.assertIn("Nowy plan prezentacji z poprawkami", markdown)
         self.assertIn("UPD_FRA_SETTLE", markdown)
 
-    def test_hosted_g03_candidate_run_reaches_user_gate_and_renders_final_blueprint(self) -> None:
+    def _produce_node(self, node: str, step: dict, base: Path) -> str:
+        inp, upstream = step["input"], step["upstream"]
+        if node == "g03-a01-solution-architect":
+            art = blueprint.build_blueprint(inp, base=base)
+            return solution.finalize_blueprint(art["task_id"], art, base=base)["produced"][0]["path"]
+        if node == "g03-a02-slide-architect":
+            art = slide_plan.build_slide_plan(inp, base=base)
+            return solution.finalize_slide_plan(art["task_id"], art, base=base)["produced"][0]["path"]
+        if node == "g03-a03-slide-designer":
+            art = slide_design.build_slide_design(upstream["g03-a02-slide-architect"], base=base)
+            return solution.finalize_slide_design(art["task_id"], art, base=base)["produced"][0]["path"]
+        if node == "g03-a04-prompt-builder":
+            tool = artifacts.hydrate(upstream["user-change-plan-gate"], base=base)["target_tool"]
+            art = prompt_build.build_presentation_prompt(
+                upstream["g03-a03-slide-designer"], tool, base=base)
+            return solution.finalize_presentation_prompt(art["task_id"], art, base=base)["produced"][0]["path"]
+        self.fail(f"unexpected node {node}")
+
+    def test_hosted_g03_candidate_run_full_chain_emits_presentation_prompt(self) -> None:
         path = ROOT / "mocks" / "g03" / "solution_request.candidate.json"
 
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {"EMAGENTS_HOME": tmp}):
             base = Path(tmp) / "artifacts"
             front = g03_flow.front_door(path, base=base)
-
             step = g03_flow.run(front["ref"], base=base, pause_on_node=True, pause_on_gate=True)
-            self.assertEqual(step["status"], "awaiting_node")
-            self.assertEqual(step["node"], "g03-a01-solution-architect")
 
-            built = blueprint.build_blueprint(step["input"], base=base)
-            finalized = solution.finalize_blueprint(built["task_id"], built, base=base)
-            produced_ref = finalized["produced"][0]["path"]
+            final = None
+            for _ in range(40):
+                status = step.get("status")
+                if status == "awaiting_node":
+                    ref = self._produce_node(step["node"], step, base)
+                    step = g03_flow.run(None, base=base, pause_on_node=True, pause_on_gate=True,
+                                        resume_token=step["resume_token"],
+                                        node_results={step["node"]: ref})
+                elif status == "awaiting_review":
+                    step = g03_flow.run(None, base=base, pause_on_node=True, pause_on_gate=True,
+                                        resume_token=step["resume_token"],
+                                        review_decisions={step["node"]: {"decision": "APPROVED", "findings": []}})
+                elif status == "awaiting_user":
+                    if step["gate"] == "user-change-plan-gate":
+                        decision = {"approve_slide_plan": True, "approve_new_slides": True,
+                                    "confirm_deferrals": True, "select_target_tool": "gamma"}
+                    else:
+                        decision = {"approve_final_prompt": True, "confirm_export_tool": True}
+                    step = g03_flow.run(None, base=base, pause_on_node=True, pause_on_gate=True,
+                                        resume_token=step["resume_token"],
+                                        decisions={step["gate"]: decision})
+                else:
+                    final = step
+                    break
 
-            step = g03_flow.run(
-                None,
-                base=base,
-                pause_on_node=True,
-                pause_on_gate=True,
-                resume_token=step["resume_token"],
-                node_results={"g03-a01-solution-architect": produced_ref},
-            )
-            self.assertEqual(step["status"], "awaiting_review")
+            self.assertIsNotNone(final, "run did not reach the exit handoff")
+            final_prompt = artifacts.hydrate(final["ref"], base=base)
 
-            step = g03_flow.run(
-                None,
-                base=base,
-                pause_on_node=True,
-                pause_on_gate=True,
-                resume_token=step["resume_token"],
-                review_decisions={"g03-a01-solution-architect": {"decision": "APPROVED", "findings": []}},
-            )
-            self.assertEqual(step["status"], "awaiting_user")
-            self.assertEqual(step["gate"], "user-solution-gate")
+        self.assertEqual(final["schema_version"], "presentation_prompt@1")
+        self.assertTrue(contracts.validate(final_prompt, "presentation_prompt@1")["ok"])
+        self.assertEqual(final_prompt["target_tool"], "gamma")
+        self.assertGreater(len(final_prompt["prompt_markdown"]), 0)
 
-            final = g03_flow.run(
-                None,
-                base=base,
-                pause_on_node=True,
-                pause_on_gate=True,
-                resume_token=step["resume_token"],
-                decisions={
-                    "user-solution-gate": {
-                        "approve_outline": True,
-                        "approve_applied_updates": True,
-                        "confirm_deferrals": True,
-                    }
-                },
-            )
-            final_blueprint = artifacts.hydrate(final["ref"], base=base)
-            rendered = solution_render.render_blueprint(final_blueprint, base=base)
+    def test_build_slide_plan_proposes_new_slide_for_coverage_gap(self) -> None:
+        path = ROOT / "mocks" / "g03" / "solution_request.candidate.json"
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = slide_plan.build_slide_plan(path, base=Path(tmp))
+        self.assertTrue(contracts.validate(plan, "slide_plan@1")["ok"])
+        new_slots = [slot for slot in plan["slots"] if slot["kind"] == "new"]
+        self.assertTrue(new_slots, "expected at least one proposed new slide")
+        self.assertTrue(all(slot["status"] == "ADD" and slot["is_new_information"] for slot in new_slots))
+        self.assertTrue(all(slot["evidence_basis"] for slot in new_slots))
+        updated = [slot for slot in plan["slots"] if slot["status"] == "UPDATE"]
+        self.assertTrue(any("UPD_FRA_PRICING" in slot["applied_update_ids"] for slot in updated))
 
-        self.assertEqual(final["schema_version"], "solution_blueprint@1")
-        self.assertTrue(contracts.validate(final_blueprint, "solution_blueprint@1")["ok"])
-        self.assertIn("UPD_FRA_PRICING", rendered["markdown"])
-        self.assertIn("2 zastosowane poprawki", rendered["inline_summary"])
+    def test_build_slide_plan_proposes_new_slide_for_covered_topic(self) -> None:
+        request = copy.deepcopy(_load("mocks/g03/solution_request.candidate.json"))
+        request["research_bundle"]["topics_covered"] = [{
+            "topic_id": "TOPIC_FRA_TREASURY_USE",
+            "name": "Treasury use of FRAs",
+            "coverage_note": "Add a short bridge from FRA pricing to treasury hedging use.",
+            "linked_claims": ["CL03"],
+            "linked_concepts": [],
+        }]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = slide_plan.build_slide_plan(request, base=Path(tmp))
+
+        topic_slots = [
+            slot for slot in plan["slots"]
+            if "topic:TOPIC_FRA_TREASURY_USE" in slot.get("evidence_basis", [])
+        ]
+
+        self.assertTrue(contracts.validate(plan, "slide_plan@1")["ok"])
+        self.assertTrue(topic_slots, "covered topic should create an additive ADD slot")
+        self.assertEqual(topic_slots[0]["status"], "ADD")
+        self.assertTrue(topic_slots[0]["is_new_information"])
+
+    def test_build_slide_design_covers_every_non_removed_slot(self) -> None:
+        path = ROOT / "mocks" / "g03" / "solution_request.candidate.json"
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            plan = slide_plan.build_slide_plan(path, base=base)
+            design = slide_design.build_slide_design(plan, base=base)
+        self.assertTrue(contracts.validate(design, "slide_design_set@1")["ok"])
+        kept = [slot for slot in plan["slots"] if slot["status"] != "REMOVE"]
+        self.assertEqual(len(design["slides"]), len(kept))
+        self.assertTrue(all(slide["narrative"] for slide in design["slides"]))
+
+    def test_build_presentation_prompt_for_each_tool(self) -> None:
+        path = ROOT / "mocks" / "g03" / "solution_request.candidate.json"
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            plan = slide_plan.build_slide_plan(path, base=base)
+            design = slide_design.build_slide_design(plan, base=base)
+            for tool in ("notebooklm", "gamma", "gpt_pro"):
+                prompt = prompt_build.build_presentation_prompt(design, tool, base=base)
+                self.assertTrue(contracts.validate(prompt, "presentation_prompt@1")["ok"])
+                self.assertEqual(prompt["target_tool"], tool)
+                self.assertIn("###", prompt["prompt_markdown"])
 
     def test_builds_solution_blueprint_from_legacy_request(self) -> None:
         path = ROOT / "mocks" / "g03" / "solution_request.json"
@@ -334,6 +396,120 @@ class G03SolutionInputTests(unittest.TestCase):
         self.assertIn("UPD_FRA_SETTLE", update_ids)
         self.assertIn("UPD_FRA_PRICING", deferred)
         self.assertIn("locked", deferred["UPD_FRA_PRICING"]["reason"])
+
+    def test_sanitize_backfills_incomplete_optional_via_ref(self) -> None:
+        # Real scenario: the candidate arrives as a stored artifact ref (e.g. an older A09 output)
+        # whose optional_improvements[0] is missing the contract-required fields. The G03 front-door
+        # sanitizer must complete it so hydration validates, without touching suggested_updates.
+        request = copy.deepcopy(_load("mocks/g03/solution_request.candidate.json"))
+        research = request["research_bundle"]
+        research["optional_improvements"] = [{"finding": "Partial optional from an older normalizer."}]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            lb_ref = artifacts.store("g03/test/lecture_baseline.json", request["lecture_baseline"], base=base)
+            rb_ref = artifacts.store("g03/test/research_bundle.json", research, base=base)
+            composite = {
+                "schema_version": "solution_graph_input@1",
+                "task_id": research["task_id"],
+                "output_language": "Polish",
+                "lecture_baseline_ref": lb_ref,
+                "research_bundle_ref": rb_ref,
+                "research_bundle_kind": "solution_input_candidate",
+            }
+            context = blueprint.hydrate_solution_context(composite, base=base)
+
+        optional = context["research_bundle"]["optional_improvements"]
+        self.assertEqual(len(optional), 1)
+        self.assertIn("update_id", optional[0])
+        self.assertEqual(
+            set(optional[0]["ready_to_apply_text"]),
+            {"slide_bullet", "speaker_note", "optional_detail"},
+        )
+        self.assertTrue(
+            contracts.validate(context["research_bundle"], "solution_input_candidate@1")["ok"]
+        )
+        # suggested_updates remain untouched.
+        self.assertEqual(len(context["research_bundle"]["suggested_updates"]), 2)
+
+    def test_recommended_claims_feed_blueprint_and_slide_plan(self) -> None:
+        request = copy.deepcopy(_load("mocks/g03/solution_request.candidate.json"))
+        request["research_bundle"]["recommended_claims"] = [{
+            "claim_id": "RC_FRA_HEDGE_ACCOUNTING",
+            "claim": "Show how FRA valuation connects to hedge-accounting documentation.",
+            "rationale": "Useful additive bridge between pricing mechanics and real treasury use.",
+            "linked_intake_ids": {"claim_ids": ["CL03"], "concept_ids": []},
+            "source_refs": [{"source_id": "SRC_FRA_CASE"}],
+        }]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            result = blueprint.build_blueprint(request, base=base)
+            plan = slide_plan.build_slide_plan(request, base=base)
+
+        deferred = {item["item_id"]: item for item in result["deferred_items"]}
+        additive_slots = [
+            slot for slot in plan["slots"]
+            if "recommended_claim:RC_FRA_HEDGE_ACCOUNTING" in slot.get("evidence_basis", [])
+        ]
+
+        self.assertIn("RC_FRA_HEDGE_ACCOUNTING", deferred)
+        self.assertIn("Recommended additive claim", deferred["RC_FRA_HEDGE_ACCOUNTING"]["reason"])
+        self.assertTrue(additive_slots, "recommended claim should create an additive ADD slot")
+        self.assertTrue(all(slot["status"] == "ADD" for slot in additive_slots))
+        self.assertEqual(additive_slots[0]["source_refs"], ["SRC_FRA_CASE"])
+
+    def test_market_case_findings_ref_feeds_blueprint_and_slide_plan(self) -> None:
+        request = copy.deepcopy(_load("mocks/g03/solution_request.candidate.json"))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            request["research_bundle"]["market_case_findings_ref"] = artifacts.store(
+                "g03/test/market_case_findings.json",
+                {
+                    "market_case_findings": [{
+                        "case_id": "MC_FRA_BANK_TREASURY",
+                        "finding": "Use a bank treasury FRA hedge as a practical market case.",
+                        "rationale": "Links abstract payoff diagrams to a real desk workflow.",
+                        "linked_intake_ids": {"claim_ids": ["CL03"], "concept_ids": []},
+                        "source_refs": [{"source_id": "SRC_MARKET_CASE"}],
+                    }],
+                },
+                base=base,
+            )
+            result = blueprint.build_blueprint(request, base=base)
+            plan = slide_plan.build_slide_plan(request, base=base)
+
+        deferred = {item["item_id"]: item for item in result["deferred_items"]}
+        case_slots = [
+            slot for slot in plan["slots"]
+            if "market_case:MC_FRA_BANK_TREASURY" in slot.get("evidence_basis", [])
+        ]
+
+        self.assertIn("MC_FRA_BANK_TREASURY", deferred)
+        self.assertIn("Market case finding", deferred["MC_FRA_BANK_TREASURY"]["reason"])
+        self.assertTrue(case_slots, "market case ref should create an additive ADD slot")
+        self.assertTrue(all(slot["status"] == "ADD" for slot in case_slots))
+        self.assertEqual(case_slots[0]["source_refs"], ["SRC_MARKET_CASE"])
+
+    def test_missing_market_case_findings_ref_is_deferred_without_add_slot(self) -> None:
+        request = copy.deepcopy(_load("mocks/g03/solution_request.candidate.json"))
+        request["research_bundle"]["market_case_findings_ref"] = "artifact://g03/test/missing_cases.json"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            result = blueprint.build_blueprint(request, base=base)
+            plan = slide_plan.build_slide_plan(request, base=base)
+
+        deferred = {item["item_id"]: item for item in result["deferred_items"]}
+        unavailable_slots = [
+            slot for slot in plan["slots"]
+            if "market_case_ref:unavailable" in slot.get("evidence_basis", [])
+        ]
+
+        self.assertIn("market_case_findings_ref_unavailable", deferred)
+        self.assertIn("could not be hydrated", deferred["market_case_findings_ref_unavailable"]["reason"])
+        self.assertEqual(unavailable_slots, [])
 
     def test_candidate_join_does_not_trust_target_slide_hint(self) -> None:
         request = copy.deepcopy(_load("mocks/g03/solution_request.candidate.json"))

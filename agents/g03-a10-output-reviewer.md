@@ -37,6 +37,37 @@ skill is loaded for the thin Solution Graph reviewer.
 6. For each issue, record criterion, location, severity and required correction with minimal scope.
 7. Return one `ReviewDecision`; missing or contradictory criteria -> `BLOCKED`.
 
+Steps 2-5 above are the `solution_blueprint` profile. For the other Solution Graph profiles, apply the
+profile-specific criteria below in place of steps 2-5; steps 1, 6 and 7 are universal.
+
+## Review profiles
+
+- **`solution_blueprint`** (g03-a01): as in steps 2-5 — applied updates trace to upstream
+  findings/cards, placement is grounded in `lecture_baseline@1` join keys, no locked slide is targeted,
+  `change_summary` is coherent in the lecture language, apply-vs-defer is justified, and no-match items
+  are surfaced as `needs_input` / explicit deferrals rather than guessed onto a slide.
+
+- **`slide_plan`** (g03-a02, `slide_plan@1`): every existing lecture slide appears as a slot with a
+  status from the allowed set (`KEEP/UPDATE/REMOVE/ADD/MERGE/SPLIT/REORDER`); no `UPDATE`/`MERGE`/
+  `SPLIT`/`REORDER`/`REMOVE` targets a `locked` slide or locked section; every `new` slot carries an
+  `evidence_basis` drawn from the candidate (`coverage_gap` / `unresolved` / `optional` / `topic`) and a
+  sensible insertion position that respects prerequisite order; updates trace to `applied_update_ids`
+  and `source_refs`; no evidence beyond the research candidate; conservative scope (good slides kept).
+  `REVISE` when new slots are ungrounded, statuses are missing, or locked items are touched.
+
+- **`slide_design`** (g03-a03, `slide_design_set@1`): one entry for every non-`REMOVE` slot of the
+  approved `slide_plan@1`; each `narrative` is 6-10 sentences and slide-specific (not raw plan text);
+  `body`, `design`/`layout` and `speaker_notes` are present and coherent; `source_refs` are preserved
+  for research-based / `is_new_information` slides; output is in the lecture language; the plan's
+  statuses, ordering and new-slide set are unchanged. `REVISE` when a slot is missing, a narrative is
+  too short or generic, or attribution is dropped.
+
+- **`presentation_prompt`** (g03-a04, `presentation_prompt@1`): `target_tool` matches the change-plan
+  gate choice; `prompt_markdown` is complete and self-contained for that tool, covering deck structure,
+  per-slide content/descriptions and the source list; nothing is introduced beyond the approved
+  `slide_design_set@1`. `REVISE` when the prompt omits slides/sources, mismatches the tool, or invents
+  content.
+
 ## Acceptance Criteria
 
 Decision is auditable; findings are actionable and minimal; criteria are not broadened.
