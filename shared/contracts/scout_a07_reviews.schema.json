@@ -1,0 +1,43 @@
+{
+  "title": "Prepared and aggregated G02-A07 light review handoff for one Scout run",
+  "x-version": "1.0",
+  "x-major": 1,
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_version", "task_id", "status", "scout_run_ref",
+    "plan_ref", "intake_ref", "parallel_write_policy", "topic_reviews",
+    "source_reviews", "presentation_update_candidates", "lookup_pointers",
+    "coverage_gaps", "irrelevant_sources", "limitations"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["scout_a07_reviews@1"]},
+    "artifact_version": {"type": "string"},
+    "task_id": {"type": "string"},
+    "status": {"type": "string", "enum": ["prepared", "partial", "completed", "failed"]},
+    "scout_run_ref": {"type": "string"},
+    "plan_ref": {"type": "string"},
+    "intake_ref": {"type": ["string", "null"]},
+    "parallel_write_policy": {
+      "type": "object",
+      "required": [
+        "unit", "work_dir", "partial_dir", "aggregate_ref",
+        "atomic_write_required", "worker_write_rule"
+      ],
+      "properties": {
+        "unit": {"type": "string", "enum": ["topic_source"]},
+        "work_dir": {"type": "string"},
+        "partial_dir": {"type": "string"},
+        "aggregate_ref": {"type": "string"},
+        "atomic_write_required": {"type": "boolean"},
+        "worker_write_rule": {"type": "string"}
+      }
+    },
+    "topic_reviews": {"type": "array", "items": {"type": "object"}},
+    "source_reviews": {"type": "array", "items": {"type": "object"}},
+    "presentation_update_candidates": {"type": "array", "items": {"type": "object"}},
+    "lookup_pointers": {"type": "array", "items": {"type": "object"}},
+    "coverage_gaps": {"type": "array", "items": {"type": "object"}},
+    "irrelevant_sources": {"type": "array", "items": {"type": "object"}},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  }
+}

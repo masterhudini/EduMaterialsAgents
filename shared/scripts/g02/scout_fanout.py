@@ -36,6 +36,20 @@ SCOUT_INDEX_CONTRACT = "scout_run_index@1"
 EXECUTION_PROFILE = "scout"
 
 
+def default_scout_run_root(task_id: str, *, workspace: str | Path | None = None) -> Path:
+    """Return the persistent Scout handoff directory for one task.
+
+    A caller-provided workspace remains an exact test/manual override and keeps
+    the legacy ``<workspace>/runs/<task_id>`` layout. Without an override the
+    production handoff is stable and visible to downstream A07:
+    ``outputs/g02/<task_id>/scout``.
+    """
+    safe_task = _safe_task_id(task_id)
+    if workspace is not None:
+        return runtime.runs_dir(workspace) / safe_task
+    return Path.cwd().resolve() / "outputs" / "g02" / safe_task / "scout"
+
+
 def _json_bytes(value: object) -> bytes:
     return (json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
@@ -297,7 +311,7 @@ def run_scout_fanout(
     if unsafe:
         raise ValueError(f"unsafe topic_id values for persistent paths: {unsafe}")
 
-    root = runtime.runs_dir(workspace) / _safe_task_id(plan["task_id"])
+    root = default_scout_run_root(plan["task_id"], workspace=workspace)
     if (root / "index.json").exists():
         raise FileExistsError(f"Scout run already finalized: {root}")
     root.mkdir(parents=True, exist_ok=True)

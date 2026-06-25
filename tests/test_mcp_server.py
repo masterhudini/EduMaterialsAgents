@@ -28,13 +28,13 @@ def test_initialize_and_tools_list():
     init = srv.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                        "params": {"protocolVersion": "2024-11-05"}})
     assert init["result"]["serverInfo"]["name"] == "edu-materials-research"
-    assert init["result"]["serverInfo"]["version"] == "0.13.0"
+    assert init["result"]["serverInfo"]["version"] == "0.17.0"
     assert init["result"]["protocolVersion"] == "2024-11-05"
     assert "prompts" in init["result"]["capabilities"]
 
     tools = srv.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     names = {t["name"] for t in tools["result"]["tools"]}
-    assert len(names) == 52
+    assert len(names) == 60
     assert names == {"research_front_door", "research_node_input",
                      "research_planner_prepare", "research_planner_finalize",
                      "research_plan_review_task",
@@ -64,8 +64,20 @@ def test_initialize_and_tools_list():
                      "research_synthesis_review_task", "research_bundle_finalize",
                      "research_review_prepare", "research_review_finalize",
                      "research_finalize", "research_scout_fanout",
+                     "research_scout_a07_prepare",
+                     "research_scout_a07_tasks_prepare",
+                     "research_scout_a07_partial_finalize",
+                     "research_scout_a07_aggregate",
+                     "research_scout_synthesis_prepare",
+                     "research_scout_deep_dive_windows",
+                     "research_scout_a09_task_prepare",
+                     "research_scout_synthesis_finalize",
                      "research_run_stub", "research_run_codex"}
     run_codex = next(t for t in tools["result"]["tools"] if t["name"] == "research_run_codex")
+    a09_task = next(
+        t for t in tools["result"]["tools"]
+        if t["name"] == "research_scout_a09_task_prepare"
+    )
     a11_tools = [t for t in tools["result"]["tools"] if t["name"] in {
         "research_market_cases_prepare", "research_web_case_search",
         "research_market_cases_finalize", "research_market_cases_review_task",
@@ -75,6 +87,10 @@ def test_initialize_and_tools_list():
     assert all("config" not in t["inputSchema"]["properties"] for t in a11_tools)
     assert set(run_codex["inputSchema"]["properties"]) == {
         "context", "gates", "resume_token", "decisions", "through", "topic_ids"
+    }
+    assert set(a09_task["inputSchema"]["properties"]) == {
+        "reviews_json", "intake", "max_deep_dive_sources",
+        "deep_dive_windows", "deep_dive_chars",
     }
 
 
@@ -130,6 +146,9 @@ def test_reviewed_run_disallows_auto_gate_and_mcp_audit_logs_keys_only(monkeypat
 def test_prompts_list_and_get_research():
     prompts = srv.handle({"jsonrpc": "2.0", "id": 2, "method": "prompts/list"})
     assert prompts["result"]["prompts"][0]["name"] == "research"
+    assert {item["name"] for item in prompts["result"]["prompts"]} >= {
+        "research", "research-scout", "research-scout-e2e"
+    }
 
     prompt = srv.handle({"jsonrpc": "2.0", "id": 3, "method": "prompts/get",
                          "params": {"name": "research", "arguments": {"context": SEED}}})
@@ -151,6 +170,22 @@ def test_prompts_list_and_get_research():
     assert "advance artifact_version" in scout_text
     assert "maximum is exactly one review" in scout_text
     assert "Stop before A07 and A09" in scout_text
+
+    scout_e2e = srv.handle({"jsonrpc": "2.0", "id": 5, "method": "prompts/get",
+                            "params": {"name": "research-scout-e2e",
+                                       "arguments": {"context": SEED}}})
+    e2e_text = scout_e2e["result"]["messages"][0]["content"]["text"]
+    assert "research_scout_a07_prepare" in e2e_text
+    assert "research_scout_a07_tasks_prepare" in e2e_text
+    assert "research_scout_a07_partial_finalize" in e2e_text
+    assert "research_scout_a09_task_prepare" in e2e_text
+    assert "g02-a09-scout-synthesis" in e2e_text
+    assert "Opus with medium effort" in e2e_text
+    assert "deep_dive_windows=8" in e2e_text
+    assert "a09_model_pass=false" in e2e_text
+    assert "research_scout_synthesis_finalize" in e2e_text
+    assert "solution_input_candidate@1" in e2e_text
+    assert "Graph03 must not" in e2e_text
 
 
 def test_notifications_get_no_reply():

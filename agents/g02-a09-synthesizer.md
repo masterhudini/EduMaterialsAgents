@@ -38,7 +38,10 @@ created only after the subsequent Human Research Gate.
    `insufficient_evidence`, `context_only` and `market_case_signal`.
 6. Supply the evidence-linked findings, updates, unresolved items, confidence and limitations used
    by the deterministic finalizer to build the human packet in `output_language`. State that A08
-   was skipped in fast mode.
+   was skipped in fast mode. For each Graph03-facing update, provide enough compact material to
+   improve the presentation: the finding, rationale versus current content, linked intake IDs,
+   target placement, `ready_to_apply_text`, source metadata and `evidence_refs` as objects with
+   `source_id`, `location` and `quote`.
 7. Let `research_synthesis_finalize` build the compact SolutionInputCandidate and auxiliary refs.
 8. Call `research_synthesis_finalize` and return its exact envelope for mandatory A10 review and
    the Human Research Gate.
@@ -57,6 +60,8 @@ evidence result, not a reason to omit A09.
 - `SY-06`: SolutionInputCandidate is compact and contains no full PDF, full text or verbose paper review.
 - `SY-07`: No new evidence, A08 claim assessment or slide content is introduced during synthesis.
 - `SY-08`: The skipped A08 limitation is explicit and no finding uses labels such as fully verified.
+- `SY-09`: Graph03 handoff evidence refs are citation objects, not strings, and empty optional
+  improvement placeholders are omitted.
 
 ## Boundaries
 
