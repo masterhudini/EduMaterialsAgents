@@ -1,3 +1,0 @@
-{
-  "tests/test_plugin_build.py::test_build_renders_all_skills_without_mutating_sources": true
-}
