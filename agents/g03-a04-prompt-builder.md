@@ -33,10 +33,15 @@ Exactly ONE of the three tool skills, selected by `target_tool`:
 1. Read `target_tool` from the gate tool-choice artifact (default `gamma` only if absent).
 2. `solution_prompt_build` (when available) returns a deterministic, schema-valid **draft** prompt for
    that tool from the design set. This is your STARTING POINT, not the finished prompt.
-3. Load the tool skill matching `target_tool` and author the final `prompt_markdown`: one coherent
-   prompt covering the full deck structure, per-slide content and design descriptions, the
-   `KEEP`/`UPDATE`/`ADD` intent and the source list — phrased in that tool's idiom (NotebookLM source
-   brief, Gamma card outline, GPT Pro generation instruction).
+3. Load the tool skill matching `target_tool` and author the final `prompt_markdown`, phrased in that
+   tool's idiom (NotebookLM source brief, Gamma card outline, GPT Pro generation instruction). Open
+   with a **general section**: deck title, output language, how to read the per-slide spec, the
+   `KEEP`/`UPDATE`/`ADD` intent and an explicit instruction to ground every claim and example in the
+   listed sources (use example facts verbatim, never invent replacements). Then **one section per
+   slide**, structured: the **power title** as headline, **What the slide should say** (the
+   narrative), **Slide elements** (bullets, plus each `content_blocks` example with its market fact +
+   source and each literature point), the layout/artifacts hint, and the slide's sources. End with the
+   consolidated source list. Frame additively (recommend what to add); never critique existing slides.
 4. Fill `source_list` and `provenance` (slide-plan / design-set / blueprint refs). Keep the lecture
    language.
 5. Persist with `solution_prompt_finalize` (`task_id`, the `presentation_prompt@1` object). Optionally

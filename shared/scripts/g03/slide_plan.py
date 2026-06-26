@@ -77,6 +77,11 @@ def build_slide_plan(path_or_ref, *, base=None) -> dict:
         for slide_id in _strings(update.get("target_slide_ids")):
             update_by_slide.setdefault(slide_id, []).append(update)
 
+    source_slide_by_id: dict[str, dict] = {
+        str(s.get("slide_id")): s for s in _as_list(blueprint.get("source_slides"))
+        if isinstance(s, dict) and s.get("slide_id")
+    }
+
     existing_slots: list[dict] = []
     for slide in indexes["slides"]:
         slide_id = str(slide.get("slide_id") or "")
@@ -96,6 +101,14 @@ def build_slide_plan(path_or_ref, *, base=None) -> dict:
             add, applied_ids, source_refs = [], [], []
             rationale = ("Existing slide kept; matching research is locked or deferred."
                          if updates else "Existing slide kept.")
+        source_slide = source_slide_by_id.get(slide_id, {})
+        original_content = str(source_slide.get("original_content") or "").strip()
+        keep_pointers = _strings([original_content or slide.get("gist") or slide.get("title")])
+        working_title = str(slide.get("title") or slide_id)
+        update_text = " ".join(add).strip()
+        teaching_seed = original_content or str(slide.get("gist") or "")
+        if update_text:
+            teaching_seed = (teaching_seed + " " + update_text).strip()
         existing_slots.append({
             "slot_id": f"SLOT_E_{slide_id}",
             "position": 0,
@@ -103,10 +116,14 @@ def build_slide_plan(path_or_ref, *, base=None) -> dict:
             "status": status,
             "source_slide_ids": [slide_id],
             "section_id": section_id,
-            "working_title": str(slide.get("title") or slide_id),
+            "working_title": working_title,
+            "power_title": working_title,
+            "teaching_message": teaching_seed,
             "rationale": rationale,
+            "original_content": original_content,
+            "web_case_facts": [],
             "content_pointers": {
-                "keep": _strings([slide.get("gist") or slide.get("title")]),
+                "keep": keep_pointers,
                 "add": add,
                 "remove": [],
             },
@@ -122,7 +139,7 @@ def build_slide_plan(path_or_ref, *, base=None) -> dict:
     counter = 0
 
     def emit_new(anchor: str | None, title: str, add_text: str, basis: list[str],
-                 source_refs: list[str]) -> None:
+                 source_refs: list[str], web_case_facts: list[dict] | None = None) -> None:
         nonlocal counter
         counter += 1
         slot = {
@@ -133,7 +150,11 @@ def build_slide_plan(path_or_ref, *, base=None) -> dict:
             "source_slide_ids": [],
             "section_id": indexes["section_by_slide"].get(anchor, "") if anchor else "",
             "working_title": title or "New slide",
+            "power_title": title or "New slide",
+            "teaching_message": add_text,
             "rationale": "Proposed new slide carrying information not present in the previous presentation.",
+            "original_content": "",
+            "web_case_facts": [f for f in (web_case_facts or []) if isinstance(f, dict)],
             "content_pointers": {"keep": [], "add": _strings([add_text]), "remove": []},
             "applied_update_ids": [],
             "evidence_basis": basis,
@@ -146,8 +167,8 @@ def build_slide_plan(path_or_ref, *, base=None) -> dict:
         else:
             tail_new.append(slot)
 
+    seen: set[tuple] = set()
     if kind == bp.CANDIDATE_KIND:
-        seen: set[tuple] = set()
         for index, gap in enumerate(_as_list(research.get("coverage_gaps")), start=1):
             if not isinstance(gap, dict):
                 continue
@@ -196,27 +217,32 @@ def build_slide_plan(path_or_ref, *, base=None) -> dict:
                 add_text = f"{name}: {note}"
             emit_new(_anchor_for(_topic_linked_ids(topic), indexes), title[:80], add_text,
                      [f"topic:{topic_id}"], [])
-        for candidate in bp._extract_additive_candidates(research, base=base):
-            if not isinstance(candidate, dict) or candidate.get("kind") == "market_case_ref_unavailable":
-                continue
-            candidate_id = str(candidate.get("candidate_id") or candidate.get("finding") or "additive")
-            kind = str(candidate.get("kind") or "additive")
-            key = (kind, candidate_id)
-            if key in seen:
-                continue
-            seen.add(key)
-            finding = str(candidate.get("finding") or "Recommended additive material")
-            rationale = str(candidate.get("rationale") or "")
-            add_text = finding if not rationale else f"{finding} Rationale: {rationale}"
-            basis = _strings(candidate.get("evidence_basis")) or [f"{kind}:{candidate_id}"]
-            source_refs = _dedupe(_strings(candidate.get("source_refs")))
-            emit_new(
-                _anchor_for(candidate.get("linked_intake_ids"), indexes),
-                finding[:80],
-                add_text,
-                basis,
-                source_refs,
-            )
+
+    # Additive recommendations and market cases run for BOTH kinds: the candidate path carries them
+    # top level, the gated user_approved_research_bundle@1 under solution_handoff (handled in
+    # _extract_additive_candidates). This is where A11 cases and A08 recommendations become slides.
+    for candidate in bp._extract_additive_candidates(research, base=base):
+        if not isinstance(candidate, dict) or candidate.get("kind") == "market_case_ref_unavailable":
+            continue
+        candidate_id = str(candidate.get("candidate_id") or candidate.get("finding") or "additive")
+        ckind = str(candidate.get("kind") or "additive")
+        key = (ckind, candidate_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        finding = str(candidate.get("finding") or "Recommended additive material")
+        rationale = str(candidate.get("rationale") or "")
+        add_text = finding if not rationale else f"{finding} Rationale: {rationale}"
+        basis = _strings(candidate.get("evidence_basis")) or [f"{ckind}:{candidate_id}"]
+        source_refs = _dedupe(_strings(candidate.get("source_refs")))
+        emit_new(
+            _anchor_for(candidate.get("linked_intake_ids"), indexes),
+            finding[:80],
+            add_text,
+            basis,
+            source_refs,
+            web_case_facts=[f for f in _as_list(candidate.get("web_case_facts")) if isinstance(f, dict)],
+        )
 
     ordered: list[dict] = []
     for slot in existing_slots:

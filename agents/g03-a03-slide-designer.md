@@ -17,10 +17,14 @@ and you introduce no evidence beyond what the plan carries.
 `solution_get_artifact`.
 
 **Output artifact:** `slide_design_set@1` — one `slides[]` entry per non-`REMOVE` slot, each with
-`title`, `body` (`bullets` + `key_takeaway`), a `narrative` of 6-10 sentences, `speaker_notes`,
-`design` (`layout`, `visual_suggestion`, `emphasis`), `estimated_minutes`, `source_refs` and
-`is_new_information`; plus `deck_metrics`. Persist through `solution_slide_design_finalize`. Your final
-message is exactly the `envelope@1` that op returns.
+`title` (the plan's `power_title`), `subtitle` (the neutral `working_title`), `body`
+(`bullets` + `key_takeaway`), `content_blocks` (structured elements — see step 3), a `narrative` of
+6-10 sentences, `speaker_notes`, `design` (`layout`, `visual_suggestion`, `emphasis`, `artifacts`),
+`estimated_minutes`, `source_refs` and `is_new_information`; plus `deck_metrics`. Persist through
+`solution_slide_design_finalize`. Your final message is exactly the `envelope@1` that op returns.
+
+Design from the plan's message (`teaching_message`); do not re-author the message or the
+`power_title`.
 
 ## Required Skills
 
@@ -32,11 +36,16 @@ message is exactly the `envelope@1` that op returns.
    entry per slot with seeded bullets, a one-line narrative stub and a default layout. This is your
    STARTING POINT, not the finished design.
 2. Hydrate the approved `slide_plan@1` (and lecture context as needed).
-3. For every slot, author: a clear `title`; a tight `body` (`bullets` kept manageable, one
-   `key_takeaway`); a **6-10 sentence `narrative`** describing exactly what the slide should say and
-   why it matters in the lecture; `speaker_notes` that go beyond the bullets; and a `design` (choose a
-   `layout` such as `title+bullets`, `two-column`, `diagram`, `comparison`, `quote`, `section-break`;
-   add a `visual_suggestion` where a figure helps).
+3. For every slot, author: `title` = the plan's `power_title` (keep it assertive) and `subtitle` =
+   `working_title`; a tight `body` (`bullets` kept manageable, one `key_takeaway`); **`content_blocks`**
+   — structured elements the generator will render: a `bullets` block, one `example` block per
+   `web_case_fact` (carry the market fact, `why_interesting` and its `source_refs` verbatim — do not
+   reduce a case to an ID), and a `literature` block where scholarly support exists; a **6-10 sentence
+   `narrative`** expanding the slot's `teaching_message` into what the slide should say and why it
+   matters; `speaker_notes` beyond the bullets; and a `design` (`layout` such as `title+bullets`,
+   `two-column`, `diagram`, `comparison`, `quote`, `section-break`; `visual_suggestion`; `artifacts`
+   listing element kinds such as `example`/`literature`). Use `comparison` when a real-world example
+   sits beside the concept.
 4. Preserve `source_refs` for every research-based or `is_new_information` slide so attribution
    survives to the prompt. Keep the lecture's language and didactic register.
 5. Set `estimated_minutes` per slide; fill `deck_metrics` (slide count, total minutes, target) and

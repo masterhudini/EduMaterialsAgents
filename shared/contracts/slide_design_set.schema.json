@@ -30,6 +30,20 @@
               "key_takeaway": {"type": "string"}
             }
           },
+          "content_blocks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind"],
+              "properties": {
+                "kind": {"type": "string"},
+                "title": {"type": "string"},
+                "content": {"type": ["string", "array"]},
+                "why_interesting": {"type": "string"},
+                "source_refs": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          },
           "narrative": {"type": "string"},
           "speaker_notes": {"type": "string"},
           "design": {
@@ -37,7 +51,8 @@
             "properties": {
               "layout": {"type": "string"},
               "visual_suggestion": {"type": "string"},
-              "emphasis": {"type": "string"}
+              "emphasis": {"type": "string"},
+              "artifacts": {"type": "array", "items": {"type": "string"}}
             }
           },
           "estimated_minutes": {"type": "integer"},

@@ -24,6 +24,21 @@
         }
       }
     },
+    "source_slides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slide_id"],
+        "properties": {
+          "slide_id": {"type": "string"},
+          "title": {"type": "string"},
+          "gist": {"type": "string"},
+          "original_content": {"type": "string"},
+          "locked": {"type": "boolean"},
+          "section_id": {"type": "string"}
+        }
+      }
+    },
     "applied_updates": {
       "type": "array",
       "items": {

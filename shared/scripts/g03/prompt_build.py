@@ -78,39 +78,94 @@ def _load_prompt(path_or_ref, *, base=None) -> dict:
     return prompt
 
 
+def _clean(text: object) -> str:
+    """Collapse whitespace and strip leading slide numbers so raw slide text reads cleanly."""
+    s = " ".join(str(text or "").split())
+    # drop a stray leading slide number left over from extracted slide text (e.g. "6 Opcje ...")
+    parts = s.split(" ", 1)
+    if len(parts) == 2 and parts[0].isdigit():
+        s = parts[1]
+    return s.strip()
+
+
+def _block_line(block: dict) -> str | None:
+    kind = str(block.get("kind") or "")
+    content = block.get("content")
+    if kind == "bullets":
+        return None  # bullets are emitted from body.bullets
+    if kind == "example":
+        bits = [f"**Real-world example — {_clean(block.get('title')) or 'case'}:** {_clean(content)}"]
+        if block.get("why_interesting"):
+            bits.append(f"Why it matters: {_clean(block.get('why_interesting'))}")
+        src = _strings(block.get("source_refs"))
+        if src:
+            bits.append(f"(source: {', '.join(src)})")
+        return " ".join(bits)
+    if kind == "literature":
+        src = _strings(block.get("source_refs"))
+        tail = f" (source: {', '.join(src)})" if src else ""
+        return f"**From the literature:** {_clean(content)}{tail}"
+    return f"**{kind}:** {_clean(content)}"
+
+
 def _slide_block(slide: dict) -> str:
-    lines = [f"### {slide.get('position')}. {slide.get('title')} [{slide.get('status')}]"]
+    title = _clean(slide.get("title")) or "Slide"
+    lines = [f"### {slide.get('position')}. {title} [{slide.get('status')}]"]
+    subtitle = _clean(slide.get("subtitle"))
+    if subtitle and subtitle != title:
+        lines.append(f"_Topic: {subtitle}_")
     if slide.get("narrative"):
-        lines.append(str(slide["narrative"]))
+        lines.append(f"**What the slide should say:** {_clean(slide['narrative'])}")
     body = slide.get("body") if isinstance(slide.get("body"), dict) else {}
-    for bullet in _strings(body.get("bullets")):
-        lines.append(f"- {bullet}")
+    blocks = [b for b in slide.get("content_blocks", []) if isinstance(b, dict)]
+    bullets = _strings(body.get("bullets"))
+    if bullets or blocks:
+        lines.append("**Slide elements:**")
+        for bullet in bullets:
+            lines.append(f"- {_clean(bullet)}")
+        for block in blocks:
+            line = _block_line(block)
+            if line:
+                lines.append(f"- {line}")
     design = slide.get("design") if isinstance(slide.get("design"), dict) else {}
     if design.get("layout"):
-        lines.append(f"_Layout: {design['layout']}_")
+        artifacts_hint = ", ".join(_strings(design.get("artifacts")))
+        suffix = f"; artifacts: {artifacts_hint}" if artifacts_hint else ""
+        lines.append(f"_Layout: {design['layout']}{suffix}_")
+    if design.get("visual_suggestion"):
+        lines.append(f"_Visual: {_clean(design['visual_suggestion'])}_")
     sources = _strings(slide.get("source_refs"))
     if sources:
         lines.append(f"_Sources: {', '.join(sources)}_")
     return "\n".join(lines)
 
 
+_HOW_TO_READ = (
+    "Each section below is one slide and gives: a **power title** (an assertive headline stating the "
+    "slide's claim), **What the slide should say** (the teaching message), **Slide elements** "
+    "(bullets, real-world examples with their facts and sources, and literature points), a layout "
+    "hint, and the sources to ground it in. Use the example facts and sources verbatim — do not "
+    "replace them with invented ones. Recommend additions where marked [ADD]; do not critique the "
+    "existing slides. [KEEP] = keep, [UPDATE] = revise, [ADD] = create at its position.")
+
+
 def _header(tool: str, title: str, language: str) -> str:
     if tool == "notebooklm":
         return (f"# {title}\n\n"
-                f"Using the attached sources, produce a briefing document and a slide outline in "
-                f"{language}. Follow the structure below; each section is one slide. Keep the good "
-                f"existing content, integrate the updates, and add the new slides marked [ADD]. Cite "
-                f"the listed sources.")
+                f"Using the attached sources, produce a source-grounded briefing document and a slide "
+                f"outline in {language}.\n\n"
+                f"**How to read this spec:** {_HOW_TO_READ}\n\n"
+                f"Ground every claim and example in the listed/attached sources.")
     if tool == "gpt_pro":
         return (f"# {title}\n\n"
                 f"You are an expert university lecturer. Generate a complete slide deck in Markdown in "
-                f"{language}, following the per-slide specification below exactly. Keep slides marked "
-                f"[KEEP], revise [UPDATE], and create the [ADD] slides at their position. Do not invent "
-                f"unsupported facts; cite the listed sources.")
+                f"{language}, following the per-slide specification below exactly.\n\n"
+                f"**How to read this spec:** {_HOW_TO_READ}\n\n"
+                f"Do not invent unsupported facts; cite the listed sources.")
     return (f"# {title}\n\n"
-            f"Create a presentation in {language}. One card per slide, in this exact order. Keep the "
-            f"good content, apply the [UPDATE] changes and create the [ADD] cards. Use the layout hints "
-            f"and cite the listed sources.")
+            f"Create a presentation in {language}. One card per slide, in this exact order.\n\n"
+            f"**How to read this spec:** {_HOW_TO_READ}\n\n"
+            f"Use the layout hints and cite the listed sources.")
 
 
 def build_presentation_prompt(slide_design_or_ref, target_tool, *, base=None, provenance=None) -> dict:
