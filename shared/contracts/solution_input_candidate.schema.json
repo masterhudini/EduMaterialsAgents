@@ -264,6 +264,7 @@
           "support_basis": {"type": "string", "enum": ["literature", "web", "both"]},
           "literature_refs": {"type": "array", "items": {"type": "object"}},
           "web_case_refs": {"type": "array", "items": {"type": "string"}},
+          "web_case_facts": {"type": "array", "items": {"type": "object"}},
           "linked_claim_ids": {"type": "array", "items": {"type": "string"}},
           "confidence": {"type": "string", "enum": ["low", "medium", "high"]}
         }

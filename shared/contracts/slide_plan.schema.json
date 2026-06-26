@@ -28,6 +28,10 @@
           "source_slide_ids": {"type": "array", "items": {"type": "string"}},
           "section_id": {"type": "string"},
           "working_title": {"type": "string"},
+          "power_title": {"type": "string"},
+          "teaching_message": {"type": "string"},
+          "original_content": {"type": "string"},
+          "web_case_facts": {"type": "array", "items": {"type": "object"}},
           "rationale": {"type": "string"},
           "content_pointers": {
             "type": "object",

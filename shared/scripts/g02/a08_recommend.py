@@ -53,6 +53,30 @@ def _hydrate(ref_or_obj: object, base=None) -> dict:
     raise ValueError("expected an artifact:// ref or object")
 
 
+def _compact_case_facts(case: dict, *, limit: int = 320) -> dict:
+    """Self-contained fact card for a market case, so the g03 handoff carries facts, not just IDs."""
+    what = _str(case.get("what_happened"))
+    if len(what) > limit:
+        what = what[: limit - 1].rstrip() + "…"
+    return {
+        "case_id": _str(case.get("case_id")),
+        "title": _str(case.get("title")),
+        "institution_or_event": _str(case.get("institution_or_event")) or None,
+        "event_date": _str(case.get("event_date")) or None,
+        "what_happened": what,
+        "why_interesting": _str(case.get("why_interesting")),
+        "source_url": _str(case.get("source_url")),
+        "source_title": _str(case.get("source_title")),
+    }
+
+
+def _case_index(findings: dict | None) -> dict[str, dict]:
+    return {
+        _str(c.get("case_id")): c
+        for c in (findings or {}).get("cases", []) if isinstance(c, dict) and _str(c.get("case_id"))
+    }
+
+
 def _topic_names(candidate: dict) -> dict[str, str]:
     names = {}
     for topic in candidate.get("topics_covered", []):
@@ -144,7 +168,8 @@ def _rec_id(raw: dict, topic_id: str, index: int) -> str:
     return "REC_" + hashlib.sha1(seed.encode("utf-8")).hexdigest()[:12].upper()
 
 
-def _coerce_rec(raw: object, valid_topics: set[str], index: int) -> dict | None:
+def _coerce_rec(raw: object, valid_topics: set[str], index: int,
+                case_index: dict[str, dict] | None = None) -> dict | None:
     if not isinstance(raw, dict):
         return None
     topic_id = _str(raw.get("topic_id"))
@@ -177,6 +202,9 @@ def _coerce_rec(raw: object, valid_topics: set[str], index: int) -> dict | None:
         rec["literature_refs"] = lit
     if web:
         rec["web_case_refs"] = web
+        facts = [_compact_case_facts((case_index or {})[cid]) for cid in web if cid in (case_index or {})]
+        if facts:
+            rec["web_case_facts"] = facts
     if linked:
         rec["linked_claim_ids"] = linked
     return rec
@@ -201,6 +229,7 @@ def _deterministic_recs(candidate: dict, findings: dict | None, valid_topics: se
             or "Concrete real-world hook for students.",
             "support_basis": "web",
             "web_case_refs": [_str(case.get("case_id"))] if _str(case.get("case_id")) else [],
+            "web_case_facts": [_compact_case_facts(case)],
             "confidence": "medium",
         })
     for update in candidate.get("suggested_updates", []):
@@ -259,6 +288,7 @@ def finalize_a08(candidate_ref: str, *, findings_ref: str | None = None, output:
             if isinstance(t, dict) and _str(t.get("topic_id"))
         }
 
+        case_index = _case_index(findings)
         model_pass = False
         recs: list[dict] = []
         raw_recs = []
@@ -267,7 +297,7 @@ def finalize_a08(candidate_ref: str, *, findings_ref: str | None = None, output:
         elif output is not None:
             raw_recs = _as_list(output)
         for idx, raw in enumerate(raw_recs, start=1):
-            rec = _coerce_rec(raw, valid_topics, idx)
+            rec = _coerce_rec(raw, valid_topics, idx, case_index)
             if rec is not None:
                 recs.append(rec)
         if recs:

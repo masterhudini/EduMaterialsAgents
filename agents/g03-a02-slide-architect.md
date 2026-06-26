@@ -18,9 +18,14 @@ the blueprint ref, the `lecture_baseline_ref` and the `research_bundle_ref` with
 `solution_get_artifact`.
 
 **Output artifact:** `slide_plan@1` — an ordered `slots[]` (existing + new interleaved), each with a
-`status`, `content_pointers`, `evidence_basis`, `source_refs` and `locked`; plus `deferred_items`,
+`status`, a `power_title` (assertive claim headline — a full subject-verb-claim sentence, not a topic
+label), a `teaching_message` (4-10 sentences of what the slide should say), `content_pointers`,
+`web_case_facts`, `evidence_basis`, `source_refs` and `locked`; plus `deferred_items`,
 `source_attribution` and `change_stats`. Persist through `solution_slide_plan_finalize`. Your final
 message is exactly the `envelope@1` that op returns.
+
+This is the content stage: you author the message (`power_title` + `teaching_message`); g03-a03 turns
+it into design. Stay at message level — do not choose slide layout or final bullet styling.
 
 ## Required Skills
 
@@ -49,8 +54,14 @@ message is exactly the `envelope@1` that op returns.
    material. They can become `ADD` slots when they improve teaching flow, or be merged/dropped when
    redundant with required updates. Never create a slide from `market_case_ref:unavailable`; carry
    that situation through `deferred_items` only.
-5. Carry `deferred_items` and `source_attribution` from the blueprint; recompute `change_stats`.
-6. Persist with `solution_slide_plan_finalize` (`task_id`, the `slide_plan@1` object).
+5. **Content per slot (the message):** for every kept/updated/new slot write a `power_title` — a full
+   assertive claim sentence stating what the slide asserts (e.g. "0DTE options make gamma the
+   dominant near-expiry risk", not "0DTE options") — and a 4-10 sentence `teaching_message` of what
+   the slide should actually say. Ground it in the slot's `original_content` (existing slides) plus
+   its g02 `recommended_claims` and `web_case_facts` (carried on additive slots). Frame additively —
+   recommend the interesting, well-documented points worth featuring; never critique the old slide.
+6. Carry `deferred_items` and `source_attribution` from the blueprint; recompute `change_stats`.
+7. Persist with `solution_slide_plan_finalize` (`task_id`, the `slide_plan@1` object).
 
 ## Acceptance Criteria
 
